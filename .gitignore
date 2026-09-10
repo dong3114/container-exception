@@ -1,0 +1,31 @@
+# 비밀정보 (docs/01_project-rules.md 6절)
+.env
+.env.*
+!.env.example
+
+# 실제 원본 데이터·로컬 DB (마스킹된 data/fixtures/만 커밋)
+data/raw/
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+
+# 에이전트 로컬 설정
+.claude/settings.local.json
+
+# OS / 에디터 / Office 임시파일
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+~$*
