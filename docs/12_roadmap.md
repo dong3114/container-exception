@@ -1,0 +1,117 @@
+# 12. 로드맵
+
+- 상태: Draft (기획 v0.2)
+- 최종 수정: 2026-09-11
+- 이 문서는 `tasks/QUEUE.md`에 넣을 태스크의 **원천**이다. 큐가 비어 가면 여기서 다음 태스크를 꺼낸다.
+- 옛 v0.1 로드맵의 백로그 ID(T-009~T-016, T-018~T-028)는 폐기했다. 다시 쓰지 않는다(`CHANGELOG.md` 6절).
+
+---
+
+## 1. 단계 요약
+
+```mermaid
+flowchart LR
+  P0["Phase 0<br/>설계 정합성·스키마·시나리오<br/>W1–W2"] --> P1["Phase 1<br/>결정론 코어<br/>W3–W5"]
+  P1 --> G1{"Gate 1<br/>시나리오가 숫자로 돈다"}
+  G1 --> P2["Phase 2<br/>에이전트 루프<br/>W5–W8"]
+  P2 --> G2{"Gate 2<br/>Closed Loop + 사람 게이트"}
+  G2 --> P3["Phase 3<br/>웹·3D 시뮬레이터·데모<br/>W8–W11"]
+  P3 --> G3{"Gate 3<br/>Prototype 인터뷰"}
+  G3 --> PI["Pilot"]
+  DS["병행: 공공 API 실데이터 검증 (T-002, T-005, T-006, T-030)"] -.-> P1 & P2
+```
+
+일정(W1 = 2026-09-14 주) `[ASSUMPTION]`: 1인 + AI 에이전트 기준 약 11~12주. Phase 경계는 겹칠 수 있다.
+
+**원칙**: 작동하는 Prototype을 가장 빨리 만든다. 공공 API 실데이터 검증은 병행하되 PoC 데모의 선행 조건이 아니다(데모 경로는 fixture).
+
+## 2. Phase 0 — 설계 정합성·스키마·시나리오 (W1–W2)
+
+| 태스크 | 내용 | 산출물 |
+| --- | --- | --- |
+| T-031 | 기획 v0.2 재정렬 (완료) | 정본 문서 세트 |
+| T-001 | 사람 검토: 기획 v0.2, ADR-011~018, T-004 결과 | ADR 판정 |
+| T-032 | Event·Source·Canonical State 스키마 + Reconciliation 규칙표 | `05` 확정안(스키마 표·R1~R12·검증 사례), `04` 2절 상태 모델. JSON Schema는 T-041에서 Pydantic 모델로 생성 |
+| T-033 | Contract·Tariff·RateQuote 스키마 | JSON Schema 초안, `04` 4절 확정 |
+| T-034 | 메일 Event 스키마 + LLM 추출 계약 + 평가 세트 설계 | 추출 스키마, 합성 메일 목록 |
+| T-035 | Risk 모델 명세 (자원 부족·영향 탐지 포함) | `04` 6절 확정 |
+| T-036 | Recovery 최적화 모델 명세 (MVP 규모, Baseline, 재최적화) | `08` 확정 |
+| T-037 | MVP 시나리오 데이터 팩 | `data/scenarios/busan-wh-capacity-01.yaml` |
+| T-029 | 공개 D&D Tariff 원문 조사 | `docs/data/tariff-research.md` |
+| T-003 | 저장소 초기화 (백엔드 + web 뼈대) | pyproject, 디렉토리, 빈 테스트 |
+
+**Phase 0 종료 조건**: ADR-011~018 판정, T-032·T-036·T-037 완료, 저장소 초기화.
+
+## 3. Phase 1 — 결정론 코어 (W3–W5)
+
+LLM 없이, 시나리오를 CLI로 재생해 숫자가 나오게 한다. 회신은 이미 구조화된 Event로 스크립트한다.
+
+| 태스크 | 내용 | 의존 |
+| --- | --- | --- |
+| T-041 | Event Store + 저장 계층 (SQLite, 마이그레이션, append-only 보장) | T-003, T-032 |
+| T-042 | Reconciliation + Canonical State + Verification 큐 (순수 함수, 속성 테스트) | T-041 |
+| T-043 | Tariff·Cost 엔진 (LFD, 비용 항목, 손 검산 골든 테스트) | T-033 |
+| T-044 | Risk 엔진 (SlackTime, 자원 부족, 영향 컨테이너) | T-042, T-043, T-035 |
+| T-045 | Optimizer (T-036에서 고른 솔버) + Baseline + 재최적화 + 재현성 | T-043, T-036 |
+| T-046 | 시나리오 러너 + SimClock + CLI 재생 (end-to-end, LLM 없음) | T-037, T-042, T-044, T-045 |
+| T-047 | Gate 1 리포트 | T-046 |
+
+### Gate 1 기준 `[ASSUMPTION]` (T-001에서 사람 확인)
+
+| 판정 질문 | 통과 기준 |
+| --- | --- |
+| 시나리오가 결정론적으로 도는가? | 3회 재생 결과 해시 동일 |
+| 비용이 맞는가? | 손 검산 골든 케이스 10건 오차 0원 |
+| 상태 정합성이 동작하는가? | 충돌 장면에서 Conflict 생성 → 확인 → 해소가 Event로 재현됨 |
+| 최적화가 의미 있는가? | 12대 영향 장면에서 Baseline보다 비용이 낮고, 하드 제약 위반 0, 5초 이내 |
+
+## 4. Phase 2 — 에이전트 루프 (W5–W8)
+
+| 태스크 | 내용 | 의존 |
+| --- | --- | --- |
+| T-048 | Intake 어댑터 (CSV, 짧은 액션, 일일 보고, 가상 메일함, 공공 API fixture 래퍼) | T-041 |
+| T-049 | 추출(메일·회신): 구조화 출력 + 검증기 + 녹화 fixture + 평가 | T-034, T-048 |
+| T-050 | Contract Agent (PDF → TariffRule DRAFT + 근거) + 확인 흐름 | T-033, T-049 |
+| T-051 | Communication (초안, 승인, 가상 발송, 스레드) + 결과 설명(숫자 검사) | T-045, T-049, T-039 |
+| T-052 | Orchestrator + Agent Activity + API/SSE | T-046, T-048 |
+| T-053 | Gate 2 리포트 | T-049~T-052 |
+
+### Gate 2 기준 `[ASSUMPTION]`
+
+| 판정 질문 | 통과 기준 |
+| --- | --- |
+| Closed Loop가 도는가? | 예외 → 계획 → 초안 → 승인 → 가상 발송 → 회신 3건 추출 → 재최적화가 사람 게이트를 지키며 완주 |
+| 추출을 믿을 만한가? | 합성 회신 평가 세트에서 필드 정확도 목표치 이상(T-034에서 정함), 틀린 추출이 확인 없이 확정된 경우 0 |
+| 안전한가? | 승인 없는 발송 경로 없음, LLM 출력의 숫자 검사 통과 |
+
+## 5. Phase 3 — 웹·3D 시뮬레이터·데모 (W8–W11)
+
+| 태스크 | 내용 | 의존 |
+| --- | --- | --- |
+| T-054 | 웹 뼈대 + Operations Dashboard + Container Detail + Verification UI | T-052, T-040 |
+| T-055 | Recovery Console + Communication UI + Contract UI | T-054 |
+| T-056 | Three.js Operations Simulator + Agent Activity Timeline | T-038, T-052 |
+| T-057 | 데모 모드, 30초 영상 스크립트, 시나리오 다듬기 | T-055, T-056 |
+| T-058 | Prototype 인터뷰 수행 (NEEDS_HUMAN) + 결과 종합 | T-057, T-017 |
+| T-059 | Gate 3 리포트 → Pilot 범위 결정 | T-058 |
+
+### Gate 3 기준
+
+| 판정 질문 | 통과 기준 초안 |
+| --- | --- |
+| 현장이 "무엇이 틀렸는지"를 말해 주는가? | 인터뷰 5~10건에서 구체적 오류·누락 피드백 수집 |
+| 문제·고객 가설이 살아남는가? | R-2, R-3, R-7, Q-28, Q-29 각각에 1차 결론 |
+| Pilot 후보가 있는가? | 실제 데이터 제공 의향이 있는 곳 1곳 이상 |
+
+## 6. 병행 트랙
+
+| 트랙 | 태스크 | 비고 |
+| --- | --- | --- |
+| 공공 API 실데이터 | T-002(키, 사람), T-005(UNI-PASS), T-006(선박운항·외항화물 + 지연 측정), T-030(추가 명세) | 초기화·교차 검증 품질과 R-1 측정. 데모 선행 조건 아님 |
+| Discovery | T-017(Prototype 인터뷰 가이드) → T-058 | 인터뷰는 데모가 생긴 뒤에 한다 |
+| 설계 명세 | T-038(시뮬레이터 상세), T-039(Communication·Response 명세), T-040(UI Wireflow) | Phase 2·3 착수 전 |
+
+## 7. Pilot 이후 (개요)
+
+- **Pilot**: 실제 고객 1~2곳의 데이터, 실제 메일함 연동(읽기 + 승인 후 발송), 실행 결과 입력, 실측 KPI.
+- **Scale**: 파트너 시스템(TMS·터미널) 연동, 권한을 확보한 범위의 예약·배차 Write, 2단계 차량 스케줄링.

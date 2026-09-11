@@ -1,17 +1,24 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-09-10 (T-000 완료 후)
+- 최종 수정: 2026-09-11 (T-032 완료 후)
 - 프로토콜: `AGENTS.md` 3절
+- 백로그 원천: `docs/12_roadmap.md`
 
 ## 다음 추천 태스크
 
-1. **T-001** (NEEDS_HUMAN) — 초안 검토·ADR 승인
-2. **T-002** (NEEDS_HUMAN) — API 키 발급
-3. **T-004** (에이전트 가능, 의존 없음) — 공식 명세 확보 + 필드 사전 초안
-4. **T-029** (에이전트 가능, 의존 없음) — 공개 D&D Tariff 원문 조사
-5. **T-017** (에이전트 가능, 의존 없음) — 인터뷰 가이드 초안
+1. **T-001** (NEEDS_HUMAN, P0) — 기획 v0.2 + **T-032 결과** 검토: ADR-011~021 판정(특히 019·020·021), T-004 결과 검토, 커밋 여부 결정
+2. **T-036** (에이전트, P1) — Recovery 최적화 모델 명세. 입력 계약은 `05` 14절 Planning Snapshot으로 준비됨
+3. **T-037** (에이전트, P1) — MVP 시나리오 데이터 팩 (T-032 완료로 의존 해소)
+4. **T-035** (에이전트, P1) — Risk 모델 명세 (T-032 완료로 의존 해소)
+5. **T-029** (에이전트, P1) — 공개 D&D Tariff 원문 조사 (T-033 입력)
 
-에이전트가 지금 바로 할 수 있는 것: **T-004**, **T-029**, **T-017**. T-003은 T-001(스택 승인) 뒤에 한다.
+의존이 풀린 태스크: T-036, T-037, T-034, T-035, T-029, T-030, T-040. **단, 아래 사람 지시에 따라 T-036·T-037은 사람 검토 뒤에 착수한다.**
+
+**사람 지시**
+- (2026-09-11) T-004 결과를 사람이 검토하기 전에는 T-005 이후(공공 API 실호출)로 넘어가지 않는다.
+- (2026-09-11) 기획 v0.2 재정렬 결과는 사람이 검토하기 전까지 커밋하지 않는다.
+- (2026-09-11) **T-032 결과를 사람이 검토하기 전에는 T-036, T-037, Phase 1 코드 작업으로 넘어가지 않는다.**
+- (2026-09-11) T-032는 조건부 승인됐고 4개 패치를 반영했다. **사람 최종 검토 전까지 T-036 착수, 솔버 확정, 커밋 금지.**
 
 ---
 
@@ -24,6 +31,7 @@
 | `BLOCKED` | 막힘 (`차단 사유`, `해소 조건` 필수) |
 | `NEEDS_HUMAN` | 사람만 할 수 있음. 에이전트는 수행하지 않는다 |
 | `DONE` | 완료 조건 충족, `완료` 섹션으로 이동 |
+| `DEPRECATED` | 기획 변경으로 폐기. ID는 다시 쓰지 않는다 |
 
 우선순위: `P0`(지금 막고 있는 것) > `P1`(이번 단계) > `P2`(다음 단계 준비).
 
@@ -50,170 +58,295 @@
 
 (없음)
 
-## 대기
+## 대기 — P0
 
-### T-001: 초안 문서 검토 및 ADR 승인
+### T-001: 기획 v0.2 검토 및 ADR 판정
 - 상태: NEEDS_HUMAN | 우선: P0 | 단계: Phase 0 | 담당: 사람
-- 의존: T-000
-- 참조 문서: AGENTS.md, docs/09_decisions.md, docs/10_open-questions.md
-- 목표: 초안 체계와 주요 설계 결정을 확정해 코드 작업을 시작할 수 있게 한다.
+- 의존: T-031
+- 참조 문서: docs/CHANGELOG.md, docs/02_product-definition.md, docs/05_event-and-state.md, docs/14_decisions.md, docs/15_open-questions.md, docs/data/field-dictionary.md
+- 목표: 기획 v0.2와 주요 설계 결정을 확정해 스키마·코드 작업을 시작할 수 있게 한다.
 - 작업 내용:
-  - ADR-001~006, 009, 010을 Accepted/Rejected로 판정
-  - Q-01, Q-02, Q-07, Q-10, Q-15, Q-16에 답변
-  - Gate 1·2 통과 기준 수치(`07_roadmap.md` 3·4절) 확인
-- 산출물: `09_decisions.md`, `10_open-questions.md` 갱신
+  - 기획 v0.2 재정렬 결과 검토(`CHANGELOG.md` 1~4절: 변경, 폐기된 가정, 삭제 문서, 이전 지도) → 커밋 여부 결정
+  - ADR 판정: **ADR-011~018** (신규), **ADR-019·020·021** (T-032), ADR-002(백엔드 스택), ADR-016(웹 + Three.js), ADR-001·004·005·006·009·010
+  - T-032 결과 검토: `05_event-and-state.md`(특히 3.2 권한 매트릭스, 3.3 강도표, 8절 R1~R12, 부록 A 사례 결과), `04_domain-model.md` 2절
+  - T-004 결과 검토(필드 사전, 코드표)
+  - 질문 답변: Q-15(공모전), Q-17(UNI-PASS 가이드 복제 금지 문구), Q-21(체인포털 문의 여부), Q-23(권한 매트릭스에 대한 감), Q-36(잠정 입력 인지 승인 정책), Q-01·Q-02·Q-07
+  - T-032 패치 최종 검토(ADR-007 재개, 계획 승인·사실 확인 분리, 근거 시각 3단계, FORECAST)
+  - Gate 1·2 기준(`12_roadmap.md` 3·4절) 확인
+- 산출물: `14_decisions.md`, `15_open-questions.md` 갱신 (판정 결과는 에이전트가 반영)
 - 완료 조건:
-  - [ ] ADR-002(스택), ADR-003(UI) 판정
+  - [ ] ADR-011, 012, 013, 015, 016, 017, 018, 019, 020, 021 판정
+  - [ ] ADR-002 판정 (T-003 선행 조건)
   - [ ] 판정 결과를 에이전트가 문서에 반영
-- 완료 후 큐잉 힌트: T-003이 풀린다.
+- 완료 후 큐잉 힌트: T-003이 풀린다. 판정이 바뀌면 영향받는 명세 태스크 범위를 수정한다.
 
-### T-002: 공공 API 키 발급
-- 상태: NEEDS_HUMAN | 우선: P0 | 단계: Phase 0 | 담당: 사람
-- 의존: 없음
-- 참조 문서: docs/03_data-strategy.md 2.1절
-- 목표: 실제 호출에 필요한 인증키를 확보한다.
-- 작업 내용:
-  - UNI-PASS 회원가입 → OpenAPI 인증키(API001 화물통관진행정보) 발급
-  - 공공데이터포털 활용신청: `관세청_화물통관진행정보`(15126268), `해양수산부_외항화물컨테이너정보`(15131742), 선박 입출항 데이터셋(T-004 결과에 따라)
-  - 로컬 `.env`에 저장 (커밋 금지)
-  - 테스트용 실제 B/L 5~20건 준비 (본인·지인 회사 화물 등, 외부 공유 금지)
-- 완료 조건:
-  - [ ] 키 발급 완료, 트래픽 한도 확인(Q-05)
-  - [ ] 샘플 B/L 목록을 `data/raw/`에 로컬 보관
-- 완료 후 큐잉 힌트: T-005, T-006이 풀린다(T-003도 필요).
+## 대기 — P1
 
-### T-004: 공공 API 공식 명세 확보 및 필드 사전 초안
+### T-036: Recovery 최적화 모델 명세
 - 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
 - 의존: 없음
-- 참조 문서: docs/03_data-strategy.md, docs/05_domain-model.md 3절, docs/01_project-rules.md 2절
-- 목표: 키 없이 확인할 수 있는 범위에서 API 요청·응답 명세를 1차 출처로 정리한다.
+- 참조 문서: docs/08_optimization-model.md, **docs/05_event-and-state.md 14절(Planning Snapshot 입력 계약)**, docs/04_domain-model.md 5·6절, docs/09_mvp-scenario.md, docs/15_open-questions.md Q-01·Q-07
+- 목표: MVP 시나리오를 풀 수 있는 1단계 모델을 수식·데이터 입력·비용 계수 정의까지 확정하고, **솔버를 선택한다**(ADR-007 Reopened).
 - 작업 내용:
-  - data.go.kr 15126268, 15131742 페이지와 첨부 명세서(활용가이드) 확인
-  - UNI-PASS "OPEN API 연계 가이드" 공개본 확인 (엔드포인트, 파라미터, 응답 태그, 처리이력 구조, 오류코드)
-  - 선박 입출항(PORT-MIS 계열) 데이터셋 후보 조사 → DS-03 확정안
-  - 부산항 체인포털 공개 API 여부 확인 (DS-04)
-  - 필드 사전·코드표 초안 작성, 각 항목에 출처 URL과 태그
-- 산출물: `docs/data/field-dictionary.md`, `docs/data/code-tables.md`, `docs/03_data-strategy.md` 갱신
+  - **솔버 비교**: 확정한 문제 구조로 CP-SAT / MILP / min-cost flow / VRP / scheduling을 비교해 가장 단순하고 검증 가능한 것을 고르고, ADR-007을 Accepted 또는 Superseded로 다시 올린다(Q-35)
+  - 변수·제약·목적의 최종 형태(ODCY 2구간 트럭 단순화 유지 여부, 대기 표현, λ)
+  - 비용 계수 계산 절차(어느 비용 항목을 어떤 입력으로)와 손 검산 예제 3건
+  - Baseline 휴리스틱 절차, Recovery 대상 선정 규칙(Q-01)
+  - 재최적화 트리거·잠금·디바운스, 재현성(단일 워커·타이브레이크)
+  - `resource_gaps` 산출 규칙(Communication 입력)
+- 산출물: `docs/08_optimization-model.md` 확정판
 - 완료 조건:
-  - [ ] DS-01·DS-02의 요청 파라미터·응답 필드가 1차 출처 기준으로 정리됨 (못 찾은 항목은 `[TO VERIFY]`)
-  - [ ] Q-03, Q-04에 1차 결론 또는 추가 조사 필요 사유 기록
-  - [ ] 필드 사전의 각 필드를 ContainerState 필드에 매핑(또는 "미사용")
-  - [ ] `docs/README.md` 색인에 새 문서 등록
-- 완료 후 큐잉 힌트: T-007이 풀린다. 새로 발견한 API가 있으면 수집 태스크를 추가한다.
+  - [ ] 12대 영향 장면을 손으로 풀 수 있을 만큼 작은 예제(3대·2 ODCY·4슬롯)의 정답 표
+  - [ ] Q-01, Q-07 갱신
+- 완료 후 큐잉 힌트: T-045가 풀린다(T-043 뒤).
 
-### T-003: 저장소 초기화
+### T-037: MVP 시나리오 데이터 팩
 - 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
-- 의존: T-001 (ADR-002 승인)
-- 참조 문서: docs/06_architecture.md 2·3·6절, docs/01_project-rules.md 6·7절
-- 목표: 코드 작업의 뼈대를 만든다.
+- 의존: T-032
+- 참조 문서: docs/09_mvp-scenario.md, docs/05_event-and-state.md, docs/04_domain-model.md, docs/11_data-sources.md
+- 목표: `busan-wh-capacity-01` 시나리오를 재생 가능한 데이터로 만든다(코드 없이 YAML·CSV·텍스트).
 - 작업 내용:
-  - ~~`git init`, `.gitignore`~~ — 2026-09-10 사용자 지시로 선행 완료 (LOG 참고). `.gitignore`는 필요 시 보강
-  - uv + `pyproject.toml` (Python 3.12, 의존성은 V0.1 범위만)
-  - `src/cera/` 하위 패키지 뼈대, `tests/` 뼈대, ruff·pytest 설정
-  - `.env.example`, `src/cera/config/assumptions.yaml`(`05_domain-model.md`의 가정값 + 태그)
-  - 사람용 `README.md`
-  - `AGENTS.md` 6절 개발 명령어 채우기
-- 산출물: 저장소 뼈대
+  - 컨테이너 30대(합성 ISO 6346 번호), 선사 3곳 Tariff(자리표시 `[ASSUMPTION]`), LFD 분포
+  - 자원(창고·트럭·ODCY·슬롯) 슬롯별 값, 초기 계획
+  - 시각별 스크립트 이벤트(09:30 충돌, 11:00 예외), 합성 메일(발송 기대 초안 3건, 회신 3건)
+  - 공공 API 합성 fixture(실제 응답 구조를 본뜬 것, 식별자 합성)
+  - 기대 결과 범위(Plan v1·v2 모양, 금액 범위)
+- 산출물: `data/scenarios/busan-wh-capacity-01.yaml`, `data/scenarios/busan-wh-capacity-01/` (CSV, 메일, fixture)
 - 완료 조건:
-  - [ ] `uv run pytest`가 통과(빈 테스트 1개 이상)
-  - [ ] `uv run ruff check` 통과
-  - [ ] AGENTS.md 6절 갱신
-- 완료 후 큐잉 힌트: T-005, T-006(키 필요), T-008, T-018이 풀린다.
+  - [ ] 모든 Event가 T-032 스키마를 만족
+  - [ ] 모든 가정값에 태그
+  - [ ] `09_mvp-scenario.md` 갱신
+- 완료 후 큐잉 힌트: T-038, T-046, T-017이 풀린다.
 
 ### T-029: 공개 D&D Tariff 원문 조사
 - 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
 - 의존: 없음
-- 참조 문서: docs/05_domain-model.md 3.3·4.1·4.2절, docs/10_open-questions.md Q-08·Q-09
-- 목표: 코드 없이 선사 공개 Tariff 원문을 조사해 TariffRule 스키마가 표현해야 할 규칙을 찾는다.
+- 참조 문서: docs/04_domain-model.md 4·5절, docs/15_open-questions.md Q-08·Q-09
+- 목표: 선사 공개 Tariff 원문을 조사해 TariffRule 스키마가 표현해야 할 규칙과 계약 추출 대상 필드를 찾는다.
 - 작업 내용:
-  - 한국(부산) 수입 기준 공개 D&D Tariff 2~3개 선사 조사 (후보: Maersk, HMM, MSC 등. 공개 여부부터 확인)
-  - 선사별 Free Time 일수, 기산 이벤트, 역일/영업일, 휴일 제외, Combined/Split, 요율 구간, 통화, 만료 시각 정리
-  - 현재 TariffRule 초안(`05_domain-model.md` 3.3)으로 표현할 수 없는 규칙 목록
-  - T-008에서 구조화할 선사 1곳 추천
+  - 한국(부산) 수입 기준 공개 D&D Tariff 2~3개 선사 조사(공개 여부부터)
+  - 선사별 Free Time, 기산 이벤트, 역일/영업일, 휴일 제외, Combined/Split, 요율 구간, 통화, 만료 시각
+  - 현재 TariffRule 초안으로 표현할 수 없는 규칙 목록
+  - 합성 계약서(T-037)의 현실성 기준 제안
 - 산출물: `docs/data/tariff-research.md`
 - 완료 조건:
-  - [ ] 선사마다 출처 URL·확인일·태그 기록
-  - [ ] Q-08, Q-09에 1차 결론 기록
-  - [ ] 스키마 보완 제안이 있으면 `05_domain-model.md`에 반영하거나 ADR Proposed로 올림
+  - [ ] 선사마다 출처 URL·확인일·태그
+  - [ ] Q-08, Q-09 1차 결론
   - [ ] `docs/README.md` 색인 등록
-- 완료 후 큐잉 힌트: T-008 입력이 된다.
+- 완료 후 큐잉 힌트: T-033 입력.
 
-### T-017: 현업 인터뷰 가이드 초안
-- 상태: TODO | 우선: P2 | 단계: Phase 0 | 담당: -
-- 의존: 없음
-- 참조 문서: docs/02_product-brief.md, docs/10_open-questions.md
-- 목표: R-2~R-5와 Q-06, Q-07, Q-11, Q-14를 검증할 인터뷰 질문지를 만든다.
+### T-033: Contract·Tariff·RateQuote 스키마
+- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
+- 의존: T-029
+- 참조 문서: docs/04_domain-model.md 4절, docs/06_agent-architecture.md 6절, docs/data/tariff-research.md
+- 목표: 계약 추출 후보(DRAFT) → 확정 규칙(CONFIRMED) 흐름의 스키마를 확정한다. (옛 T-008 대체)
 - 작업 내용:
-  - 대상별(포워더, 화주 물류팀, 운송사, ODCY) 질문지 30~45분 분량
-  - 각 질문이 어떤 리스크·질문 ID를 검증하는지 표시
-  - 인터뷰 결과 기록 템플릿
+  - TariffRule(D&D·Storage·Handling·Transport), RateQuote, Contract 스키마와 필드별 evidence 구조
+  - 규칙 선택 순서, 버전 관리, 확인 UI에 필요한 필드
+  - LFD 계산 규칙 명세와 손 검산 예제 5건
+- 산출물: `docs/04_domain-model.md` 4절 확정, `schemas/tariff_rule.schema.json` 초안
+- 완료 조건:
+  - [ ] T-029에서 찾은 규칙을 모두 표현하거나, 못 하는 것을 목록으로 남김
+  - [ ] Q-08, Q-09 갱신
+- 완료 후 큐잉 힌트: T-043, T-050이 풀린다.
+
+### T-034: 메일 Event 스키마 + LLM 추출 계약 + 평가 세트 설계
+- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
+- 의존: T-032
+- 참조 문서: docs/05_event-and-state.md 4.3절, docs/06_agent-architecture.md 6절, docs/11_data-sources.md 5절
+- 목표: 메일(운송사·ODCY·창고 회신, 창고 예외 메일)을 어떤 스키마로 추출하고 어떻게 검증·평가할지 정한다.
+- 작업 내용:
+  - TruckAvailability, YardCapacity, WarehouseCapacity, RateQuote, Exception 추출 스키마(필드별 evidence)
+  - 검증기 규칙 목록, 신뢰도 결정 표
+  - 합성 메일 평가 세트 설계(정상·모호·거절·조건부 각 유형), 목표 정확도(Gate 2 기준)
+  - 녹화 fixture 형식
+- 산출물: `docs/06_agent-architecture.md` 6절 갱신, `schemas/extraction/*.schema.json` 초안, 평가 세트 목록
+- 완료 조건:
+  - [ ] 시나리오 회신 3건이 스키마로 표현됨
+  - [ ] R-6 검증 방법 구체화
+- 완료 후 큐잉 힌트: T-039, T-049가 풀린다.
+
+### T-035: Risk 모델 명세
+- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
+- 의존: T-032
+- 참조 문서: docs/04_domain-model.md 6절, docs/09_mvp-scenario.md
+- 목표: 위험 유형별 판정식, 영향 컨테이너 탐지, 등급, Exposure 계산 절차를 확정한다.
+- 작업 내용:
+  - WAREHOUSE_SHORTFALL 영향 컨테이너 선정 규칙(어느 12대인가)
+  - STATE_UNCERTAIN(중요 사실의 `decision_usability = APPROVAL_BLOCKED`)의 위험 반영 방식. 입력은 Planning Snapshot(`05` 14절)
+  - 등급 기준(Q-14), Exposure 정의(Q-02) 확정안
+- 산출물: `docs/04_domain-model.md` 6절 확정판
+- 완료 조건:
+  - [ ] 시나리오 11:00 장면의 영향 판정을 손으로 재현하는 예제
+- 완료 후 큐잉 힌트: T-044가 풀린다.
+
+### T-003: 저장소 초기화
+- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
+- 의존: T-001 (ADR-002, ADR-016 판정)
+- 참조 문서: docs/07_backend-architecture.md 3·6·7절, docs/01_project-rules.md 6·7절
+- 목표: 코드 작업의 뼈대를 만든다(백엔드 + web).
+- 작업 내용:
+  - ~~`git init`, `.gitignore`~~ — 2026-09-10 사용자 지시로 선행 완료. `.gitignore`는 필요하면 보강(`web/node_modules` 등)
+  - uv + `pyproject.toml` (Python 3.12), `src/cera/` 패키지 뼈대, `tests/`, ruff·pytest 설정
+  - `web/` Vite + React + TypeScript 뼈대(ADR-016 판정대로)
+  - `.env.example`, `src/cera/config/policy.yaml`(가정값 + 태그), 사람용 `README.md`
+  - `AGENTS.md` 6절 개발 명령어 채우기, 코드·커밋 메시지 언어 결정
+- 산출물: 저장소 뼈대
+- 완료 조건:
+  - [ ] `uv run pytest` 통과(빈 테스트 1개 이상), `uv run ruff check` 통과
+  - [ ] web 개발 서버 기동 확인
+  - [ ] AGENTS.md 6절 갱신
+- 완료 후 큐잉 힌트: T-041이 풀린다(T-032 뒤).
+
+## 대기 — P2
+
+### T-038: Three.js Simulator 상세 명세
+- 상태: TODO | 우선: P2 | 단계: Phase 0~3 | 담당: -
+- 의존: T-037
+- 참조 문서: docs/10_simulation-spec.md, docs/09_mvp-scenario.md
+- 목표: 장면 배치·오브젝트·상태→시각 매핑·SSE 메시지 형식·카메라 경로를 구현 가능한 수준으로 정한다.
+- 산출물: `docs/10_simulation-spec.md` 확정판(와이어프레임 포함)
+- 완료 조건:
+  - [ ] 시나리오 타임라인의 각 단계에 대응하는 화면 상태 표
+- 완료 후 큐잉 힌트: T-056.
+
+### T-039: Communication·Response Agent 명세
+- 상태: TODO | 우선: P2 | 단계: Phase 0~2 | 담당: -
+- 의존: T-034
+- 참조 문서: docs/06_agent-architecture.md, docs/05_event-and-state.md 5.3절
+- 목표: 문의 초안 템플릿(구조화 값 + LLM 문장), 승인 흐름, 스레드 규칙, 회신 → Event 흐름을 확정한다.
+- 산출물: `docs/06_agent-architecture.md` 갱신
+- 완료 조건:
+  - [ ] 시나리오 발송 초안 3건의 기대 형태
+  - [ ] 숫자 검사 규칙 명세
+- 완료 후 큐잉 힌트: T-051.
+
+### T-040: UI Wireflow
+- 상태: TODO | 우선: P2 | 단계: Phase 0~3 | 담당: -
+- 의존: 없음
+- 참조 문서: docs/03_requirements.md 5절, docs/09_mvp-scenario.md
+- 목표: SCR-01~09의 화면 흐름과 짧은 액션 UX를 정한다.
+- 산출물: `docs/ui/wireflow.md` (텍스트 와이어프레임 + 흐름도)
+- 완료 조건:
+  - [ ] 시나리오 한 바퀴를 화면 이동으로 따라갈 수 있음
+  - [ ] `docs/README.md` 색인 등록
+- 완료 후 큐잉 힌트: T-054.
+
+### T-017: Prototype 기반 인터뷰 가이드
+- 상태: TODO | 우선: P2 | 단계: Phase 3 준비 | 담당: -
+- 의존: T-037
+- 참조 문서: docs/02_product-definition.md 9절, docs/15_open-questions.md, docs/09_mvp-scenario.md
+- 목표: 데모를 보여준 뒤 "무엇이 틀렸는가"를 묻는 인터뷰 질문지를 만든다(v0.2에서 방향 변경: 아이디어 인터뷰 → Prototype 인터뷰).
+- 작업 내용:
+  - 대상별(포워더, 화주 물류팀, 운송사, ODCY, 창고) 30~45분 질문지
+  - R-2~R-8, Q-23~Q-31 검증 문항 대응표
+  - 시나리오 장면별 "현장과 다른 점" 질문, 결과 기록 템플릿
 - 산출물: `docs/research/interview-guide.md`, `docs/research/interview-template.md`
 - 완료 조건:
-  - [ ] R-2~R-5 각각에 질문 3개 이상 대응
-  - [ ] 유도 질문을 피하는 문항으로 작성 ("D&D가 문제죠?" 금지)
+  - [ ] 각 리스크·질문 ID에 문항 2개 이상
+  - [ ] 유도 질문 금지("D&D가 문제죠?")
   - [ ] `docs/README.md` 색인 등록
-- 완료 후 큐잉 힌트: 실제 인터뷰 수행은 NEEDS_HUMAN 태스크로 추가.
+- 완료 후 큐잉 힌트: T-058(인터뷰 수행, NEEDS_HUMAN).
 
-### T-005: UNI-PASS 클라이언트 및 실제 호출
-- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
-- 의존: T-002, T-003, T-004
-- 참조 문서: docs/03_data-strategy.md, docs/data/field-dictionary.md
-- 목표: 실제 응답을 확보하고 읽기 전용 클라이언트를 만든다.
+### T-030: DS-03 전체 필드 사전 + UNI-PASS 추가 API 명세 조사
+- 상태: TODO | 우선: P2 | 단계: 병행 | 담당: -
+- 의존: 없음
+- 참조 문서: docs/data/field-dictionary.md 4.2·4.4·6·7절, docs/15_open-questions.md Q-12·Q-20·Q-22
+- 목표: 양하(S1)·반출(S5) 이벤트와 B/L→컨테이너 목록을 줄 수 있는 공식 API를 1차 출처로 찾아 필드 사전의 빈칸을 줄인다. (v0.2: 공공 API의 역할이 초기화·교차 검증·히스토리 보강으로 줄어 P1 → P2)
 - 작업 내용:
-  - `ingest/unipass.py`: 조회(화물관리번호 / MBL·HBL + 연도), 타임아웃·재시도, 원본 저장
-  - 샘플 B/L 5~20건 실제 호출 → `data/raw/` 저장 → 마스킹본을 `data/fixtures/`에
-  - fixture 기반 파서 단위 테스트
-  - 처리이력에 어떤 이벤트가 나오는지 정리(Q-12)
+  - DS-03(15006353) 전체 필드를 field-dictionary 형식으로 정리
+  - UNI-PASS API020, API021, API038, API048, API005의 공식 명세 탐색(공공데이터포털 개별 데이터셋 먼저)
+  - 로그인이 필요하면 T-002 준비물에 명시
+- 산출물: `docs/data/field-dictionary.md` v0.2, `docs/data/code-tables.md` 갱신
 - 완료 조건:
-  - [ ] 실제 응답 5건 이상 확보, 마스킹 fixture 커밋 가능 상태
+  - [ ] DS-03 필드 전부 매핑(또는 "미사용")
+  - [ ] UNI-PASS 후보 5개 각각 "명세 확보 / 로그인 필요 / 없음" 결론
+- 완료 후 큐잉 힌트: 쓸 만한 API가 있으면 T-005/T-006 범위에 추가.
+
+### T-002: 공공 API 키 발급
+- 상태: NEEDS_HUMAN | 우선: P2 | 단계: 병행 | 담당: 사람
+- 의존: 없음
+- 참조 문서: docs/11_data-sources.md 3절, docs/data/field-dictionary.md 2.1·3.1·4.2절
+- 목표: 공공 API 실호출에 필요한 인증키를 확보한다. (v0.2: PoC 데모의 선행 조건이 아니라서 P0 → P2)
+- 작업 내용:
+  - **UNI-PASS 인증키 (DS-01)**: unipass.customs.go.kr 회원가입 → `My메뉴 > 서비스관리 > OpenAPI사용관리` → "화물통관 진행정보"(API001) 체크 → "OPEN API 신청". 즉시 승인되고 인증키가 발급된다. 이 키가 `crkyCn`이다
+    - 같은 화면에서 한도(일일 호출 수)가 보이면 기록한다(Q-05)
+    - 선택: API020(컨테이너내역), API021(입항보고 해상), API038(하선신고 목록), API048(반출신고)도 같이 신청해 두면 T-030·T-005에 도움이 된다. 신청 화면에서 각 API 명세 문서를 받을 수 있으면 받아 둔다(저장소에는 넣지 않음, Q-17)
+  - **공공데이터포털 serviceKey (DS-02, DS-03)**: data.go.kr 회원가입 → 활용신청 2건(개발단계 자동승인)
+    - `해양수산부_외항화물컨테이너정보` (15131742) — 개발계정 1,000
+    - `해양수산부_선박운항정보` (15006353) — 개발계정 10,000. DS-02 조회 키(입항횟수)를 얻는 데 필요
+    - `관세청_화물통관진행정보`(15126268)는 포털 유형이 `LINK`라서 실제 키는 UNI-PASS에서 받는다. 포털 활용신청도 필요한지 모르므로, 신청 버튼이 있으면 해 두고 결과를 기록한다
+    - 발급 뒤 마이페이지의 활용신청 상세에서 인증키(인코딩·디코딩 형태가 따로 보이면 둘 다)와 트래픽 한도·단위(일/시간)를 확인해 기록한다(Q-05). 가이드는 키를 URL 인코딩해 보내라고 적었다 `[VERIFIED S-04]`
+  - 로컬 `.env`에 저장 (커밋 금지): `UNIPASS_API_KEY=`, `DATA_GO_KR_SERVICE_KEY=`
+  - **테스트용 실제 B/L 5~20건** 준비 (외부 공유 금지). 건마다 MBL(필수)·HBL(있으면)·**B/L 연도**(필수)·입항항(부산 권장)·대략 입항일·선박명·컨테이너 번호와 개수·FCL 여부. 반출·반납이 끝난 건과 아직 터미널에 있는 건을 섞고, 3년 이내 건만
+  - 원본 응답·B/L 목록은 `data/raw/`에만 둔다
+- 완료 조건:
+  - [ ] UNI-PASS 인증키 발급 완료
+  - [ ] data.go.kr 15131742, 15006353 활용신청 승인
+  - [ ] 트래픽 한도·단위 기록(Q-05)
+  - [ ] 샘플 B/L 목록을 `data/raw/`에 로컬 보관
+
+### T-005: UNI-PASS 어댑터 및 실제 호출
+- 상태: TODO | 우선: P2 | 단계: 병행 | 담당: -
+- 의존: T-002, T-003, T-004(완료), T-032, **T-004 결과 사람 검토(T-001)**
+- 참조 문서: docs/11_data-sources.md 3절, docs/data/field-dictionary.md 2·5·8절, docs/data/code-tables.md 2·3.1절, docs/05_event-and-state.md 7절
+- 목표: 실제 응답을 확보하고, UNI-PASS 응답을 `PUBLIC_API` Event로 바꾸는 읽기 전용 어댑터를 만든다(v0.2: 상태 직결이 아니라 Event 후보 생성).
+- 작업 내용:
+  - `intake/adapters/public_api.py`의 UNI-PASS 부분: 조회(화물관리번호 / MBL·HBL + 연도), 목록 응답(`[N00]`) 처리, 오류 판정(HTTP 200 + `tCnt=-1`), 원문 보관
+  - 샘플 B/L 실제 호출 → `data/raw/` → 마스킹본 `data/fixtures/`
+  - 처리이력 처리구분 값 수집(`code-tables.md` 2.4, Q-12), 일시 형식·타임존(Q-19), 여러 컨테이너 B/L(Q-20), `prgsStCd` 값, 화물관리번호 구성(Q-04)
+- 완료 조건:
+  - [ ] 실제 응답 5건 이상, 마스킹 fixture 커밋 가능 상태
   - [ ] 테스트는 네트워크 없이 통과
-  - [ ] 필드 사전의 `[TO VERIFY]` 항목을 실제 응답으로 갱신
-- 완료 후 큐잉 힌트: T-009 준비.
+  - [ ] 필드 사전의 `[TO VERIFY]` 항목 갱신
+- 완료 후 큐잉 힌트: T-006, 시나리오 fixture 현실성 보정.
 
-### T-006: 해수부 외항화물컨테이너정보 클라이언트 및 반영 지연 측정
-- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
-- 의존: T-002, T-003, T-004
-- 참조 문서: docs/03_data-strategy.md, docs/10_open-questions.md R-1
-- 목표: 컨테이너 단위 반출입 이벤트를 받고, 실제 발생 대비 반영 지연을 잰다.
+### T-006: 선박운항정보·외항화물컨테이너정보 어댑터, 조인 검증, 반영 지연 측정
+- 상태: TODO | 우선: P2 | 단계: 병행 | 담당: -
+- 의존: T-002, T-003, T-005, **T-004 결과 사람 검토(T-001)**
+- 참조 문서: docs/11_data-sources.md 3절, docs/data/field-dictionary.md 3·4.2·5절, docs/15_open-questions.md R-1·Q-24
+- 목표: B/L → 입항 건 → 컨테이너 목록 조인이 실제로 되는지 검증하고, 공공 API 반영 지연을 잰다(R-1, 신선도 기준 Q-24의 근거).
 - 작업 내용:
-  - `ingest/mof_container.py` 읽기 전용 클라이언트
-  - 샘플 컨테이너를 며칠간 주기적으로 조회해 이벤트 발생 시각과 처음 관측된 시각 비교
-  - 공컨 반납 이벤트 존재 여부 확인(Q-13), 트래픽 한도 확인(Q-05)
-- 산출물: 클라이언트, fixture, `docs/research/api-latency-report.md`
+  - DS-03(`VsslEtrynd5/Info5`), DS-02(`ContnInfo`) 읽기 전용 어댑터. 페이지 반복, 게이트웨이 오류 봉투 처리
+  - 조인 경로 검증: DS-03 매칭 규칙, `blNo`가 MBL/HBL 중 무엇인지, Q-04
+  - `tkinTkoutSe` 전체 값(Q-18), 공컨 반납 정보 부재 확인(Q-13), 트래픽 한도(Q-05)
+  - 반영 지연 측정은 DS-01 처리이력 기준: 샘플 B/L을 며칠간 조회해 `rlbrDttm`과 처음 관측된 시각 비교
+- 산출물: 어댑터, fixture, `docs/research/api-latency-report.md`
 - 완료 조건:
-  - [ ] 반영 지연 측정값(중앙값, 최대) 또는 측정 불가 사유 기록
-  - [ ] R-1 상태 갱신
-- 완료 후 큐잉 힌트: 지연이 커서 운영 State로 부적합하면 NEEDS_HUMAN으로 방향 재검토 태스크를 추가.
-
-### T-007: ContainerState / ContainerEvent 스키마 확정
-- 상태: TODO | 우선: P1 | 단계: Phase 1 | 담당: -
-- 의존: T-003, T-004
-- 참조 문서: docs/05_domain-model.md 2·3절, docs/data/field-dictionary.md
-- 목표: Pydantic 모델과 JSON Schema를 확정한다.
-- 완료 조건:
-  - [ ] `src/cera/domain/` 모델 + `schemas/*.json` 생성
-  - [ ] 상태 유도 함수 + 이벤트 순서 무관성 속성 테스트(ADR-005)
-  - [ ] `05_domain-model.md`를 확정 스키마로 갱신
-- 완료 후 큐잉 힌트: T-009, T-010, T-018.
-
-### T-008: TariffRule 스키마 및 선사 1곳 Tariff 구조화
-- 상태: TODO | 우선: P1 | 단계: Phase 1 | 담당: -
-- 의존: T-003, T-029
-- 참조 문서: docs/05_domain-model.md 3.3·4.1절, docs/10_open-questions.md Q-08·Q-09
-- 목표: 공개 Tariff 한 곳(후보: Maersk 한국 수입)을 규칙 데이터로 옮긴다.
-- 완료 조건:
-  - [ ] `data/tariffs/<carrier>.yaml`에 출처 URL·확인일·태그 포함
-  - [ ] LFD 계산 함수 + 손 검산 테스트 5건 이상
-  - [ ] Q-08, Q-09 갱신
-- 완료 후 큐잉 힌트: T-011.
+  - [ ] 조인 성공률 기록 (참고 기준: 옛 Gate 1 "실 B/L 20건 중 90% 이상", `CHANGELOG.md` D-13)
+  - [ ] 반영 지연 측정값(중앙값, 최대) 또는 측정 불가 사유
+  - [ ] R-1 갱신, Q-24 기준값 제안
+- 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
 
+### T-032: Event·Source·Canonical State 스키마 + Reconciliation 규칙표 — DONE (2026-09-11, 사람 검토 대기)
+- 산출물: `docs/05_event-and-state.md` 확정안(Event 스키마 4절, Source Model 3절, 시간·신선도 5절, 상태 차원 6절, 충돌 7절, R1~R12 8절, Canonical Fact 9절, 정정 10절, 확인 정책 11절, Planning Snapshot 14절, 정책 파라미터 15절, 검증 사례 부록 A), `docs/04_domain-model.md` 2절(Hybrid 상태 모델), ADR-019·020·021(Proposed)
+- 요약: 전역 출처 순위를 폐기하고 권한 매트릭스 + 근거 강도 + 최근 우선(강도 가드·동시 충돌·불리한 변경 보류)으로 Reconciliation을 정의했다. 출처를 채널·역할·추출 방식으로, Canonical 상태를 값 보증·신선도·충돌·보류·결정 가능성으로 나눴다. 6개 필수 CASE와 10개 경계 사례에 적용했고 R1~R12를 모두 썼다. Q-22 해결.
+- DoD 조정: `schemas/*.schema.json` 수작업 초안은 만들지 않았다. `07_backend-architecture.md`가 JSON Schema를 Pydantic 모델에서 생성하기로 정했으므로, 지금 손으로 쓰면 두 벌이 생긴다. 스키마는 `05` 4·9·14절 표로 고정했고 파일 생성은 T-041로 옮겼다.
+- field-dictionary 7.1 제안 채택 여부: VesselCall(`VESSEL_CALL` 엔티티, `vessel_call.link`), 원천 코드 보존(`payload`)은 채택. `manifest_no`·`msn`은 `bl.link`의 B/L 엔티티 속성으로 T-041에서 정한다.
+- **패치 (2026-09-11, 사람 조건부 승인 후)**: ① ADR-007 Reopened → Proposed(솔버는 T-036) ② Plan Approval과 Fact Verification 분리(ADR-017 개정, `05` 11.5, `plan_decisions`) ③ 근거 시각 3단계 폴백 + `temporal_quality`(지연 허용 ∞ 폐기) ④ `FORECAST` 사실 종류 + `forecast.eta`. 6개 CASE 재검증 완료. 사람 최종 검토 대기.
+
+### T-031: 기획 v0.2 전면 재정렬 — DONE (2026-09-11)
+- 산출물: `docs/CHANGELOG.md`(신규), `docs/02`~`12`(신규 정본), `docs/13_glossary.md`·`14_decisions.md`·`15_open-questions.md`(이름 변경 + 갱신), `docs/01_project-rules.md`·`README.md`·`AGENTS.md`·`data/*`·`QUEUE.md` 갱신. v0.1 문서 7개와 원본 기획서 PDF/DOCX 삭제
+- 요약: 공공데이터 중심 D&D Risk Radar에서 다중 출처 Canonical Operational State + 예외 복구 + 커뮤니케이션 루프를 갖춘 System of Decision/Action으로 재정의했다. Event·Source Priority·Reconciliation, 10개 에이전트 역할, 모듈형 모놀리스 백엔드, MVP 시나리오, Three.js 시뮬레이터 요구사항, ADR-011~018을 작성했다. 검증 결과와 기존 질문은 모두 이전·보존했다.
+
+### T-004: 공공 API 공식 명세 확보 및 필드 사전 초안 — DONE (2026-09-11)
+- 산출물: `docs/data/field-dictionary.md`, `docs/data/code-tables.md` (신규), 당시 `docs/03_data-strategy.md`·`02`·`05`·`08`·`10`·`README.md`·`AGENTS.md` 갱신 (v0.2에서 해당 내용은 `11_data-sources.md` 등으로 이전)
+- 요약: 공식 가이드 3종(UNI-PASS 연계가이드 v3.6, 해수부 활용가이드 2종)과 포털 Swagger로 DS-01·DS-02 요청·응답 필드를 VERIFIED로 정리하고 CERA Mapping을 붙였다. DS-02는 입항 건 단위 조회이고 컨테이너별 이벤트 일시가 없다는 점을 확인해 조인 경로와 R-1 측정 방식을 바꿨다. 15011649 기록을 정정했다(Q-03 CLOSED).
+
 ### T-000: 문서 초안 세트 작성 — DONE (2026-09-10)
-- 산출물: `AGENTS.md`, `CLAUDE.md`, `docs/README.md`, `docs/01`~`10`, `docs/tasks/QUEUE.md`, `docs/tasks/LOG.md`
+- 산출물: `AGENTS.md`, `CLAUDE.md`, `docs/README.md`, `docs/01`~`10`, `docs/tasks/QUEUE.md`, `docs/tasks/LOG.md` (v0.2에서 재편, `docs/CHANGELOG.md` 4절)
 - 요약: 원본 기획서 V0.1을 바탕으로 규칙·데이터 전략·서비스 플로우·도메인 모델·아키텍처·로드맵·ADR·미확정 사항을 초안으로 작성. 공공 API 2종을 웹에서 1차 확인.
+
+## 폐기 (DEPRECATED)
+
+| ID | 제목 | 폐기일 | 사유 / 대체 |
+| --- | --- | --- | --- |
+| T-007 | ContainerState / ContainerEvent 스키마 확정 | 2026-09-11 | 상태 모델이 Event·Canonical State로 바뀜 → **T-032** |
+| T-008 | TariffRule 스키마 및 선사 1곳 Tariff 구조화 | 2026-09-11 | 계약 추출 → 확인 흐름으로 바뀜 → **T-033** (스키마), T-043 (엔진) |
+| T-009~T-016, T-018~T-028 | v0.1 로드맵 백로그(미착수) | 2026-09-11 | 옛 버전 체계. 새 백로그는 `12_roadmap.md`의 T-041~T-059. 이 ID들은 다시 쓰지 않는다 |
 
 ## 백로그 (로드맵에서 꺼낼 후보)
 
-T-009 ~ T-016, T-018 ~ T-027: `docs/07_roadmap.md` 3~5절 참고. 의존이 풀리면 위 템플릿으로 옮겨 적는다.
-T-028(후보): 원본 기획서 부록 A 형식의 적대적 교차검증 리포트 — 사람이 원하면 추가.
+T-041 ~ T-059: `docs/12_roadmap.md` 3~5절. 의존이 풀리면 위 템플릿으로 옮겨 적는다.
