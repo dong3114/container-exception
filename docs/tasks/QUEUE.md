@@ -1,24 +1,26 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-09-11 (T-032 완료 후)
+- 최종 수정: 2026-09-15 (T-066 Monorepo 재정렬 완료. 같은 날: T-060~T-063 완료, T-036 DEFERRED, T-064·T-065 추가)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 
 ## 다음 추천 태스크
 
-1. **T-001** (NEEDS_HUMAN, P0) — 기획 v0.2 + **T-032 결과** 검토: ADR-011~021 판정(특히 019·020·021), T-004 결과 검토, 커밋 여부 결정
-2. **T-036** (에이전트, P1) — Recovery 최적화 모델 명세. 입력 계약은 `05` 14절 Planning Snapshot으로 준비됨
-3. **T-037** (에이전트, P1) — MVP 시나리오 데이터 팩 (T-032 완료로 의존 해소)
-4. **T-035** (에이전트, P1) — Risk 모델 명세 (T-032 완료로 의존 해소)
-5. **T-029** (에이전트, P1) — 공개 D&D Tariff 원문 조사 (T-033 입력)
+1. **T-064** (NEEDS_HUMAN, P0) — Control Tower Prototype 검토: `front/web/` 실행해 9단계 재생, 화면·숫자·용어가 현업에게 보여줄 수준인지, `16_frontend-prototype.md` 11절 발견사항과 Q-37~Q-43 판단, ADR-022·023 판정. **커밋 여부 결정** — 2026-09-15 기준 약 2만 줄이 미커밋이고 원격 백업이 없다(T-066 LOG)
+2. **T-001** (NEEDS_HUMAN, P0) — 기획 v0.2 + T-032 결과 검토, ADR 판정 (T-060 시각 규칙 개정 포함)
+3. **T-017** (에이전트, P2) — Prototype 기반 인터뷰 가이드 (Prototype이 생겨 의존 해소, 사람 지시상 착수 가능)
+4. **T-034** (에이전트, P1) — 메일 Event 스키마 + LLM 추출 계약 (Prototype 회신 3건이 입력 예시)
+5. **T-035** (에이전트, P1) — Risk 모델 명세 (Prototype 등급 규칙 `risk.json` grade_rules가 초안 입력)
 
-의존이 풀린 태스크: T-036, T-037, T-034, T-035, T-029, T-030, T-040. **단, 아래 사람 지시에 따라 T-036·T-037은 사람 검토 뒤에 착수한다.**
+실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030 (6개). T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
 
 **사람 지시**
 - (2026-09-11) T-004 결과를 사람이 검토하기 전에는 T-005 이후(공공 API 실호출)로 넘어가지 않는다.
 - (2026-09-11) 기획 v0.2 재정렬 결과는 사람이 검토하기 전까지 커밋하지 않는다. → 같은 날 세션 끝에 **사람 요청으로 커밋함**(`af47569`). 이후 커밋도 사람 요청 시에만.
-- (2026-09-11) **T-032 결과를 사람이 검토하기 전에는 T-036, T-037, Phase 1 코드 작업으로 넘어가지 않는다.**
+- (2026-09-11) **T-032 결과를 사람이 검토하기 전에는 T-036, T-037, Phase 1 코드 작업으로 넘어가지 않는다.** → 2026-09-14 지시로 **Frontend Prototype(T-060~T-063)만 예외**로 수행했다. Backend·Solver·Phase 1 코드 금지는 유지.
 - (2026-09-11) T-032는 조건부 승인됐고 4개 패치를 반영했다. **사람 최종 검토 전까지 T-036 착수, 솔버 확정 금지.**
+- (2026-09-14) **T-036을 보류(DEFERRED)하고 30대 시나리오 + Frontend Prototype(Control Tower)을 먼저 만든다.** Prototype이 끝나도 Solver·Backend로 넘어가지 않는다. 커밋은 사람 승인 전 금지. (T-060~T-063으로 수행, 2026-09-15 완료)
+- (2026-09-15) **CERA는 하나의 Private Monorepo로 유지한다.** 영역: `front/`·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/`. 저장소를 나누지 않는다. Backend·Gmail·LLM·Solver·Tauri 구현은 아직 시작하지 않는다. (T-066, ADR-024)
 
 ---
 
@@ -32,6 +34,7 @@
 | `NEEDS_HUMAN` | 사람만 할 수 있음. 에이전트는 수행하지 않는다 |
 | `DONE` | 완료 조건 충족, `완료` 섹션으로 이동 |
 | `DEPRECATED` | 기획 변경으로 폐기. ID는 다시 쓰지 않는다 |
+| `DEFERRED` | 폐기가 아니라 **보류**. `보류 사유`와 `재개 조건`을 적는다. 재개 조건이 풀리면 `TODO`로 되돌린다 (2026-09-15 추가) |
 
 우선순위: `P0`(지금 막고 있는 것) > `P1`(이번 단계) > `P2`(다음 단계 준비).
 
@@ -60,6 +63,25 @@
 
 ## 대기 — P0
 
+### T-064: Control Tower Prototype 사람 검토 + 현업 검증 질문
+- 상태: NEEDS_HUMAN | 우선: P0 | 단계: Phase 0.5 | 담당: 사람
+- 의존: T-063
+- 참조 문서: docs/16_frontend-prototype.md (3절 실행, 8절 단계별 화면, 11절 발견사항), data/scenarios/busan-wh-capacity-01/README.md, docs/15_open-questions.md Q-02·Q-37~Q-43, docs/14_decisions.md ADR-022·023
+- 목표: Prototype이 "현업에게 보여주고 업무 흐름 검증 질문을 할 수 있는 수준"인지 판단하고, 화면·데이터 요구사항 수정 방향을 정한다.
+- 작업 내용:
+  - `cd front/web && npm install && npm run build && npm run start` → http://localhost:3000 에서 Play Scenario 또는 다음 이벤트로 9단계 재생
+  - 30초 이해 테스트(처음 보는 사람), 13절 질문 1~9 확인
+  - 숫자·용어·표현 검토: Current/Recoverable Exposure 정의(Q-02), v2가 v1보다 비싼 장면(Q-43), 신뢰 범주 6개
+  - ADR-022(Next.js + 2D SVG), ADR-023(Prototype 우선 순서) 판정
+  - 발견사항 G-1~G-13 중 반영할 것 선택, Q-37~Q-42 방향
+  - 커밋 여부 결정
+- 산출물: 검토 결과 (에이전트가 T-065에서 문서에 반영)
+- 완료 조건:
+  - [ ] Prototype 수정 필요 항목 목록 또는 "그대로 인터뷰에 쓴다" 결정
+  - [ ] ADR-022·023 판정
+  - [ ] T-036 재개 시점 결정
+- 완료 후 큐잉 힌트: T-065가 풀린다. 인터뷰(T-058)로 바로 가면 T-017을 먼저.
+
 ### T-001: 기획 v0.2 검토 및 ADR 판정
 - 상태: NEEDS_HUMAN | 우선: P0 | 단계: Phase 0 | 담당: 사람
 - 의존: T-031
@@ -82,10 +104,28 @@
 
 ## 대기 — P1
 
+### T-065: Prototype 발견 요구사항을 정본에 반영
+- 상태: TODO | 우선: P1 | 단계: Phase 0.5 | 담당: -
+- 의존: T-064
+- 참조 문서: docs/16_frontend-prototype.md 11절, docs/04_domain-model.md 2.3·4.3·6.4, docs/05_event-and-state.md 4.3·11.5, docs/08_optimization-model.md 6·7절, docs/15_open-questions.md Q-02·Q-37~Q-42
+- 목표: T-064 판단에 따라 G-1~G-13을 `04`·`05`·`07`·`08`에 반영하고, Prototype 화면·데이터 팩을 고친다.
+- 작업 내용:
+  - `08` 7절 출력에 범위 분리(`route_summary_20`/`recovery_action_summary_12`/`unchanged_direct`/`cost_scope`), `result_kind` 추가 (G-1·G-2)
+  - `04` 6.4 Exposure 정의 확정안 (G-3, Q-02), `04` 4.3 RateQuote 구조화 조건 (G-9), `04` 2.3 위치 값 (G-10, Q-42)
+  - `05` 11.5 / `08` 6절에 승인 계획의 입력 변경 상태 (G-4, Q-37), 값 변경 없는 회신 처리 (G-7, Q-40), 다음 날 수용량 전망 (G-6, Q-38)
+  - 사람이 요청한 Prototype 화면 수정, `validate:scenario`·`smoke` 재통과
+- 산출물: 정본 갱신, `front/web/`·데이터 팩 수정
+- 완료 조건:
+  - [ ] T-064 결정 항목 전부 반영 또는 보류 사유 기록
+  - [ ] `npm run validate:scenario`, `typecheck`, `lint`, `build`, `smoke` 통과
+- 완료 후 큐잉 힌트: T-036 재개(DEFERRED → TODO), T-040·T-038 범위 재조정.
+
 ### T-036: Recovery 최적화 모델 명세
-- 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
-- 의존: 없음
-- 참조 문서: docs/08_optimization-model.md, **docs/05_event-and-state.md 14절(Planning Snapshot 입력 계약)**, docs/04_domain-model.md 5·6절, docs/09_mvp-scenario.md, docs/15_open-questions.md Q-01·Q-07
+- 상태: **DEFERRED** (2026-09-15) | 우선: P1 | 단계: Phase 0 → 0.5 뒤 | 담당: -
+- 보류 사유: 운영 데이터·제약이 검증되기 전에 수학모델을 먼저 고정하면 가정을 과도하게 설계할 위험이 있다. Prototype-led Discovery에 따라 Control Tower Prototype과 현업 검증을 먼저 한다(2026-09-14 사람 지시, ADR-023, `12_roadmap.md` 2.5절). 삭제가 아니라 보류다.
+- 재개 조건: T-064(사람 검토) 완료 + T-065 반영. 재개 때 입력에 `16_frontend-prototype.md` 11절(G-2·G-4·G-5·G-8)과 Q-37·Q-39·Q-41을 더한다
+- 의존: T-064, T-065 (2026-09-15 추가)
+- 참조 문서: docs/08_optimization-model.md, **docs/05_event-and-state.md 14절(Planning Snapshot 입력 계약)**, docs/04_domain-model.md 5·6절, docs/09_mvp-scenario.md, docs/16_frontend-prototype.md 11절, docs/15_open-questions.md Q-01·Q-07·Q-39·Q-41
 - 목표: MVP 시나리오를 풀 수 있는 1단계 모델을 수식·데이터 입력·비용 계수 정의까지 확정하고, **솔버를 선택한다**(ADR-007 Reopened).
 - 작업 내용:
   - **솔버 비교**: 확정한 문제 구조로 CP-SAT / MILP / min-cost flow / VRP / scheduling을 비교해 가장 단순하고 검증 가능한 것을 고르고, ADR-007을 Accepted 또는 Superseded로 다시 올린다(Q-35)
@@ -100,11 +140,11 @@
   - [ ] Q-01, Q-07 갱신
 - 완료 후 큐잉 힌트: T-045가 풀린다(T-043 뒤).
 
-### T-037: MVP 시나리오 데이터 팩
+### T-037: MVP 시나리오 데이터 팩 (정식 Event fixture 판)
 - 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
-- 의존: T-032
-- 참조 문서: docs/09_mvp-scenario.md, docs/05_event-and-state.md, docs/04_domain-model.md, docs/11_data-sources.md
-- 목표: `busan-wh-capacity-01` 시나리오를 재생 가능한 데이터로 만든다(코드 없이 YAML·CSV·텍스트).
+- 의존: T-032, T-061 (2026-09-15: Prototype 판 데이터 팩이 컨테이너·자원·타임라인·결과값을 이미 정함)
+- 참조 문서: docs/09_mvp-scenario.md (0절), data/scenarios/busan-wh-capacity-01/, docs/05_event-and-state.md, docs/04_domain-model.md, docs/11_data-sources.md
+- 목표: `busan-wh-capacity-01` 시나리오를 재생 가능한 데이터로 만든다(코드 없이 YAML·CSV·텍스트). **2026-09-15 범위 조정**: 컨테이너 30대·자원·스크립트 시각·기대 결과는 T-061 JSON을 원천으로 쓰고, 이 태스크는 그 위에 T-032 스키마 전체를 만족하는 Event fixture, 합성 메일 원문, 공공 API 합성 fixture, 합성 계약서를 더한다. 사람 지시(2026-09-11)에 따라 T-032 사람 검토 뒤 착수.
 - 작업 내용:
   - 컨테이너 30대(합성 ISO 6346 번호), 선사 3곳 Tariff(자리표시 `[ASSUMPTION]`), LFD 분포
   - 자원(창고·트럭·ODCY·슬롯) 슬롯별 값, 초기 계획
@@ -184,12 +224,13 @@
 - 상태: TODO | 우선: P1 | 단계: Phase 0 | 담당: -
 - 의존: T-001 (ADR-002, ADR-016 판정)
 - 참조 문서: docs/07_backend-architecture.md 3·6·7절, docs/01_project-rules.md 6·7절
-- 목표: 코드 작업의 뼈대를 만든다(백엔드 + web).
+- 목표: 코드 작업의 뼈대를 만든다(`back/` + `ai/`). 2026-09-15: Monorepo 영역(`front/`·`back/`·`ai/`·`packages/`·`infra/`)과 루트 `README.md`는 T-066에서 먼저 만들었다(ADR-024)
 - 작업 내용:
-  - ~~`git init`, `.gitignore`~~ — 2026-09-10 사용자 지시로 선행 완료. `.gitignore`는 필요하면 보강(`web/node_modules` 등)
-  - uv + `pyproject.toml` (Python 3.12), `src/cera/` 패키지 뼈대, `tests/`, ruff·pytest 설정
-  - `web/` Vite + React + TypeScript 뼈대(ADR-016 판정대로)
-  - `.env.example`, `src/cera/config/policy.yaml`(가정값 + 태그), 사람용 `README.md`
+  - ~~`git init`, `.gitignore`~~ — 2026-09-10 사용자 지시로 선행 완료. `.gitignore`는 필요하면 보강
+  - uv + `pyproject.toml` (Python 3.12 후보, ADR-002), `back/`·`ai/` 패키지 뼈대(옛 계획 `src/cera/` → `07` 6절 배치표), back·ai 공통 `domain` 패키지 위치 결정, 영역별 `tests/`, ruff·pytest 설정
+  - ~~`web/` Vite + React + TypeScript 뼈대~~ — 2026-09-15 T-063에서 **Next.js로 선행 생성**(ADR-022 Proposed), T-066에서 `front/web/`으로 이동. 판정이 바뀌면 여기서 조정
+  - `.env.example`, `policy.yaml`(가정값 + 태그, `back/` config 아래)
+  - ~~사람용 `README.md`~~ — T-066에서 선행
   - `AGENTS.md` 6절 개발 명령어 채우기, 코드·커밋 메시지 언어 결정
 - 산출물: 저장소 뼈대
 - 완료 조건:
@@ -233,9 +274,9 @@
 - 완료 후 큐잉 힌트: T-054.
 
 ### T-017: Prototype 기반 인터뷰 가이드
-- 상태: TODO | 우선: P2 | 단계: Phase 3 준비 | 담당: -
-- 의존: T-037
-- 참조 문서: docs/02_product-definition.md 9절, docs/15_open-questions.md, docs/09_mvp-scenario.md
+- 상태: TODO | 우선: P2 | 단계: Phase 3 준비 → 0.5 | 담당: -
+- 의존: T-063 (2026-09-15: T-037 대신 Control Tower Prototype을 보여주며 묻는다)
+- 참조 문서: docs/02_product-definition.md 9절, docs/15_open-questions.md (Q-37~Q-43 포함), docs/09_mvp-scenario.md, docs/16_frontend-prototype.md 8절
 - 목표: 데모를 보여준 뒤 "무엇이 틀렸는가"를 묻는 인터뷰 질문지를 만든다(v0.2에서 방향 변경: 아이디어 인터뷰 → Prototype 인터뷰).
 - 작업 내용:
   - 대상별(포워더, 화주 물류팀, 운송사, ODCY, 창고) 30~45분 질문지
@@ -319,6 +360,27 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-066: (사람 지시) Private Monorepo 재정렬 — DONE (2026-09-15, 사람 검토 대기)
+- 산출물: `web/` → `front/web/` 이동, `back/`·`ai/`·`packages/`·`infra/` README, 루트 `README.md`, `AGENTS.md` 1.1절·4절(규칙 9·10)·6절, `CLAUDE.md`, `docs/07` 6절, ADR-024, `.gitignore`, 경로 참조 수정(`next.config.ts`, `tsconfig.json`, 검사 스크립트 2개, docs 9개)
+- 요약: 저장소 하나 안에서 책임 영역만 나눴다. 기능 추가 없음. 이동 전후 파일 해시 대조로 유실 0 확인. 시나리오 JSON의 "LLM 녹화" 표현 17곳을 "시나리오 작성값 (LLM 미실행)"으로 바꾸고, 문서의 Three.js 표현을 "현재 Prototype 2D / 향후 선택지"로 정리. validate·typecheck·lint·build·smoke(135항목) 통과
+
+### T-063: CERA Operations Control Tower Prototype + Scenario Playback — DONE (2026-09-15, 사람 검토 대기 T-064)
+- 산출물: `front/web/` (Next.js 16 · React 19 · TypeScript), `front/web/src/components/*`, `front/web/scripts/smoke-browser.mjs`, `docs/16_frontend-prototype.md`, ADR-022·023
+- 요약: 한 화면에 KPI 6개, 추상 2D 운영 지도(정상·막힌·Recovery·잠정 경로, 트럭 시간대별 부하), Exception Panel, Recovery Console(Baseline·Plan·Saving, 20대 배치 = 20 · 영향 12대 Actions = 12, 조치 12행과 근거·변경), Activity Timeline, Communications, Data Trust, 30대 표와 상세 서랍. Reset·이전·다음 이벤트·Play로 S0~S8 재생. 검증: typecheck·lint·build 통과, Edge 헤드리스 smoke에서 9단계 화면 값을 fixture와 대조해 전부 통과, 콘솔 오류 0
+
+### T-062: Frontend Data Contract + Mock Data Provider — DONE (2026-09-15)
+- 산출물: `front/web/src/contracts/cera.ts` (View Model v0.1), `front/web/src/data/provider.ts` (`CeraDataProvider`, 엔드포인트 대응), `front/web/src/data/mock/` (`fixture.ts`, `mock-provider.ts`), `front/web/src/data/index.ts`
+- 요약: 8개 개념 엔드포인트(`/operations/today`, `/containers`, `/risks`, `/resources`, `/recovery-plans/current`, `/communications`, `/activity`, `/data-trust`)와 같은 모양을 MockProvider가 돌려준다. `as_of` 주입, 응답 `meta.result_kind`·`is_simulated`. 컴포넌트는 fixture를 import하지 않는다. `07` 5절에 화면용 조회 API 추가
+
+### T-061: 30대 Scenario Data Pack (Prototype 판) — DONE (2026-09-15)
+- 산출물: `data/scenarios/busan-wh-capacity-01/` (JSON 9개 + README), `front/web/scripts/validate-scenario.mjs`, `09_mvp-scenario.md` 0절
+- 요약: 의도 설계(Faker 없음). 창고 A 20 → 8, 영향 12대, 트럭 8대(근무 시간 상이) + K운송, ODCY A(40FT Dry 전용 5 → 4)·B(Dry 6, Reefer 불가), Reefer 4대, 통관 대기·STALE·RECEIVED_ONLY 사례. Baseline 4,650,000 / v1 3,835,000(절감 815,000) / v2 3,855,000(절감 795,000)원 — 09 예시값을 복사하지 않고 단가에서 합산(`[PROPOSED]` fixture 수정, README 4절). `validate:scenario` 2,133개 검사 통과
+- 작성 도구: JSON은 세션 scratchpad의 작성 스크립트로 한 번 생성한 뒤 **명시값으로 커밋 대상**에 둔다(엔진이 아님). 이후 수정은 JSON 직접 + validator
+
+### T-060: Event/State 마무리 — RECEIVED_ONLY는 STALE이 아니라 신선도 UNKNOWN — DONE (2026-09-15)
+- 산출물: `docs/05_event-and-state.md` 5.2·5.3·6.2·8.4·9.1·14·15절, `11`·`13`·`14`(ADR-014 주석)·`07` 갱신
+- 요약: 발생·기록 시각 없이 수신 시각만 있으면 `freshness = UNKNOWN`, `temporal_confidence = LOW`, `evidence_time_quality = RECEIVED_ONLY`(옛 `temporal_quality`). "모른다" ≠ "오래됐다". 중요 사실이면 STALE처럼 확인·재조회·승인 게이트(`FRESHNESS_UNKNOWN`). 이것으로 Event/State 설계는 완료 상태(사람 검토 T-001은 별도)
 
 ### T-032: Event·Source·Canonical State 스키마 + Reconciliation 규칙표 — DONE (2026-09-11, 사람 검토 대기)
 - 산출물: `docs/05_event-and-state.md` 확정안(Event 스키마 4절, Source Model 3절, 시간·신선도 5절, 상태 차원 6절, 충돌 7절, R1~R12 8절, Canonical Fact 9절, 정정 10절, 확인 정책 11절, Planning Snapshot 14절, 정책 파라미터 15절, 검증 사례 부록 A), `docs/04_domain-model.md` 2절(Hybrid 상태 모델), ADR-019·020·021(Proposed)

@@ -1,0 +1,172 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "kinds": {
+    "FACT": "현실 입력(Event)",
+    "STATE": "상태 갱신",
+    "RESULT": "시나리오 결과(엔진 아님)",
+    "HUMAN": "사람 결정",
+    "COMMS": "연락(가상 메일함)"
+  },
+  "items": [
+    {
+      "at": "2026-10-13T10:30:00+09:00",
+      "step_id": "S0",
+      "actor": "시스템",
+      "kind": "STATE",
+      "text": "정상 운영 — 활성 30대, 창고 A 오늘 20대 입고 예정 (13:00~16:00)",
+      "refs": {}
+    },
+    {
+      "at": "2026-10-13T11:00:00+09:00",
+      "step_id": "S1",
+      "actor": "창고 A 담당자",
+      "kind": "FACT",
+      "text": "창고 A 설비 장애 — 오늘 수용량 20 → 8 [수용량 변경]",
+      "refs": {
+        "event_id": "E-110",
+        "exception_id": "EX-001"
+      }
+    },
+    {
+      "at": "2026-10-13T11:00:00+09:00",
+      "step_id": "S1",
+      "actor": "상태 엔진",
+      "kind": "STATE",
+      "text": "State Updated — 창고 A capacity(10/13) = 8 · CONFIRMED (사람 입력)",
+      "refs": {
+        "resource_id": "WAREHOUSE_A"
+      }
+    },
+    {
+      "at": "2026-10-13T11:00:01+09:00",
+      "step_id": "S1",
+      "actor": "위험 평가",
+      "kind": "RESULT",
+      "text": "Risk Updated — 영향 12대 · Critical 11 · 조치 없을 때 추가비용 2,490,000원",
+      "refs": {
+        "exception_id": "EX-001"
+      }
+    },
+    {
+      "at": "2026-10-13T11:00:02+09:00",
+      "step_id": "S2",
+      "actor": "복구 계획",
+      "kind": "RESULT",
+      "text": "Simulated Recovery Plan v1 — ODCY A 5 · ODCY B 4 · 대기 3 · 절감 815,000원",
+      "refs": {
+        "plan_id": "RP-001"
+      }
+    },
+    {
+      "at": "2026-10-13T11:00:03+09:00",
+      "step_id": "S2",
+      "actor": "연락",
+      "kind": "COMMS",
+      "text": "문의 초안 3건 준비 (K운송 · ODCY A · 창고 A) — 승인 대기",
+      "refs": {
+        "thread_ids": [
+          "TH-01",
+          "TH-02",
+          "TH-03"
+        ]
+      }
+    },
+    {
+      "at": "2026-10-13T11:02:00+09:00",
+      "step_id": "S3",
+      "actor": "운영자",
+      "kind": "HUMAN",
+      "text": "Plan v1 승인 (잠정 입력 2건 인지) · 문의 3건 발송 승인",
+      "refs": {
+        "plan_id": "RP-001"
+      }
+    },
+    {
+      "at": "2026-10-13T11:03:00+09:00",
+      "step_id": "S3",
+      "actor": "연락",
+      "kind": "COMMS",
+      "text": "3건 발송 — 가상 메일함 (실제 발송 없음)",
+      "refs": {
+        "thread_ids": [
+          "TH-01",
+          "TH-02",
+          "TH-03"
+        ]
+      }
+    },
+    {
+      "at": "2026-10-13T11:15:00+09:00",
+      "step_id": "S4",
+      "actor": "회신 처리",
+      "kind": "FACT",
+      "text": "K운송 회신 — 15:00 2대, 17:00 1대 (PROVISIONAL)",
+      "refs": {
+        "event_id": "E-120",
+        "thread_id": "TH-01"
+      }
+    },
+    {
+      "at": "2026-10-13T11:18:00+09:00",
+      "step_id": "S5",
+      "actor": "회신 처리",
+      "kind": "FACT",
+      "text": "ODCY A 회신 — 40FT Dry 4대, 2일, 35,000원/일 (PROVISIONAL)",
+      "refs": {
+        "event_id": "E-121",
+        "thread_id": "TH-02"
+      }
+    },
+    {
+      "at": "2026-10-13T11:18:01+09:00",
+      "step_id": "S5",
+      "actor": "상태 엔진",
+      "kind": "STATE",
+      "text": "Plan v1 입력 변경 — ODCY A 가용 5 → 4 (v1의 ODCY A 5대 중 1대 실행 불가)",
+      "refs": {
+        "plan_id": "RP-001"
+      }
+    },
+    {
+      "at": "2026-10-13T11:20:00+09:00",
+      "step_id": "S6",
+      "actor": "회신 처리",
+      "kind": "FACT",
+      "text": "창고 A 회신 — 오늘 추가 수용 불가 (8 유지, 새 Event 없음)",
+      "refs": {
+        "thread_id": "TH-03"
+      }
+    },
+    {
+      "at": "2026-10-13T11:20:01+09:00",
+      "step_id": "S7",
+      "actor": "재계획",
+      "kind": "STATE",
+      "text": "Re-plan 트리거 — 회신 3건 반영 (잠정 입력 4건)",
+      "refs": {
+        "plan_id": "RP-002"
+      }
+    },
+    {
+      "at": "2026-10-13T11:20:05+09:00",
+      "step_id": "S7",
+      "actor": "복구 계획",
+      "kind": "RESULT",
+      "text": "Simulated Recovery Plan v2 — ODCY A 4 · ODCY B 6 · 대기 2 · 절감 795,000원",
+      "refs": {
+        "plan_id": "RP-002"
+      }
+    },
+    {
+      "at": "2026-10-13T11:22:00+09:00",
+      "step_id": "S8",
+      "actor": "운영자",
+      "kind": "HUMAN",
+      "text": "Plan v2 승인 (잠정 입력 4건 인지) → 잠정 입력 확인 요청(V9) 3건 생성 — 입력은 PROVISIONAL로 남음",
+      "refs": {
+        "plan_id": "RP-002"
+      }
+    }
+  ]
+}

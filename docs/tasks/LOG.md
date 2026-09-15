@@ -21,6 +21,67 @@
 
 ---
 
+## 2026-09-15 · T-066 (사람 지시) Private Monorepo 재정렬 · Claude Code (claude-opus-5)
+- 상태: 완료 (사람 검토 대기, **커밋하지 않음**)
+- 지시: 저장소를 나누지 않고 하나의 Private Monorepo 안에서 `front/`·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/` 책임 영역으로 재정렬. 기능 추가·Backend·Gmail·LLM·Solver·Tauri 금지. Frontend Prototype을 깨뜨리지 않는 것이 최우선
+- 한 일:
+  1. 사전 확인: git 상태(미커밋 18개 변경 + 새 파일 40개, 약 2만 줄), 비밀정보 파일 없음, 커밋 제외 대상 5종 확인. 이동 전 파일 87개(node_modules·.next·.git 제외)의 SHA-256 목록을 세션 scratchpad에 기록
+  2. 사용자가 띄운 `next start --port 3001`(web/에서 실행 중, 폴더 잠금 원인)을 사용자 승인 뒤 종료
+  3. `web/` → `front/web/` 이동. `web/`은 한 번도 커밋되지 않은 폴더라 `git mv`가 불가능해 일반 이동(같은 드라이브 이름 변경)을 썼다. node_modules 21,299개 파일 포함 그대로 이동
+  4. 경로 수정: `next.config.ts`(Turbopack root = 두 단계 위), `tsconfig.json`(`@scenario/*` → `../../data/scenarios/*`), `scripts/validate-scenario.mjs`(저장소 루트·금지 표현 검사 경로), `scripts/smoke-browser.mjs`(시나리오 경로), `src/data/mock/fixture.ts` 주석, `.gitignore`(`.next/`·`.smoke/`·`next-env.d.ts`를 위치와 무관한 패턴으로)
+  5. 영역 생성: `back/`·`ai/`·`packages/`·`infra/`에 README.md만. 루트 `README.md` 신규. `AGENTS.md` 1.1절(저장소 구조), 4절 규칙 9(Mock/Simulated/Real 구분)·10(요청 없이 commit/push 금지), 6절 명령(`cd front/web`). `CLAUDE.md`에 구조 한 단락. ADR-024(Accepted, 사람 결정)
+  6. 문서: `docs/07` 6절을 Monorepo 레이아웃 + 옛 `src/cera` 모듈의 back/ai 배치표로 교체, 3절에 "구현된 것은 프론트엔드 줄뿐" 명시. `web/` 경로 38곳을 `front/web/`으로(AGENTS·01·07·12·13·16·README·QUEUE·데이터 팩 README). LOG의 옛 항목과 ADR 본문은 규칙대로 고치지 않고 CHANGELOG 7절 경로 대응표에 `web/ → front/web/` 추가
+  7. 오해 표현 정정: 시나리오 JSON 4개의 "LLM (녹화 재생)"·"LLM 추출 녹화값"·"녹화된 값" 17곳 → "SIMULATED — 시나리오 작성값 (LLM 미실행)" 계열. 숫자·구조 변경 없음. 문서의 "Three.js Operations Simulator"(02·03·10·12·AGENTS·docs/README) → "현재 Prototype 2D / Three.js는 향후 선택지"
+- 변경 파일:
+  - 이동: `web/**` → `front/web/**`
+  - 신규: `README.md`, `back/README.md`, `ai/README.md`, `packages/README.md`, `infra/README.md`
+  - 수정: `.gitignore`, `AGENTS.md`, `CLAUDE.md`, `front/web/{next.config.ts, tsconfig.json, scripts/validate-scenario.mjs, scripts/smoke-browser.mjs, src/data/mock/fixture.ts}`, `data/scenarios/busan-wh-capacity-01/{scenario, events, communications, resources}.json`·`README.md`, `docs/01·02·03·07·10·12·13·14·16`, `docs/README.md`, `docs/CHANGELOG.md`, `docs/tasks/QUEUE.md`, `docs/tasks/LOG.md`
+  - 삭제: 없음
+- 검증 (`front/web`에서): `validate:scenario` 2,133개 통과(숫자 동일: Baseline 4,650,000 / v1 3,835,000 / v2 3,855,000), `typecheck` 통과, `lint` 경고 0, `build` 통과, `smoke`(Edge 헤드리스) 135개 항목 통과 — 30대·9단계·KPI·지도 경로별 칸 수·Recovery Console·v1/v2·Communications·Timeline·상세 서랍, 콘솔 오류 0. 이동 전후 파일 해시 대조로 유실 없음 확인
+- 남은 일 / 다음 한 걸음:
+  - 사람: 커밋 여부 결정(원격 백업 없음, 미커밋 약 2만 줄), T-064 Prototype 검토, T-001
+  - 에이전트: 변화 없음(T-017·T-034·T-035 등 실행 가능)
+- 큐 변경: T-066 추가·DONE, T-003 범위를 `back/`·`ai/` 뼈대로 조정, 사람 지시(Monorepo 유지) 추가
+- 주의사항:
+  - 이제 Frontend 명령은 모두 `front/web`에서 실행한다. 사용자가 쓰던 3001번 서버는 종료했으므로 `cd front/web && npm run start`로 다시 띄워야 한다
+  - `front/web/.next/`(빌드 산출물)는 옛 경로가 들어 있어 이동 뒤 다시 빌드했다. 삭제하지 않았다
+  - 남은 하드코딩(화면 문구·입고 예정 대수·시간대)은 이번 범위가 아니라 그대로다(감사 보고 F-4)
+
+## 2026-09-15 · T-060~T-063 (사람 지시) Prototype-led Discovery — Event/State 마무리 + 30대 시나리오 + Control Tower Prototype · Claude Code (claude-opus-5)
+- 상태: 완료 (사람 검토 T-064 대기, **커밋하지 않음** — 사람 지시)
+- 지시 (2026-09-14 퇴근 전 사람 지시, 2026-09-15 실행): T-036을 보류하고 30대 시나리오 + Next.js Control Tower Prototype을 먼저 만든다. Solver·Backend·DB·실연동·LLM 금지. 끝나면 멈춘다. 이 지시가 HANDOFF.md 5절 순서(T-001 판정 → T-036)보다 우선한다
+- 변경 이유 (로드맵): 실제 운영 데이터와 제약이 검증되지 않은 상태에서 수학모델을 먼저 고정하면 가정을 과도하게 설계할 위험이 있다. Prototype-led Discovery를 실제 개발 순서에 적용한 것이며 기획 후퇴가 아니다(ADR-023)
+- 한 일:
+  1. **T-060** `05` 5.2: RECEIVED_ONLY → STALE 취급(T-032 패치 ③) 폐기. `freshness = UNKNOWN`, `temporal_confidence = LOW`, `evidence_time_quality = RECEIVED_ONLY`. 중요 사실이면 STALE처럼 게이트(`FRESHNESS_UNKNOWN`). `temporal_quality` → `evidence_time_quality` 이름 변경을 07·11·13·14에 전파. Event/State 설계 완료 상태로 표시
+  2. **로드맵**: `12` 2.5절 Phase 0.5 추가, T-036 DEFERRED(삭제 아님), QUEUE에 `DEFERRED` 상태 추가, ADR-023
+  3. **T-061** 30대 데이터 팩(JSON 9개): 영향 12대·직송 유지 8대·그 밖 10대, Reefer 4, 트럭 8대 근무 시간, ODCY A/B 제약, 회신 3건, Plan v1·v2, 위험 상태 4개, 확인 요청. 금액은 단가에서 합산(Baseline 4,650,000 / v1 3,835,000 / v2 3,855,000원)
+  4. **T-062** Frontend Data Contract(`cera.ts`) + `CeraDataProvider` + MockProvider. 컴포넌트는 fixture를 import하지 않음
+  5. **T-063** Control Tower(Next.js 16, 2D SVG), Reset·이전·다음·Play, 컨테이너 상세 서랍. 검증 스크립트 2개(`validate:scenario`, `smoke`)
+  6. 문서: `16_frontend-prototype.md`(신규), `09` 0절, `10`·`07`·`03`·`01` 7절·`13`·`14`(ADR-022·023, ADR-014·016 주석)·`15`(Q-37~Q-43, Q-02)·`README`·`CHANGELOG` 갱신. `HANDOFF.md` 반영 후 삭제
+- `[PROPOSED]` 시나리오 fixture 수정 이유 (09 예시값과 다름):
+  - 예시 6,420,000 / 2,850,000 / 3,570,000원은 산식이 없다. 운송비 포함 TotalCost를 단가(`[ASSUMPTION]`)에서 합산했고, 예시를 맞추려 단가를 역산하지 않았다
+  - 예시 배정 8/5/4/3(합 20)은 "원래 창고 대상 20대 배치"로 해석해 v1에 유지하고, "영향 12대 Recovery Actions"(5/4/3 = 12)를 따로 셌다 → Affected 12 = Actions 12
+  - v2가 v1보다 20,000원 비싸다(절감 815,000 → 795,000). v1이 가정한 ODCY A 5대가 회신에서 4대라 1대가 실행 불가였고, 운송사 추가 트럭으로 C008을 옮겨 일부 만회했다. "회신이 계획 가정을 바로잡는다"는 장면으로 의도했다(Q-43)
+  - 회신 11:40~11:50 → 11:15~11:20 (지시 타임라인), D0 10/05(대체공휴일) → 10/13(화), Reefer 4대 추가(지시 요구, "ODCY 불가 → 직송"으로만 사용)
+- 변경 파일:
+  - 신규: `docs/16_frontend-prototype.md`, `data/scenarios/busan-wh-capacity-01/` (scenario·containers·resources·events·risk·plans·communications·activity·verifications `.json`, `README.md`), `web/` (package.json·package-lock.json·tsconfig.json·next.config.ts·eslint.config.mjs, `src/app/`·`src/contracts/`·`src/data/`·`src/components/`, `scripts/validate-scenario.mjs`·`scripts/smoke-browser.mjs`)
+  - 갱신: `docs/01_project-rules.md`, `03_requirements.md`, `05_event-and-state.md`, `07_backend-architecture.md`, `09_mvp-scenario.md`, `10_simulation-spec.md`, `11_data-sources.md`, `12_roadmap.md`, `13_glossary.md`, `14_decisions.md`, `15_open-questions.md`, `README.md`, `CHANGELOG.md`, `tasks/QUEUE.md`, `tasks/LOG.md`, `AGENTS.md`, `.gitignore`
+  - 삭제: `HANDOFF.md` (1회성 인계, 내용은 QUEUE·LOG·docs에 있음)
+- 검증:
+  - `npm run validate:scenario` 통과 (2,133개 검사: 비용 항목·계획 합계, 절감 = Baseline − Plan, 20대·12대 합, ODCY 용량·규격·최대 보관일, 창고 일자별 용량, 트럭 근무 시간·중복·당일 마감, K운송 트럭 시점, KPI = 위험 상태, 확인 대기 수, ISO 6346, +09:00, KRW 정수, 금지 표현)
+  - `npm run typecheck`, `npm run lint`(경고 0), `npm run build` 통과
+  - `npm run smoke` (Edge 헤드리스, `next start`): 9단계 전부 시계·KPI 6개·예외·계획 비용·절감·조치 12행·"= 12대"·지도 경로별 칸 수를 fixture와 대조 통과, S5 재계획 경고·S7 변경 표시·C007/C003 상세·Reset·Play 확인, 콘솔 오류 0. 스크린샷을 직접 보고 레이아웃 수정(Recovery Console 전체 폭, 표 줄바꿈, 입항 전 컨테이너를 터미널 밖으로)
+- 남은 일 / 다음 한 걸음:
+  - 사람: **T-064** Prototype 검토(실행법 `16` 3절), ADR-022·023 판정, 커밋 여부. T-001도 여전히 대기
+  - 에이전트(검토 뒤): T-065 → T-036 재개. 병행 가능: T-017(인터뷰 가이드), T-034, T-035
+- 큐 변경: T-060·T-061·T-062·T-063 DONE, T-064(NEEDS_HUMAN)·T-065 추가, T-036 DEFERRED(재개 조건 T-064·T-065), T-037 범위 조정(T-061 위에 정식 Event fixture), T-017 의존 T-037 → T-063, T-003 web 항목 선행 완료 표시, 상태 규칙에 DEFERRED
+- 주의사항:
+  - 데이터 팩 JSON은 세션 scratchpad의 작성 스크립트로 한 번 생성했다(커밋 안 함). 이제 JSON이 정본이며, 고칠 때는 JSON을 직접 고치고 `validate:scenario`로 합계를 확인한다
+  - 화면 숫자는 엔진 결과가 아니다(`SCENARIO_RESULT`). "Solver가 계산했다" 류 표현은 validator가 막는다
+  - ESLint 10은 `eslint-config-next` 16.3.5의 react 플러그인과 호환되지 않아 9를 쓴다(설치 시 deprecated 경고는 무시해도 됨)
+  - `web/.smoke/`(스크린샷), `.next/`, `node_modules/`는 `.gitignore`
+  - 사람 지시로 Backend·Solver·Phase 1 코드로 넘어가지 않았다
+
 ## 2026-09-11 · T-032 패치 (사람 조건부 승인 후 4개 수정) · Claude Code (claude-opus-5)
 - 상태: 완료 (사람 최종 검토 대기, **커밋하지 않음**. T-036·솔버 확정·코드 금지)
 - 지시: T-032 전체 방향은 조건부 승인. 기존 설계를 유지한 채 4개만 최소 수정·재검증

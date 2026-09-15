@@ -1,7 +1,7 @@
 # 01. 프로젝트 규칙
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11 (T-032: `[DECIDED]`·`[PROPOSED]` 태그 추가, LLM 결과 반영 규칙을 ADR-017과 일치시킴, Event 필수 필드 갱신)
+- 최종 수정: 2026-09-15 (7절 프론트엔드: Next.js, Prototype 단계의 MockProvider·SCENARIO_RESULT 규칙). 이전: 2026-09-11 T-032 태그·LLM 규칙·Event 필수 필드
 
 이 문서의 규칙은 모든 에이전트와 사람 작업자에게 적용되며, 다른 문서와 충돌하면 이 문서가 이긴다. 규칙을 바꾸려면 `14_decisions.md`에 ADR을 올린다.
 
@@ -102,7 +102,7 @@ LLM이 **하지 않는** 것:
 ## 7. 코드 규칙 (T-003에서 확정, 초안)
 
 - 백엔드: Python 3.12. 타입힌트 필수. 도메인 모델은 Pydantic v2. 포맷·린트는 ruff, 테스트는 pytest.
-- 프론트엔드: TypeScript (ADR-016 Proposed). 비즈니스 로직을 넣지 않는다. 화면에 보이는 숫자는 모두 백엔드 결과다.
+- 프론트엔드: TypeScript, Next.js (ADR-016·ADR-022 Proposed). 비즈니스 로직을 넣지 않는다. 화면에 보이는 숫자는 모두 백엔드 결과다. 백엔드가 없는 Prototype 단계에서는 MockProvider(백엔드 대역)가 시나리오 데이터 팩의 **명시값**을 돌려주고, 그 값은 `result_kind = SCENARIO_RESULT`로 표시한다. 컴포넌트는 Frontend Data Contract(`front/web/src/contracts/cera.ts`)에만 의존하고 raw fixture를 import하지 않는다(`16_frontend-prototype.md` 5절).
 - 식별자는 영어로 쓰고, 도메인 용어는 `13_glossary.md`의 영문 표준 표기를 쓴다.
 - 엔진(`state`, `tariff`, `cost`, `risk`, `optimize`)은 순수 함수 위주로 짜고 I/O를 넣지 않는다.
 - 새 엔진 로직에는 단위 테스트를 반드시 붙인다. 비용 계산은 손으로 검산한 예제를 테스트 케이스로 둔다.

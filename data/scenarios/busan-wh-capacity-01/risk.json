@@ -1,0 +1,1482 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "result_kind": "SCENARIO_RESULT",
+  "engine": null,
+  "note": "Risk Engine은 아직 없다(T-044). 등급·사유·금액은 시나리오에 명시한 결과값이다. 등급 규칙은 04_domain-model.md 6.3을 단순화한 것 [ASSUMPTION].",
+  "grade_rules": {
+    "CRITICAL": "현재 유효 계획대로면 LFD가 지난 뒤 터미널에서 반출 (Demurrage 발생 확정)",
+    "HIGH": "창고 수용 부족 대상이지만 LFD 이내 처리 가능, 또는 통관 대기 + LFD 내일",
+    "WATCH": "오늘 LFD·오늘 반출 예정, 복구 계획 반영(잠정 입력 의존 가능), 또는 중요 사실 상태 불확실(STALE·UNKNOWN)",
+    "LOW": "그 밖"
+  },
+  "exposure_basis": "각 컨테이너 exposure_krw = Baseline(조치 없음) 추가비용. residual_exposure_krw = 현재 승인된 계획 기준 남는 추가비용",
+  "states": {
+    "RS0": {
+      "by_grade": {
+        "CRITICAL": 0,
+        "HIGH": 2,
+        "WATCH": 16,
+        "LOW": 12
+      },
+      "affected_count": 0,
+      "exposure_krw": 0,
+      "residual_exposure_krw": 0,
+      "assessments": [
+        {
+          "container_id": "C001",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C002",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C003",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/15(목) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C004",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C005",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C006",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C007",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C008",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C009",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C010",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C011",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C012",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C013",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C014",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C015",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C016",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C017",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C018",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C019",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 오늘 창고 입고 예정",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C020",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C021",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C022",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C023",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 창고 B 오늘 17:00 출발 예정 (영향 없음)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C024",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C025",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/15(목) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C026",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "STATE_UNCERTAIN"
+          ],
+          "explanation": "통관 상태가 2일 전 기록(STALE). 재조회 또는 확인 필요 — 이 사실에 기대는 계획은 승인 차단",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C027",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C028",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "DO_PENDING"
+          ],
+          "explanation": "통관 수리 · D/O 미발행 · LFD 10/15",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C029",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C030",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        }
+      ]
+    },
+    "RS1": {
+      "by_grade": {
+        "CRITICAL": 11,
+        "HIGH": 3,
+        "WATCH": 8,
+        "LOW": 8
+      },
+      "affected_count": 12,
+      "exposure_krw": 2490000,
+      "residual_exposure_krw": 2490000,
+      "assessments": [
+        {
+          "container_id": "C001",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C002",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 235,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 235000
+        },
+        {
+          "container_id": "C003",
+          "impact": "AFFECTED",
+          "grade": "HIGH",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/15(목) 이내라 추가비용 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C004",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C005",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 220,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 220000
+        },
+        {
+          "container_id": "C006",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C007",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 220,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 220000
+        },
+        {
+          "container_id": "C008",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 205,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 205000,
+          "residual_exposure_krw": 205000
+        },
+        {
+          "container_id": "C009",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C010",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 235,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 235000
+        },
+        {
+          "container_id": "C011",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "KEPT_DIRECT"
+          ],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C012",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/13(화) 경과 → 조치 없으면 250,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 250000,
+          "residual_exposure_krw": 250000
+        },
+        {
+          "container_id": "C013",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "KEPT_DIRECT"
+          ],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C014",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 220,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 220000
+        },
+        {
+          "container_id": "C015",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/13(화) 경과 → 조치 없으면 230,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 230000,
+          "residual_exposure_krw": 230000
+        },
+        {
+          "container_id": "C016",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C017",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/14(수) 경과 → 조치 없으면 205,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 205000,
+          "residual_exposure_krw": 205000
+        },
+        {
+          "container_id": "C018",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/14(수) 경과 → 조치 없으면 235,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 235000
+        },
+        {
+          "container_id": "C019",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C020",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/14(수) 경과 → 조치 없으면 235,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 235000
+        },
+        {
+          "container_id": "C021",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C022",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C023",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 창고 B 오늘 17:00 출발 예정 (영향 없음)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C024",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C025",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/15(목) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C026",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "STATE_UNCERTAIN"
+          ],
+          "explanation": "통관 상태가 2일 전 기록(STALE). 재조회 또는 확인 필요 — 이 사실에 기대는 계획은 승인 차단",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C027",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C028",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "DO_PENDING"
+          ],
+          "explanation": "통관 수리 · D/O 미발행 · LFD 10/15",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C029",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C030",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        }
+      ]
+    },
+    "RS2": {
+      "by_grade": {
+        "CRITICAL": 2,
+        "HIGH": 3,
+        "WATCH": 17,
+        "LOW": 8
+      },
+      "affected_count": 12,
+      "exposure_krw": 2490000,
+      "residual_exposure_krw": 1675000,
+      "assessments": [
+        {
+          "container_id": "C001",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C002",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v1: ODCY A 경유 — 오늘 14:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C003",
+          "impact": "AFFECTED",
+          "grade": "HIGH",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL"
+          ],
+          "explanation": "Plan v1: 터미널 대기. 창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/15(목) 이내라 추가비용 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C004",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C005",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v1: ODCY A 경유 — 오늘 16:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C006",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C007",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v1: ODCY A 경유 — 오늘 15:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C008",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "Plan v1: 터미널 대기. 창고 A 수용 부족으로 오늘 입고 불가 → 10/14(수) 입고. LFD 10/13(화) 경과 → 조치 없으면 205,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 205000,
+          "residual_exposure_krw": 205000
+        },
+        {
+          "container_id": "C009",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C010",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v1: ODCY A 경유 — 오늘 15:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C011",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "KEPT_DIRECT"
+          ],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C012",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v1: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 150,000원",
+          "exposure_krw": 250000,
+          "residual_exposure_krw": 150000
+        },
+        {
+          "container_id": "C013",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "KEPT_DIRECT"
+          ],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C014",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v1: ODCY A 경유 — 오늘 18:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C015",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v1: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 150,000원",
+          "exposure_krw": 230000,
+          "residual_exposure_krw": 150000
+        },
+        {
+          "container_id": "C016",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C017",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "Plan v1: 터미널 대기. 창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/14(수) 경과 → 조치 없으면 205,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 205000,
+          "residual_exposure_krw": 205000
+        },
+        {
+          "container_id": "C018",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v1: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 195,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 195000
+        },
+        {
+          "container_id": "C019",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C020",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v1: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 195,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 195000
+        },
+        {
+          "container_id": "C021",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C022",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C023",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 창고 B 오늘 17:00 출발 예정 (영향 없음)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C024",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C025",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/15(목) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C026",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "STATE_UNCERTAIN"
+          ],
+          "explanation": "통관 상태가 2일 전 기록(STALE). 재조회 또는 확인 필요 — 이 사실에 기대는 계획은 승인 차단",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C027",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C028",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "DO_PENDING"
+          ],
+          "explanation": "통관 수리 · D/O 미발행 · LFD 10/15",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C029",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C030",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        }
+      ]
+    },
+    "RS3": {
+      "by_grade": {
+        "CRITICAL": 1,
+        "HIGH": 3,
+        "WATCH": 18,
+        "LOW": 8
+      },
+      "affected_count": 12,
+      "exposure_krw": 2490000,
+      "residual_exposure_krw": 1695000,
+      "assessments": [
+        {
+          "container_id": "C001",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C002",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v2: ODCY A 경유 — 오늘 14:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C003",
+          "impact": "AFFECTED",
+          "grade": "HIGH",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL"
+          ],
+          "explanation": "Plan v2: 터미널 대기. 창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/15(목) 이내라 추가비용 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C004",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C005",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v2: ODCY A 경유 — 오늘 19:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C006",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C007",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v2: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 170,000원",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 170000
+        },
+        {
+          "container_id": "C008",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v2: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 170,000원",
+          "exposure_krw": 205000,
+          "residual_exposure_krw": 170000
+        },
+        {
+          "container_id": "C009",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C010",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v2: ODCY A 경유 — 오늘 15:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C011",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "KEPT_DIRECT"
+          ],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C012",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v2: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 150,000원",
+          "exposure_krw": 250000,
+          "residual_exposure_krw": 150000
+        },
+        {
+          "container_id": "C013",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "KEPT_DIRECT"
+          ],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C014",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED",
+            "PROVISIONAL_INPUT"
+          ],
+          "explanation": "Plan v2: ODCY A 경유 — 오늘 18:00 반출(LFD 이내), 10/14(수) 입고. 남는 추가비용 115,000원",
+          "exposure_krw": 220000,
+          "residual_exposure_krw": 115000
+        },
+        {
+          "container_id": "C015",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v2: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 150,000원",
+          "exposure_krw": 230000,
+          "residual_exposure_krw": 150000
+        },
+        {
+          "container_id": "C016",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C017",
+          "impact": "AFFECTED",
+          "grade": "CRITICAL",
+          "reasons": [
+            "WAREHOUSE_SHORTFALL",
+            "LFD_WILL_PASS"
+          ],
+          "explanation": "Plan v2: 터미널 대기. 창고 A 수용 부족으로 오늘 입고 불가 → 10/15(목) 입고. LFD 10/14(수) 경과 → 조치 없으면 205,000원 추가 (Demurrage·보관료)",
+          "exposure_krw": 205000,
+          "residual_exposure_krw": 205000
+        },
+        {
+          "container_id": "C018",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v2: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 195,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 195000
+        },
+        {
+          "container_id": "C019",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED",
+            "KEPT_DIRECT"
+          ],
+          "explanation": "오늘 LFD · 창고 A 오늘 8대 안에 포함 (직송 유지)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C020",
+          "impact": "AFFECTED",
+          "grade": "WATCH",
+          "reasons": [
+            "PLAN_MITIGATED"
+          ],
+          "explanation": "Plan v2: ODCY B 경유 — 오늘 15:00 반출(LFD 이내), 10/15(목) 입고. 남는 추가비용 195,000원",
+          "exposure_krw": 235000,
+          "residual_exposure_krw": 195000
+        },
+        {
+          "container_id": "C021",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C022",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/14(수) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C023",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "LFD_TODAY_PLANNED"
+          ],
+          "explanation": "오늘 LFD · 창고 B 오늘 17:00 출발 예정 (영향 없음)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C024",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C025",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [],
+          "explanation": "LFD 10/15(목) · 계획대로면 문제 없음",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C026",
+          "impact": "NONE",
+          "grade": "WATCH",
+          "reasons": [
+            "STATE_UNCERTAIN"
+          ],
+          "explanation": "통관 상태가 2일 전 기록(STALE). 재조회 또는 확인 필요 — 이 사실에 기대는 계획은 승인 차단",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C027",
+          "impact": "NONE",
+          "grade": "HIGH",
+          "reasons": [
+            "CUSTOMS_PENDING",
+            "LFD_TOMORROW"
+          ],
+          "explanation": "통관 심사 중 · LFD 10/14. 통관이 늦으면 LFD 경과",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C028",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "DO_PENDING"
+          ],
+          "explanation": "통관 수리 · D/O 미발행 · LFD 10/15",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C029",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        },
+        {
+          "container_id": "C030",
+          "impact": "NONE",
+          "grade": "LOW",
+          "reasons": [
+            "ARRIVING"
+          ],
+          "explanation": "입항 전 (ETA 10/14 06:00 예상값)",
+          "exposure_krw": 0,
+          "residual_exposure_krw": 0
+        }
+      ]
+    }
+  },
+  "step_state": {
+    "S0": "RS0",
+    "S1": "RS1",
+    "S2": "RS1",
+    "S3": "RS2",
+    "S4": "RS2",
+    "S5": "RS2",
+    "S6": "RS2",
+    "S7": "RS2",
+    "S8": "RS3"
+  },
+  "exceptions": [
+    {
+      "exception_id": "EX-001",
+      "type": "WAREHOUSE_CAPACITY_REDUCED",
+      "title": "창고 A 설비 장애",
+      "resource_id": "WAREHOUSE_A",
+      "detected_at": "2026-10-13T11:00:00+09:00",
+      "detected_step": "S1",
+      "capacity_before": 20,
+      "capacity_after": 8,
+      "day": "2026-10-13",
+      "planned_today": 20,
+      "affected_count": 12,
+      "affected_container_ids": [
+        "C002",
+        "C005",
+        "C007",
+        "C008",
+        "C010",
+        "C014",
+        "C012",
+        "C015",
+        "C017",
+        "C018",
+        "C020",
+        "C003"
+      ],
+      "source": {
+        "type": "HUMAN_UI",
+        "role": "WAREHOUSE",
+        "label": "창고 A 담당자 [수용량 변경] — 도크 레벨러 2기 고장",
+        "event_id": "E-110",
+        "value_status": "CONFIRMED",
+        "is_simulated": true
+      },
+      "status_timeline": [
+        {
+          "from_step": "S1",
+          "status": "OPEN",
+          "note": "영향 12대 · 복구 계획 없음"
+        },
+        {
+          "from_step": "S2",
+          "status": "PLAN_PROPOSED",
+          "note": "Plan v1 승인 대기"
+        },
+        {
+          "from_step": "S3",
+          "status": "RECOVERY_IN_PROGRESS",
+          "note": "Plan v1 승인 · 문의 3건 발송(가상)"
+        },
+        {
+          "from_step": "S5",
+          "status": "REPLAN_NEEDED",
+          "note": "ODCY A 가용 5 → 4 — v1 일부 실행 불가"
+        },
+        {
+          "from_step": "S7",
+          "status": "PLAN_PROPOSED",
+          "note": "Plan v2 승인 대기"
+        },
+        {
+          "from_step": "S8",
+          "status": "RECOVERY_IN_PROGRESS",
+          "note": "Plan v2 승인 · 13:00 첫 배차 예정"
+        }
+      ]
+    }
+  ]
+}

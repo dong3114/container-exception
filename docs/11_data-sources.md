@@ -1,7 +1,7 @@
 # 11. 데이터 출처와 검증
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11
+- 최종 수정: 2026-09-15 (T-060: RECEIVED_ONLY → 신선도 UNKNOWN)
 - 관련: `05_event-and-state.md`(Event·신뢰도·신선도), `data/field-dictionary.md`(공공 API 필드 정본, 출처 ID `S-nn`), `data/code-tables.md`
 
 ---
@@ -38,7 +38,7 @@
 2. **교차 검증**: 사용자 입력과 다르면 Conflict·알림을 만든다.
 3. **히스토리 보강**: 사람이 입력하지 않은 과거 Event(처리이력의 반출입 일시 등)를 사후에 채운다.
 
-공공 API 응답을 현실의 최신 상태로 쓰지 않는다. 판단에 쓰일 때는 신선도(`05_event-and-state.md` 5절)를 반드시 계산한다. 공공 API는 권한이 A여도 근거 강도가 최대 2이다. 신선도는 응답 속 발생·처리 시각으로만 판단하고, fetch(수신) 시각은 근거로 쓰지 않는다. 응답에 시각이 없으면 `RECEIVED_ONLY`로 표시하고 STALE로 취급한다(`05_event-and-state.md` 5.2).
+공공 API 응답을 현실의 최신 상태로 쓰지 않는다. 판단에 쓰일 때는 신선도(`05_event-and-state.md` 5절)를 반드시 계산한다. 공공 API는 권한이 A여도 근거 강도가 최대 2이다. 신선도는 응답 속 발생·처리 시각으로만 판단하고, fetch(수신) 시각은 근거로 쓰지 않는다. 응답에 시각이 없으면 `RECEIVED_ONLY`로 표시하고 신선도를 `UNKNOWN`(STALE이 아님, `temporal_confidence = LOW`)으로 둔다. 중요 사실이면 STALE처럼 확인·재조회·승인 게이트가 걸린다(`05_event-and-state.md` 5.2, T-060).
 
 ### 3.2 확인된 사실 요약 (T-004, 2026-09-11)
 

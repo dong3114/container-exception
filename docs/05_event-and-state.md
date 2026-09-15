@@ -1,7 +1,9 @@
 # 05. 이벤트·상태 아키텍처 (Operational Event → Canonical Operational State)
 
 - 상태: Draft — **T-032 확정안, 사람 검토 대기** (기획 v0.2)
-- 최종 수정: 2026-09-11 (T-032)
+- 최종 수정: 2026-09-15 (T-060: `RECEIVED_ONLY`는 STALE이 아니라 신선도 `UNKNOWN`. `temporal_quality` → `evidence_time_quality`, `temporal_confidence` 추가. 5.2·5.3·6.2·8.4·9.1·14·15절)
+- 이전 수정: 2026-09-11 (T-032)
+- **완료 상태**: T-060 수정으로 Event/State 설계는 완료 상태다(사람 검토 T-001은 별도로 남음). 다음 개발 순서는 `12_roadmap.md` 2.5절(Prototype-led Discovery)
 - 관련 ADR: ADR-013(저장 방식), ADR-014(Freshness), ADR-017(사람 확인 게이트), **ADR-019(Reconciliation Policy)**, **ADR-020(상태 차원 분리·출처 모델)**, ADR-021(컨테이너 상태 모델, `04_domain-model.md` 2절). ADR-012의 전역 우선순위 규칙은 ADR-019로 대체
 - 이 문서가 답하는 질문: **서로 다른 출처가 서로 다른 현실을 말할 때, CERA는 어떤 근거로 현재 운영 상태를 정하는가?**
 
@@ -346,15 +348,15 @@ LLM이 스스로 매긴 확신도는 쓰지 않는다. `confidence`는 아래 **
 
 ### 5.2 근거 시각 (evidence_time)
 
-근거 시각(`evidence_time`)은 "이 Event가 값을 보증하는 시각"이다. Event 필드로 저장하지 않고 아래 **3단계 폴백**으로 정하며, 어느 단계에서 정했는지를 `temporal_quality`로 함께 남긴다. (T-032 패치: 초안의 `max(source_event_time, source_recorded_at ?? received_at − 지연 허용)` 공식과 공공 API 지연 허용 ∞ 표현은 폐기했다.)
+근거 시각(`evidence_time`)은 "이 Event가 값을 보증하는 시각"이다. Event 필드로 저장하지 않고 아래 **3단계 폴백**으로 정하며, 어느 단계에서 정했는지를 `evidence_time_quality`로, 그 시각을 얼마나 믿을 수 있는지를 `temporal_confidence`로 함께 남긴다. (T-032 패치: 초안의 `max(source_event_time, source_recorded_at ?? received_at − 지연 허용)` 공식과 공공 API 지연 허용 ∞ 표현은 폐기했다. T-060: 필드 이름을 `temporal_quality`에서 `evidence_time_quality`로 바꾸고 `temporal_confidence`를 더했다.)
 
 ```text
 if   e.source_event_time 있음 and 유효(4.5: 타임존 있음, 미래 아님):
-         evidence_time = e.source_event_time    temporal_quality = EVENT_TIME
+         evidence_time = e.source_event_time    evidence_time_quality = EVENT_TIME     temporal_confidence = HIGH
 elif e.source_recorded_at 있음:
-         evidence_time = e.source_recorded_at   temporal_quality = RECORDED_TIME   -- 한 단계 낮음
+         evidence_time = e.source_recorded_at   evidence_time_quality = RECORDED_TIME  temporal_confidence = MEDIUM  -- 한 단계 낮음
 else:
-         evidence_time = e.received_at          temporal_quality = RECEIVED_ONLY   -- 현실 발생 시각이라는 뜻이 아님
+         evidence_time = e.received_at          evidence_time_quality = RECEIVED_ONLY  temporal_confidence = LOW     -- 현실 발생 시각이라는 뜻이 아님
 ```
 
 - **수신 시각에서 지연을 빼서 현실 시각을 추정하지 않는다.** 공공 API 반영 SLA를 모르므로(R-1) 그런 추정은 근거가 없다.
@@ -362,23 +364,32 @@ else:
 
 **어댑터 매핑 규칙** (시각을 어느 필드에 넣을지는 어댑터가 결정론적으로 정한다)
 
-| source_type | `source_event_time` | `source_recorded_at` | 흔한 temporal_quality |
+| source_type | `source_event_time` | `source_recorded_at` | 흔한 evidence_time_quality |
 | --- | --- | --- | --- |
 | `HUMAN_UI` | 사용자가 적은 발생 시각, 없으면 **액션 시각**(사람은 "지금 이렇다"고 단언) | — | EVENT_TIME |
 | `PARTNER_SYSTEM` | 시스템이 붙인 사건·상태 시각 | 전송 시각(있으면) | EVENT_TIME |
 | `EMAIL` | 본문에 기준 시각이 명시되면 그 시각 | 메일 발신 시각(Date 헤더) | RECORDED_TIME |
 | `FILE_IMPORT` | 행에 적힌 시각 | 업로드 화면에서 입력한 기준 시각 | EVENT_TIME / RECORDED_TIME / RECEIVED_ONLY |
 | `PUBLIC_API` DS-01 | 처리이력의 반출입일시(마일스톤), 상태는 **처리일시**(그 상태가 원천에 기록된 가장 늦은 시각. 필드 의미는 `[TO VERIFY]` Q-19) | — | EVENT_TIME |
-| `PUBLIC_API` DS-02 | 컨테이너별 시각 없음 | — | RECEIVED_ONLY (IDENTITY 사실이라 영향 작음) |
+| `PUBLIC_API` DS-02 | 컨테이너별 시각 없음 | — | RECEIVED_ONLY (IDENTITY 사실이라 영향 작음. STATE 사실이면 신선도 `UNKNOWN`) |
 
 **fetch(수신) 시각은 절대 `source_event_time`으로 쓰지 않는다.** 그래서 공공 API를 방금 다시 조회했어도 원천 시각이 오래됐으면 오래된 근거다. 초안의 "지연 허용 ∞"와 같은 결과를 공식 없이 얻는다.
 
-**`RECEIVED_ONLY` 처리** (`received_only_policy`, `[PROPOSED]`)
+**`RECEIVED_ONLY` 처리** (`received_only_policy`, `[PROPOSED]`, T-060 개정)
 
-| source_type | 처리 |
+외부 출처가 `source_event_time`도 `source_recorded_at`도 주지 않고 CERA의 `received_at`만 있으면:
+
+| 차원 | 값 |
 | --- | --- |
-| `PUBLIC_API` | 신선도를 `STALE`로 취급한다(반영 지연을 모르므로 "언제 기준 값인지" 알 수 없음) |
-| 그 밖 | `received_at`으로 신선도를 계산하되 "시각 불확실" 배지를 붙인다. 사람·파트너·메일은 전달이 사실상 즉시라 보고 `[ASSUMPTION]` |
+| `freshness_status` | **`UNKNOWN`** (STALE로 단정하지 않는다) |
+| `temporal_confidence` | `LOW` |
+| `evidence_time_quality` | `RECEIVED_ONLY` |
+
+- **"언제 발생했는지 모른다"와 "오래됐다"는 다른 주장이다.** STALE은 "근거 시각을 알고, 그 시각이 기준보다 오래됐다"는 뜻이다. RECEIVED_ONLY는 근거 시각 자체를 모르는 상태이므로 오래됐다고도, 신선하다고도 말할 수 없다. 그래서 신선도를 `UNKNOWN`으로 두고, 나이(`age`)는 계산하지 않는다(화면에는 "발생 시각 모름 · 수신 11:00"처럼 수신 시각만 보여준다).
+- 값은 그대로 유지한다(STALE과 마찬가지로 값을 UNKNOWN으로 지우지 않는다. 신선도가 모르는 것이지 값이 없는 것이 아니다).
+- **판단에 쓸 때는 STALE과 비슷한 게이트가 필요할 수 있다.** 중요 사실(15절 `critical_families`)이 `UNKNOWN`이면 `decision_usability = APPROVAL_BLOCKED`(사유 `FRESHNESS_UNKNOWN`)로 두고 확인 요청(V2)·재조회(Re-fetch)·계획 승인 게이트를 STALE과 같은 방식으로 건다(8.4). 중요하지 않은 사실이면 `USABLE_WITH_WARNING`이다.
+- 차단은 사실 단위 행동으로 풀린다: 사람 [지금도 맞음](발생 시각이 붙은 새 `HUMAN_UI` 관측), 출처 재조회로 발생·처리 시각이 붙은 응답, 파트너가 시각을 붙여 다시 보고.
+- 옛 규칙(T-032 패치 ③: "공공 API RECEIVED_ONLY → STALE 취급", "그 밖 → received_at으로 계산 + 배지")은 **폐기**했다. 앞의 것은 모르는 것을 오래됐다고 단정했고, 뒤의 것은 수신 시각을 발생 시각처럼 써서 신선하다고 단정했다. `HUMAN_UI`는 항상 액션 시각이 있고 `EMAIL`은 Date 헤더가 있으므로, 실제로 RECEIVED_ONLY가 되는 것은 주로 공공 API(DS-02)·시각 없는 파일·파트너 응답이다.
 
 **결정론 예시 — 왜 STATE의 `source_event_time`은 "관측 시각"이어야 하나** (옛 `max()` 공식이 하던 일을 정의로 대신한다)
 
@@ -401,7 +412,8 @@ age(e, as_of) = as_of − evidence_time(e)
 | --- | --- | --- |
 | `FRESH` | age ≤ `fresh_max(family)` | STATE, OFFER, FORECAST |
 | `AGING` | `fresh_max` < age ≤ `stale_after(family)` | STATE, OFFER, FORECAST |
-| `STALE` | age > `stale_after(family)`, 또는 `received_only_policy`가 STALE로 정함(공공 API `RECEIVED_ONLY`) | STATE, OFFER, FORECAST |
+| `STALE` | age > `stale_after(family)` (근거 시각을 알 때만) | STATE, OFFER, FORECAST |
+| `UNKNOWN` | 이긴 근거의 `evidence_time_quality = RECEIVED_ONLY` — 근거 시각을 몰라 나이를 계산할 수 없음(5.2, T-060) | STATE, OFFER, FORECAST |
 | `EXPIRED` | OFFER의 시간창 끝(또는 `payload.valid_until`) < `as_of`, TERM의 적용기간 밖 | OFFER, TERM |
 | `N_A` | 값이 있는 MILESTONE, IDENTITY, PLAN | — |
 
@@ -425,7 +437,7 @@ age(e, as_of) = as_of − evidence_time(e)
 | 차원 | 값 | 무엇이 바꾸나 |
 | --- | --- | --- |
 | `value_status` (값을 누가 보증하나) | `CONFIRMED`(검증 근거 있음, 아래 표), `OBSERVED`(강도 ≥ 2이지만 검증 근거 없음: 공공 API, 파일, 권한 S 출처), `PROVISIONAL`(강도 1), `INFERRED`(추정만), `UNKNOWN`(자격 있는 후보 없음) | 새 Event, 사람 확인 |
-| `freshness_status` | `FRESH`, `AGING`, `STALE`, `EXPIRED`, `N_A` | 시계(`as_of`) |
+| `freshness_status` | `FRESH`, `AGING`, `STALE`, `EXPIRED`, `UNKNOWN`(근거 시각 모름, T-060), `N_A` | 시계(`as_of`), 근거 시각 품질 |
 | `conflict_status` | `NONE`, `DISSENT`(진 후보가 기록됨, 판단 차단 없음), `OPEN`(해결 전 판단 차단) | 새 Event, 사람 확인 |
 | `hold_status` | `NONE`, `HELD`(불리한 큰 변경이 확인을 기다림, 기존 값 유지) | R10, 사람 확인 |
 | `decision_usability` | `USABLE`, `USABLE_WITH_WARNING`, `APPROVAL_BLOCKED`, `UNUSABLE` | 위 네 차원 + 사실의 중요도(R11) |
@@ -549,8 +561,8 @@ reconcile_entity(entity):
 | decision_usability | 조건 | 엔진·UI 동작 |
 | --- | --- | --- |
 | `UNUSABLE` | `value_status = UNKNOWN`, 또는 `freshness_status = EXPIRED` | 엔진은 보수적 기본값을 쓴다(준비 안 됨, 용량 0) |
-| `APPROVAL_BLOCKED` | 중요 사실이면서 `conflict_status = OPEN`, `hold_status = HELD`, `freshness_status = STALE` 중 하나 | 계산은 하되 이 사실에 기대는 계획은 승인할 수 없다. **사실 단위 행동**(확인 요청 처리, 새 근거)으로 차단이 풀려야 한다. 계획 승인으로는 풀리지 않는다(11.5) |
-| `USABLE_WITH_WARNING` | `PROVISIONAL`·`INFERRED`, `AGING`, `DISSENT`, `RECEIVED_ONLY` 시각, 또는 중요하지 않은 사실의 STALE·OPEN·HELD | 재최적화 입력으로 쓰고 계획에 "잠정·주의 입력"으로 표시. 계획 승인 때 **잠정 입력으로 인지했다는 기록**이 필요하다. 승인해도 사실은 PROVISIONAL로 남는다(11.5) |
+| `APPROVAL_BLOCKED` | 중요 사실이면서 `conflict_status = OPEN`, `hold_status = HELD`, `freshness_status = STALE`, `freshness_status = UNKNOWN`(T-060) 중 하나 | 계산은 하되 이 사실에 기대는 계획은 승인할 수 없다. **사실 단위 행동**(확인 요청 처리, 새 근거)으로 차단이 풀려야 한다. 계획 승인으로는 풀리지 않는다(11.5) |
+| `USABLE_WITH_WARNING` | `PROVISIONAL`·`INFERRED`, `AGING`, `DISSENT`, 또는 중요하지 않은 사실의 STALE·UNKNOWN(RECEIVED_ONLY)·OPEN·HELD | 재최적화 입력으로 쓰고 계획에 "잠정·주의 입력"으로 표시. 계획 승인 때 **잠정 입력으로 인지했다는 기록**이 필요하다. 승인해도 사실은 PROVISIONAL로 남는다(11.5) |
 | `USABLE` | 그 밖 | 그대로 사용 |
 
 ### 8.5 옛 R1~R8과의 대응
@@ -590,7 +602,7 @@ Reconciliation 결과마다 템플릿으로 설명을 만든다(LLM을 쓰지 �
   "fact_key": "capacity.day(2026-10-05)", "fact_kind": "STATE", "family": "warehouse_capacity",
   "value": 8,
   "effective_time": "2026-10-05T10:58:00+09:00",
-  "evidence_time": "2026-10-05T11:00:00+09:00", "temporal_quality": "EVENT_TIME",
+  "evidence_time": "2026-10-05T11:00:00+09:00", "evidence_time_quality": "EVENT_TIME", "temporal_confidence": "HIGH",
   "value_status": "CONFIRMED", "verification_basis": "HUMAN_VERIFICATION",
   "freshness_status": "FRESH", "age_minutes": 1,
   "conflict_status": "NONE", "conflict_id": null,
@@ -615,7 +627,7 @@ Reconciliation 결과마다 템플릿으로 설명을 만든다(LLM을 쓰지 �
 | --- | --- | --- |
 | `value` | Canonical 값 | 결정론 |
 | `effective_time` | 그 값이 현실에서 참이 된 시각(승자의 `payload.changed_at`, 없으면 근거 시각) | 결정론 |
-| `evidence_time`, `temporal_quality` | 승자의 근거 시각과 그 시각을 어느 단계에서 정했는지(5.2) | 결정론 |
+| `evidence_time`, `evidence_time_quality`, `temporal_confidence` | 승자의 근거 시각, 그 시각을 어느 단계에서 정했는지, 그 시각의 신뢰도(5.2). RECEIVED_ONLY면 `age_minutes = null` | 결정론 |
 | `verification_basis` | CONFIRMED의 근거(6.2). CONFIRMED가 아니면 `null` | 결정론 |
 | `value_status`, `freshness_status`, `conflict_status`, `hold_status`, `decision_usability` | 6.2 차원 | 결정론 |
 | `winner_event_id`, `winner_strength`, `evidence.*` | provenance: 이긴 근거와 진 근거의 역할별 목록 | 결정론 |
@@ -812,7 +824,7 @@ Reconciliation 결과마다 템플릿으로 설명을 만든다(LLM을 쓰지 �
     "slot_pools": [], "terminals": [{ "id": "T1", "storage_rate": [] }]
   },
   "provisional_inputs": [{ "entity": "...", "fact_key": "...", "event_id": "..." }],
-  "approval_blockers": [{ "entity": "...", "fact_key": "...", "reason": "CONFLICT_OPEN | HELD | STALE" }],
+  "approval_blockers": [{ "entity": "...", "fact_key": "...", "reason": "CONFLICT_OPEN | HELD | STALE | FRESHNESS_UNKNOWN" }],
   "held_candidates": [{ "entity": "...", "fact_key": "...", "current_value": 20, "held_value": 8, "event_id": "..." }],
   "contains_simulated": true
 }
@@ -846,7 +858,7 @@ Reconciliation 결과마다 템플릿으로 설명을 만든다(LLM을 쓰지 �
 | --- | --- | --- | --- |
 | `authority_matrix` | 3.2 표 | 3.2 표 | `[TO VERIFY]` Q-23 |
 | `strength_table` | 3.3 표 | 3.3 표 | `[TO VERIFY]` Q-23 |
-| `received_only_policy` | `RECEIVED_ONLY` 시각의 신선도 처리(5.2) | PUBLIC_API → STALE, 그 밖 → received_at으로 계산 + 배지 | `[TO VERIFY]` R-1 |
+| `received_only_policy` | `RECEIVED_ONLY` 시각의 신선도 처리(5.2) | 모든 출처 → `freshness = UNKNOWN`, `temporal_confidence = LOW`. 중요 사실이면 `APPROVAL_BLOCKED`(`FRESHNESS_UNKNOWN`) (T-060) | `[TO VERIFY]` R-1 |
 | `plan_approval.provisional_inputs` | PROVISIONAL 입력을 쓴 계획의 승인 허용 방식(11.5) | `ALLOW_WITH_ACK` | `[PROPOSED]` |
 | `verification_evidence_rules` | `POLICY_EVIDENCE`로 CONFIRMED를 인정할 규칙(6.2) | 비어 있음 | `[PROPOSED]` |
 | `clock_tolerance_tau` (τ) | 동시로 보는 근거 시각 차이, 미래 시각 허용 오차 | 5분 | `[TO VERIFY]` Q-24 |

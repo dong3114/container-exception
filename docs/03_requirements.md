@@ -1,7 +1,7 @@
 # 03. 요구사항
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11
+- 최종 수정: 2026-09-15 (5절: Control Tower Prototype 메모)
 - 우선순위: `Must`(PoC 데모에 반드시) · `Should`(PoC에 있으면 좋음) · `Could`(Pilot 이후)
 - 단계: `PoC` · `Pilot` · `Scale` (`02_product-definition.md` 6절)
 
@@ -105,7 +105,7 @@
 | FR-UI-04 | Recovery Console: Baseline vs Recovery, 배정표, 자원 사용률, 제약 영향, 재실행, 승인 | Must | PoC |
 | FR-UI-05 | Communication 화면: 초안 검토·수정·승인, 스레드, 회신 추출 결과 | Must | PoC |
 | FR-UI-06 | Contract/Tariff UI: 추출 후보와 원문 근거, 확인, 규칙 버전 | Must | PoC |
-| FR-UI-07 | Three.js Operations Simulator + Agent Activity Timeline(`10_simulation-spec.md`) | Must | PoC |
+| FR-UI-07 | Operations Simulator + Agent Activity Timeline(`10_simulation-spec.md`). 현재 Prototype 구현: 2D SVG(`16_frontend-prototype.md`). Three.js 2.5D는 향후 선택지(ADR-016·022 판정 전) | Must | PoC |
 | FR-UI-08 | 목적지·자원 등록 화면 | Should | PoC (시나리오 파일로 대체 가능) |
 
 ### 2.9 감사·알림
@@ -152,11 +152,13 @@
 | SCR-04 | Recovery Console | Must | 계획 비교, 배정표, 제약, 승인 |
 | SCR-05 | Communication | Must | 초안·승인·스레드·회신 추출 |
 | SCR-06 | Contract / Tariff | Must | 추출 후보·근거·확인·버전 |
-| SCR-07 | Operations Simulator | Must | Three.js 2.5D + Agent Activity Timeline |
+| SCR-07 | Operations Simulator | Must | 운영 지도 + Agent Activity Timeline (현재 2D SVG, Three.js 2.5D는 선택지) |
 | SCR-08 | Watchlist / Import | Must | CSV 업로드·검증 |
 | SCR-09 | 목적지·자원 | Should | 창고 수용량, ODCY, 트럭 |
 
 화면 사이의 흐름(Wireflow)은 T-040에서 만든다.
+
+**2026-09-15 Prototype**: SCR-01(대시보드)·SCR-04(Recovery Console 요약)·SCR-07(운영 지도, 2D)·SCR-05(연락 스레드 요약)·SCR-02(컨테이너 상세 서랍)를 한 화면 "CERA Operations Control Tower"로 먼저 만들었다(`16_frontend-prototype.md`). 데이터는 시나리오 데이터 팩의 명시값이고, 사람 액션(SCR-03 확인, 승인 버튼)은 재생 단계로만 보여준다. 화면별 분리 여부는 Prototype 검토(T-064) 뒤 T-040·T-065에서 정한다.
 
 ## 6. 알림 정책 (초안)
 

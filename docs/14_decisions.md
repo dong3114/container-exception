@@ -1,7 +1,7 @@
 # 14. 설계 결정 기록 (ADR)
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-11 (v0.2: ADR-011~018 추가, 기존 ADR에 v0.2 주석. `09_decisions.md`에서 이름 변경)
+- 최종 수정: 2026-09-15 (ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
 
 상태 값: `Proposed`(제안, 사람 승인 전) · `Accepted`(확정) · `Superseded by ADR-NNN`(대체됨) · `Rejected`(기각).
 `Accepted` ADR은 에이전트가 혼자 뒤집지 않는다. 바꾸려면 새 ADR을 `Proposed`로 올린다.
@@ -44,6 +44,9 @@
 | 019 | Reconciliation Policy: 근거 강도 × 최근성 × 신선도, 강도 가드·동시 충돌·불리한 변경 보류 | Proposed (T-032) |
 | 020 | 출처 3축(채널·역할·추출 방식)과 상태 차원 분리 | Proposed (T-032) |
 | 021 | 컨테이너 상태 = Hybrid (사실 + 유도 단계 + 예외 오버레이 + 영향) | Proposed (T-032) |
+| 022 | 프론트엔드 = Next.js + 2D SVG 운영 지도 + Data Contract/Mock Provider (ADR-016의 Vite·Three.js 부분 개정) | Proposed (T-062·T-063, 2026-09-15) |
+| 023 | 개발 순서 = Prototype 먼저 (T-036 최적화 명세 DEFERRED) | Proposed (2026-09-14 사람 지시, 2026-09-15 기록) |
+| 024 | 저장소 = 하나의 Private Monorepo + 책임 영역(front·back·ai·packages·data·docs·infra) | **Accepted** (2026-09-15 사람 결정). 계약 정본 OpenAPI·Desktop(Tauri)은 방향만, 미확정 |
 
 ---
 
@@ -171,6 +174,7 @@
 - 결과: 기준값은 **정하지 않았다**(Q-24). PoC 시나리오는 데모용 `[ASSUMPTION]` 값을 쓴다.
 - **T-032 주석 (2026-09-11)**: 신선도 기준 시각을 "근거 시각"(`05_event-and-state.md` 5.2)으로 구체화했다: `max(source_event_time, source_recorded_at ?? received_at − lag_allowance)`. 공공 API의 `lag_allowance`는 R-1 실측 전까지 ∞로 취급해, 수신 시각이 방금이어도 응답 속 발생 시각 기준으로만 신선도를 판단한다. 기준값은 사실 계열별로 두고 `EXPIRED`(제안 시간창 경과)를 추가했다. STALE이어도 값은 UNKNOWN으로 바꾸지 않는다.
 - **T-032 패치 주석 (2026-09-11, 사람 검토 지시)**: 위 `max(...)` 공식과 "공공 API 지연 허용 ∞"를 **폐기**하고 3단계 폴백으로 단순화했다: `source_event_time`(EVENT_TIME) → `source_recorded_at`(RECORDED_TIME) → `received_at`(RECEIVED_ONLY). 수신 시각에서 지연을 빼서 현실 시각을 추정하지 않는다. 옛 공식이 막던 오류(변경 시각을 넣어 더 늦게 안 값이 지는 것)는 "STATE의 `source_event_time` = 관측 시각, 변경 시각은 `payload.changed_at`"이라는 어댑터 매핑 정의로 막는다. 공공 API는 fetch 시각을 `source_event_time`으로 쓰지 않으며, 시각이 없으면(RECEIVED_ONLY) STALE로 취급한다(`05_event-and-state.md` 5.2).
+- **T-060 주석 (2026-09-15, 사람 지시)**: 바로 위 "RECEIVED_ONLY → STALE 취급"을 **폐기**한다. "언제 발생했는지 모른다"는 "오래됐다"가 아니다. RECEIVED_ONLY면 `freshness_status = UNKNOWN`, `temporal_confidence = LOW`, `evidence_time_quality = RECEIVED_ONLY`(옛 이름 `temporal_quality`)로 둔다. 중요 사실이면 STALE과 같은 게이트(확인 요청·재조회·계획 승인 차단, 사유 `FRESHNESS_UNKNOWN`)를 건다. 모든 출처에 같게 적용한다(옛 "그 밖 출처는 received_at으로 계산"도 폐기). 결정 본문의 `time_basis = RECEIVED`는 `evidence_time_quality = RECEIVED_ONLY`로 읽는다(`05_event-and-state.md` 5.2).
 
 ## ADR-015: 역할 분리 에이전트 + 결정론 오케스트레이터
 - 상태: Proposed
@@ -187,6 +191,7 @@
 - 결정: `web/`에 TypeScript + React + Vite + Three.js(@react-three/fiber)로 한 앱을 만든다. 백엔드와는 REST + SSE로 통신한다. 프론트에는 비즈니스 로직을 넣지 않는다.
 - 대안: Streamlit(3D·실시간 상호작용이 약함), 순수 Three.js + 바닐라 JS(대시보드 화면 생산성이 낮음), 게임 엔진(과함).
 - 결과: 프론트엔드 언어가 하나 늘어난다. T-003에서 `web/` 뼈대를 함께 만든다. 공모전 요강(Q-15)에 따라 조정할 수 있다.
+- **2026-09-15 주석**: 사람 지시(2026-09-14)로 `web/`을 **Next.js**(App Router) + React + TypeScript로 먼저 만들었고, 운영 지도는 Three.js 대신 2D SVG로 그렸다. "웹 프론트엔드, REST(+SSE), 프론트에 비즈니스 로직 없음"은 유지하고 빌드 도구·3D 부분만 ADR-022로 개정 제안한다.
 
 ## ADR-017: 사람 확인 게이트와 LLM 후보 이벤트
 - 상태: Proposed
@@ -244,3 +249,40 @@
 - 결정: 층 1 사실(마일스톤 11개, `customs.status`, `location`, `exception.*`, `plan.*`, `forecast.eta` — 패치에서 `plan.eta`를 `forecast.eta`로 옮김) → 층 2 파생 단계 10개(유도 규칙) → 층 3 컨테이너 예외 → 층 4 자원 영향(Risk가 계산, 사실 아님). CUSTOMS_PENDING은 신고 근거가 있을 때만이고, 통관 정보가 없으면 DISCHARGED다. 엔진은 단계가 아니라 사실과 `ready_at`을 입력으로 쓴다(`04_domain-model.md` 2절).
 - 대안: 단일 enum(폐기), 마일스톤만(화면·위험 판정에 부족).
 - 결과: Q-22 해결. 창고 수용량 감소·트럭 부족 등은 컨테이너 예외가 아니라 자원 조건 → 영향으로 다룬다. 10단계가 현장에 맞는지는 `[TO VERIFY]` Q-32.
+
+## ADR-022: 프론트엔드 = Next.js + 2D SVG 운영 지도 + Data Contract / Mock Provider (ADR-016 부분 개정)
+- 상태: Proposed
+- 날짜: 2026-09-15 (T-062·T-063)
+- 맥락: 2026-09-14 사람 지시로 Backend·Solver보다 Control Tower Prototype을 먼저 만든다(ADR-023). 지시는 Next.js / React / TypeScript를 지정했고, 3D는 목적이 아니라고 했다. 기존 문서(ADR-016, `07` 3절, T-003)는 Vite + Three.js였다. 백엔드가 없으므로 화면이 fixture에 직접 묶이면 나중에 백엔드로 바꿀 때 화면을 다시 짜야 한다.
+- 결정:
+  1. `web/`은 Next.js(App Router) + React + TypeScript. 지금은 정적 페이지 하나이고 클라이언트에서 시나리오를 재생한다.
+  2. 운영 지도는 **추상 2D SVG**로 그린다. Three.js(@react-three/fiber)는 이해에 도움이 될 때만 T-056에서 다시 판단한다.
+  3. 화면은 **Frontend Data Contract**(`web/src/contracts/cera.ts`)에만 의존한다. `CeraDataProvider` 인터페이스 하나에 지금은 `MockProvider`(시나리오 데이터 팩)만 있고, 나중에 같은 계약의 `ApiProvider`로 바꾼다. 응답마다 `result_kind`(SCENARIO_RESULT / ENGINE_RESULT)와 `is_simulated`를 싣는다.
+  4. 시나리오 데이터 팩은 `web/` 밖(`data/scenarios/`)에 두고 백엔드도 같은 파일을 읽게 한다(Turbopack `root`를 저장소 루트로).
+- 대안: Vite + React(ADR-016 원안 — 사람 지시와 다름, SSR·라우팅이 나중에 필요할 때 다시 옮겨야 함), Three.js 2.5D(상태 변화보다 그래픽이 앞섬, 브리프 11절 "게임 같은 3D" 회피), fixture 직접 import(백엔드 교체 때 화면 재작성).
+- 결과: `07` 3절 프론트엔드 줄과 T-003 범위(web 뼈대는 이미 있음)가 바뀐다. 프론트 비즈니스 로직 금지(ADR-016)는 유지한다: MockProvider는 백엔드 대역으로 표시용 집계만 하고, 위험·비용·계획 숫자는 fixture 값을 그대로 쓴다. 판정 전까지 `[PROPOSED]`.
+
+## ADR-023: 개발 순서 = Prototype 먼저 (T-036 DEFERRED)
+- 상태: Proposed (사람 지시 2026-09-14로 이미 실행, 형식 판정은 T-001/T-064)
+- 날짜: 2026-09-15
+- 맥락: T-032 뒤 다음 순서는 T-036(최적화 명세·솔버 선택)이었다. 그러나 실제 운영 데이터와 제약이 검증되지 않은 상태에서 수학모델을 먼저 고정하면 가정을 과도하게 설계할 위험이 있다.
+- 결정: Event/State 완료(T-060) → 30대 Scenario Data Pack(T-061) → Frontend Data Contract·Mock Data Layer(T-062) → Operations Control Tower·Scenario Playback(T-063) → UI·데이터 요구사항 검증(T-064 사람, T-065) → Recovery Optimization Model(T-036) → Solver → Backend·DB·외부 연결. T-036은 삭제하지 않고 `DEFERRED`로 둔다.
+- 대안: 원래 순서(T-036 먼저 — 검증 안 된 가정이 모델에 굳음), 병행(1인 + 에이전트 규모에서 초점이 흩어짐).
+- 결과: 이것은 기획 후퇴가 아니라 Prototype-led Discovery(`02` 9절)를 개발 순서에 적용한 것이다. Prototype의 결과값은 엔진 결과가 아니므로 모든 화면에 시뮬레이션 표시를 붙인다. Prototype에서 찾은 요구사항(`16_frontend-prototype.md` 11절)이 T-036의 입력이 된다.
+
+## ADR-024: 저장소 = 하나의 Private Monorepo + 책임 영역 분리
+- 상태: **Accepted** (2026-09-15, 사람 결정). 단 아래 "방향" 항목(계약 정본 OpenAPI, Desktop)은 확정이 아니다
+- 날짜: 2026-09-15 (T-066)
+- 맥락: 앞으로 Frontend(Web, 필요하면 Desktop), Backend(API·DB·연동), AI/Decision Engine(LLM·파싱·위험·비용·최적화)가 생긴다. 당분간 1인 개발이다. 저장소를 여러 개로 나누면 계약 변경·문서·버전 맞추기 비용이 커진다. 반대로 영역 경계가 없으면 LLM 코드와 결정론 엔진, 화면과 백엔드 로직이 섞인다.
+- 결정:
+  1. Git 저장소는 **하나**(Private Monorepo)다. 저장소 루트가 곧 CERA 루트다.
+  2. 코드 책임 영역: `front/`(화면, 현재 `front/web` = Next.js Prototype), `back/`(API·인증·DB·Event·Canonical State·연동·승인·감사·작업·push), `ai/`(LLM 해석 + 결정론 엔진 Tariff·Cost·Risk·Optimization·Solver), `packages/`(공유 계약), `data/`(공통 시나리오·테스트 데이터), `docs/`(정본 문서), `infra/`(배포).
+  3. `ai/` 안에서도 LLM 코드와 결정론 엔진은 서로 다른 패키지로 나누고, 엔진은 LLM 클라이언트를 import하지 않는다(ADR-008, `01` 3절).
+  4. `data/scenarios/`는 특정 영역 소유가 아니라 공통 기준 데이터다. 화면은 계약(Provider)을 통해서만 본다.
+  5. 배포는 서비스별 Docker Image로 나눌 수 있다. 이를 위해 저장소를 나눌 필요는 없다.
+  6. `AGENTS.md`·`CLAUDE.md`는 루트에 둔다. 영역별 AGENTS 파일은 루트 규칙으로 부족할 때만 만든다.
+- 방향 (미확정, 해당 시점에 별도 결정):
+  - 계약: Backend가 생기면 OpenAPI를 정본으로 두고 TypeScript 타입을 `packages/`에 자동 생성한다(지금은 `front/web/src/contracts/cera.ts` 손 작성).
+  - Desktop: 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 검토한다. **Tauri는 확정 기술이 아니다.**
+- 대안: 저장소 3개 분리(front·back·ai — 1인 개발에 조율 비용 과다, 계약 변경마다 여러 저장소 수정), 영역 없는 단일 폴더(책임 경계 흐림).
+- 결과: `web/`을 `front/web/`으로 옮겼다(미커밋 상태에서의 이동이라 git 이동 이력은 없음). 옛 레이아웃의 `src/cera/<모듈>`은 `back/`과 `ai/`로 나눠 배치한다(`07` 6절). T-003 범위가 `back/`·`ai/` 뼈대로 바뀐다.

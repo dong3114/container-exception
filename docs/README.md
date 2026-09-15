@@ -1,6 +1,7 @@
 # docs — 정본 문서 색인
 
-- 기준: **기획 v0.2** (2026-09-11)
+- 기준: **기획 v0.2** (2026-09-11). 2026-09-15: `16_frontend-prototype.md` 추가, 저장소를 Monorepo 영역으로 재정렬(ADR-024)
+- 저장소 전체 구조(front·back·ai·packages·data·docs·infra)는 루트 `README.md`와 `07_backend-architecture.md` 6절. 코드가 의존하는 기술 문서는 이 폴더(Git)에 둔다. 발표 자료·사업계획서 같은 외부 공유 자료는 Git 밖(예: Google Drive)에 둘 수 있다
 - 이 폴더에 있는 문서가 현재 정본(canonical source)의 전부다. 옛 기획(v0.1) 문서와 원본 기획서는 저장소에 남기지 않는다. 무엇이 바뀌었고 무엇이 폐기됐는지는 `CHANGELOG.md`에 있다.
 
 ## 1. 문서 목록
@@ -16,12 +17,14 @@
 | 07 | `07_backend-architecture.md` | 모듈 구성, 기술 스택, 저장 스키마, 내부 API, 저장소 레이아웃 | Draft |
 | 08 | `08_optimization-model.md` | 복구 최적화 정식화, 비용 계수, Baseline, 재최적화 | Draft |
 | 09 | `09_mvp-scenario.md` | 기준 데모 시나리오 (부산 Import FCL 30대, 창고 수용량 20 → 8) | Draft |
-| 10 | `10_simulation-spec.md` | Three.js Operations Simulator 요구사항 | Draft |
+| 10 | `10_simulation-spec.md` | Operations Simulator 요구사항 (현재 Prototype 2D, Three.js는 선택지) | Draft |
 | 11 | `11_data-sources.md` | 데이터 출처 카탈로그, 공공 API 확인 결과, 조인 경로, 메일 입력 | Draft |
 | 12 | `12_roadmap.md` | Phase·Gate·태스크 백로그 원천 | Draft |
 | 13 | `13_glossary.md` | 용어집 | Living |
 | 14 | `14_decisions.md` | ADR | Living |
 | 15 | `15_open-questions.md` | 미확정 사항, 리스크 | Living |
+| 16 | `16_frontend-prototype.md` | Control Tower Prototype: 범위, 실행, Frontend Data Contract, 재생 단계별 화면, 신뢰 범주, 발견한 Backend·Data 요구사항 | Draft (T-061~T-063) |
+| — | `../data/scenarios/busan-wh-capacity-01/README.md` | 30대 시나리오 데이터 팩(Prototype 판): 파일, 구성, 숫자, fixture 수정 기록 | Draft (T-061) |
 | — | `CHANGELOG.md` | 기획 버전 간 변경 요약, 폐기된 가정, 문서 이전 지도 | Living |
 | — | `data/field-dictionary.md` | 공공 API 필드 사전 (공식 명세 기준, 출처 S-nn) | Draft (T-004) |
 | — | `data/code-tables.md` | 공공 API 코드값·에러코드 | Draft (T-004) |
@@ -33,7 +36,7 @@
 ## 2. 읽는 순서 (처음 온 사람)
 
 1. `02_product-definition.md` — 무엇을 왜 만드는가
-2. `09_mvp-scenario.md` — 무엇을 보여줄 것인가
+2. `09_mvp-scenario.md` — 무엇을 보여줄 것인가 (화면으로 보려면 `16_frontend-prototype.md` 3절대로 `front/web/` 실행)
 3. `05_event-and-state.md` — 핵심 설계(다중 출처 → Canonical State)
 4. `06_agent-architecture.md`, `07_backend-architecture.md` — 어떻게 만드는가
 5. 작업할 태스크의 `참조 문서`
@@ -45,7 +48,7 @@
 3. `02_product-definition.md` (방향·범위)
 4. `05_event-and-state.md`, `04_domain-model.md`
 5. `06_agent-architecture.md`, `07_backend-architecture.md`, `08_optimization-model.md`
-6. `03_requirements.md`, `09_mvp-scenario.md`, `10_simulation-spec.md`, `11_data-sources.md`, `data/*`
+6. `03_requirements.md`, `09_mvp-scenario.md`, `10_simulation-spec.md`, `11_data-sources.md`, `16_frontend-prototype.md`, `data/*`
 7. `12_roadmap.md`
 
 하위 문서가 상위 문서와 다르면 하위 문서를 고치거나, 상위 문서 변경이 필요하면 ADR을 먼저 올린다. 단, `data/field-dictionary.md`의 `[VERIFIED]` 사실이 상위 문서의 가정과 다르면 사실을 기준으로 상위 문서를 고친다.

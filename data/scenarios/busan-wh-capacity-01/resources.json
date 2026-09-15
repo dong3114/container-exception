@@ -1,0 +1,695 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "notes": [
+    "모든 자원·요율은 합성 시나리오 값이다. 요율은 [ASSUMPTION] 자리표시이며 실제 요율이 아니다.",
+    "facts_timeline의 각 항목은 from_step부터 유효하다. provider는 요청 as_of 이하의 가장 늦은 항목을 쓴다.",
+    "트럭은 1시간 단위 출발 슬롯으로 표현한다. 창고 A·ODCY A 왕복 1시간, ODCY B 왕복 2시간(연속 2슬롯 점유) [ASSUMPTION]."
+  ],
+  "terminal": {
+    "id": "TERMINAL_T1",
+    "name": "터미널 T1",
+    "area": "부산신항 (가상 배치)",
+    "gate_hours": "00:00–24:00"
+  },
+  "warehouses": [
+    {
+      "id": "WAREHOUSE_A",
+      "name": "창고 A",
+      "area": "신항 배후단지 (가상)",
+      "receiving_window": {
+        "from": "08:00",
+        "to": "17:00"
+      },
+      "accepts": [
+        "20DRY",
+        "40DRY",
+        "40RF"
+      ],
+      "normal_capacity_per_day": 20,
+      "travel_minutes_from_terminal": 30,
+      "last_departure_for_same_day": "16:00",
+      "facts_timeline": [
+        {
+          "from_step": "S0",
+          "key": "capacity.day(2026-10-13)",
+          "value": 20,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-101",
+            "note": "일일 입고 계획 확인"
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "capacity.day(2026-10-14)",
+          "value": 20,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-101",
+            "note": null
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "capacity.day(2026-10-15)",
+          "value": 20,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-101",
+            "note": null
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "received.day(2026-10-13)",
+          "value": 0,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-101",
+            "note": "오전은 출고 작업. 첫 입고 13:00"
+          }
+        },
+        {
+          "from_step": "S1",
+          "key": "capacity.day(2026-10-13)",
+          "value": 8,
+          "change_reason": "EQUIPMENT_FAILURE",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-110",
+            "note": "도크 레벨러 2기 고장 (10:52 발생). 수용량 변경 [수용량 변경] 액션"
+          }
+        },
+        {
+          "from_step": "S1",
+          "key": "capacity.day(2026-10-14)",
+          "value": 11,
+          "change_reason": "EQUIPMENT_FAILURE",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-111",
+            "note": "부분 복구 예상. 기존 D1 입고 계획 5대 포함"
+          }
+        },
+        {
+          "from_step": "S6",
+          "key": "capacity.day(2026-10-13)",
+          "value": 8,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 A 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-110",
+            "note": "11:20 창고 회신 \"추가 수용 불가\" — 값 변경 없음, 기존 8 유지"
+          }
+        }
+      ]
+    },
+    {
+      "id": "WAREHOUSE_B",
+      "name": "창고 B",
+      "area": "녹산 (가상)",
+      "receiving_window": {
+        "from": "09:00",
+        "to": "18:00"
+      },
+      "accepts": [
+        "20DRY",
+        "40DRY"
+      ],
+      "normal_capacity_per_day": 10,
+      "facts_timeline": [
+        {
+          "from_step": "S0",
+          "key": "capacity.day(2026-10-13)",
+          "value": 10,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "WAREHOUSE",
+            "source_label": "창고 B 담당자 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-102",
+            "note": null
+          }
+        }
+      ]
+    }
+  ],
+  "odcys": [
+    {
+      "id": "ODCY_A",
+      "name": "ODCY A",
+      "area": "신항 인근 (가상)",
+      "accepts": [
+        "40DRY"
+      ],
+      "rejects_note": "40FT Dry 전용. 20FT·Reefer 불가",
+      "gate_close": "20:00",
+      "round_trip_slots": 1,
+      "facts_timeline": [
+        {
+          "from_step": "S0",
+          "key": "capacity.40DRY.day(2026-10-13)",
+          "value": 5,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "ODCY",
+            "source_label": "ODCY A 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:10:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-A-01",
+            "note": "영업 담당 안내 메일 \"오늘 40FT Dry 5대 여유\""
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "rate.storage_per_day.40DRY",
+          "value": 35000,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "ODCY",
+            "source_label": "ODCY A 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:10:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-A-01",
+            "note": null
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "max_days",
+          "value": null,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "ODCY",
+            "source_label": "ODCY A 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:10:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-A-01",
+            "note": "보관 기간 제한 정보 없음"
+          }
+        },
+        {
+          "from_step": "S5",
+          "key": "capacity.40DRY.day(2026-10-13)",
+          "value": 4,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "ODCY",
+            "source_label": "ODCY A 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:18:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-121",
+            "note": "문의 회신 \"40FT Dry 4대 가능\". 20% 감소 < θ_adverse 30% → 보류 없음, 잠정 반영"
+          }
+        },
+        {
+          "from_step": "S5",
+          "key": "rate.storage_per_day.40DRY",
+          "value": 35000,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "ODCY",
+            "source_label": "ODCY A 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:18:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-122",
+            "note": "회신 \"일 보관료 35,000원\" (값 동일)"
+          }
+        },
+        {
+          "from_step": "S5",
+          "key": "max_days",
+          "value": 2,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "ODCY",
+            "source_label": "ODCY A 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:18:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-121",
+            "note": "회신 \"2일 보관 가능\""
+          }
+        }
+      ],
+      "rates": {
+        "handling_in_out": {
+          "40DRY": 50000
+        },
+        "tag": "[ASSUMPTION]"
+      }
+    },
+    {
+      "id": "ODCY_B",
+      "name": "ODCY B",
+      "area": "북항 방면 (가상)",
+      "accepts": [
+        "20DRY",
+        "40DRY"
+      ],
+      "rejects_note": "Reefer 불가",
+      "gate_close": "18:00",
+      "round_trip_slots": 2,
+      "facts_timeline": [
+        {
+          "from_step": "S0",
+          "key": "capacity.dry.day(2026-10-13)",
+          "value": 6,
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "PARTNER_SYSTEM",
+            "source_role": "ODCY",
+            "source_label": "ODCY B 야드 포털",
+            "value_status": "CONFIRMED",
+            "verification_basis": "AUTHORITATIVE_SYSTEM",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T10:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-B-01",
+            "note": null
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "rate.storage_per_day",
+          "value": {
+            "20DRY": 15000,
+            "40DRY": 25000
+          },
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "DOCUMENT",
+            "source_role": "ODCY",
+            "source_label": "ODCY B 보관 계약 (합성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "계약 조건 1회 사람 확인 완료 (합성 계약)"
+          }
+        },
+        {
+          "from_step": "S0",
+          "key": "rate.handling_in_out",
+          "value": {
+            "20DRY": 45000,
+            "40DRY": 60000
+          },
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "DOCUMENT",
+            "source_role": "ODCY",
+            "source_label": "ODCY B 보관 계약 (합성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "계약 조건 1회 사람 확인 완료 (합성 계약)"
+          }
+        }
+      ]
+    }
+  ],
+  "truck_pools": [
+    {
+      "id": "OWN_FLEET",
+      "name": "자사 배차 트럭",
+      "owner": "OPERATOR_ORG",
+      "trucks": [
+        {
+          "id": "TRUCK-01",
+          "window": {
+            "from": "13:00",
+            "to": "18:00"
+          }
+        },
+        {
+          "id": "TRUCK-02",
+          "window": {
+            "from": "15:00",
+            "to": "20:00"
+          }
+        },
+        {
+          "id": "TRUCK-03",
+          "window": {
+            "from": "13:00",
+            "to": "17:00"
+          }
+        },
+        {
+          "id": "TRUCK-04",
+          "window": {
+            "from": "13:00",
+            "to": "15:00"
+          }
+        },
+        {
+          "id": "TRUCK-05",
+          "window": {
+            "from": "14:00",
+            "to": "17:00"
+          }
+        },
+        {
+          "id": "TRUCK-06",
+          "window": {
+            "from": "13:00",
+            "to": "15:00"
+          }
+        },
+        {
+          "id": "TRUCK-07",
+          "window": {
+            "from": "15:00",
+            "to": "18:00"
+          }
+        },
+        {
+          "id": "TRUCK-08",
+          "window": {
+            "from": "15:00",
+            "to": "16:00"
+          }
+        }
+      ],
+      "facts_timeline": [
+        {
+          "from_step": "S0",
+          "key": "roster",
+          "value": 8,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "DISPATCHER",
+            "source_label": "배차 담당 입력",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T10:25:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-T-01",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "K_TRUCKING",
+      "name": "K운송 (협력 운송사, 가상)",
+      "owner": "PARTNER",
+      "trucks": [],
+      "facts_timeline": [
+        {
+          "from_step": "S4",
+          "key": "available.slot(2026-10-13T15:00:00+09:00)",
+          "value": 2,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "TRUCKER",
+            "source_label": "K운송 회신 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:15:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-120",
+            "note": null
+          },
+          "truck_ids": [
+            "K-TRUCK-1",
+            "K-TRUCK-2"
+          ]
+        },
+        {
+          "from_step": "S4",
+          "key": "available.slot(2026-10-13T17:00:00+09:00)",
+          "value": 1,
+          "trust": {
+            "category": "EXTRACTED",
+            "source_type": "EMAIL",
+            "source_role": "TRUCKER",
+            "source_label": "K운송 회신 메일 (추출값 = 시나리오 작성값, LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T11:15:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL"
+            ],
+            "event_id": "E-120",
+            "note": null
+          },
+          "truck_ids": [
+            "K-TRUCK-3"
+          ]
+        }
+      ]
+    }
+  ],
+  "rates": {
+    "demurrage_per_day": {
+      "tag": "[ASSUMPTION]",
+      "rationale": "선사 공개 Tariff 조사(T-029) 전 자리표시. LFD 다음 날부터 1일 단위, 1구간 요율만 사용",
+      "CARRIER_A": {
+        "20DRY": 85000,
+        "40DRY": 160000,
+        "40RF": 230000
+      },
+      "CARRIER_B": {
+        "20DRY": 100000,
+        "40DRY": 190000,
+        "40RF": 260000
+      },
+      "CARRIER_C": {
+        "20DRY": 90000,
+        "40DRY": 175000,
+        "40RF": 245000
+      }
+    },
+    "terminal_storage_per_day": {
+      "tag": "[ASSUMPTION]",
+      "rationale": "터미널 무료 장치기간이 LFD와 같이 끝난다고 단순화",
+      "20DRY": 25000,
+      "40DRY": 45000,
+      "40RF": 60000
+    },
+    "detention": {
+      "tag": "[ASSUMPTION]",
+      "rationale": "반출 후 무료 7일. 계획 기간(D0~D2) 안에서는 0원",
+      "free_days_after_gate_out": 7
+    },
+    "transport": {
+      "tag": "[ASSUMPTION]",
+      "rationale": "구간별 편도 운임 자리표시",
+      "TERMINAL_T1__WAREHOUSE_A": {
+        "20DRY": 150000,
+        "40DRY": 190000,
+        "40RF": 230000
+      },
+      "TERMINAL_T1__WAREHOUSE_B": {
+        "20DRY": 170000,
+        "40DRY": 210000
+      },
+      "TERMINAL_T1__ODCY_A": {
+        "40DRY": 85000
+      },
+      "ODCY_A__WAREHOUSE_A": {
+        "40DRY": 135000
+      },
+      "TERMINAL_T1__ODCY_B": {
+        "20DRY": 95000,
+        "40DRY": 115000
+      },
+      "ODCY_B__WAREHOUSE_A": {
+        "20DRY": 130000,
+        "40DRY": 160000
+      }
+    },
+    "odcy": {
+      "ODCY_A": {
+        "tag": "[ASSUMPTION]",
+        "handling_in_out": {
+          "40DRY": 50000
+        },
+        "storage_per_day": {
+          "40DRY": 35000
+        }
+      },
+      "ODCY_B": {
+        "tag": "[ASSUMPTION]",
+        "handling_in_out": {
+          "20DRY": 45000,
+          "40DRY": 60000
+        },
+        "storage_per_day": {
+          "20DRY": 15000,
+          "40DRY": 25000
+        }
+      }
+    }
+  }
+}

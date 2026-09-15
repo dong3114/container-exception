@@ -1,0 +1,4541 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "note": "컨테이너 번호·B/L은 합성값이다(ISO 6346 체크디지트만 맞춤, 소유자 코드 XC*U는 가상). 사실(facts)은 출처·신선도를 가진 Canonical Fact의 화면용 요약이다. 이 시나리오에서 컨테이너 사실은 재생 동안 바뀌지 않는다(첫 배차 13:00 전).",
+  "containers": [
+    {
+      "id": "C001",
+      "container_no": "XCCU3113795",
+      "size_type": "40RF",
+      "size_label": "40FT Reefer",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26100",
+      "cargo": "냉장 식품 원료",
+      "business_priority": "CRITICAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:00:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T10:00:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T10:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T13:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 13:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C002",
+      "container_no": "XCBU3127584",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26137",
+      "cargo": "자동차 부품",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-05"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:07:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:07:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T11:11:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T11:11:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T14:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 14:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C003",
+      "container_no": "XCAU3141374",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26174",
+      "cargo": "생활용품",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-15",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:14:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:14:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T12:22:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T12:22:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (시각 없는 행)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "UNKNOWN",
+            "evidence_time": "2026-10-13T09:45:00+09:00",
+            "evidence_time_quality": "RECEIVED_ONLY",
+            "temporal_confidence": "LOW",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "FRESHNESS_UNKNOWN"
+            ],
+            "event_id": "E-FILE-02",
+            "note": "발생 시각 모름 · 수신 09:45. 오래됐다고 단정하지 않음 (T-060). location은 중요 사실 계열이 아니라 경고만"
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-15",
+          "display": "10/15(목)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T15:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 15:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C004",
+      "container_no": "XCBU3155164",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26211",
+      "cargo": "생산라인 부품",
+      "business_priority": "CRITICAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:21:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:21:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T13:33:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T13:33:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T13:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 13:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C005",
+      "container_no": "XCCU3168951",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26248",
+      "cargo": "가구",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-02"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:28:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:28:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T14:44:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T14:44:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T15:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 15:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C006",
+      "container_no": "XCAU3182748",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26285",
+      "cargo": "전자 부품",
+      "business_priority": "CRITICAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-04"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:35:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:35:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T15:55:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T15:55:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T13:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 13:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C007",
+      "container_no": "XCCU3196531",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26322",
+      "cargo": "건자재",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:42:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:42:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T10:06:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T10:06:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T15:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 15:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C008",
+      "container_no": "XCAU3210325",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26359",
+      "cargo": "포장재",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-05"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:49:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:49:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T11:17:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T11:17:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T15:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 15:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C009",
+      "container_no": "XCAU3224118",
+      "size_type": "40RF",
+      "size_label": "40FT Reefer",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26396",
+      "cargo": "냉동 수산물",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-06"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:56:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:56:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T12:28:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T12:28:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T13:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 13:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C010",
+      "container_no": "XCBU3237909",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26433",
+      "cargo": "의류",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-07"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:03:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:03:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T13:39:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T13:39:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T15:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 15:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C011",
+      "container_no": "XCCU3251691",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26470",
+      "cargo": "설비 부품",
+      "business_priority": "CRITICAL",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:10:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:10:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T14:50:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T14:50:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T14:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 14:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C012",
+      "container_no": "XCBU3265480",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26507",
+      "cargo": "잡화",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-08"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:17:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:17:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T15:01:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T15:01:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T15:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 15:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C013",
+      "container_no": "XCBU3279273",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26544",
+      "cargo": "화학 원료(비위험물)",
+      "business_priority": "CRITICAL",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:24:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:24:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T10:12:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T10:12:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T14:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 14:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C014",
+      "container_no": "XCCU3293064",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26581",
+      "cargo": "타이어",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:31:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:31:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T11:23:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T11:23:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T16:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 16:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C015",
+      "container_no": "XCCU3306855",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26618",
+      "cargo": "주방용품",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-02"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:38:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:38:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T12:34:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T12:34:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T16:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 16:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C016",
+      "container_no": "XCBU3320649",
+      "size_type": "40RF",
+      "size_label": "40FT Reefer",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26655",
+      "cargo": "냉장 유제품",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-04"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:45:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:45:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T13:45:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T13:45:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T14:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 14:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C017",
+      "container_no": "XCAU3334434",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26692",
+      "cargo": "가전",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:52:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:52:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T14:56:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T14:56:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T16:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 16:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C018",
+      "container_no": "XCBU3348224",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26729",
+      "cargo": "사료 원료",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-05"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:59:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:59:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T15:07:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T15:07:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T16:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 16:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C019",
+      "container_no": "XCCU3362015",
+      "size_type": "40RF",
+      "size_label": "40FT Reefer",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26766",
+      "cargo": "냉동 채소",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-06"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:06:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:06:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T10:18:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T10:18:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T14:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 14:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C020",
+      "container_no": "XCBU3375805",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26803",
+      "cargo": "완구",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_A_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-07"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:13:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:13:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T11:29:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T11:29:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T16:00:00+09:00"
+          },
+          "display": "창고 A 10/13(화) 16:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C021",
+      "container_no": "XCAU3389592",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26840",
+      "cargo": "사무용품",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_B_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_B",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T17:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T08:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T08:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T12:40:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T12:40:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (시각 없는 행)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "UNKNOWN",
+            "evidence_time": "2026-10-13T09:45:00+09:00",
+            "evidence_time_quality": "RECEIVED_ONLY",
+            "temporal_confidence": "LOW",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "FRESHNESS_UNKNOWN"
+            ],
+            "event_id": "E-FILE-02",
+            "note": "발생 시각 모름 · 수신 09:45. 오래됐다고 단정하지 않음 (T-060). location은 중요 사실 계열이 아니라 경고만"
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_B",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T17:00:00+09:00"
+          },
+          "display": "창고 B 10/13(화) 17:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C022",
+      "container_no": "XCCU3403388",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL26877",
+      "cargo": "문구",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-14",
+      "phase": "PICKUP_READY",
+      "group": "WH_B_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_B",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T17:00:00+09:00",
+        "truck_id": "TRUCK-02"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T06:27:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T06:27:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T13:51:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T13:51:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_B",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T17:00:00+09:00"
+          },
+          "display": "창고 B 10/13(화) 17:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C023",
+      "container_no": "XCBU3417177",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26914",
+      "cargo": "스포츠 용품",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-13",
+      "phase": "PICKUP_READY",
+      "group": "WH_B_D0",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_B",
+        "day": "2026-10-13",
+        "depart_at": "2026-10-13T17:00:00+09:00",
+        "truck_id": "TRUCK-07"
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-11T07:34:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-11T07:34:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T14:02:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T14:02:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": "2026-10-12T17:20:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인 (선사 D/O)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T17:20:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-13",
+          "display": "10/13(화)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_B",
+            "day": "2026-10-13",
+            "depart_at": "2026-10-13T17:00:00+09:00"
+          },
+          "display": "창고 B 10/13(화) 17:00 출발",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C024",
+      "container_no": "XCAU3430968",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL26951",
+      "cargo": "공구",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-14",
+      "phase": "CUSTOMS_PENDING",
+      "group": "WH_A_D1",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-14",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-12T08:41:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T08:41:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "customs.status",
+          "label": "통관 상태",
+          "value": "DECLARED",
+          "display": "신고 (심사 중)",
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:40:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-14",
+            "depart_at": null
+          },
+          "display": "창고 A 10/14(수)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C025",
+      "container_no": "XCBU3444758",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL26988",
+      "cargo": "위생용품",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-15",
+      "phase": "CUSTOMS_PENDING",
+      "group": "WH_A_D1",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-14",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-12T06:48:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T06:48:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "customs.status",
+          "label": "통관 상태",
+          "value": "DECLARED",
+          "display": "신고 (심사 중)",
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:40:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-15",
+          "display": "10/15(목)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-14",
+            "depart_at": null
+          },
+          "display": "창고 A 10/14(수)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C026",
+      "container_no": "XCCU3458544",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL27025",
+      "cargo": "조명기구",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-15",
+      "phase": "CUSTOMS_PENDING",
+      "group": "WH_A_D1",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-14",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-12T07:55:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T07:55:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "customs.status",
+          "label": "통관 상태",
+          "value": "DECLARED",
+          "display": "신고 (심사 중)",
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "STALE",
+            "evidence_time": "2026-10-11T09:10:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "APPROVAL_BLOCKED",
+            "usability_reasons": [
+              "STALE"
+            ],
+            "event_id": "E-PUB-02",
+            "note": "마지막 처리일시가 2일 전. 재조회 또는 사람 확인 필요 (V2)"
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-15",
+          "display": "10/15(목)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-14",
+            "depart_at": null
+          },
+          "display": "창고 A 10/14(수)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C027",
+      "container_no": "XCBU3472338",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_B",
+      "bl_ref": "SIMBL27062",
+      "cargo": "전동기",
+      "business_priority": "HIGH",
+      "lfd": "2026-10-14",
+      "phase": "CUSTOMS_PENDING",
+      "group": "WH_A_D1",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-14",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-12T08:02:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T08:02:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "customs.status",
+          "label": "통관 상태",
+          "value": "DECLARED",
+          "display": "신고 (심사 중)",
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:40:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-14",
+          "display": "10/14(수)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-14",
+            "depart_at": null
+          },
+          "display": "창고 A 10/14(수)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C028",
+      "container_no": "XCAU3486123",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL27099",
+      "cargo": "식기",
+      "business_priority": "NORMAL",
+      "lfd": "2026-10-15",
+      "phase": "CUSTOMS_CLEARED",
+      "group": "WH_A_D1",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-14",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "milestone.discharged_at",
+          "label": "양하",
+          "value": "2026-10-12T06:09:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T06:09:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.customs_cleared_at",
+          "label": "통관 수리",
+          "value": "2026-10-12T13:57:00+09:00",
+          "display": null,
+          "trust": {
+            "category": "PUBLIC",
+            "source_type": "PUBLIC_API",
+            "source_role": "CUSTOMS_SYSTEM",
+            "source_label": "UNI-PASS 화물통관 진행정보 (합성 fixture)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T13:57:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-PUB-01",
+            "note": null
+          }
+        },
+        {
+          "key": "milestone.do_released_at",
+          "label": "D/O 발행",
+          "value": null,
+          "display": "미발행 (선사 확인 대기)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 확인",
+            "value_status": "UNKNOWN",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "UNUSABLE",
+            "usability_reasons": [
+              "NO_VALUE"
+            ],
+            "event_id": null,
+            "note": "값 없음 → 반출 불가로 봄 (ready_at = null)"
+          }
+        },
+        {
+          "key": "location",
+          "label": "위치",
+          "value": "TERMINAL(T1)",
+          "display": "터미널 T1 장치장",
+          "trust": {
+            "category": "PARTNER",
+            "source_type": "FILE_IMPORT",
+            "source_role": "TERMINAL",
+            "source_label": "터미널 장치 현황 파일 (09:30 기준)",
+            "value_status": "OBSERVED",
+            "verification_basis": null,
+            "freshness_status": "FRESH",
+            "evidence_time": "2026-10-13T09:30:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-FILE-01",
+            "note": null
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": "2026-10-15",
+          "display": "10/15(목)",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-14",
+            "depart_at": null
+          },
+          "display": "창고 A 10/14(수)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C029",
+      "container_no": "XCCU3499918",
+      "size_type": "40DRY",
+      "size_label": "40FT Dry",
+      "carrier": "CARRIER_C",
+      "bl_ref": "SIMBL27136",
+      "cargo": "가정용 소형가전",
+      "business_priority": "NORMAL",
+      "lfd": null,
+      "phase": "ARRIVING",
+      "group": "WH_A_D2",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-15",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "forecast.eta",
+          "label": "입항 예정 (ETA)",
+          "value": "2026-10-14T06:00:00+09:00",
+          "display": "10/14 06:00 예정",
+          "trust": {
+            "category": "PREDICTED",
+            "source_type": "EMAIL",
+            "source_role": "CARRIER",
+            "source_label": "CARRIER_C 입항 스케줄 알림 (forecast_kind = ESTIMATED)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "AGING",
+            "evidence_time": "2026-10-12T18:00:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL",
+              "AGING"
+            ],
+            "event_id": "E-MAIL-00",
+            "note": "예상값. 실제 입항(milestone.ata)이 들어오면 판단에서 빠짐"
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": null,
+          "display": "입항 후 산정",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-15",
+            "depart_at": null
+          },
+          "display": "창고 A 10/15(목)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "C030",
+      "container_no": "XCAU3513701",
+      "size_type": "20DRY",
+      "size_label": "20FT Dry",
+      "carrier": "CARRIER_A",
+      "bl_ref": "SIMBL27173",
+      "cargo": "인테리어 소품",
+      "business_priority": "NORMAL",
+      "lfd": null,
+      "phase": "ARRIVING",
+      "group": "WH_A_D2",
+      "original_plan": {
+        "destination_id": "WAREHOUSE_A",
+        "day": "2026-10-15",
+        "depart_at": null,
+        "truck_id": null
+      },
+      "is_simulated": true,
+      "facts": [
+        {
+          "key": "forecast.eta",
+          "label": "입항 예정 (ETA)",
+          "value": "2026-10-14T06:00:00+09:00",
+          "display": "10/14 06:00 예정",
+          "trust": {
+            "category": "PREDICTED",
+            "source_type": "EMAIL",
+            "source_role": "CARRIER",
+            "source_label": "CARRIER_A 입항 스케줄 알림 (forecast_kind = ESTIMATED)",
+            "value_status": "PROVISIONAL",
+            "verification_basis": null,
+            "freshness_status": "AGING",
+            "evidence_time": "2026-10-12T18:00:00+09:00",
+            "evidence_time_quality": "RECORDED_TIME",
+            "temporal_confidence": "MEDIUM",
+            "decision_usability": "USABLE_WITH_WARNING",
+            "usability_reasons": [
+              "PROVISIONAL",
+              "AGING"
+            ],
+            "event_id": "E-MAIL-00",
+            "note": "예상값. 실제 입항(milestone.ata)이 들어오면 판단에서 빠짐"
+          }
+        },
+        {
+          "key": "lfd",
+          "label": "LFD (Demurrage 무료 마지막 날)",
+          "value": null,
+          "display": "입항 후 산정",
+          "trust": {
+            "category": "SIMULATED",
+            "source_type": "SCENARIO",
+            "source_role": "SCENARIO",
+            "source_label": "시나리오 값 (Tariff 엔진 미구현, T-043)",
+            "value_status": "SCENARIO_VALUE",
+            "verification_basis": null,
+            "freshness_status": "N_A",
+            "evidence_time": null,
+            "evidence_time_quality": null,
+            "temporal_confidence": null,
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": null,
+            "note": "실제 계산은 확정 TariffRule + 기산 이벤트로 Rule Engine이 한다"
+          }
+        },
+        {
+          "key": "plan.delivery",
+          "label": "원래 입고 계획",
+          "value": {
+            "destination_id": "WAREHOUSE_A",
+            "day": "2026-10-15",
+            "depart_at": null
+          },
+          "display": "창고 A 10/15(목)",
+          "trust": {
+            "category": "HUMAN_VERIFIED",
+            "source_type": "HUMAN_UI",
+            "source_role": "OPERATOR",
+            "source_label": "운영자 입고 계획 (10/12 작성)",
+            "value_status": "CONFIRMED",
+            "verification_basis": "HUMAN_VERIFICATION",
+            "freshness_status": "N_A",
+            "evidence_time": "2026-10-12T16:00:00+09:00",
+            "evidence_time_quality": "EVENT_TIME",
+            "temporal_confidence": "HIGH",
+            "decision_usability": "USABLE",
+            "usability_reasons": [],
+            "event_id": "E-OPS-02",
+            "note": null
+          }
+        }
+      ]
+    }
+  ]
+}

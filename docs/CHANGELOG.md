@@ -5,6 +5,35 @@
 
 ---
 
+## v0.2 개정 — 2026-09-15 · 저장소를 Private Monorepo 책임 영역으로 재정렬 (T-066)
+
+기획 내용은 바뀌지 않았다. 저장소 구조와 표현만 정리했다(ADR-024, 사람 결정).
+
+| 변경 | 이유 | 대체 |
+| --- | --- | --- |
+| 루트에 `web/`, 계획상 `src/cera/`·`tests/`·`schemas/` | 앞으로 Front·Back·AI 코드가 함께 생긴다. 1인 개발이라 저장소는 나누지 않되 책임 경계는 필요하다 | 하나의 Monorepo 안에 `front/`(현재 `front/web`)·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/`. 배포는 서비스별 이미지로 나눌 수 있다 |
+| 시나리오 데이터의 "LLM (녹화 재생)", "LLM 추출 녹화값" | LLM을 실행한 적이 없는데 실제 LLM 결과처럼 읽혔다 | "SIMULATED — 시나리오 작성값 (LLM 미실행)" |
+| 문서의 "Three.js Operations Simulator"(02·03·10·12·AGENTS) | 실제 구현은 Next.js + 2D SVG인데 Three.js가 구현된 것처럼 읽혔다 | "현재 Prototype 구현: 2D SVG / Three.js는 향후 선택지"로 구분. `07` 3절 표에 "구현된 것은 프론트엔드 줄뿐" 명시 |
+| AGENTS 절대 규칙 8개 | Mock·실제 구분, 커밋 규칙이 요약에 없었다 | 9. Mock / Simulated / Real 구분, 10. 요청 없이 commit·push 금지 |
+
+---
+
+## v0.2 개정 — 2026-09-15 · Prototype-led Discovery를 개발 순서에 적용 (T-060~T-063)
+
+기획 방향(System of Decision / Action, 다중 출처 → Canonical State → 예외 복구 → 연락 → 재계획)은 그대로다. **개발 순서**와 이벤트·상태의 시각 규칙 하나를 바꿨다(2026-09-14 사람 지시).
+
+| 폐기·변경 | 이유 | 대체 |
+| --- | --- | --- |
+| 다음 순서 "T-032 → T-036(최적화 명세·솔버 선택) → T-037" | 운영 데이터·제약이 검증되기 전에 수학모델을 고정하면 가정을 과도하게 설계한다 | Event/State 완료 → 30대 데이터 팩 → Frontend Data Contract·Mock → Control Tower·재생 → Prototype 검증 → T-036 → Solver → Backend (ADR-023, `12` 2.5절). T-036은 **DEFERRED**(삭제 아님). 기획 후퇴가 아니라 Prototype-led Discovery의 적용 |
+| RECEIVED_ONLY(발생·기록 시각 없음) → 공공 API는 STALE, 그 밖은 received_at으로 신선도 계산 (T-032 패치 ③) | "언제 발생했는지 모른다"는 "오래됐다"가 아니다. 뒤의 규칙은 수신 시각을 발생 시각처럼 썼다 | 모든 출처에서 `freshness = UNKNOWN`, `temporal_confidence = LOW`, `evidence_time_quality = RECEIVED_ONLY`. 중요 사실이면 STALE처럼 승인 게이트(`FRESHNESS_UNKNOWN`). `temporal_quality`는 `evidence_time_quality`로 이름 변경 (`05` 5.2, T-060) |
+| 프론트엔드 Vite + Three.js (ADR-016, `07` 3절) | 사람 지시가 Next.js를 지정, 3D는 목적이 아님 | Next.js + 2D SVG 운영 지도 + Frontend Data Contract / MockProvider (ADR-022 Proposed) |
+| 시나리오 예시 금액 6,420,000 / 2,850,000 / 3,570,000원, 회신 11:40~11:50, D0 10/05 | 예시값은 산식이 없고, 영향 12대와 20대 배치가 섞여 있었다 | 단가에서 합산한 `[PROPOSED]` fixture 값(Baseline 4,650,000 / v1 3,835,000 / v2 3,855,000원), "20대 배치"와 "영향 12대 Actions"를 분리, 회신 11:15~11:20, D0 10/13 (`09` 0절, 데이터 팩 README 4절) |
+| "Recoverable Exposure"를 폐기 용어로만 둠 | Control Tower KPI 이름으로 필요 | KPI 라벨로 다시 씀: 값 = 최신 계획의 Potential Saving. Current Exposure = Baseline − 정상 직송 운임 `[PROPOSED]` (Q-02) |
+
+새 문서: `16_frontend-prototype.md`, `data/scenarios/busan-wh-capacity-01/`. 새 질문: Q-37~Q-43.
+
+---
+
 ## v0.2 개정 — 2026-09-11 · 이벤트·상태 설계 확정안 (T-032)
 
 기획 방향은 그대로다. 이벤트·상태 설계를 구현 직전 수준으로 고정하면서 아래 v0.2 초안 개념을 바꿨다(모두 Proposed, 사람 검토 대기).
@@ -136,6 +165,8 @@
 | `docs/08_glossary.md` | `docs/13_glossary.md` |
 | `docs/09_decisions.md` | `docs/14_decisions.md` |
 | `docs/10_open-questions.md` | `docs/15_open-questions.md` |
+| `web/` (2026-09-15 LOG의 T-060~T-063 항목) | `front/web/` (2026-09-15 T-066, ADR-024) |
+| `src/cera/<모듈>` (옛 레이아웃 계획) | `back/`·`ai/` 영역 (`07` 6절 배치표) |
 
 ---
 

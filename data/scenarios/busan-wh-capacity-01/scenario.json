@@ -1,0 +1,268 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "title": "부산신항 창고 A 수용량 급감 — 30대 Recovery 시나리오",
+  "version": "0.1.0",
+  "kind": "PROTOTYPE_SCENARIO",
+  "is_simulated": true,
+  "result_kind": "SCENARIO_RESULT",
+  "timezone": "Asia/Seoul",
+  "days": {
+    "D0": "2026-10-13",
+    "D1": "2026-10-14",
+    "D2": "2026-10-15"
+  },
+  "day_note": "D0 = 2026-10-13(화). 앞뒤로 공휴일이 없는 평일로 골랐다(2026-10-05는 개천절 대체공휴일)",
+  "disclaimers": [
+    "모든 데이터는 합성 시나리오(SIMULATED)다. 실제 화주·컨테이너·요율·항만 배치가 아니다.",
+    "위험·비용·계획은 시나리오에 명시한 결과값이다. Solver·Risk·Cost Engine은 아직 없다.",
+    "절감액은 시뮬레이션 기준이며 실제 절감 실적이 아니다.",
+    "메일은 가상 메일함으로만 오가고 실제 발송은 없다. 회신 추출값은 사람이 작성한 시나리오 값이다(LLM을 실행하지 않았다)."
+  ],
+  "files": [
+    "scenario.json",
+    "containers.json",
+    "resources.json",
+    "events.json",
+    "risk.json",
+    "plans.json",
+    "communications.json",
+    "activity.json",
+    "verifications.json"
+  ],
+  "steps": [
+    {
+      "step_id": "S0",
+      "index": 0,
+      "as_of": "2026-10-13T10:30:00+09:00",
+      "title": "10:30 정상 운영",
+      "caption": "활성 컨테이너 30대. 창고 A는 오늘 13:00~16:00에 20대를 받을 예정입니다. 위험 HIGH는 통관 대기 2대뿐입니다.",
+      "risk_state": "RS0",
+      "current_plan_id": null,
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 0,
+        "high_count": 2,
+        "current_exposure_krw": 0,
+        "recoverable_exposure_krw": null,
+        "recoverable_plan_id": null,
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 20,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 0,
+        "verification_pending": 2
+      }
+    },
+    {
+      "step_id": "S1",
+      "index": 1,
+      "as_of": "2026-10-13T11:00:00+09:00",
+      "title": "11:00 창고 A 설비 장애 — 수용량 20 → 8",
+      "caption": "창고 담당자가 오늘 수용량을 8로 바꿨습니다(사람 입력 · CONFIRMED). 오늘 입고 예정 20대 중 12대가 자리를 잃었고, 그중 11대는 LFD가 지나 Demurrage가 생깁니다. 조치하지 않으면 2,490,000원이 더 듭니다.",
+      "risk_state": "RS1",
+      "current_plan_id": null,
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 11,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": null,
+        "recoverable_plan_id": null,
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 2
+      }
+    },
+    {
+      "step_id": "S2",
+      "index": 2,
+      "as_of": "2026-10-13T11:00:02+09:00",
+      "title": "11:00 Simulated Recovery Plan v1",
+      "caption": "영향 12대를 ODCY A 5 · ODCY B 4 · 터미널 대기 3으로 나눕니다. 비용 4,650,000 → 3,835,000원 (절감 815,000원, 시뮬레이션 기준). ODCY B는 트럭이 모자라 6대 중 4대만 씁니다. 문의 초안 3건이 준비됐습니다.",
+      "risk_state": "RS1",
+      "current_plan_id": "RP-001",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 11,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 815000,
+        "recoverable_plan_id": "RP-001",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 2
+      }
+    },
+    {
+      "step_id": "S3",
+      "index": 3,
+      "as_of": "2026-10-13T11:02:00+09:00",
+      "title": "11:02 운영자 승인 · 문의 발송(가상)",
+      "caption": "운영자가 Plan v1을 승인했습니다. ODCY A 가용 5대는 아침 메일 기준 잠정값이라 \"잠정 입력 인지\"를 함께 기록합니다. 문의 3건은 가상 메일함으로만 보냈습니다.",
+      "risk_state": "RS2",
+      "current_plan_id": "RP-001",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 2,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 815000,
+        "recoverable_plan_id": "RP-001",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 4
+      }
+    },
+    {
+      "step_id": "S4",
+      "index": 4,
+      "as_of": "2026-10-13T11:15:00+09:00",
+      "title": "11:15 운송사 회신",
+      "caption": "K운송: \"15시 2대, 17시 1대 가능합니다.\" 추출값은 잠정(PROVISIONAL)입니다. 아직 계획은 바뀌지 않았습니다.",
+      "risk_state": "RS2",
+      "current_plan_id": "RP-001",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 2,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 815000,
+        "recoverable_plan_id": "RP-001",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 4
+      }
+    },
+    {
+      "step_id": "S5",
+      "index": 5,
+      "as_of": "2026-10-13T11:18:00+09:00",
+      "title": "11:18 ODCY A 회신",
+      "caption": "ODCY A: \"40FT Dry 4대, 2일 보관 가능, 일 35,000원.\" v1은 ODCY A에 5대를 보내므로 1대가 실행 불가입니다 — 재계획이 필요합니다.",
+      "risk_state": "RS2",
+      "current_plan_id": "RP-001",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 2,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 815000,
+        "recoverable_plan_id": "RP-001",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 2
+      }
+    },
+    {
+      "step_id": "S6",
+      "index": 6,
+      "as_of": "2026-10-13T11:20:00+09:00",
+      "title": "11:20 창고 A 회신",
+      "caption": "창고 A: \"오늘은 추가 수용이 어렵습니다.\" 수용량 8은 그대로입니다.",
+      "risk_state": "RS2",
+      "current_plan_id": "RP-001",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 2,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 815000,
+        "recoverable_plan_id": "RP-001",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 2
+      }
+    },
+    {
+      "step_id": "S7",
+      "index": 7,
+      "as_of": "2026-10-13T11:20:05+09:00",
+      "title": "11:20 Plan v2 (재계획)",
+      "caption": "회신 3건을 반영했습니다. C007은 ODCY A → ODCY B, C008은 추가 트럭으로 대기 → ODCY B. 계획 비용 3,835,000 → 3,855,000원(+20,000). v1은 실행할 수 없는 계획이었고 v2는 실행 가능합니다. 절감 795,000원.",
+      "risk_state": "RS2",
+      "current_plan_id": "RP-002",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 2,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 795000,
+        "recoverable_plan_id": "RP-002",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 2
+      }
+    },
+    {
+      "step_id": "S8",
+      "index": 8,
+      "as_of": "2026-10-13T11:22:00+09:00",
+      "title": "11:22 Plan v2 승인",
+      "caption": "운영자가 잠정 입력 4건을 인지하고 승인했습니다. 입력은 여전히 잠정이며, 통화로 확인해야 CONFIRMED가 됩니다. 13:00 첫 배차 전이라 잠긴 배정은 없습니다.",
+      "risk_state": "RS3",
+      "current_plan_id": "RP-002",
+      "kpi": {
+        "active_containers": 30,
+        "critical_count": 1,
+        "high_count": 3,
+        "current_exposure_krw": 2490000,
+        "recoverable_exposure_krw": 795000,
+        "recoverable_plan_id": "RP-002",
+        "warehouse": {
+          "id": "WAREHOUSE_A",
+          "name": "창고 A",
+          "capacity_today": 8,
+          "normal_capacity": 20,
+          "planned_today": 20
+        },
+        "affected_count": 12,
+        "verification_pending": 5
+      }
+    }
+  ]
+}

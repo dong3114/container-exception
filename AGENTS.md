@@ -17,10 +17,26 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 현재 단계 | **Phase 0 — 기획 v0.2 정합성 정리 + 이벤트·상태 설계(T-032) 완료, 사람 검토(T-001) 대기** |
-| 기획 버전 | v0.2 (2026-09-11). 변경 이력은 `docs/CHANGELOG.md` |
-| 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · Three.js 시뮬레이터 |
-| 코드 | 아직 없음 (T-003에서 저장소 초기화) |
+| 현재 단계 | **Phase 0.5 — Prototype-led Discovery: 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), 사람 검토(T-064·T-001) 대기.** Backend·DB·Solver는 아직 없음. T-036은 DEFERRED |
+| 기획 버전 | v0.2 (2026-09-11, 2026-09-15 개정). 변경 이력은 `docs/CHANGELOG.md` |
+| 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · 운영 시뮬레이터(Prototype은 2D) |
+| 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider)만 있음. `back/`·`ai/`·`packages/`·`infra/`는 README만 있는 빈 책임 영역 (T-003) |
+
+### 1.1 저장소 구조 (Private Monorepo, ADR-024)
+
+Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배포 때는 서비스별 Docker Image로 나눌 수 있으므로 저장소를 나누지 않는다.
+
+| 폴더 | 책임 | 현재 |
+| --- | --- | --- |
+| `front/` | 화면. `front/web/` = Control Tower (Next.js) | Prototype 동작 |
+| `back/` | 중앙 API, 인증, DB·Event 저장, Canonical State, 외부 연동(메일 등), 승인, 감사, 백그라운드 작업, push | 구현 전 |
+| `ai/` | LLM 해석(메일·계약서 파싱, 설명) **+ 결정론 엔진**(Tariff·Cost·Risk·Optimization·Solver). 결정론 엔진은 LLM 클라이언트를 import하지 않는다 | 구현 전 |
+| `packages/` | 공유 계약(OpenAPI, 생성 타입) | 비어 있음 |
+| `data/` | 공통 시나리오·테스트 데이터 (front·back·ai가 같이 씀) | `data/scenarios/busan-wh-capacity-01/` |
+| `docs/` | 정본 문서 | — |
+| `infra/` | 배포 구성 | 구현 전 |
+
+영역 사이 규칙: `front/`는 raw 데이터 파일이 아니라 계약(API / Provider)만 본다. 계약의 정본은 Backend가 생기면 OpenAPI로 옮긴다(`packages/README.md`). Desktop 앱(Tauri 등)은 **검토 중인 선택지이지 확정 기술이 아니다**.
 
 ---
 
@@ -93,6 +109,8 @@
 6. 핵심 로직에서 현재 시각을 직접 읽지 않는다. 기준시각 `as_of`를 주입한다.
 7. 금액은 **원(KRW) 정수**로 다룬다. 시각은 **Asia/Seoul 타임존이 붙은 값**만 쓴다.
 8. `docs/01_project-rules.md` 4절의 "확정하지 않을 주장"은 코드·UI·문서 어디에도 사실처럼 쓰지 않는다.
+9. **Mock / Simulated / Real을 구분한다.** 시나리오 값·Mock 결과는 `is_simulated`, `result_kind = SCENARIO_RESULT`로 표시하고, 실행하지 않은 엔진·LLM·연동의 결과처럼 쓰지 않는다(예: 사람이 쓴 값을 "LLM 추출"이라고 부르지 않는다).
+10. 사람이 요청하지 않으면 **git commit / push / 원격 생성을 하지 않는다**.
 
 ---
 
@@ -111,12 +129,14 @@
 | `docs/07_backend-architecture.md` | 모듈, 스택, 저장 스키마, API, 레이아웃 | 코드 작업 |
 | `docs/08_optimization-model.md` | 복구 최적화 정식화, 비용 계수, Baseline, 재최적화 | 최적화 작업 |
 | `docs/09_mvp-scenario.md` | 기준 데모 시나리오 | 모든 구현·데모 작업 |
-| `docs/10_simulation-spec.md` | Three.js Operations Simulator | 프론트·시각화 작업 |
+| `docs/10_simulation-spec.md` | Operations Simulator 요구사항 (현재 Prototype 구현: 2D SVG / Three.js는 향후 선택지) | 프론트·시각화 작업 |
 | `docs/11_data-sources.md` | 출처 카탈로그, 공공 API 확인 결과, 조인 경로, 메일 입력 | 수집·연동 작업 |
 | `docs/12_roadmap.md` | Phase·Gate·백로그 원천 | 큐를 보충할 때 |
 | `docs/13_glossary.md` | 용어집(한/영 표준 표기) | 용어가 헷갈릴 때 |
 | `docs/14_decisions.md` | ADR | 설계 결정 전후 |
 | `docs/15_open-questions.md` | 미확정 사항, 리스크 | 가정을 세우거나 검증했을 때 |
+| `docs/16_frontend-prototype.md` | Control Tower Prototype: 실행, Data Contract, 단계별 화면, 발견한 요구사항 | 프론트·시나리오·계약 작업 |
+| `data/scenarios/busan-wh-capacity-01/README.md` | 30대 시나리오 데이터 팩(Prototype 판) | 시나리오 값을 바꿀 때 |
 | `docs/data/field-dictionary.md` | 공공 API 필드 사전(공식 명세 기준, 출처 S-nn) | 공공 API 어댑터 작업 |
 | `docs/data/code-tables.md` | 공공 API 코드값·에러코드 | 어댑터·파서 작업 |
 | `docs/tasks/QUEUE.md` | 작업 큐(정본) | **매 세션** |
@@ -126,12 +146,20 @@
 
 ## 6. 개발 명령어
 
-> T-003(저장소 초기화) 완료 후 이 절을 채운다. 그 전에는 코드가 없다.
+> 백엔드 명령은 T-003(저장소 초기화)에서 채운다. 지금은 `front/web/` Prototype만 있다(Node 22 기준, `docs/16_frontend-prototype.md` 3절).
 
 ```text
-설치:      (T-003에서 정의)
-테스트:    (T-003에서 정의)
-린트:      (T-003에서 정의)
-로컬 실행: (T-052 / T-054에서 정의)
-시나리오:  (T-046에서 정의)
+[front/web — Control Tower Prototype]  (모든 명령은 front/web 폴더에서)
+설치:        cd front/web && npm install
+시나리오 검사: npm run validate:scenario     # 데이터 팩 합계·용량·트럭·KPI·금지 표현
+타입 검사:    npm run typecheck
+린트:        npm run lint
+빌드·실행:    npm run build && npm run start  # http://localhost:3000
+브라우저 확인: npm run smoke                  # 서버가 떠 있을 때. Edge/Chrome 헤드리스, 스크린샷 front/web/.smoke/
+개발 서버:    npm run dev
+
+[back / ai]  (구현 전)
+설치·테스트·린트: (T-003에서 정의)
+로컬 실행:       (T-052 / T-054에서 정의)
+시나리오 CLI:    (T-046에서 정의)
 ```

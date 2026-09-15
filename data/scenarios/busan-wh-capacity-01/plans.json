@@ -1,0 +1,3246 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "result_kind": "SCENARIO_RESULT",
+  "engine": null,
+  "note": "Solver·Cost Engine은 아직 없다. 아래 배정·비용은 시나리오에 명시한 결과값(Simulated Recovery Plan)이다. 나중에 같은 계약으로 엔진 결과를 돌려준다. 금액은 KRW 정수, 비용 항목 합계가 계획 합계와 같아야 한다(validate:scenario).",
+  "cost_scope": {
+    "compared": "영향 12대 (창고 A 오늘 입고 예정 20대 중 수용 부족분)",
+    "excluded": "창고 A 직송 유지 8대 — Baseline·Plan v1·Plan v2 모두 같음 (1,600,000원)",
+    "total_cost_definition": "TotalCost = 운송 + ODCY 핸들링·보관 + Demurrage + 터미널 보관료 + Detention (04_domain-model.md 5절)",
+    "exposure_definition": "Current Exposure = Baseline TotalCost − 정상 직송 운임 (조치하지 않을 때 추가로 드는 비용) [PROPOSED, Q-02]",
+    "saving_definition": "Potential Saving = Baseline TotalCost − Plan TotalCost (시뮬레이션 기준)",
+    "delivery_day_rule": "창고 A 입고일은 수용량이 정한다: 10/14 6대, 10/15 6대. 세 계획에서 같다 — 계획이 바꾸는 것은 입고일까지 컨테이너를 어디에 둘지다 [ASSUMPTION]"
+  },
+  "original_plan": {
+    "plan_id": "ORIGINAL",
+    "label": "원래 입고 계획 (10/12 작성)",
+    "as_of": "2026-10-13T10:30:00+09:00",
+    "moves": [
+      {
+        "container_id": "C001",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      {
+        "container_id": "C004",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      {
+        "container_id": "C006",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-04"
+      },
+      {
+        "container_id": "C009",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T13:00:00+09:00",
+        "truck_id": "TRUCK-06"
+      },
+      {
+        "container_id": "C011",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      {
+        "container_id": "C013",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      {
+        "container_id": "C016",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-04"
+      },
+      {
+        "container_id": "C019",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-06"
+      },
+      {
+        "container_id": "C002",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T14:00:00+09:00",
+        "truck_id": "TRUCK-05"
+      },
+      {
+        "container_id": "C003",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      {
+        "container_id": "C005",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-02"
+      },
+      {
+        "container_id": "C007",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      {
+        "container_id": "C008",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-05"
+      },
+      {
+        "container_id": "C010",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-07"
+      },
+      {
+        "container_id": "C012",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T15:00:00+09:00",
+        "truck_id": "TRUCK-08"
+      },
+      {
+        "container_id": "C014",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      {
+        "container_id": "C015",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-02"
+      },
+      {
+        "container_id": "C017",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-03"
+      },
+      {
+        "container_id": "C018",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-05"
+      },
+      {
+        "container_id": "C020",
+        "to": "WAREHOUSE_A",
+        "depart_at": "2026-10-13T16:00:00+09:00",
+        "truck_id": "TRUCK-07"
+      },
+      {
+        "container_id": "C021",
+        "to": "WAREHOUSE_B",
+        "depart_at": "2026-10-13T17:00:00+09:00",
+        "truck_id": "TRUCK-01"
+      },
+      {
+        "container_id": "C022",
+        "to": "WAREHOUSE_B",
+        "depart_at": "2026-10-13T17:00:00+09:00",
+        "truck_id": "TRUCK-02"
+      },
+      {
+        "container_id": "C023",
+        "to": "WAREHOUSE_B",
+        "depart_at": "2026-10-13T17:00:00+09:00",
+        "truck_id": "TRUCK-07"
+      }
+    ],
+    "route_summary": {
+      "WAREHOUSE_A_DIRECT": 20,
+      "WAREHOUSE_B_DIRECT": 3
+    },
+    "truck_schedule": [
+      {
+        "truck_id": "TRUCK-01",
+        "hour": 13,
+        "container_id": "C001",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-03",
+        "hour": 13,
+        "container_id": "C004",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-04",
+        "hour": 13,
+        "container_id": "C006",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-06",
+        "hour": 13,
+        "container_id": "C009",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-01",
+        "hour": 14,
+        "container_id": "C011",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-03",
+        "hour": 14,
+        "container_id": "C013",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-04",
+        "hour": 14,
+        "container_id": "C016",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-06",
+        "hour": 14,
+        "container_id": "C019",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-05",
+        "hour": 14,
+        "container_id": "C002",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-01",
+        "hour": 15,
+        "container_id": "C003",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-02",
+        "hour": 15,
+        "container_id": "C005",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-03",
+        "hour": 15,
+        "container_id": "C007",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-05",
+        "hour": 15,
+        "container_id": "C008",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-07",
+        "hour": 15,
+        "container_id": "C010",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-08",
+        "hour": 15,
+        "container_id": "C012",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-01",
+        "hour": 16,
+        "container_id": "C014",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-02",
+        "hour": 16,
+        "container_id": "C015",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-03",
+        "hour": 16,
+        "container_id": "C017",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-05",
+        "hour": 16,
+        "container_id": "C018",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-07",
+        "hour": 16,
+        "container_id": "C020",
+        "leg": "TERMINAL_T1→WAREHOUSE_A"
+      },
+      {
+        "truck_id": "TRUCK-01",
+        "hour": 17,
+        "container_id": "C021",
+        "leg": "TERMINAL_T1→WAREHOUSE_B"
+      },
+      {
+        "truck_id": "TRUCK-02",
+        "hour": 17,
+        "container_id": "C022",
+        "leg": "TERMINAL_T1→WAREHOUSE_B"
+      },
+      {
+        "truck_id": "TRUCK-07",
+        "hour": 17,
+        "container_id": "C023",
+        "leg": "TERMINAL_T1→WAREHOUSE_B"
+      }
+    ]
+  },
+  "baseline": {
+    "plan_id": "BASELINE-1",
+    "label": "Baseline (조치 없음)",
+    "generated_step": "S1",
+    "generated_at": "2026-10-13T11:00:00+09:00",
+    "rule": "원래 계획을 새 제약 아래 그대로 밀고 간다: 창고 A는 원래 출발 순서대로 먼저 오는 8대만 받고, 나머지 12대는 터미널에서 기다렸다가 10/14·10/15에 직송 (08_optimization-model.md 5절)",
+    "unchanged_direct": {
+      "count": 8,
+      "container_ids": [
+        "C001",
+        "C004",
+        "C006",
+        "C009",
+        "C011",
+        "C013",
+        "C016",
+        "C019"
+      ],
+      "cost_krw": 1600000
+    },
+    "actions": [
+      {
+        "container_id": "C002",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-14",
+        "cost_krw": 425000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 235000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "LFD 10/13(화) 이후 1일 × CARRIER_B 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/14(수) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C005",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-14",
+        "cost_krw": 410000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 220000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 175000,
+            "amount_krw": 175000,
+            "basis": "LFD 10/13(화) 이후 1일 × CARRIER_C 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/14(수) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C007",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-14",
+        "cost_krw": 410000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 220000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 175000,
+            "amount_krw": 175000,
+            "basis": "LFD 10/13(화) 이후 1일 × CARRIER_C 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/14(수) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C008",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-14",
+        "cost_krw": 395000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 205000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 160000,
+            "amount_krw": 160000,
+            "basis": "LFD 10/13(화) 이후 1일 × CARRIER_A 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/14(수) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C010",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-14",
+        "cost_krw": 425000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 235000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "LFD 10/13(화) 이후 1일 × CARRIER_B 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/14(수) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C014",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-14",
+        "cost_krw": 410000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 220000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 175000,
+            "amount_krw": 175000,
+            "basis": "LFD 10/13(화) 이후 1일 × CARRIER_C 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/14(수) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C012",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-15",
+        "cost_krw": 400000,
+        "normal_cost_krw": 150000,
+        "exposure_krw": 250000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 2,
+            "unit_krw": 100000,
+            "amount_krw": 200000,
+            "basis": "LFD 10/13(화) 이후 2일 × CARRIER_B 20FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 2,
+            "unit_krw": 25000,
+            "amount_krw": 50000,
+            "basis": "무료 장치기간 경과 2일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 150000,
+            "amount_krw": 150000,
+            "basis": "10/15(목) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C015",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-15",
+        "cost_krw": 380000,
+        "normal_cost_krw": 150000,
+        "exposure_krw": 230000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 2,
+            "unit_krw": 90000,
+            "amount_krw": 180000,
+            "basis": "LFD 10/13(화) 이후 2일 × CARRIER_C 20FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 2,
+            "unit_krw": 25000,
+            "amount_krw": 50000,
+            "basis": "무료 장치기간 경과 2일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 150000,
+            "amount_krw": 150000,
+            "basis": "10/15(목) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C017",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-15",
+        "cost_krw": 395000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 205000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 160000,
+            "amount_krw": 160000,
+            "basis": "LFD 10/14(수) 이후 1일 × CARRIER_A 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/15(목) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C018",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-15",
+        "cost_krw": 425000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 235000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "LFD 10/14(수) 이후 1일 × CARRIER_B 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/15(목) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C020",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-15",
+        "cost_krw": 425000,
+        "normal_cost_krw": 190000,
+        "exposure_krw": 235000,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "LFD 10/14(수) 이후 1일 × CARRIER_B 40FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 1,
+            "unit_krw": 45000,
+            "amount_krw": 45000,
+            "basis": "무료 장치기간 경과 1일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 190000,
+            "amount_krw": 190000,
+            "basis": "10/15(목) 직송"
+          }
+        ]
+      },
+      {
+        "container_id": "C003",
+        "route": "TERMINAL_WAIT",
+        "route_label": "터미널 대기 후 직송",
+        "delivery_day": "2026-10-15",
+        "cost_krw": 150000,
+        "normal_cost_krw": 150000,
+        "exposure_krw": 0,
+        "cost_breakdown": [
+          {
+            "item": "DEMURRAGE",
+            "label": "Demurrage (터미널 대기)",
+            "qty": 0,
+            "unit_krw": 85000,
+            "amount_krw": 0,
+            "basis": "LFD 10/15(목) 이후 0일 × CARRIER_A 20FT Dry 1구간 요율"
+          },
+          {
+            "item": "TERMINAL_STORAGE",
+            "label": "터미널 보관료",
+            "qty": 0,
+            "unit_krw": 25000,
+            "amount_krw": 0,
+            "basis": "무료 장치기간 경과 0일"
+          },
+          {
+            "item": "TRANSPORT",
+            "label": "운송 터미널→창고 A",
+            "qty": 1,
+            "unit_krw": 150000,
+            "amount_krw": 150000,
+            "basis": "10/15(목) 직송"
+          }
+        ]
+      }
+    ],
+    "total_cost_krw": 4650000,
+    "normal_cost_krw": 2160000,
+    "exposure_krw": 2490000
+  },
+  "plans": [
+    {
+      "plan_id": "RP-001",
+      "version": 1,
+      "label": "Plan v1",
+      "generated_step": "S2",
+      "generated_at": "2026-10-13T11:00:02+09:00",
+      "trigger": "WAREHOUSE_CAPACITY_CHANGED (E-110)",
+      "status_timeline": [
+        {
+          "from_step": "S2",
+          "status": "PROPOSED"
+        },
+        {
+          "from_step": "S3",
+          "status": "APPROVED",
+          "decided_by": "운영자 (가상)",
+          "decided_at": "2026-10-13T11:02:00+09:00",
+          "acknowledged_provisional_inputs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ],
+          "note": "잠정 입력 2건 인지 후 승인. 입력은 PROVISIONAL로 남고 V9 확인 요청 생성"
+        },
+        {
+          "from_step": "S5",
+          "status": "APPROVED",
+          "flags": [
+            "INPUT_CHANGED"
+          ],
+          "note": "ODCY A 가용 5 → 4 (11:18 회신). v1은 ODCY A에 5대를 보내므로 1대가 실행 불가 → 재계획 필요"
+        },
+        {
+          "from_step": "S8",
+          "status": "SUPERSEDED",
+          "note": "Plan v2 승인으로 대체"
+        }
+      ],
+      "baseline_cost_krw": 4650000,
+      "plan_cost_krw": 3835000,
+      "potential_saving_krw": 815000,
+      "residual_exposure_krw": 1675000,
+      "route_summary_20": {
+        "WAREHOUSE_DIRECT": 8,
+        "ODCY_A": 5,
+        "ODCY_B": 4,
+        "TERMINAL_WAIT": 3
+      },
+      "recovery_action_summary_12": {
+        "ODCY_A": 5,
+        "ODCY_B": 4,
+        "TERMINAL_WAIT": 3
+      },
+      "unchanged_direct": {
+        "count": 8,
+        "container_ids": [
+          "C001",
+          "C004",
+          "C006",
+          "C009",
+          "C011",
+          "C013",
+          "C016",
+          "C019"
+        ],
+        "cost_krw": 1600000,
+        "actions": [
+          {
+            "container_id": "C001",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-01",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C004",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-03",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 190000,
+            "baseline_cost_krw": 190000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 190000,
+                "amount_krw": 190000,
+                "basis": "40FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C006",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-04",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 150000,
+            "baseline_cost_krw": 150000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 150000,
+                "amount_krw": 150000,
+                "basis": "20FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C009",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-06",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C011",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-01",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 190000,
+            "baseline_cost_krw": 190000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 190000,
+                "amount_krw": 190000,
+                "basis": "40FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C013",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-03",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 150000,
+            "baseline_cost_krw": 150000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 150000,
+                "amount_krw": 150000,
+                "basis": "20FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C016",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-04",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C019",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-06",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          }
+        ]
+      },
+      "actions": [
+        {
+          "container_id": "C002",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T14:00:00+09:00",
+          "truck_id": "TRUCK-05",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 120000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 터미널 대기 시 Demurrage·보관료 235,000원 → ODCY A 경유 추가비용 115,000원으로 절감 120,000원 (선택지 중 최대)",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C005",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T16:00:00+09:00",
+          "truck_id": "TRUCK-05",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 410000,
+          "saving_krw": 105000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 대기비용 220,000원 → ODCY A 경유 추가 115,000원, 절감 105,000원",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C007",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-05",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 410000,
+          "saving_krw": 105000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 대기비용 220,000원 → ODCY A 경유 추가 115,000원, 절감 105,000원",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C008",
+          "route": "TERMINAL_WAIT",
+          "route_label": "터미널 대기",
+          "from": "TERMINAL_T1",
+          "via": null,
+          "to": "WAREHOUSE_A",
+          "depart_at": null,
+          "truck_id": null,
+          "truck_pool": null,
+          "delivery_day": "2026-10-14",
+          "cost_krw": 395000,
+          "baseline_cost_krw": 395000,
+          "saving_krw": 0,
+          "cost_breakdown": [
+            {
+              "item": "DEMURRAGE",
+              "label": "Demurrage (터미널 대기)",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "LFD 10/13(화) 이후 1일 × CARRIER_A 40FT Dry 1구간 요율"
+            },
+            {
+              "item": "TERMINAL_STORAGE",
+              "label": "터미널 보관료",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "무료 장치기간 경과 1일"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→창고 A",
+              "qty": 1,
+              "unit_krw": 190000,
+              "amount_krw": 190000,
+              "basis": "10/14(수) 직송"
+            }
+          ],
+          "rationale": "ODCY B로 옮기면 절감 35,000원이지만 15:00~17:00 셔틀 트럭이 모자라 대기. 운송사에 추가 트럭 문의",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C010",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-08",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 120000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 대기비용 235,000원 → ODCY A 경유 추가 115,000원, 절감 120,000원",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C014",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T18:00:00+09:00",
+          "truck_id": "TRUCK-02",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 410000,
+          "saving_krw": 105000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 대기비용 220,000원 → ODCY A 경유 추가 115,000원, 절감 105,000원",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C012",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-01",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 300000,
+          "baseline_cost_krw": 400000,
+          "saving_krw": 100000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 95000,
+              "amount_krw": 95000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 15000,
+              "amount_krw": 30000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 130000,
+              "amount_krw": 130000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "20FT라 ODCY A 불가. 대기 2일(250,000원) → ODCY B 경유 추가 150,000원, 절감 100,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C015",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-02",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 300000,
+          "baseline_cost_krw": 380000,
+          "saving_krw": 80000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 95000,
+              "amount_krw": 95000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 15000,
+              "amount_krw": 30000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 130000,
+              "amount_krw": 130000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "20FT라 ODCY A 불가. 대기 2일(230,000원) → ODCY B 경유 추가 150,000원, 절감 80,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C017",
+          "route": "TERMINAL_WAIT",
+          "route_label": "터미널 대기",
+          "from": "TERMINAL_T1",
+          "via": null,
+          "to": "WAREHOUSE_A",
+          "depart_at": null,
+          "truck_id": null,
+          "truck_pool": null,
+          "delivery_day": "2026-10-15",
+          "cost_krw": 395000,
+          "baseline_cost_krw": 395000,
+          "saving_krw": 0,
+          "cost_breakdown": [
+            {
+              "item": "DEMURRAGE",
+              "label": "Demurrage (터미널 대기)",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "LFD 10/14(수) 이후 1일 × CARRIER_A 40FT Dry 1구간 요율"
+            },
+            {
+              "item": "TERMINAL_STORAGE",
+              "label": "터미널 보관료",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "무료 장치기간 경과 1일"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→창고 A",
+              "qty": 1,
+              "unit_krw": 190000,
+              "amount_krw": 190000,
+              "basis": "10/15(목) 직송"
+            }
+          ],
+          "rationale": "ODCY B 경유 절감 10,000원(가장 작음). 트럭 부족으로 대기",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C018",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-03",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 385000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 40000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 115000,
+              "amount_krw": 115000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 60000,
+              "amount_krw": 60000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 25000,
+              "amount_krw": 50000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "ODCY A 5대 모두 사용 → ODCY B 경유 절감 40,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C020",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-07",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 385000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 40000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 115000,
+              "amount_krw": 115000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 60000,
+              "amount_krw": 60000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 25000,
+              "amount_krw": 50000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "ODCY A 5대 모두 사용 → ODCY B 경유 절감 40,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C003",
+          "route": "TERMINAL_WAIT",
+          "route_label": "터미널 대기",
+          "from": "TERMINAL_T1",
+          "via": null,
+          "to": "WAREHOUSE_A",
+          "depart_at": null,
+          "truck_id": null,
+          "truck_pool": null,
+          "delivery_day": "2026-10-15",
+          "cost_krw": 150000,
+          "baseline_cost_krw": 150000,
+          "saving_krw": 0,
+          "cost_breakdown": [
+            {
+              "item": "DEMURRAGE",
+              "label": "Demurrage (터미널 대기)",
+              "qty": 0,
+              "unit_krw": 85000,
+              "amount_krw": 0,
+              "basis": "LFD 10/15(목) 이후 0일 × CARRIER_A 20FT Dry 1구간 요율"
+            },
+            {
+              "item": "TERMINAL_STORAGE",
+              "label": "터미널 보관료",
+              "qty": 0,
+              "unit_krw": 25000,
+              "amount_krw": 0,
+              "basis": "무료 장치기간 경과 0일"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→창고 A",
+              "qty": 1,
+              "unit_krw": 150000,
+              "amount_krw": 150000,
+              "basis": "10/15(목) 직송"
+            }
+          ],
+          "rationale": "LFD 10/15 → 10/15 입고해도 Demurrage 없음. ODCY 경유는 비용만 150,000원 늘어남",
+          "change_from_previous": null,
+          "input_refs": []
+        }
+      ],
+      "provisional_inputs": [
+        {
+          "ref": "ODCY_A.capacity",
+          "resource_id": "ODCY_A",
+          "fact_key": "capacity.40DRY.day(2026-10-13)",
+          "value": 5,
+          "event_id": "E-A-01",
+          "label": "ODCY A 40FT Dry 가용 5대 (09:10 메일, 잠정)"
+        },
+        {
+          "ref": "ODCY_A.rate",
+          "resource_id": "ODCY_A",
+          "fact_key": "rate.storage_per_day.40DRY",
+          "value": 35000,
+          "event_id": "E-A-01",
+          "label": "ODCY A 보관료 35,000원/일 (09:10 메일, 잠정)"
+        }
+      ],
+      "binding_constraints": [
+        {
+          "type": "WAREHOUSE_CAP",
+          "ref": "WAREHOUSE_A@2026-10-13",
+          "note": "창고 A 오늘 8대"
+        },
+        {
+          "type": "ODCY_CAP",
+          "ref": "ODCY_A",
+          "note": "ODCY A 40FT Dry 5대 모두 사용"
+        },
+        {
+          "type": "TRUCK",
+          "ref": "OWN_FLEET@15:00-17:00",
+          "note": "자사 트럭 15~17시 모두 사용 → ODCY B는 6대 중 4대만 사용"
+        }
+      ],
+      "resource_gaps": [
+        {
+          "type": "TRUCK",
+          "window": "15:00–17:00",
+          "needed": 2,
+          "available": 0,
+          "note": "ODCY B 추가 이동 2건(C008, C017)에 필요",
+          "ask": "K운송"
+        },
+        {
+          "type": "CAPACITY_CONFIRM",
+          "ref": "ODCY_A",
+          "note": "가용 5대는 09:10 메일 기준(잠정) — 확인 필요",
+          "ask": "ODCY A"
+        },
+        {
+          "type": "WAREHOUSE_EXTRA",
+          "ref": "WAREHOUSE_A",
+          "note": "오늘 8대 초과 수용 가능 여부",
+          "ask": "창고 A"
+        }
+      ],
+      "capacity_usage": {
+        "WAREHOUSE_A": [
+          {
+            "day": "2026-10-13",
+            "capacity": 8,
+            "used": 8
+          },
+          {
+            "day": "2026-10-14",
+            "capacity": 11,
+            "used": 11,
+            "note": "기존 D1 계획 5 + 이월 6"
+          },
+          {
+            "day": "2026-10-15",
+            "capacity": 20,
+            "used": 8,
+            "note": "기존 D2 계획 2 + 이월 6"
+          }
+        ],
+        "ODCY_A": {
+          "capacity": 5,
+          "used": 5
+        },
+        "ODCY_B": {
+          "capacity": 6,
+          "used": 4
+        }
+      },
+      "truck_schedule": [
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 13,
+          "container_id": "C001",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 14,
+          "container_id": "C011",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 15,
+          "container_id": "C012",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 16,
+          "container_id": "C012",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 17,
+          "container_id": "C021",
+          "leg": "TERMINAL_T1→WAREHOUSE_B"
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 15,
+          "container_id": "C015",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 16,
+          "container_id": "C015",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 17,
+          "container_id": "C022",
+          "leg": "TERMINAL_T1→WAREHOUSE_B"
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 18,
+          "container_id": "C014",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 13,
+          "container_id": "C004",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 14,
+          "container_id": "C013",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 15,
+          "container_id": "C018",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 16,
+          "container_id": "C018",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-04",
+          "hour": 13,
+          "container_id": "C006",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-04",
+          "hour": 14,
+          "container_id": "C016",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-05",
+          "hour": 14,
+          "container_id": "C002",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-05",
+          "hour": 15,
+          "container_id": "C007",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-05",
+          "hour": 16,
+          "container_id": "C005",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-06",
+          "hour": 13,
+          "container_id": "C009",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-06",
+          "hour": 14,
+          "container_id": "C019",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-07",
+          "hour": 15,
+          "container_id": "C020",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-07",
+          "hour": 16,
+          "container_id": "C020",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-07",
+          "hour": 17,
+          "container_id": "C023",
+          "leg": "TERMINAL_T1→WAREHOUSE_B"
+        },
+        {
+          "truck_id": "TRUCK-08",
+          "hour": 15,
+          "container_id": "C010",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        }
+      ]
+    },
+    {
+      "plan_id": "RP-002",
+      "version": 2,
+      "label": "Plan v2",
+      "generated_step": "S7",
+      "generated_at": "2026-10-13T11:20:05+09:00",
+      "trigger": "REPLIES_RECEIVED (E-120, E-121, E-122, M-OUT-03 회신)",
+      "status_timeline": [
+        {
+          "from_step": "S7",
+          "status": "PROPOSED",
+          "note": "승인 대기 — v1이 여전히 유효한 승인 계획"
+        },
+        {
+          "from_step": "S8",
+          "status": "APPROVED",
+          "decided_by": "운영자 (가상)",
+          "decided_at": "2026-10-13T11:22:00+09:00",
+          "acknowledged_provisional_inputs": [
+            "ODCY_A.capacity",
+            "ODCY_A.max_days",
+            "ODCY_A.rate",
+            "K_TRUCKING.available"
+          ],
+          "note": "잠정 입력 4건 인지 후 승인. 13:00 첫 배차 전이라 잠긴 배정 없음"
+        }
+      ],
+      "baseline_cost_krw": 4650000,
+      "plan_cost_krw": 3855000,
+      "potential_saving_krw": 795000,
+      "residual_exposure_krw": 1695000,
+      "previous": {
+        "plan_id": "RP-001",
+        "plan_cost_krw": 3835000,
+        "potential_saving_krw": 815000
+      },
+      "change_summary": [
+        "ODCY A 가용 5 → 4: C007을 ODCY A → ODCY B (절감 −55,000원)",
+        "K운송 15:00 트럭 추가(잠정): C008을 터미널 대기 → ODCY B (절감 +35,000원)",
+        "배차 조정: C005 TRUCK-05 16:00 → TRUCK-02 19:00",
+        "결과: 계획 비용 3,835,000 → 3,855,000원 (+20,000원). v1은 ODCY A 1대가 실행 불가였으므로 v2가 실행 가능한 계획"
+      ],
+      "route_summary_20": {
+        "WAREHOUSE_DIRECT": 8,
+        "ODCY_A": 4,
+        "ODCY_B": 6,
+        "TERMINAL_WAIT": 2
+      },
+      "recovery_action_summary_12": {
+        "ODCY_A": 4,
+        "ODCY_B": 6,
+        "TERMINAL_WAIT": 2
+      },
+      "unchanged_direct": {
+        "count": 8,
+        "container_ids": [
+          "C001",
+          "C004",
+          "C006",
+          "C009",
+          "C011",
+          "C013",
+          "C016",
+          "C019"
+        ],
+        "cost_krw": 1600000,
+        "actions": [
+          {
+            "container_id": "C001",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-01",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C004",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-03",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 190000,
+            "baseline_cost_krw": 190000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 190000,
+                "amount_krw": 190000,
+                "basis": "40FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C006",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-04",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 150000,
+            "baseline_cost_krw": 150000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 150000,
+                "amount_krw": 150000,
+                "basis": "20FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C009",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T13:00:00+09:00",
+            "truck_id": "TRUCK-06",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C011",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-01",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 190000,
+            "baseline_cost_krw": 190000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 190000,
+                "amount_krw": 190000,
+                "basis": "40FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C013",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-03",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 150000,
+            "baseline_cost_krw": 150000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 150000,
+                "amount_krw": 150000,
+                "basis": "20FT Dry 편도"
+              }
+            ],
+            "rationale": "업무 우선순위 CRITICAL — 운영자 고정 조건(오늘 입고)",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C016",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-04",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          },
+          {
+            "container_id": "C019",
+            "route": "WAREHOUSE_DIRECT",
+            "route_label": "창고 A 직송",
+            "from": "TERMINAL_T1",
+            "via": null,
+            "to": "WAREHOUSE_A",
+            "depart_at": "2026-10-13T14:00:00+09:00",
+            "truck_id": "TRUCK-06",
+            "truck_pool": "OWN_FLEET",
+            "delivery_day": "2026-10-13",
+            "cost_krw": 230000,
+            "baseline_cost_krw": 230000,
+            "saving_krw": 0,
+            "cost_breakdown": [
+              {
+                "item": "TRANSPORT",
+                "label": "운송 터미널→창고 A",
+                "qty": 1,
+                "unit_krw": 230000,
+                "amount_krw": 230000,
+                "basis": "40FT Reefer 편도"
+              }
+            ],
+            "rationale": "Reefer — ODCY A·B 모두 수용 불가, 오늘 직송 유지",
+            "change_from_previous": null,
+            "input_refs": []
+          }
+        ]
+      },
+      "actions": [
+        {
+          "container_id": "C002",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T14:00:00+09:00",
+          "truck_id": "TRUCK-05",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 120000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 터미널 대기 시 Demurrage·보관료 235,000원 → ODCY A 경유 추가비용 115,000원으로 절감 120,000원 (선택지 중 최대)",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C005",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T19:00:00+09:00",
+          "truck_id": "TRUCK-02",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 410000,
+          "saving_krw": 105000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. ODCY A 유지. 배차만 TRUCK-05 16:00 → TRUCK-02 19:00 (TRUCK-05가 C007의 ODCY B 왕복에 쓰임)",
+          "change_from_previous": {
+            "previous_route": "ODCY_A",
+            "previous_route_label": "ODCY A 경유",
+            "kind": "DISPATCH_ADJUSTED",
+            "note": "배차 조정: TRUCK-05 16:00 → TRUCK-02 19:00"
+          },
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C007",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-05",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 360000,
+          "baseline_cost_krw": 410000,
+          "saving_krw": 50000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 115000,
+              "amount_krw": 115000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 60000,
+              "amount_krw": 60000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 1,
+              "unit_krw": 25000,
+              "amount_krw": 25000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "ODCY A 가용 5 → 4 (11:18 회신). A 대비 B 절감 차이가 같은 후보(C005·C007·C014) 중 업무 우선순위 NORMAL·ID 큰 순으로 C007을 ODCY B로 이동 [동률 규칙 ASSUMPTION]. 절감 105,000 → 50,000원",
+          "change_from_previous": {
+            "previous_route": "ODCY_A",
+            "previous_route_label": "ODCY A 경유",
+            "kind": "ROUTE_CHANGED",
+            "note": "ODCY A 가용 감소(5→4)로 ODCY B로 이동"
+          },
+          "input_refs": []
+        },
+        {
+          "container_id": "C008",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "K-TRUCK-1",
+          "truck_pool": "K_TRUCKING",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 360000,
+          "baseline_cost_krw": 395000,
+          "saving_krw": 35000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 115000,
+              "amount_krw": 115000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 60000,
+              "amount_krw": 60000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 1,
+              "unit_krw": 25000,
+              "amount_krw": 25000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "K운송 15:00 트럭(잠정)으로 ODCY B 이동 가능 → 절감 35,000원",
+          "change_from_previous": {
+            "previous_route": "TERMINAL_WAIT",
+            "previous_route_label": "터미널 대기",
+            "kind": "ROUTE_CHANGED",
+            "note": "운송사 추가 트럭(15:00)으로 대기 → ODCY B"
+          },
+          "input_refs": [
+            "K_TRUCKING.available"
+          ]
+        },
+        {
+          "container_id": "C010",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-08",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 120000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 대기비용 235,000원 → ODCY A 경유 추가 115,000원, 절감 120,000원",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C014",
+          "route": "ODCY_A",
+          "route_label": "ODCY A 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_A",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T18:00:00+09:00",
+          "truck_id": "TRUCK-02",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-14",
+          "cost_krw": 305000,
+          "baseline_cost_krw": 410000,
+          "saving_krw": 105000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY A",
+              "qty": 1,
+              "unit_krw": 85000,
+              "amount_krw": 85000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY A 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 50000,
+              "amount_krw": 50000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY A 보관료",
+              "qty": 1,
+              "unit_krw": 35000,
+              "amount_krw": 35000,
+              "basis": "1일 보관 후 10/14(수) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY A→창고 A",
+              "qty": 1,
+              "unit_krw": 135000,
+              "amount_krw": 135000,
+              "basis": "10/14(수) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "오늘 LFD. 대기비용 220,000원 → ODCY A 경유 추가 115,000원, 절감 105,000원",
+          "change_from_previous": null,
+          "input_refs": [
+            "ODCY_A.capacity",
+            "ODCY_A.rate"
+          ]
+        },
+        {
+          "container_id": "C012",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-01",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 300000,
+          "baseline_cost_krw": 400000,
+          "saving_krw": 100000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 95000,
+              "amount_krw": 95000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 15000,
+              "amount_krw": 30000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 130000,
+              "amount_krw": 130000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "20FT라 ODCY A 불가. 대기 2일(250,000원) → ODCY B 경유 추가 150,000원, 절감 100,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C015",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-02",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 300000,
+          "baseline_cost_krw": 380000,
+          "saving_krw": 80000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 95000,
+              "amount_krw": 95000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 15000,
+              "amount_krw": 30000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 130000,
+              "amount_krw": 130000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "20FT라 ODCY A 불가. 대기 2일(230,000원) → ODCY B 경유 추가 150,000원, 절감 80,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C017",
+          "route": "TERMINAL_WAIT",
+          "route_label": "터미널 대기",
+          "from": "TERMINAL_T1",
+          "via": null,
+          "to": "WAREHOUSE_A",
+          "depart_at": null,
+          "truck_id": null,
+          "truck_pool": null,
+          "delivery_day": "2026-10-15",
+          "cost_krw": 395000,
+          "baseline_cost_krw": 395000,
+          "saving_krw": 0,
+          "cost_breakdown": [
+            {
+              "item": "DEMURRAGE",
+              "label": "Demurrage (터미널 대기)",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "LFD 10/14(수) 이후 1일 × CARRIER_A 40FT Dry 1구간 요율"
+            },
+            {
+              "item": "TERMINAL_STORAGE",
+              "label": "터미널 보관료",
+              "qty": 1,
+              "unit_krw": 45000,
+              "amount_krw": 45000,
+              "basis": "무료 장치기간 경과 1일"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→창고 A",
+              "qty": 1,
+              "unit_krw": 190000,
+              "amount_krw": 190000,
+              "basis": "10/15(목) 직송"
+            }
+          ],
+          "rationale": "ODCY B 경유 절감 10,000원이지만 ODCY B 6대 모두 사용 → 대기",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C018",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-03",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 385000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 40000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 115000,
+              "amount_krw": 115000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 60000,
+              "amount_krw": 60000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 25000,
+              "amount_krw": 50000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "ODCY A 5대 모두 사용 → ODCY B 경유 절감 40,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C020",
+          "route": "ODCY_B",
+          "route_label": "ODCY B 경유",
+          "from": "TERMINAL_T1",
+          "via": "ODCY_B",
+          "to": "WAREHOUSE_A",
+          "depart_at": "2026-10-13T15:00:00+09:00",
+          "truck_id": "TRUCK-07",
+          "truck_pool": "OWN_FLEET",
+          "delivery_day": "2026-10-15",
+          "cost_krw": 385000,
+          "baseline_cost_krw": 425000,
+          "saving_krw": 40000,
+          "cost_breakdown": [
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→ODCY B",
+              "qty": 1,
+              "unit_krw": 115000,
+              "amount_krw": 115000,
+              "basis": "오늘 반출 (LFD 이내 → Demurrage 0)"
+            },
+            {
+              "item": "ODCY_HANDLING",
+              "label": "ODCY B 반입·반출 핸들링",
+              "qty": 1,
+              "unit_krw": 60000,
+              "amount_krw": 60000,
+              "basis": "반입+반출 1회"
+            },
+            {
+              "item": "ODCY_STORAGE",
+              "label": "ODCY B 보관료",
+              "qty": 2,
+              "unit_krw": 25000,
+              "amount_krw": 50000,
+              "basis": "2일 보관 후 10/15(목) 창고 입고"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 ODCY B→창고 A",
+              "qty": 1,
+              "unit_krw": 160000,
+              "amount_krw": 160000,
+              "basis": "10/15(목) 입고"
+            },
+            {
+              "item": "DETENTION",
+              "label": "Detention",
+              "qty": 0,
+              "unit_krw": 0,
+              "amount_krw": 0,
+              "basis": "반출 후 무료 7일 이내 [ASSUMPTION]"
+            }
+          ],
+          "rationale": "ODCY A 5대 모두 사용 → ODCY B 경유 절감 40,000원",
+          "change_from_previous": null,
+          "input_refs": []
+        },
+        {
+          "container_id": "C003",
+          "route": "TERMINAL_WAIT",
+          "route_label": "터미널 대기",
+          "from": "TERMINAL_T1",
+          "via": null,
+          "to": "WAREHOUSE_A",
+          "depart_at": null,
+          "truck_id": null,
+          "truck_pool": null,
+          "delivery_day": "2026-10-15",
+          "cost_krw": 150000,
+          "baseline_cost_krw": 150000,
+          "saving_krw": 0,
+          "cost_breakdown": [
+            {
+              "item": "DEMURRAGE",
+              "label": "Demurrage (터미널 대기)",
+              "qty": 0,
+              "unit_krw": 85000,
+              "amount_krw": 0,
+              "basis": "LFD 10/15(목) 이후 0일 × CARRIER_A 20FT Dry 1구간 요율"
+            },
+            {
+              "item": "TERMINAL_STORAGE",
+              "label": "터미널 보관료",
+              "qty": 0,
+              "unit_krw": 25000,
+              "amount_krw": 0,
+              "basis": "무료 장치기간 경과 0일"
+            },
+            {
+              "item": "TRANSPORT",
+              "label": "운송 터미널→창고 A",
+              "qty": 1,
+              "unit_krw": 150000,
+              "amount_krw": 150000,
+              "basis": "10/15(목) 직송"
+            }
+          ],
+          "rationale": "LFD 10/15 → 10/15 입고해도 Demurrage 없음. ODCY 경유는 비용만 150,000원 늘어남",
+          "change_from_previous": null,
+          "input_refs": []
+        }
+      ],
+      "provisional_inputs": [
+        {
+          "ref": "ODCY_A.capacity",
+          "resource_id": "ODCY_A",
+          "fact_key": "capacity.40DRY.day(2026-10-13)",
+          "value": 4,
+          "event_id": "E-121",
+          "label": "ODCY A 40FT Dry 가용 4대 (11:18 회신, 잠정)"
+        },
+        {
+          "ref": "ODCY_A.max_days",
+          "resource_id": "ODCY_A",
+          "fact_key": "max_days",
+          "value": 2,
+          "event_id": "E-121",
+          "label": "ODCY A 최대 2일 보관 (11:18 회신, 잠정)"
+        },
+        {
+          "ref": "ODCY_A.rate",
+          "resource_id": "ODCY_A",
+          "fact_key": "rate.storage_per_day.40DRY",
+          "value": 35000,
+          "event_id": "E-122",
+          "label": "ODCY A 보관료 35,000원/일 (11:18 회신, 잠정)"
+        },
+        {
+          "ref": "K_TRUCKING.available",
+          "resource_id": "K_TRUCKING",
+          "fact_key": "available.slot(2026-10-13T15:00:00+09:00)",
+          "value": 2,
+          "event_id": "E-120",
+          "label": "K운송 15:00 2대 (11:15 회신, 잠정) — 1대 사용"
+        }
+      ],
+      "binding_constraints": [
+        {
+          "type": "WAREHOUSE_CAP",
+          "ref": "WAREHOUSE_A@2026-10-13",
+          "note": "창고 A 오늘 8대 (11:20 회신: 추가 불가)"
+        },
+        {
+          "type": "ODCY_CAP",
+          "ref": "ODCY_A",
+          "note": "ODCY A 4대 모두 사용"
+        },
+        {
+          "type": "ODCY_CAP",
+          "ref": "ODCY_B",
+          "note": "ODCY B 6대 모두 사용 — 트럭 대신 ODCY 용량이 새 병목"
+        }
+      ],
+      "resource_gaps": [],
+      "capacity_usage": {
+        "WAREHOUSE_A": [
+          {
+            "day": "2026-10-13",
+            "capacity": 8,
+            "used": 8
+          },
+          {
+            "day": "2026-10-14",
+            "capacity": 11,
+            "used": 11,
+            "note": "기존 D1 계획 5 + 이월 6"
+          },
+          {
+            "day": "2026-10-15",
+            "capacity": 20,
+            "used": 8,
+            "note": "기존 D2 계획 2 + 이월 6"
+          }
+        ],
+        "ODCY_A": {
+          "capacity": 4,
+          "used": 4
+        },
+        "ODCY_B": {
+          "capacity": 6,
+          "used": 6
+        }
+      },
+      "truck_schedule": [
+        {
+          "truck_id": "K-TRUCK-1",
+          "hour": 15,
+          "container_id": "C008",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 13,
+          "container_id": "C001",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 14,
+          "container_id": "C011",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 15,
+          "container_id": "C012",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 16,
+          "container_id": "C012",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-01",
+          "hour": 17,
+          "container_id": "C021",
+          "leg": "TERMINAL_T1→WAREHOUSE_B"
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 15,
+          "container_id": "C015",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 16,
+          "container_id": "C015",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 17,
+          "container_id": "C022",
+          "leg": "TERMINAL_T1→WAREHOUSE_B"
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 18,
+          "container_id": "C014",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-02",
+          "hour": 19,
+          "container_id": "C005",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 13,
+          "container_id": "C004",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 14,
+          "container_id": "C013",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 15,
+          "container_id": "C018",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-03",
+          "hour": 16,
+          "container_id": "C018",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-04",
+          "hour": 13,
+          "container_id": "C006",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-04",
+          "hour": 14,
+          "container_id": "C016",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-05",
+          "hour": 14,
+          "container_id": "C002",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        },
+        {
+          "truck_id": "TRUCK-05",
+          "hour": 15,
+          "container_id": "C007",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-05",
+          "hour": 16,
+          "container_id": "C007",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-06",
+          "hour": 13,
+          "container_id": "C009",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-06",
+          "hour": 14,
+          "container_id": "C019",
+          "leg": "TERMINAL_T1→WAREHOUSE_A"
+        },
+        {
+          "truck_id": "TRUCK-07",
+          "hour": 15,
+          "container_id": "C020",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-07",
+          "hour": 16,
+          "container_id": "C020",
+          "leg": "TERMINAL_T1→ODCY_B",
+          "occupies_cycle": true
+        },
+        {
+          "truck_id": "TRUCK-07",
+          "hour": 17,
+          "container_id": "C023",
+          "leg": "TERMINAL_T1→WAREHOUSE_B"
+        },
+        {
+          "truck_id": "TRUCK-08",
+          "hour": 15,
+          "container_id": "C010",
+          "leg": "TERMINAL_T1→ODCY_A",
+          "occupies_cycle": false
+        }
+      ]
+    }
+  ]
+}

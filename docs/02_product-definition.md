@@ -1,7 +1,7 @@
 # 02. 제품 정의
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11
+- 최종 수정: 2026-09-15 (시뮬레이터 표현: 현재 Prototype 2D / Three.js 선택지 구분)
 - 관련 ADR: ADR-011(System of Decision 포지셔닝), ADR-010(초기 범위)
 
 ---
@@ -93,13 +93,13 @@ flowchart LR
 | Tariff Rule (계약 추출 + 사람 확인) | 전 선사 Tariff 자동 수집 |
 | 이메일 커뮤니케이션 **시뮬레이션** (가상 메일함) | 실제 메일 발송 |
 | Human Confirmation | 완전 자율 운영 |
-| Three.js 2.5D Operations Simulator | 정밀 디지털 트윈 |
+| Operations Simulator (현재 Prototype 구현: 2D SVG 운영 지도 / Three.js 2.5D는 향후 선택지, ADR-016·022 판정 전) | 정밀 디지털 트윈 |
 
 ## 6. 제품 단계
 
 | 단계 | 핵심 | 하지 않는 것 |
 | --- | --- | --- |
-| **PoC** | 시나리오 기반 Closed Loop 데모: 다중 출처 이벤트 → Canonical State → 위험 → 최적화 → 메일 초안·승인·가상 발송 → 회신 구조화 → 재최적화. 공공 API는 읽기 전용. 3D 시뮬레이터 | 실제 메일 발송, 외부 시스템 Write |
+| **PoC** | 시나리오 기반 Closed Loop 데모: 다중 출처 이벤트 → Canonical State → 위험 → 최적화 → 메일 초안·승인·가상 발송 → 회신 구조화 → 재최적화. 공공 API는 읽기 전용. 운영 시뮬레이터(현재 2D, 3D는 선택) | 실제 메일 발송, 외부 시스템 Write |
 | **Pilot** | 실제 고객 1~2곳의 데이터, 실제 메일함 연동(읽기 + 사람 승인 후 발송), 운영 로그 기반 절감 측정 | 예약·배차 시스템 Write |
 | **Scale** | 파트너 API·TMS·터미널 연동, 권한을 확보한 범위의 예약·배차 Write | 권한 없는 자동 실행 |
 
@@ -130,7 +130,7 @@ flowchart LR
 
 - 웹 조사로 이미 확인한 것: D&D 문제, Visibility 시장, Agentic Logistics 제품, 국내 포워딩 수작업, 공공데이터, 국내 물류 자동화 시장이 존재한다는 것. 시장조사를 더 길게 하지 않는다.
 - 목표는 "우리 아이디어 어떻게 생각하세요?"가 아니라 **"우리가 이렇게 만들었는데, 실제 현장에서는 무엇이 틀렸습니까?"**를 물을 수 있는 수준까지 만드는 것이다.
-- 인터뷰 도구: 3D 시뮬레이션, 30초 영상, 작동하는 Prototype(`09_mvp-scenario.md`, `10_simulation-spec.md`).
+- 인터뷰 도구: 운영 시뮬레이션 화면, 30초 영상, 작동하는 Prototype(`09_mvp-scenario.md`, `10_simulation-spec.md`). 2026-09-15 현재 작동하는 것은 웹 Control Tower Prototype(`16_frontend-prototype.md`, 2D)이다.
 - 인터뷰로 검증할 가정은 `15_open-questions.md`의 R-2~R-7, Q-25~Q-32다.
 
 ## 10. 확정하지 않을 주장

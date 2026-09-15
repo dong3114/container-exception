@@ -1,0 +1,29 @@
+{
+  "name": "cera-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CERA Operations Control Tower prototype (scenario playback, mock data provider)",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "validate:scenario": "node scripts/validate-scenario.mjs",
+    "smoke": "node scripts/smoke-browser.mjs"
+  },
+  "dependencies": {
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.5",
+    "playwright-core": "1.63.0",
+    "typescript": "5.9.3"
+  }
+}

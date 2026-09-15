@@ -1,7 +1,7 @@
 # 07. 백엔드 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11 (T-032: 저장 스키마의 events·canonical_facts·conflicts·verification_requests·planning_snapshots 컬럼 갱신)
+- 최종 수정: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
 - 관련 ADR: ADR-002(스택), ADR-004(DB), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생)
 
 ---
@@ -17,12 +17,12 @@
 
 ```mermaid
 flowchart TB
-  subgraph WEB["web/ (TypeScript)"]
+  subgraph WEB["front/web/ (TypeScript)"]
     DASH["Dashboard · Verification · Recovery · Communication · Contract"]
-    SIM3D["Three.js Simulator + Activity Timeline"]
+    SIM3D["Operations Map (현재 Prototype: 2D SVG, Three.js는 선택지) + Activity Timeline"]
   end
 
-  subgraph BE["src/cera/ (Python, 단일 프로세스)"]
+  subgraph BE["back/ + ai/ (Python 후보, 단일 프로세스로 시작) — 구현 전"]
     API["api<br/>FastAPI REST + SSE"]
     ORC["orchestrator<br/>작업 큐 · 트리거 · Activity"]
     ING["intake<br/>어댑터: public_api · csv · actions · mailbox · documents · scenario"]
@@ -78,6 +78,8 @@ flowchart TB
 
 ## 3. 기술 스택 (ADR-002, ADR-016 Proposed)
 
+> **읽는 법 (2026-09-15)**: 아래 표에서 실제로 구현된 것은 **프론트엔드 줄(Current Prototype Implementation: Next.js + 2D SVG)뿐**이다. 나머지 줄(Python, FastAPI, DB, 최적화, LLM 등)은 판정 전 **후보(Future Option)**이며 코드가 없다.
+
 | 영역 | 선택 | 이유 |
 | --- | --- | --- |
 | 언어·런타임 | Python 3.12, uv | OR-Tools·데이터 처리·LLM SDK 생태계, lockfile 재현성 |
@@ -90,7 +92,7 @@ flowchart TB
 | 스케줄 | APScheduler (공공 API 동기화), SimClock (시나리오) | 단일 프로세스 |
 | 휴일 | `holidays`(KR) + 수동 보정 파일 | 영업일 Free Time |
 | 테스트·린트 | pytest, hypothesis, ruff | 속성 테스트(순서 무관성, 비용 단조성) |
-| 프론트엔드 | TypeScript, React, Vite, Three.js(@react-three/fiber) | 3D/2.5D 시뮬레이터와 대시보드를 한 앱에서 (ADR-016) |
+| 프론트엔드 | TypeScript, React, **Next.js**(App Router), 운영 지도는 2D SVG. Three.js는 필요할 때만 | Control Tower Prototype으로 먼저 구현(ADR-022 Proposed, ADR-016 부분 개정). 화면은 Frontend Data Contract에만 의존(`16_frontend-prototype.md` 5절) |
 
 ## 4. 저장 스키마 (논리)
 
@@ -98,7 +100,7 @@ flowchart TB
 | --- | --- | --- |
 | `events` | event_id, schema_version, event_class, event_type, entity_type, entity_id, fact_key, value(json), payload(json), related_entity_ids(json), source_type, source_role, source_org, source_id, source_event_time, source_recorded_at, received_at, recorded_at, confidence(json), extraction(json), supersedes_event_id, target_event_ids(json), verification_action, verification_method, overruled_event_ids(json), correlation_id, raw_ref, idempotency_key(unique), is_simulated (`05_event-and-state.md` 4.2) | **append-only** |
 | `raw_inputs` | id, kind(PUBLIC_API/EMAIL/FILE/ACTION/SCENARIO), received_at, request_hash, http_status, body(blob), meta(json) | append-only |
-| `canonical_facts` | entity_type, entity_id, fact_key, fact_kind, family, value(json), effective_time, evidence_time, temporal_quality, value_status, verification_basis, freshness_status, conflict_status, conflict_id, hold_status, held_candidate_event_id, decision_usability, usability_reasons(json), winner_event_id, winner_strength, evidence(json), rule_trace(json), explanation, policy_version, as_of, fingerprint, revision, materialized_at (`05` 9.1) | 파생 (재생성 가능) |
+| `canonical_facts` | entity_type, entity_id, fact_key, fact_kind, family, value(json), effective_time, evidence_time, evidence_time_quality, temporal_confidence, value_status, verification_basis, freshness_status, conflict_status, conflict_id, hold_status, held_candidate_event_id, decision_usability, usability_reasons(json), winner_event_id, winner_strength, evidence(json), rule_trace(json), explanation, policy_version, as_of, fingerprint, revision, materialized_at (`05` 9.1) | 파생 (재생성 가능) |
 | `conflicts` | conflict_id, entity_type, entity_id, fact_keys(json), candidate_event_ids(json), rule, status(OPEN/RESOLVED), resolution_event_id | 파생 |
 | `verification_requests` | request_id, reason(V1~V8), entity_type, entity_id, fact_keys(json), candidate_event_ids(json), conflict_id, question, actions(json), blocking_scope, priority_score, status, created_by_rule | 파생 + 처리 이력 컬럼 |
 | `planning_snapshots` | snapshot_id, as_of, policy_version, events_watermark, snapshot_hash, body(json) (`05` 14절) | 불변 |
@@ -137,37 +139,53 @@ flowchart TB
 | POST | `/sim/scenarios/{id}/start`, `/sim/clock` | 시나리오 재생·시계 제어 |
 | GET | `/stream` | SSE: state diff, activity, 알림, 계획 갱신 |
 
-## 6. 저장소 레이아웃 (T-003에서 생성)
+**화면용 조회 API (Frontend Data Contract v0.1, 2026-09-15)**: Control Tower는 아래 읽기 전용 엔드포인트의 View Model만 쓴다. 지금은 `front/web/`의 MockProvider가 같은 모양을 시나리오 데이터 팩에서 돌려주고, 백엔드가 생기면 ApiProvider로 바꾼다. 응답은 `{ data, meta }`이고 `meta.result_kind`(SCENARIO_RESULT / ENGINE_RESULT)·`is_simulated`·`as_of`를 싣는다. 타입 정본은 `front/web/src/contracts/cera.ts`, 설명은 `16_frontend-prototype.md` 5절.
+
+| 메서드 | 경로 | View Model |
+| --- | --- | --- |
+| GET | `/operations/today?as_of=` | 서술·KPI·활성 예외 |
+| GET | `/containers?as_of=` | 컨테이너별 위험·현재 경로·사실별 신뢰 |
+| GET | `/risks?as_of=` | 등급 분포·노출 |
+| GET | `/resources?as_of=` | 창고·ODCY 게이지, 트럭 시간대별 부하, 자원 사실 |
+| GET | `/recovery-plans/current?as_of=` | 현재 계획·Baseline·이력 |
+| GET | `/communications?as_of=` | 연락 스레드·회신 추출값 |
+| GET | `/activity?as_of=` | Activity Timeline (`kind`로 사실·결과·사람 결정 구분) |
+| GET | `/data-trust?as_of=` | 신뢰 범주·신선도 개수·확인 대기 |
+
+## 6. 저장소 레이아웃 — Private Monorepo (ADR-024, 2026-09-15 재정렬)
+
+CERA는 **하나의 Private Monorepo**로 관리하며, Front / Back / AI는 코드 책임 영역으로 분리한다. 배포 시에는 서비스별 Docker Image로 분리할 수 있으며, Git Repository를 분리할 필요는 없다.
+
+**현재 실제로 있는 것** (2026-09-15):
 
 ```text
-container_exception/
-├─ AGENTS.md · CLAUDE.md · README.md(T-003)
-├─ pyproject.toml · .env.example
-├─ docs/
-├─ src/cera/
-│  ├─ config/        settings.py · policy.yaml(우선순위·신선도·가정값, 값마다 태그)
-│  ├─ domain/        Pydantic: Event, CanonicalFact, TariffRule, RateQuote, Resource, Plan, Message …
-│  ├─ intake/        adapters/{public_api, csv, actions, mailbox, documents, scenario}.py
-│  ├─ extraction/    schemas/ · prompts/ · validators.py · client.py
-│  ├─ state/         reconcile.py · canonical.py · verification.py · policy.py
-│  ├─ tariff/        rule_selector.py · lfd.py · calendar.py
-│  ├─ cost/          items.py · total.py
-│  ├─ risk/          slack.py · shortfall.py · grading.py
-│  ├─ optimize/      model.py · baseline.py · explain_data.py
-│  ├─ comms/         drafts.py · approval.py · mailbox.py · threads.py
-│  ├─ orchestrator/  handlers.py · queue.py · activity.py
-│  ├─ sim/           scenario_loader.py · clock.py · scripted_replies.py
-│  ├─ storage/       db.py · repositories.py · migrations/
-│  └─ api/           app.py · routes/ · sse.py
-├─ web/              Vite + React + Three.js
+container_exception/            ← 저장소 루트 = CERA 루트
+├─ AGENTS.md · CLAUDE.md · README.md · .gitignore · .gitattributes
+├─ front/
+│  └─ web/        Next.js + React + TypeScript Control Tower Prototype
+│                 (src/contracts · src/data/(provider, mock/) · src/components · scripts/)
+├─ back/          README.md만 (구현 전)
+├─ ai/            README.md만 (구현 전)
+├─ packages/      README.md만 (비어 있음)
+├─ infra/         README.md만 (구현 전)
 ├─ data/
-│  ├─ raw/           실제 원본 — .gitignore
-│  ├─ fixtures/      마스킹·합성 fixture (공공 API, LLM 녹화 응답)
-│  ├─ scenarios/     시나리오 YAML (busan-wh-capacity-01 …)
-│  └─ contracts/     합성 계약서
-├─ schemas/          JSON Schema 산출물
-└─ tests/            unit/ · golden/(손 검산 비용, 기준 계획) · replay/(시나리오 재생 해시)
+│  └─ scenarios/busan-wh-capacity-01/   시나리오 데이터 팩 (front가 사용, 향후 back·ai·테스트 공통)
+└─ docs/
 ```
+
+**앞으로의 배치 계획** `[PROPOSED]` — 폴더는 필요할 때 만든다(T-003). 옛 계획의 `src/cera/<모듈>`을 두 영역으로 나눈 것이다.
+
+| 영역 | 들어갈 모듈 (옛 `src/cera/` 이름) | 비고 |
+| --- | --- | --- |
+| `back/` | `api`(REST + push), `storage`(DB·마이그레이션), `intake`(어댑터: public_api·csv·actions·mailbox·documents·scenario), `state`(reconcile·canonical·verification), `comms`(초안·승인·발송·스레드), `orchestrator`, `sim`(시나리오 재생·SimClock), `config`(policy.yaml) | Event 저장·Canonical State·연동·승인·감사가 모두 여기 |
+| `ai/` | `extraction`(LLM 구조화 추출·검증기·프롬프트), 결정론 엔진 `tariff`·`cost`·`risk`·`optimize` | 같은 영역이라도 LLM 코드와 결정론 엔진은 서로 다른 패키지로 나누고, 엔진은 LLM 클라이언트를 import하지 않는다(`01` 3절) |
+| back·ai 공통 | `domain`(Event, CanonicalFact, TariffRule, Plan … 모델) | 둘이 함께 쓰는 Python 패키지 위치는 T-003에서 정한다 |
+| `packages/` | 화면·백엔드 공유 계약 | Backend의 **OpenAPI를 정본**으로 두고 TypeScript 타입을 자동 생성하는 방향. 지금은 `front/web/src/contracts/cera.ts`(손 작성) |
+| `data/` | `scenarios/`(현재 JSON), `fixtures/`(마스킹·합성, 녹화 응답), `contracts/`(합성 계약서), `raw/`(실제 원본, `.gitignore`) | 현재는 `scenarios/`만 있음 |
+| `infra/` | Dockerfile, compose, 클라우드 배포 | 서비스별 이미지(front / back / ai) |
+| 테스트 | 각 영역 안에 둔다(`back/tests`, `ai/tests`, `front/web`의 검사 스크립트) | 옛 계획의 루트 `tests/`·`schemas/`는 영역별로 나눈다 |
+
+**향후 방향 (확정 아님)**: Frontend는 Web 우선. Backend는 중앙 API·DB·Integration. AI/Decision Engine은 LLM·Parsing·Risk·Solver. Desktop 앱은 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 **검토**한다.
 
 ## 7. 설정·비밀
 
@@ -181,7 +199,7 @@ container_exception/
 | `CERA_DB_URL` | 기본 `sqlite:///data/cera.db` |
 | `CERA_TZ` | `Asia/Seoul` 고정 |
 
-정책값(권한 매트릭스, 근거 강도표, τ·δ_m, 신선도 기준, 보류 기준, 버퍼, 등급 기준 — `05_event-and-state.md` 15절)은 `src/cera/config/policy.yaml`에 두고 값마다 `tag`와 `rationale`을 적는다. 정책 파일의 해시가 `policy_version`이 된다.
+정책값(권한 매트릭스, 근거 강도표, τ·δ_m, 신선도 기준, 보류 기준, 버퍼, 등급 기준 — `05_event-and-state.md` 15절)은 `back/`의 config 모듈 아래 `policy.yaml`(옛 계획 `src/cera/config/policy.yaml`, 정확한 경로는 T-003)에 두고 값마다 `tag`와 `rationale`을 적는다. 정책 파일의 해시가 `policy_version`이 된다.
 
 ## 8. 만들지 않는 것 (PoC)
 

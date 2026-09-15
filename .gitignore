@@ -20,6 +20,13 @@ dist/
 build/
 *.egg-info/
 
+# Frontend (front/*, Next.js) — 빌드 산출물·로컬 스크린샷
+node_modules/
+.next/
+.smoke/
+next-env.d.ts
+*.tsbuildinfo
+
 # 에이전트 로컬 설정
 .claude/settings.local.json
 

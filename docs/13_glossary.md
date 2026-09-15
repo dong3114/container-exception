@@ -1,7 +1,7 @@
 # 13. 용어집
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
+- 최종 수정: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
 - 코드 식별자는 `코드 표기` 열을 따른다.
 
 ## 1. 물류·통관
@@ -66,7 +66,9 @@
 | event_class | `event_class` | OBSERVATION(주장) / CORRECTION(정정) / VERIFICATION(사람 확인) |
 | source_event_time / source_recorded_at / received_at / recorded_at | — | 현실 발생 시각 / 출처 기록·발신 시각 / CERA 수신 운영 시각 / DB 기록 벽시계 시각 |
 | 근거 시각 | `evidence_time` | Event가 값을 보증하는 시각. `source_event_time` → `source_recorded_at` → `received_at` 순서의 폴백으로 정한다(`05` 5.2). 수신 시각에서 지연을 빼서 추정하지 않는다 |
-| temporal_quality | `temporal_quality` | 근거 시각을 어디서 얻었나: EVENT_TIME / RECORDED_TIME(한 단계 낮음) / RECEIVED_ONLY(현실 시각 아님, 공공 API면 STALE 취급) |
+| 근거 시각 품질 | `evidence_time_quality` | 근거 시각을 어디서 얻었나: EVENT_TIME / RECORDED_TIME(한 단계 낮음) / RECEIVED_ONLY(현실 시각 아님 → 신선도 `UNKNOWN`). 옛 이름 `temporal_quality` (T-060) |
+| 시각 신뢰도 | `temporal_confidence` | 근거 시각을 얼마나 믿나: HIGH(EVENT_TIME) / MEDIUM(RECORDED_TIME) / LOW(RECEIVED_ONLY) |
+| 신선도 모름 | `freshness_status = UNKNOWN` | 근거 시각을 몰라 나이를 계산할 수 없음. STALE(오래됨)과 다르다. 중요 사실이면 STALE처럼 승인 게이트 |
 | Freshness | `freshness_status` | FRESH / AGING / STALE / EXPIRED / N_A. 저장하지 않고 `as_of`로 계산 |
 | τ / δ_m | `clock_tolerance_tau`, `milestone_tolerance` | 동시로 보는 근거 시각 차이 / 같은 마일스톤으로 보는 시각 차이 (`[TO VERIFY]`) |
 | fact_key | `fact_key` | 사실의 키(예: `milestone.gate_out_at`, `capacity.day(D)`). 카탈로그 `05` 4.3 |
@@ -110,6 +112,9 @@
 | Baseline | `baseline` | 비교 기준. 현재 계획을 새 제약 아래에서 그대로 밀고 갈 때 |
 | Recovery Plan | `recovery_plan` | 최적화로 만든 대체계획 |
 | Potential Saving | `potential_saving_krw` | Baseline 비용 − Recovery 비용 (시뮬레이션 기준). 옛 "Recoverable Exposure" |
+| Current Exposure (KPI) | `current_exposure_krw` | 조치하지 않을 때 추가비용 = Baseline TotalCost − 정상 직송 운임 `[PROPOSED]` Q-02 (Prototype, `16` 11절 G-3) |
+| Recoverable Exposure (KPI) | `recoverable_exposure_krw` | Control Tower KPI 라벨. 최신 Simulated Recovery Plan의 Potential Saving과 같은 값 `[PROPOSED]` Q-02 |
+| Simulated Recovery Plan | — | 엔진이 아니라 시나리오에 명시한 계획(`result_kind = SCENARIO_RESULT`). "Solver가 계산했다"고 쓰지 않는다 |
 | Realized Saving | `realized_saving_krw` | 실제 실행된 계획 기준 절감액 (Pilot) |
 | Re-optimization | — | 입력 사실이 바뀌어 계획을 다시 계산하는 것. 승인된 배정은 잠근다 |
 | Recovery Run | `RecoveryRun` | 최적화 실행 한 번의 기록(입력 해시, 정책·규칙 버전, seed, 결과) |
@@ -135,6 +140,12 @@
 | Gate (단계) | — | 단계 진행 여부를 판정하는 Go/No-Go 관문 (터미널 Gate와 구분) |
 | ADR | — | Architecture Decision Record, 설계 결정 기록 |
 | Watchlist | `watchlist` | 사용자가 관리 대상으로 등록한 B/L·컨테이너 목록 |
+| Control Tower | — | Prototype 첫 화면 "CERA Operations Control Tower"(`16_frontend-prototype.md`). KPI·운영 지도·예외·Recovery Console·타임라인·Data Trust를 한 화면에 |
+| Frontend Data Contract | `front/web/src/contracts/cera.ts` | 화면이 의존하는 View Model 타입. Mock·API 구현이 같은 계약을 돌려준다 |
+| Data Provider | `CeraDataProvider` | 계약을 돌려주는 구현. 지금은 `MockProvider`(시나리오 데이터 팩), 나중에 `ApiProvider` |
+| Result Kind | `result_kind` | 숫자의 출처: `SCENARIO_RESULT`(시나리오 명시값) / `ENGINE_RESULT`(결정론 엔진 결과) |
+| Scenario Data Pack | `data/scenarios/<id>/` | 시나리오 입력과 명시 결과값 묶음(JSON). Prototype 판은 T-061 |
+| DEFERRED (태스크 상태) | — | 폐기가 아니라 보류. 재개 조건을 적는다(`tasks/QUEUE.md` 상태 규칙) |
 
 ## 5. 폐기된 용어
 
@@ -142,5 +153,5 @@
 | --- | --- |
 | ContainerState (v0.1) | Canonical State의 컨테이너 사실 묶음 |
 | ContainerEvent (v0.1) | Event (`subject.type = CONTAINER`) |
-| Recoverable Exposure | Potential Saving |
+| Recoverable Exposure (금액 개념으로서) | Potential Saving. 단 2026-09-15부터 Control Tower KPI **라벨**로는 다시 쓴다(값 = 최신 계획의 Potential Saving) |
 | V0.1 Risk Radar / V0.2 Recovery Optimizer / V1 / V2 | PoC / Pilot / Scale |

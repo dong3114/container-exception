@@ -1,0 +1,205 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "note": "가상 메일함. 실제 발송 없음. 초안의 수량·시각은 계획(resource_gaps)에서 넣고, 회신 추출값은 사람이 작성한 시나리오 값이다(LLM을 실행하지 않았다).",
+  "threads": [
+    {
+      "thread_id": "TH-01",
+      "counterparty": "K운송 배차팀 (가상)",
+      "counterparty_role": "TRUCKER",
+      "purpose": "추가 셔틀 트럭",
+      "related_gap": "TRUCK",
+      "messages": [
+        {
+          "message_id": "M-OUT-01",
+          "direction": "OUT",
+          "from_step": "S2",
+          "status_timeline": [
+            {
+              "from_step": "S2",
+              "status": "DRAFT"
+            },
+            {
+              "from_step": "S3",
+              "status": "SENT_SIMULATED",
+              "approved_by": "운영자 (가상)",
+              "at": "2026-10-13T11:03:00+09:00"
+            }
+          ],
+          "subject": "[문의] 10/13 오후 부산신항 T1 → ODCY B 셔틀 트럭 추가 가능 여부",
+          "body": "안녕하세요. 오늘(10/13) 15:00~17:00 사이 부산신항 T1에서 ODCY B로 가는 셔틀 트럭 2대가 더 필요합니다. 가능 시간과 대수를 알려 주시면 감사하겠습니다.",
+          "structured": {
+            "window": "15:00–17:00",
+            "trucks_needed": 2,
+            "leg": "TERMINAL_T1→ODCY_B",
+            "source": "RP-001.resource_gaps[0]"
+          }
+        },
+        {
+          "message_id": "M-IN-01",
+          "direction": "IN",
+          "from_step": "S4",
+          "received_at": "2026-10-13T11:15:00+09:00",
+          "status_timeline": [
+            {
+              "from_step": "S4",
+              "status": "RECEIVED"
+            }
+          ],
+          "body": "15시 2대, 17시 1대 가능합니다.",
+          "extraction": {
+            "method": "SIMULATED — 시나리오 작성값 (LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "fields": [
+              {
+                "field": "available.slot(15:00)",
+                "value": 2,
+                "evidence": "15시 2대"
+              },
+              {
+                "field": "available.slot(17:00)",
+                "value": 1,
+                "evidence": "17시 1대"
+              }
+            ],
+            "event_ids": [
+              "E-120"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "thread_id": "TH-02",
+      "counterparty": "ODCY A 영업팀 (가상)",
+      "counterparty_role": "ODCY",
+      "purpose": "가용 대수·보관 조건 확인",
+      "related_gap": "CAPACITY_CONFIRM",
+      "messages": [
+        {
+          "message_id": "M-OUT-02",
+          "direction": "OUT",
+          "from_step": "S2",
+          "status_timeline": [
+            {
+              "from_step": "S2",
+              "status": "DRAFT"
+            },
+            {
+              "from_step": "S3",
+              "status": "SENT_SIMULATED",
+              "approved_by": "운영자 (가상)",
+              "at": "2026-10-13T11:03:00+09:00"
+            }
+          ],
+          "subject": "[확인 요청] 10/13 40FT Dry 5대 반입 및 보관 조건",
+          "body": "오늘(10/13) 40FT Dry 5대를 반입하고 10/14에 반출하려고 합니다. 오전 안내 주신 가용 5대가 지금도 가능한지, 보관 기간 제한과 일 보관료를 확인 부탁드립니다.",
+          "structured": {
+            "size_type": "40DRY",
+            "count": 5,
+            "in_day": "2026-10-13",
+            "out_day": "2026-10-14",
+            "source": "RP-001.resource_gaps[1]"
+          }
+        },
+        {
+          "message_id": "M-IN-02",
+          "direction": "IN",
+          "from_step": "S5",
+          "received_at": "2026-10-13T11:18:00+09:00",
+          "status_timeline": [
+            {
+              "from_step": "S5",
+              "status": "RECEIVED"
+            }
+          ],
+          "body": "40FT Dry 4대, 2일 보관 가능합니다. 일 보관료 35,000원입니다.",
+          "extraction": {
+            "method": "SIMULATED — 시나리오 작성값 (LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "fields": [
+              {
+                "field": "capacity.40DRY",
+                "value": 4,
+                "evidence": "40FT Dry 4대"
+              },
+              {
+                "field": "max_days",
+                "value": 2,
+                "evidence": "2일 보관 가능"
+              },
+              {
+                "field": "rate.storage_per_day.40DRY",
+                "value": 35000,
+                "evidence": "일 보관료 35,000원"
+              }
+            ],
+            "event_ids": [
+              "E-121",
+              "E-122"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "thread_id": "TH-03",
+      "counterparty": "창고 A 운영팀 (가상)",
+      "counterparty_role": "WAREHOUSE",
+      "purpose": "추가 수용 가능 여부",
+      "related_gap": "WAREHOUSE_EXTRA",
+      "messages": [
+        {
+          "message_id": "M-OUT-03",
+          "direction": "OUT",
+          "from_step": "S2",
+          "status_timeline": [
+            {
+              "from_step": "S2",
+              "status": "DRAFT"
+            },
+            {
+              "from_step": "S3",
+              "status": "SENT_SIMULATED",
+              "approved_by": "운영자 (가상)",
+              "at": "2026-10-13T11:03:00+09:00"
+            }
+          ],
+          "subject": "[문의] 10/13 창고 A 추가 입고 가능 여부",
+          "body": "설비 장애로 오늘 8대만 입고 가능하다고 들었습니다. 오늘 추가로 받을 수 있는 대수가 있는지 알려 주세요.",
+          "structured": {
+            "day": "2026-10-13",
+            "current_capacity": 8,
+            "source": "RP-001.resource_gaps[2]"
+          }
+        },
+        {
+          "message_id": "M-IN-03",
+          "direction": "IN",
+          "from_step": "S6",
+          "received_at": "2026-10-13T11:20:00+09:00",
+          "status_timeline": [
+            {
+              "from_step": "S6",
+              "status": "RECEIVED"
+            }
+          ],
+          "body": "오늘은 추가 수용이 어렵습니다.",
+          "extraction": {
+            "method": "SIMULATED — 시나리오 작성값 (LLM 미실행)",
+            "value_status": "PROVISIONAL",
+            "fields": [
+              {
+                "field": "extra_capacity.day(D0)",
+                "value": 0,
+                "evidence": "추가 수용이 어렵습니다"
+              }
+            ],
+            "event_ids": [],
+            "note": "값 변경 없음 → 새 수용량 Event를 만들지 않음 (현재 8 유지)"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "scenario_id": "busan-wh-capacity-01",
+  "is_simulated": true,
+  "note": "확인 요청(05_event-and-state.md 11절). created_step에 생기고 closed_step에 닫힌다.",
+  "requests": [
+    {
+      "request_id": "VR-001",
+      "reason": "V2",
+      "subject": "C026 통관 상태",
+      "question": "C026 통관 상태가 2일 전 기록입니다. 지금도 심사 중입니까?",
+      "blocking": "이 사실에 기대는 계획 승인 차단 (현재 계획에 C026 없음)",
+      "created_step": "S0",
+      "closed_step": null
+    },
+    {
+      "request_id": "VR-002",
+      "reason": "V9",
+      "subject": "ODCY A 가용 5대 (09:10 메일)",
+      "question": "ODCY A가 오늘 40FT Dry 5대를 받을 수 있습니까?",
+      "blocking": "없음 (잠정 입력 인지 후 승인됨)",
+      "created_step": "S3",
+      "closed_step": "S5",
+      "closed_note": "11:18 회신으로 새 값(4) — 옛 입력 대체"
+    },
+    {
+      "request_id": "VR-003",
+      "reason": "V9",
+      "subject": "ODCY A 보관료 35,000원 (09:10 메일)",
+      "question": "ODCY A 일 보관료 35,000원이 맞습니까?",
+      "blocking": "없음",
+      "created_step": "S3",
+      "closed_step": "S5",
+      "closed_note": "11:18 회신으로 새 잠정 값 — 옛 입력 대체"
+    },
+    {
+      "request_id": "VR-004",
+      "reason": "V9",
+      "subject": "ODCY A 가용 4대 · 최대 2일 (11:18 회신)",
+      "question": "통화로 ODCY A 4대 · 2일 보관을 확인하셨습니까?",
+      "blocking": "없음",
+      "created_step": "S8",
+      "closed_step": null
+    },
+    {
+      "request_id": "VR-005",
+      "reason": "V9",
+      "subject": "ODCY A 보관료 35,000원 (11:18 회신)",
+      "question": "ODCY A 일 보관료 35,000원을 확인하셨습니까?",
+      "blocking": "없음",
+      "created_step": "S8",
+      "closed_step": null
+    },
+    {
+      "request_id": "VR-006",
+      "reason": "V9",
+      "subject": "K운송 15:00 트럭 (11:15 회신)",
+      "question": "K운송 15:00 트럭 배정(1대)을 확인하셨습니까?",
+      "blocking": "없음",
+      "created_step": "S8",
+      "closed_step": null
+    },
+    {
+      "request_id": "VR-007",
+      "reason": "V2",
+      "subject": "C003·C021 위치 (발생 시각 없는 파일)",
+      "question": "터미널 장치 파일에 시각이 없습니다(RECEIVED_ONLY, 신선도 UNKNOWN). 위치가 맞습니까?",
+      "blocking": "경고만 (location은 중요 사실 계열 아님)",
+      "created_step": "S0",
+      "closed_step": null
+    }
+  ]
+}

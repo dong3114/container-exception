@@ -1,9 +1,11 @@
-# 10. Operations Simulator 요구사항 (Three.js)
+# 10. Operations Simulator 요구사항 (현재 Prototype 구현: 2D SVG · Three.js는 향후 선택지)
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11
-- 관련 ADR: ADR-016(웹 + Three.js), ADR-018(시나리오 재생)
+- 최종 수정: 2026-09-15 (Prototype 구현 반영: 2D SVG, 신선도 UNKNOWN 인코딩, 데이터 계약)
+- 관련 ADR: ADR-016(웹 + Three.js), **ADR-022(Next.js + 2D SVG, Proposed)**, ADR-018(시나리오 재생)
 - 상세 명세: T-038
+
+> **2026-09-15 Prototype 반영**: 이 문서의 요구사항 가운데 장면 구성(2절)·시각 인코딩(3절)·화면 배치(4절)·재생 모드(5절 재생)는 Control Tower Prototype(`16_frontend-prototype.md`)에서 **추상 2D SVG**로 먼저 구현했다. Three.js 2.5D는 쓰지 않았고(ADR-022), 필요하면 T-056에서 다시 판단한다. 데이터 계약(6절)은 SSE 대신 `as_of`를 주입하는 Provider 메서드(`16` 5절)로 구현했다. 실시간·영상 모드와 30fps 기준(7절)은 아직 해당 없음.
 
 ---
 
@@ -39,6 +41,7 @@
 | 정상 | 기본 색 | |
 | 위험 등급 HIGH·CRITICAL / 예외 영향 | **빨간 강조** + 외곽선 | 색만으로 구분하지 않고 아이콘·라벨도 함께 |
 | 사실 상태 `freshness_status = STALE` / `conflict_status = OPEN` / `hold_status = HELD` | 점선 외곽 / 느낌표 아이콘 / 자물쇠 아이콘 | 클릭하면 근거(`explanation`) |
+| 사실 상태 `freshness_status = UNKNOWN` (RECEIVED_ONLY, T-060) | "시각 모름" 점선 배지 + 수신 시각만 표시 | STALE(오래됨)과 다른 배지. 나이를 표시하지 않는다 |
 | PROVISIONAL 입력 사용 | 반투명 경로 | 입력 사실이 확인(CONFIRMED)되면 실선. 계획 승인만으로는 바뀌지 않는다 |
 | 경로 변경 | 이전 경로 흐리게 → 새 경로 강조 애니메이션 | Plan v1 → v2 |
 | 자원 용량 | 게이지 막대(사용/가능) | 창고, ODCY, 트럭, 슬롯 |
