@@ -1,7 +1,7 @@
 # 14. 설계 결정 기록 (ADR)
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-15 (ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
+- 최종 수정: 2026-09-16 (T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가. 같은 날 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가). 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
 
 상태 값: `Proposed`(제안, 사람 승인 전) · `Accepted`(확정) · `Superseded by ADR-NNN`(대체됨) · `Rejected`(기각).
 `Accepted` ADR은 에이전트가 혼자 뒤집지 않는다. 바꾸려면 새 ADR을 `Proposed`로 올린다.
@@ -46,7 +46,12 @@
 | 021 | 컨테이너 상태 = Hybrid (사실 + 유도 단계 + 예외 오버레이 + 영향) | Proposed (T-032) |
 | 022 | 프론트엔드 = Next.js + 2D SVG 운영 지도 + Data Contract/Mock Provider (ADR-016의 Vite·Three.js 부분 개정) | Proposed (T-062·T-063, 2026-09-15) |
 | 023 | 개발 순서 = Prototype 먼저 (T-036 최적화 명세 DEFERRED) | Proposed (2026-09-14 사람 지시, 2026-09-15 기록) |
-| 024 | 저장소 = 하나의 Private Monorepo + 책임 영역(front·back·ai·packages·data·docs·infra) | **Accepted** (2026-09-15 사람 결정). 계약 정본 OpenAPI·Desktop(Tauri)은 방향만, 미확정 |
+| 024 | 저장소 = 하나의 Private Monorepo + 책임 영역(front·back·ai·packages·data·docs·infra) | **Accepted** (2026-09-15 사람 결정). **`ai/` 영역 정의는 ADR-029로 개정됨**(2026-09-16). 계약 정본 OpenAPI는 ADR-028로 확정, Desktop(Tauri)은 여전히 미확정 |
+| 025 | AI 협업 개발 Workflow: 한 Task 한 Orchestrator(Claude 또는 Codex), 인계 정본 `CURRENT.md`, Brief(WHAT) → Plan(HOW) → Implement → Review → Docs Sync → 사용자 승인 → Commit | **Accepted** (2026-09-15 사람 결정). ADR-001 확장 |
+| 026 | 외부 통신 = Channel Adapter 추상화. Gmail은 최종 채널이 아니라 **첫 기술검증 채널**. 구조화 채널은 LLM을 거치지 않는다 | **Accepted** (2026-09-16 사람 결정) |
+| 027 | 제품 단계에 `Tech Validation` 신설 — 검증·승인된 연락처에만, 건별 승인 뒤 실제 발송 (`01` 6절 개정) | **Accepted** (2026-09-16 사람 결정) |
+| 028 | 통신 도메인 저장 분리(`comm_*`) + Counterparty→Contact→Address 3상태 발송 자격 + 쓰기 계약(`CeraCommandClient`)과 OpenAPI 정본 전환 시작 | **Accepted** (2026-09-16 사람 결정) |
+| 029 | **결정론 엔진(Tariff·Cost·Risk·Reconciliation·Optimize·Solver)을 `ai/`에서 분리** — `ai/`는 LLM·비정형 처리만. 새 `engine/`은 만들지 않음. ADR-024 영역 정의 개정 | **Accepted** (2026-09-16 사람 결정). 실행은 T-003 |
 
 ---
 
@@ -286,3 +291,78 @@
   - Desktop: 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 검토한다. **Tauri는 확정 기술이 아니다.**
 - 대안: 저장소 3개 분리(front·back·ai — 1인 개발에 조율 비용 과다, 계약 변경마다 여러 저장소 수정), 영역 없는 단일 폴더(책임 경계 흐림).
 - 결과: `web/`을 `front/web/`으로 옮겼다(미커밋 상태에서의 이동이라 git 이동 이력은 없음). 옛 레이아웃의 `src/cera/<모듈>`은 `back/`과 `ai/`로 나눠 배치한다(`07` 6절). T-003 범위가 `back/`·`ai/` 뼈대로 바뀐다.
+- **2026-09-16 개정 (ADR-029, 사람 결정)**: 결정 2의 **`ai/` 영역 정의가 바뀐다.** `ai/`는 **LLM·비정형 처리만** 맡는다(LLM Provider, Email Extraction, Contract Extraction, Draft 자연어 문장, Explanation). 결정론 엔진 **Tariff·Cost·Risk·Reconciliation·Optimization·Solver는 Backend 내부의 결정론 영역**에 둔다. 새 최상위 `engine/` 영역은 만들지 않는다(1인 MVP에 과설계). 나머지 결정(저장소 하나, `data/` 공통, 서비스별 이미지, 루트 AGENTS, 엔진의 LLM import 금지)은 그대로다. 이유: "숫자는 결정론 엔진에서만 나온다"(`01` 3절)와 금지 주장 "AI가 D&D 비용을 계산한다"(`01` 4절)가 폴더 이름과 충돌했고, 순수 엔진 중 `state`만 `back/`에 있어 배치가 이미 일관되지 않았다. 적용 시점은 T-003.
+
+## ADR-025: AI 협업 개발 Workflow — Orchestrator Handoff (ADR-001 확장)
+- 상태: **Accepted** (2026-09-15, 사람 결정)
+- 날짜: 2026-09-15 (T-067)
+- 맥락: 1인 개발이지만 Claude·Codex·ChatGPT·Antigravity를 역할별로 쓰고, 작업 장소에 따라 Claude와 Codex가 교대로 저장소를 관리한다. 판단이 대화 기억으로만 전해지면 결정이 뒤집히거나 범위가 넓어지거나 구현이 계획과 달라진다. ADR-001(AGENTS.md 진입점 + docs 정본 + 작업 큐)은 한 에이전트가 연속 작업하는 경우만 다뤘다.
+- 결정 (`docs/17_ai-development-workflow.md`):
+  1. 역할: 사용자 = 최종 결정(ADR·계획·commit 승인), Orchestrator = Claude **또는** Codex(작업 단위마다 하나), ChatGPT = Implementation Planner / Independent Reviewer(결정권 없음), Antigravity = Coding Agent(승인된 계획만 구현, 설계 변경이 필요하면 멈추고 보고).
+  2. 정본 순서: Git 저장소 → Accepted ADR → `docs/` → `docs/tasks/CURRENT.md` → API·Schema·Test → code. AI 대화는 정본이 아니다.
+  3. 현재 작업의 인계 정본은 `docs/tasks/CURRENT.md`. QUEUE = 예정, CURRENT = 현재, LOG = 과거. `HANDOFF.md` 방식은 CURRENT로 대체한다.
+  4. 흐름: Task Brief(WHAT/WHY) → Implementation Plan(HOW) → 사용자 승인 → Implement → Test → Review → Fix → Docs Sync → 사용자 승인 → Commit. Architecture 변경·여러 영역 기능·중요 Vertical Slice에 적용하고, 작은 수정은 줄인다(commit 승인은 생략하지 않음).
+  5. 이어받은 Orchestrator는 Scope를 임의로 넓히거나 Accepted ADR을 임의로 바꾸지 않는다. 바꿔야 하면 새 ADR(Proposed)·변경 제안으로 사용자 승인을 받는다.
+  6. commit·push·원격 생성은 사람 승인 뒤에만 한다. 모든 도구에 같다(`01` 8절 문구를 이에 맞춰 정리).
+- 대안: 대화 기억·요약으로 인계(도구 간 전달 불가, 검증 불가), 도구별 전용 설정 파일(CODEX.md 등 — 같은 규칙이 여러 벌 생김. AGENTS.md를 모든 도구가 읽으므로 불필요), 모든 작업에 전체 11단계(관료적, 작은 수정이 느려짐).
+- 결과: `docs/tasks/CURRENT.md`, `docs/tasks/TASK_BRIEF_TEMPLATE.md`, `docs/17_ai-development-workflow.md` 신규. `AGENTS.md` 2절 읽는 순서(CURRENT가 두 번째), 3절 착수·완료·중단 절차, 3.7절 Handoff Rule. 계획 문서는 필요할 때 `docs/tasks/plans/`에 둔다.
+
+## ADR-026: 외부 통신 = Channel Adapter 추상화, Gmail은 첫 기술검증 채널
+- 상태: **Accepted** (2026-09-16, 사람 결정)
+- 날짜: 2026-09-16 (T-068)
+- 맥락: 문의 초안 → 승인 → 발송 → 회신 → 구조화 → Event 루프는 CERA의 핵심 가설인데 한 번도 기술 검증되지 않았다(현재 전부 시나리오 작성값). 그러나 **현업이 실제로 어떤 채널을 쓰는지 모른다**: 메일인지 전화인지 카카오톡인지 TMS인지(Q-26·Q-28), 고객 메일함 접근이 보안 정책에 막힐지(R-8), 연동 방식도 미결이다(Q-33). 채널을 먼저 고정하면 인터뷰 결과 한 줄에 설계가 무너진다.
+- 결정:
+  1. 외부 통신을 **`ChannelAdapter` 포트** 뒤에 둔다: `capabilities()`, `send()`, `fetch_inbound()`, `lookup_sent()`. 구현체는 `MockChannel`(가상 메일함, 현재), `GmailChannel`(첫 실채널), 이후 SMTP/IMAP·전달 주소·전화 기록·모바일 응답 링크·TMS.
+  2. 채널과 무관하게 고정되는 것: 초안의 구조화 값 주입과 숫자 검사, 사람 발송 승인(G4), Outbox·멱등·재시도, 상대방 등록부에 의한 역할 판정, 원문 보존, 추출 검증기, Reconciliation R1~R12, PROVISIONAL 규칙, 화면.
+  3. 채널이 바꾸는 것은 전송·수신 방법과 **`source_type`(그에 따른 근거 강도)** 뿐이다.
+  4. **Gmail은 "혼자서, 계약 없이, 실제 외부 왕복을 오늘 검증할 수 있는 유일한 채널"이라는 이유로 고른 첫 채널이며 최종 채널이 아니다.** 문서·UI·코드 어디에도 "CERA의 통신 채널은 메일"이라고 쓰지 않는다.
+  5. 최소 권한은 scope가 아니라 **전용 계정 + 전용 라벨 + CERA가 만든 Thread만 수집**이라는 세 겹으로 만든다(Gmail에는 라벨 단위 읽기 scope가 없다). 개인·회사 메일함에 붙이지 않는다.
+  6. **구조화 채널은 LLM을 거치지 않는다.** 어댑터가 `capabilities().structured_reply = true`를 선언하면 Intake는 추출 단계를 호출하지 않고 스키마 검증만 한다. LLM 호출의 기준은 **"입력이 비정형인가"**이지 "값이 자주 바뀌는가"가 아니다. `Form → LLM → Structured Value` 경로를 만들지 않는다.
+- 대안: (a) Gmail 전용 구현 — 인터뷰 결과에 따라 대부분 버려진다. (b) 채널 없이 사람이 직접 메일 — 루프의 기술 위험이 검증되지 않는다. (c) 범용 메시징 추상화를 처음부터 크게 — 채널이 하나뿐인데 과설계다. (d) 모든 회신을 일괄로 LLM에 통과 — 구조화 입력에 비용·지연·오류만 더한다.
+- 결과: 어댑터 교체로 채널을 바꿀 수 있다. 다만 상대방이 직접 입력하는 구조화 채널(모바일 응답 링크·파트너 포털)의 `source_type`은 아직 정해지지 않았다(Q-46). `source_type`(채널)과 `source_role`(역할)은 다른 축이며, 역할은 어느 채널이든 등록부가 결정론적으로 정한다. 상세 설계는 `docs/18_external-communication.md`.
+- **2026-09-16 책임 경계 Audit 반영**: 결정 6(구조화 채널 LLM 우회)을 추가했다. 초안에는 이 규칙이 표에만 암시되어 있어 "동적 데이터 → AI"로 읽힐 여지가 있었다.
+
+## ADR-027: 제품 단계에 `Tech Validation` 신설 — 통제된 실제 발송
+- 상태: **Accepted** (2026-09-16, 사람 결정). `01_project-rules.md` 6·6.1절과 `02_product-definition.md` 6절에 반영 완료
+- 날짜: 2026-09-16 (T-068)
+- 맥락: `01_project-rules.md` 6절은 "PoC의 메일 발송은 가상 메일함으로만, 실제 발송 없음 / Pilot의 실제 발송은 건별 승인 + 별도 ADR"이다. `11_data-sources.md` 5절도 실발송에 "ADR 필요"를 명시했고, `03_requirements.md` FR-ING-07은 Gmail 연동을 Could/Pilot으로 둔다. 그런데 외부 통신 루프의 기술 위험(OAuth, 스레드 상관, 중복 발송, 회신 추출)은 **가상 메일함으로는 전혀 검증되지 않는다**. 반대로 Pilot을 기다리면 고객이 생길 때까지 검증이 미뤄진다.
+- 결정: PoC와 Pilot 사이에 **`Tech Validation`(기술검증)** 단계를 만들고, 이 단계에서만 아래 세 조건을 **모두** 만족할 때 실제 발송을 허용한다.
+  1. **수신자가 등록·검증·승인된 Contact여야 한다.** `email_verification_status = VERIFIED` AND `relationship_status = APPROVED` AND `communication_status = ACTIVE`. 이것은 제품 게이트이고 Pilot·Scale에서도 그대로 적용된다(`18` D.5).
+  2. 발송은 **건마다 사람 승인** 뒤에만 일어난다. 승인한 내용과 다른 내용은 나가지 않는다(승인 내용 해시 대조).
+  3. 개발·기술검증 환경에서는 **별도의 안전장치** `CERA_TEST_RECIPIENT_ALLOWLIST`가 추가로 막는다. 이것은 제품 모델이 아니라 환경 설정이며, 1번을 대신하지 못한다.
+  추가로: 실제 발송 기능은 1·3번 강제와 "승인 없는 발송 경로 없음" 테스트(NFR-03)가 통과하기 전에는 활성화하지 않는다. 즉시 끌 수 있는 스위치를 둔다.
+- 대안: (a) 규칙 6절 유지 — 이 Task를 구현할 수 없다. (b) PoC에서 실제 발송을 그냥 허용 — 실수로 메일이 나가는 되돌릴 수 없는 사고를 막을 근거가 사라진다. (c) Pilot까지 대기 — 가장 큰 기술 위험의 검증이 고객 확보 뒤로 밀린다. (d) 초안의 "상대가 실제 현업 담당자가 아닐 것" — 아래 참조.
+- 결과: `01_project-rules.md` 6절, `02_product-definition.md` 6절, `03_requirements.md` FR-ING-07·FR-COM-02를 고쳐야 한다. 이 ADR이 `Accepted`가 되기 전에는 실제 발송 코드를 만들지 않는다. 테스트 상대(본인·가족·테스트·가상 운송사 역할 계정)도 **실제 거래처와 똑같은 Contact Verification Flow**를 쓴다. 테스트용 우회 경로를 만들지 않으므로, Pilot으로 갈 때 흐름이 바뀌지 않는다.
+- **2026-09-16 책임 경계 Audit 개정**: 초안의 조건 ②("상대방은 실제 현업 담당자가 아니다")를 **폐기**한다. 그것은 시스템이 판정할 수 없는 기준이고(주소만 보고 현업인지 알 수 없다), 단계가 끝나면 버려지는 임시 규칙이라 Pilot에서 다시 설계해야 한다. 옳은 축은 **"등록·검증·승인된 Contact인가"**이며, 이 기준은 DB가 결정론적으로 판정할 수 있고 제품 수명 내내 그대로 쓰인다. 초안의 `send_allowlist`는 제품 게이트와 개발 안전장치를 한 테이블에 뭉친 것이라 폐기하고 두 겹으로 나눴다(ADR-028, `18` D.5·G.5).
+
+## ADR-028: 통신 도메인 저장 분리 + 쓰기 계약과 OpenAPI 정본 전환 시작
+- 상태: **Accepted** (2026-09-16, 사람 결정). 단 **구체 컬럼·DDL은 확정이 아니다** — Implementation Plan(T-069)에서 정한다
+- 날짜: 2026-09-16 (T-068)
+- 맥락: `07_backend-architecture.md` 4절의 `messages` 한 테이블에는 채널, 외부 메시지·스레드 ID, 재시도 횟수, 멱등키, 승인 내용 해시, 상태 전이 이력이 없다. 실제 발송은 이것들 없이는 중복·오발송을 막을 수 없다. 또 `CeraDataProvider`는 읽기 전용이라 "승인" 같은 쓰기 동작의 계약이 아예 없다. ADR-024는 "계약 정본을 OpenAPI로"를 **방향(미확정)**으로만 남겼다.
+- 결정:
+  1. `messages`를 `comm_threads` / `comm_messages` / `comm_message_events`로 나누고, 상대방 등록부를 **`counterparties`(거래처) → `counterparty_contacts`(담당자) → `contact_channel_addresses`(주소)** 3단계로 두며 `contact_verifications`, `extractions`를 더한다. 원문은 기존 `raw_inputs`(RFC822 그대로)를 쓴다.
+  1b. 발송 자격은 주소 행의 **세 상태의 AND**다: `email_verification_status`(주소를 통제하는 사람이 확인에 응답했나) AND `relationship_status`(사용자가 업무 연락처로 인정했나) AND `communication_status`(지금 보낼 수 있나). 세 질문은 서로 다르므로 한 칸에 합치지 않는다. **이메일 확인은 법인 대표권이나 계약 권한을 증명하지 않는다** — 문서·UI에 그 이상으로 쓰지 않는다. 판정은 Backend 결정론이며 AI는 어떤 형태로도 참여하지 않는다.
+  1c. MVP는 **Model A(Contact Verification)** 다. 상대방이 CERA 계정을 만들 필요가 없다. Model B(Partner Account / Portal)는 Pilot 이후이며 이번 슬라이스로 끌어오지 않는다.
+  2. 발송 승인(G4)은 **Event Store에 넣지 않는다.** 현실 사실에 대한 주장이 아니라 CERA 안의 결정이다(`PLAN_APPROVAL`과 같은 논리). `comm_messages`의 승인 필드 + `audit_log`에 남는다. G2·G3·G4는 서로를 대신하지 않는다.
+  3. 읽기 계약 `CeraDataProvider`는 순수 View 계약으로 유지하고, 쓰기는 **별도 `CeraCommandClient`**로 낸다. 두 인터페이스 모두 mock/api 구현을 가진다.
+  4. **이 슬라이스의 엔드포인트부터 Backend OpenAPI를 계약 정본으로 삼고**, TypeScript 타입을 `packages/`에 생성한다. 백엔드가 아직 서빙하지 않는 화면의 View Model은 `front/web/src/contracts/cera.ts` 손 작성으로 남으며, 이 혼재 상태를 문서에 명시한다.
+- 대안: (a) `messages` 한 테이블 유지 — 재시도·중복 방지 상태를 표현할 수 없다. (b) 승인을 Event로 기록 — Event Store가 "현실에 대한 주장"이라는 정의가 무너진다. (c) 읽기 Provider에 쓰기 메서드를 섞음 — View 계약이 흐려지고 Mock 재생이 복잡해진다. (d) OpenAPI 전환을 전면 일괄 — 백엔드가 아직 대부분의 화면을 서빙하지 않아 빈 계약이 생긴다. (e) 평평한 `send_allowlist` 하나 — "검증되지 않은 주소도 목록에 넣으면 보낼 수 있다"는 뒷문이 생긴다.
+- 결과: `07` 4·5절 갱신이 필요하다. `packages/`가 처음으로 실제 산출물을 갖게 된다. 상세는 `docs/18_external-communication.md` D·I·J절.
+
+## ADR-029: 결정론 엔진을 `ai/`에서 분리 (ADR-024 영역 정의 개정)
+- 상태: **Accepted** (2026-09-16, 사람 결정). **ADR-024의 영역 정의를 이 범위에서 개정한다.** 실제 폴더 생성·코드 이동은 T-003(Backend scaffold) 때 적용하며, 이번 작업에서는 옮기지 않았다
+- 날짜: 2026-09-16 (T-068 책임 경계 Audit)
+- 맥락: ADR-024는 `ai/`에 "LLM 해석 **+ 결정론 엔진**(Tariff·Cost·Risk·Optimization·Solver)"을 둔다. 그런데 CERA의 가장 중요한 주장은 **"숫자는 결정론 엔진에서만 나온다"**(`01` 3절)이고, 금지 주장 목록에는 **"AI가 D&D 비용을 계산한다"**(`01` 4절)가 명시돼 있다. 위험·비용·최적화 코드가 `ai/`라는 폴더에 물리적으로 들어 있으면 저장소를 여는 사람마다 그 주장을 의심하게 된다. 인터뷰·심사에서 방어해야 할 주장이라 이름값이 실제 비용이다. `ai/README.md`도 "이름이 오해를 부른다"고 스스로 적어 두었다.
+  더 결정적인 것은 **현재 배치가 이미 일관되지 않다**는 점이다. `07` 1.2절은 순수 엔진을 `state`·`tariff`·`cost`·`risk`·`optimize`로 나열하는데, `07` 6절 배치표는 그중 `state`(Reconciliation)만 `back/`에 두고 나머지 넷은 `ai/`에 둔다. 같은 성격의 코드가 두 영역으로 갈라져 있고, 그 기준이 "AI인가"가 아니라 우연이다.
+- 결정 (제안):
+  1. **`ai/` = LLM 관련만**: `extraction`(메일·계약서 구조화 추출), 프롬프트·스키마, 초안 문장 생성, 설명 문장 생성, LLM 클라이언트.
+  2. **결정론 엔진 `tariff`·`cost`·`risk`·`optimize`는 `state`와 같은 자리**(`back/`)로 옮긴다. 순수 함수·I/O 없음 규칙(`07` 1.2)은 그대로 유지하고, 패키지 경계로 강제한다(엔진 패키지는 `storage`·네트워크·LLM 클라이언트를 import하지 않는다).
+  3. **새 최상위 `engine/` 폴더는 만들지 않는다.** 1인 개발·MVP 규모에서 세 번째 Python 패키지·테스트 트리·의존 그래프를 지금 만드는 것은 과설계다. 별도 배포 이미지나 두 번째 소비자가 생기면 그때 다시 판단한다.
+  4. **실행 시점은 T-003(저장소 초기화)이다.** 지금은 `back/`·`ai/`에 코드가 없으므로 이동 비용이 0이지만, 폴더 구조 변경 자체를 이번 설계 Task의 범위로 끌어오지 않는다.
+- 대안:
+  - (a) 현재 유지 — 이름과 내용의 불일치가 남고, `01` 4절 금지 주장과 저장소 구조가 계속 충돌한다.
+  - (b) 최상위 `engine/` 신설(3영역) — 경계는 가장 선명하지만 코드가 0줄인 지금 만들 이유가 없다. `ai/` 안에서 패키지를 나누는 것으로 같은 경계를 얻는다.
+  - (c) `ai/`를 `decision/`으로 개명 — 폴더 하나로 LLM과 결정론을 계속 묶게 되어, "결정론 엔진은 LLM을 import하지 않는다"를 물리적으로 보장하지 못한다.
+  - (d) 절충: 지금은 `ai/llm/`·`ai/engine/`으로 내부만 나누고 폴더 이동은 나중 — 선택지로 유효하다. 다만 `state`가 이미 `back/`에 있어 결정론 엔진이 두 군데로 갈리는 문제는 그대로 남는다.
+- 결과: `ai/README.md`, `back/README.md`, 루트 `README.md`, `07` 6절, ADR-024의 영역 표를 이 결정에 맞게 고친다(T-070). **실제 폴더·코드 배치는 T-003(Backend scaffold)에서 적용한다** — 지금은 `back/`·`ai/`에 코드가 없으므로 이동 비용이 0이다.
+- **ADR-024와의 관계**: ADR-024(Accepted, Monorepo)의 결정 1·4·5·6(저장소 하나, `data/` 공통, 서비스별 이미지, 루트 AGENTS)은 그대로다. 결정 2의 **영역 책임 정의만** 이 ADR이 개정한다: `ai/` = LLM·비정형 처리(LLM Provider, Email Extraction, Contract Extraction, Draft 문장, Explanation), 결정론 엔진(Tariff·Cost·Risk·Reconciliation·Optimization·Solver) = Backend 내부의 결정론 영역. 결정 3(엔진이 LLM 클라이언트를 import하지 않는다)은 유지되며, 분리로 물리적으로 더 쉽게 지켜진다.

@@ -1,8 +1,8 @@
 # 04. 도메인 모델
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11 (T-032: 2절 컨테이너 상태 모델을 Hybrid로 확정안 작성, 3절 사실 키 정리)
-- 관련: `05_event-and-state.md`(Event·Canonical State), `08_optimization-model.md`(최적화), ADR-005, ADR-006, ADR-019, ADR-021
+- 최종 수정: 2026-09-16 (T-068 Audit: 4.1절 흐름도에 Backend 검증·매핑 단계 명시 — LLM 출력이 곧바로 DB 구조체가 되지 않음). 이전: 2026-09-11 (T-032: 2절 컨테이너 상태 모델을 Hybrid로 확정안 작성, 3절 사실 키 정리)
+- 관련: `05_event-and-state.md`(Event·Canonical State), `08_optimization-model.md`(최적화), `18_external-communication.md`(O절 책임 경계표), ADR-005, ADR-006, ADR-019, ADR-021
 - 스키마 확정: T-032(Event·Canonical State, 완료 대기 검토), T-033(Contract·Tariff)
 
 이 문서는 **무엇을 다루는가**(엔티티, 상태, 비용, 위험)를 정의한다. 값이 **어떻게 믿을 만한 상태가 되는가**는 `05_event-and-state.md`가 정한다.
@@ -138,18 +138,30 @@ discharged_at                                       → DISCHARGED      (통관 
 | VBS Slot | `available.slot(s)` (SLOT_POOL) | 시나리오 `SIMULATED` | 공개 Write API 없음 가정(R-4) |
 | Terminal | `rate.storage_per_day(T)`, `condition.<CODE>`, 게이트 운영 시간 | 시나리오 `[ASSUMPTION]` | |
 
-자원 사실도 Event로 들어온다. 메일 회신에서 LLM이 뽑은 값은 확인 전까지 `PROVISIONAL`이고, 기존 값을 크게 줄이는 내용이면 확인 전까지 보류(`HELD`)된다(`05_event-and-state.md` 8.3 R10, 부록 A.4). 전체 사실 키 카탈로그는 `05_event-and-state.md` 4.3절.
+자원 사실도 Event로 들어온다. 메일 회신에서 LLM이 뽑고 **Backend 검증기를 통과한** 값은 확인 전까지 `PROVISIONAL`이고, 기존 값을 크게 줄이는 내용이면 확인 전까지 보류(`HELD`)된다(`05_event-and-state.md` 8.3 R10, 부록 A.4). 전체 사실 키 카탈로그는 `05_event-and-state.md` 4.3절.
 
 ## 4. 계약·Tariff
 
 ### 4.1 흐름
 
 ```text
-계약서 PDF / 메일 ──(Contract Agent, LLM)──▶ 추출 후보(DRAFT, 필드별 근거)
-    ──(사람 최초 1회 확인)──▶ TariffRule 버전(CONFIRMED) ──▶ Tariff Rule Engine(결정론)
-견적 메일 ──(Response Agent, LLM)──▶ RateQuote(PROVISIONAL) ──(사람 VERIFICATION 또는 권한 A 시스템 확인)──▶ CONFIRMED
-                                    (계획 승인은 사실 확인이 아니다. 승인해도 PROVISIONAL로 남는다, `05` 11.5)
+계약서 PDF / 메일
+  ──(LLM 추출)──▶ 값 후보 + 원문 인용
+  ──(Backend 결정론 검증기: 인용 대조·스키마·단위)──▶ 추출 후보(DRAFT, 필드별 근거)
+  ──(사람 최초 1회 확인)──▶ TariffRule 버전(CONFIRMED) ──▶ Tariff Rule Engine(결정론)
+
+견적 메일
+  ──(LLM 추출)──▶ 값 후보 + 원문 인용
+  ──(Backend 결정론: 검증기 → 발신자 등록부 조회로 역할·권한 → 강도 계산 → Event 저장 → Reconciliation)──▶
+      RateQuote(PROVISIONAL)
+  ──(사람 VERIFICATION 또는 권한 A 시스템 확인)──▶ CONFIRMED
+      (계획 승인은 사실 확인이 아니다. 승인해도 PROVISIONAL로 남는다, `05` 11.5)
+
+구조화 견적(파트너 포털·TMS·응답 폼)
+  ──(Backend 스키마 검증)──▶ RateQuote(PROVISIONAL)      ← LLM을 거치지 않는다 (ADR-026)
 ```
+
+> **LLM 출력이 곧바로 DB 구조체가 되는 경로는 없다.** LLM은 값 후보와 원문 인용만 내고, `entity_id`·`fact_key`·역할·권한·강도·확정 여부는 전부 Backend가 정한다(`18` D.3·O절). 위 화살표에서 LLM이 관여하는 구간은 첫 칸 하나뿐이다.
 
 ### 4.2 TariffRule (초안, T-033에서 확정)
 

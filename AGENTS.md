@@ -17,7 +17,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 현재 단계 | **Phase 0.5 — Prototype-led Discovery: 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), 사람 검토(T-064·T-001) 대기.** Backend·DB·Solver는 아직 없음. T-036은 DEFERRED |
+| 현재 단계 | **Phase 0.5 → External Communication 구현 계획.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**. 다음은 **T-069 Implementation Plan**이고, 계획 승인 뒤 구현을 시작한다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
 | 기획 버전 | v0.2 (2026-09-11, 2026-09-15 개정). 변경 이력은 `docs/CHANGELOG.md` |
 | 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · 운영 시뮬레이터(Prototype은 2D) |
 | 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider)만 있음. `back/`·`ai/`·`packages/`·`infra/`는 README만 있는 빈 책임 영역 (T-003) |
@@ -42,12 +42,15 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 
 ## 2. 매 세션 읽는 순서 (필수)
 
-0. 루트에 `HANDOFF.md`가 있으면 **가장 먼저** 읽는다. 1회성 인계 파일이므로, 내용을 반영한 뒤 삭제한다(정본은 `docs/`, 이력은 LOG에 있음).
 1. `AGENTS.md` (이 파일)
-2. `docs/01_project-rules.md` — 반드시 지켜야 할 규칙
-3. `docs/tasks/QUEUE.md` — 지금 할 일
-4. `docs/tasks/LOG.md`의 최근 3개 항목 — 직전 작업자의 인계 내용
-5. 선택한 태스크의 `참조 문서`에 적힌 파일만 추가로 읽는다. **docs 전체를 매번 읽지 않는다.**
+2. **`docs/tasks/CURRENT.md`** — 지금 진행 중인 작업의 인계 문서(정본). Status가 `IDLE`이 아니면 그 작업을 이어받는다
+3. `git status`와 최근 커밋 — CURRENT의 Baseline과 실제 저장소가 맞는지 확인
+4. `docs/01_project-rules.md` — 반드시 지켜야 할 규칙
+5. `docs/tasks/QUEUE.md` — 예정 작업과 상단 "사람 지시"
+6. `docs/tasks/LOG.md`의 최근 3개 항목 — 끝난 작업의 인계 내용
+7. CURRENT·태스크의 `참조 문서`와 관련 ADR만 추가로 읽는다. **docs 전체를 매번 읽지 않는다.**
+
+(옛 방식) 루트에 `HANDOFF.md`가 있으면 먼저 읽고 CURRENT.md에 옮긴 뒤 삭제한다. 새 인계는 CURRENT.md에만 쓴다.
 
 처음 온 에이전트는 `docs/README.md` 2절의 순서로 한 번 훑는다. LOG에 나오는 옛 파일 경로(`docs/05_domain-model.md` 등)는 `docs/CHANGELOG.md` 7절 표로 새 경로를 찾는다.
 
@@ -56,7 +59,7 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 ## 3. 작업 프로토콜
 
 ### 3.1 태스크 선택
-- `IN_PROGRESS` 태스크가 있고 LOG에 `상태: 중단` 인계가 있으면 → **그것을 이어받는다.**
+- `CURRENT.md`의 Status가 `IDLE`이 아니면 → **그 작업을 이어받는다**(3.7). 옛 방식의 LOG `상태: 중단` 인계도 같다.
 - 없으면 `TODO` 중 **의존 태스크가 모두 `DONE`** 인 것 가운데 우선순위(P0 > P1 > P2), 그다음 ID 오름차순으로 **하나**를 고른다.
 - `NEEDS_HUMAN` 태스크는 에이전트가 수행하지 않는다. 사람이 해야 할 행동을 요약해 보고만 한다.
 - `DEPRECATED` 태스크와 그 ID는 다시 쓰지 않는다.
@@ -66,6 +69,7 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 
 ### 3.2 착수
 - `docs/tasks/QUEUE.md`에서 해당 태스크 상태를 `IN_PROGRESS`로 바꾸고 `담당`에 `에이전트명 / YYYY-MM-DD`를 적는다.
+- `docs/tasks/CURRENT.md`에 Task Brief(`docs/tasks/TASK_BRIEF_TEMPLATE.md` 형식: Goal·Why·Scope·Out of Scope·Existing Decisions …)를 채우고 Status·Baseline·Current Orchestrator를 적는다. Architecture 변경·여러 영역 기능·중요 Vertical Slice는 `docs/17_ai-development-workflow.md`의 전체 흐름(Brief → Plan → 사용자 승인 → 구현 → 리뷰 → Docs Sync → 사용자 승인 → Commit)을 따른다. 작은 수정은 17 문서 4.1절처럼 줄인다.
 
 ### 3.3 수행
 - `docs/01_project-rules.md`를 지킨다. 특히 검증 태그, LLM 역할 경계, 금지 주장, 외부 발송·Write 금지, 비밀정보 규칙.
@@ -85,7 +89,7 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
    - 실행 가능한 태스크(`TODO` + 의존 해소)가 **최소 3개** 남도록 `docs/12_roadmap.md`를 보고 보충한다.
      `NEEDS_HUMAN` 때문에 3개를 채울 수 없으면 그 사유를 QUEUE.md 상단 `다음 추천 태스크`에 적는다.
    - QUEUE.md 상단의 `다음 추천 태스크`를 갱신한다.
-5. `docs/tasks/LOG.md` **맨 위**에 인계 기록을 추가한다(템플릿 사용).
+5. `docs/tasks/LOG.md` **맨 위**에 인계 기록을 추가한다(템플릿 사용). `CURRENT.md`의 요지를 옮기고, CURRENT는 다음 Task로 채우거나 `IDLE`로 되돌린다.
 6. 이 파일(AGENTS.md) 1절의 `현재 단계`가 바뀌었으면 갱신한다.
 7. 기획 방향이 바뀌는 작업이면 `docs/CHANGELOG.md`에 요약을 추가하고, 옛 문서는 남기지 않는다(`docs/README.md` 4절).
 
@@ -95,7 +99,18 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 - LOG에 기록한 뒤 다른 실행 가능한 태스크로 넘어가거나 세션을 끝낸다.
 
 ### 3.6 중간에 끊길 것 같을 때
-- 태스크를 `IN_PROGRESS`로 둔 채 LOG에 `상태: 중단` 인계를 남긴다(한 일 / 남은 일 / 다음 한 걸음).
+- 태스크를 `IN_PROGRESS`로 둔 채 `CURRENT.md`의 Status·Implementation Status·Handoff Notes를 갱신한다(한 일 / 남은 일 / blocker / 다음 한 걸음). LOG에는 완료·차단 때 적는다.
+
+### 3.7 Orchestrator Handoff Rule
+Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 역할 전체와 흐름은 `docs/17_ai-development-workflow.md`.
+
+- 한 Task에는 한 시점에 **하나의 Orchestrator**만 둔다. 두 도구가 같은 Task에 따로 지시하지 않는다.
+- 현재 작업 상태의 정본은 대화가 아니라 **`docs/tasks/CURRENT.md`**다. 대화에서 정한 것은 CURRENT·docs·ADR에 적어야 효력이 있다.
+- 새 Orchestrator는 시작 전에 `AGENTS.md`, `CURRENT.md`, 관련 ADR, `git status`를 확인하고 CURRENT의 Current Orchestrator를 갱신한다.
+- 이전 Orchestrator가 정한 Scope / Out of Scope를 임의로 넓히지 않는다. Accepted ADR을 임의로 바꾸지 않는다. 바꿔야 하면 덮어쓰지 말고 변경 제안이나 새 ADR(Proposed)로 올려 사용자 승인을 받는다.
+- 구현 결과가 승인된 계획과 다르면 고치기 전에 먼저 차이를 보고한다. Coding Agent(Antigravity)도 계획과 다른 설계가 필요하면 멈추고 보고한다.
+- 세션을 끝낼 때 중요한 상태 변경(결정, 진행 상태, blocker, 다음 한 걸음)을 CURRENT에 남긴다. 대화를 통째로 복사하지 않는다.
+- 사용자 승인 없이 commit / push 하지 않는다(4절 규칙 10).
 
 ---
 
@@ -110,7 +125,9 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 7. 금액은 **원(KRW) 정수**로 다룬다. 시각은 **Asia/Seoul 타임존이 붙은 값**만 쓴다.
 8. `docs/01_project-rules.md` 4절의 "확정하지 않을 주장"은 코드·UI·문서 어디에도 사실처럼 쓰지 않는다.
 9. **Mock / Simulated / Real을 구분한다.** 시나리오 값·Mock 결과는 `is_simulated`, `result_kind = SCENARIO_RESULT`로 표시하고, 실행하지 않은 엔진·LLM·연동의 결과처럼 쓰지 않는다(예: 사람이 쓴 값을 "LLM 추출"이라고 부르지 않는다).
-10. 사람이 요청하지 않으면 **git commit / push / 원격 생성을 하지 않는다**.
+10. 사람이 요청하거나 승인하지 않으면 **git commit / push / 원격 생성을 하지 않는다**. Orchestrator·Coding Agent 모두 같다.
+11. **AI를 쓰는 기준은 "입력이 비정형이고 해석이 필요한가"이지 "값이 자주 바뀌는가"가 아니다.** 구조화 입력(폼·포털·TMS·CSV·Human UI)은 Backend 검증만 거친다. LLM 출력은 언제나 후보이고, 신원·권한·근거 강도·상태 확정·숫자·외부 발송은 Backend·결정론이 정한다. 결정론 모듈을 "Agent"라고 부르지 않는다(ADR-026·029, `docs/18` O절 책임 경계표).
+12. **외부로 실제 발송은 `Tech Validation` 단계부터**, 등록·검증·승인된 연락처에만, 건마다 사람 승인 뒤에 한다(ADR-027, `docs/01` 6.1절).
 
 ---
 
@@ -136,11 +153,15 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 | `docs/14_decisions.md` | ADR | 설계 결정 전후 |
 | `docs/15_open-questions.md` | 미확정 사항, 리스크 | 가정을 세우거나 검증했을 때 |
 | `docs/16_frontend-prototype.md` | Control Tower Prototype: 실행, Data Contract, 단계별 화면, 발견한 요구사항 | 프론트·시나리오·계약 작업 |
+| `docs/17_ai-development-workflow.md` | AI 협업 개발 Workflow: 역할(사용자·Orchestrator·Planner·Implementer), 흐름, Handoff, Commit Gate | 새 Task 시작·도구 교대·구현 위임 때 |
+| `docs/18_external-communication.md` | 외부 통신 루프 RFC: 초안→승인→발송→회신→구조화→Event. Channel Adapter, Gmail(첫 검증 채널), OAuth·최소 권한, 실패·중복·재시도, Mock→Real | 연락·메일·채널·승인 흐름 작업 |
 | `data/scenarios/busan-wh-capacity-01/README.md` | 30대 시나리오 데이터 팩(Prototype 판) | 시나리오 값을 바꿀 때 |
 | `docs/data/field-dictionary.md` | 공공 API 필드 사전(공식 명세 기준, 출처 S-nn) | 공공 API 어댑터 작업 |
 | `docs/data/code-tables.md` | 공공 API 코드값·에러코드 | 어댑터·파서 작업 |
-| `docs/tasks/QUEUE.md` | 작업 큐(정본) | **매 세션** |
-| `docs/tasks/LOG.md` | 작업 인계 로그 | **매 세션** |
+| `docs/tasks/CURRENT.md` | **현재** 진행 중인 작업 하나의 인수인계 문서 | **매 세션 (가장 먼저)** |
+| `docs/tasks/TASK_BRIEF_TEMPLATE.md` | Task Brief 형식 (WHAT / WHY) | 새 Task를 시작할 때 |
+| `docs/tasks/QUEUE.md` | **예정** 작업 목록(정본) | **매 세션** |
+| `docs/tasks/LOG.md` | **끝난** 작업 기록 (append-only) | **매 세션** |
 
 ---
 

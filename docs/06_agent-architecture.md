@@ -1,8 +1,9 @@
 # 06. 에이전트 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-11
-- 관련 ADR: ADR-008(LLM 경계, Accepted), ADR-015(에이전트·오케스트레이터), ADR-017(사람 확인 게이트)
+- 최종 수정: 2026-09-16 (T-068 Audit: 1.1절 신설 — 10개 중 LLM을 쓰는 것은 3개뿐임을 명시. Intake·Communication·Response 행에 결정론/LLM 경계 명시. 7절 G4에 실제 발송 요건). 이전: 2026-09-11
+- 관련 ADR: ADR-008(LLM 경계, Accepted), ADR-015(에이전트·오케스트레이터), ADR-017(사람 확인 게이트), ADR-026(Channel Adapter·구조화 채널 LLM 우회), ADR-029(결정론 엔진 분리 제안)
+- 관련 문서: **`18_external-communication.md` O절 = CERA 전체 책임 경계표(Backend / Deterministic Engine / AI / Frontend)**
 
 ---
 
@@ -13,19 +14,33 @@
 - 대부분의 에이전트는 **결정론적 코드**다. LLM은 비정형 텍스트를 읽거나 쓰는 **말단 함수**로만 쓴다.
 - 흐름은 LLM이 계획하지 않는다. 결정론적 **오케스트레이터**가 Event에 반응해 다음 단계를 부른다(ADR-015).
 
+### 1.1 이름 주의 — 10개 중 LLM을 쓰는 것은 3개뿐이다 (2026-09-16)
+
+이 문서는 10개 모듈을 모두 "에이전트"라고 부른다. `13_glossary.md`의 정의("명확한 책임·입출력·트리거를 가진 모듈. 여러 LLM의 대화가 아니다")대로 쓴 것이지만, 일반적인 용법에서 "Agent"는 곧 AI로 읽힌다. **읽는 사람이 "위험·비용·최적화를 AI가 한다"고 오해하지 않도록** 성격을 먼저 밝힌다.
+
+| 성격 | 모듈 | 정확한 이름 |
+| --- | --- | --- |
+| **결정론 (LLM 없음)** | State Reconciliation, Verification, State, Risk, Recovery Optimizer, Re-optimization, Orchestrator | **Engine** 또는 **Service**로 읽는다. `Risk Engine`, `Reconciliation Engine`이 정확하다 |
+| **혼합** | Intake(수집은 결정론, 비정형 본문만 추출 호출), Communication(값 주입·승인·발송은 결정론, **문장만** LLM) | 결정론 뼈대 + LLM 말단 |
+| **LLM 기반** | Document/Contract, Response(회신 해석) | **Agent**라고 불러도 되는 것은 이 둘뿐이다 |
+
+- `agent_activity` 테이블과 화면의 "Agent Activity Timeline"에 담기는 것은 **대부분 결정론 엔진의 실행 기록**이다. AI가 한 일의 로그가 아니다. `16_frontend-prototype.md`의 `kind`(FACT·STATE·RESULT·HUMAN·COMMS)가 이를 구분한다.
+- 이름 전면 변경은 하지 않았다(파급이 크고 `agent_activity`는 이미 스키마 이름이다). 대신 **이 표를 정본으로 두고**, 새로 쓰는 문서·UI 문구에서는 결정론 모듈을 "Agent"라고 부르지 않는다.
+- 책임 경계 전체는 `18_external-communication.md` O절 표를 본다.
+
 ## 2. 역할
 
 | # | 에이전트 | 책임 | 트리거 | 입력 → 출력 | LLM | 사람 게이트 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **Intake** | 입력원 수집·정규화. 공공 API, CSV/Excel, 사용자 액션, 메일함, 문서 업로드, (이후) 파트너 API | 스케줄, 업로드, 액션, 새 메일 | 원문 → 후보 Event (UNVERIFIED) + 원문 보관 | 메일 분류·추출 단계에서만 | — |
+| 1 | **Intake** | 입력원 수집·정규화. 공공 API, CSV/Excel, 사용자 액션, 메일함, 문서 업로드, (이후) 파트너 API. **발신자 → 상대방 등록부 조회로 역할·조직을 결정론적으로 정한다** | 스케줄, 업로드, 액션, 새 메일 | 원문 → 후보 Event (UNVERIFIED) + 원문 보관 | **비정형 본문일 때만** 추출을 호출. 구조화 입력(폼·포털·TMS·CSV)은 LLM을 거치지 않는다(ADR-026). 발신자가 누구인지는 LLM에 묻지 않는다 | — |
 | 2 | **Document / Contract** | 계약서·Tariff·견적 구조화 | 계약서 업로드, 계약성 메일 | PDF·메일 → TariffRule DRAFT / RateQuote + 필드별 근거 | 예 | 계약 조건 최초 1회 확인 |
 | 3 | **State Reconciliation** | 같은 사실에 대한 출처 간 비교, 이긴 값 결정, Conflict 탐지 | 새 Event | Event 집합 → 이긴 값 + Conflict (`05_event-and-state.md` 8절 R1~R12) | 아니오 | — |
 | 4 | **Verification** | Conflict·STALE·확인 대기 추출에서 확인 요청 생성, 우선순위, 처리 결과 기록 | Conflict·STALE 발생, 추출 대기 | → VerificationRequest / 사람 액션 → `VERIFICATION_RECORDED` Event | 아니오 (문구는 템플릿) | 확인 요청 자체가 게이트 |
 | 5 | **State** | Canonical State 물질화, 변경분(diff) 발행 | Reconciliation 완료 | → canonical_facts, StateChanged | 아니오 | — |
 | 6 | **Risk** | LFD·Exposure·SlackTime, 자원 부족·영향 컨테이너 탐지 | StateChanged, 시계 틱 | Canonical State + 확정 규칙 → RiskAssessment, 예외 감지 | 아니오 | — |
 | 7 | **Recovery Optimizer** | 다중 컨테이너 × 트럭 × 장치장 × 창고 × 슬롯의 비용 최소 계획 | 위험 임계 초과, 운영자 요청 | 입력 스냅샷 → RecoveryRun (Baseline vs Recovery) | 계산에는 아니오. 결과 **설명**에만 선택적으로 | 계획 승인 |
-| 8 | **Communication** | 운송사·창고·ODCY 문의 메일, 작업지시 초안 | 계획 생성, 부족 자원 | 계획 + 부족 자원 → Message DRAFT (구조화 값은 계획에서) | 예 (문장만) | **발송 승인 (항상)** |
-| 9 | **Response** | 회신에서 가능/불가·수량·시각·비용·조건 추출 | 스레드에 회신 도착 | 회신 → 자원·견적 Event (EMAIL + LLM 추출, 강도 ≤ 1) + 요약 | 예 | 불확실 추출은 확인 요청 |
+| 8 | **Communication** | 운송사·창고·ODCY 문의 메일, 작업지시 초안. **수신자 선택은 상대방 등록부 조회(결정론)이고 LLM이 정하지 않는다.** 발송 자격(검증·승인·활성)도 Backend가 판정한다(`18` D.5) | 계획 생성, 부족 자원 | 계획 + 부족 자원 → Message DRAFT (구조화 값은 계획에서 주입) | 예 (**문장만**) | **발송 승인 (항상)** |
+| 9 | **Response** (LLM) | 회신 본문에서 가능/불가·수량·시각·비용·조건을 **후보로만** 추출. **`entity_id`·`fact_key`·역할·강도·확정 여부는 정하지 않는다** — Backend가 스레드 문맥과 등록부로 매핑한다(`18` D.3) | 스레드에 비정형 회신 도착 | 회신 → 값 후보 + 원문 인용 → (Backend 검증·매핑) → 자원·견적 Event (EMAIL + LLM 추출, 강도 ≤ 1) | 예 | 불확실 추출은 확인 요청 |
 | 10 | **Re-optimization** | 재계획 조건 판단과 재실행 | 활성 계획에 쓰인 자원·상태 사실이 바뀜, 계획 거절 | → 새 RecoveryRun (승인·실행된 배정 잠금, 변경 최소화) | 아니오 | 새 계획 승인 |
 
 ### 2.1 PoC 구현 묶음
@@ -133,5 +148,5 @@ LLM이 하지 않는 것: D&D 금액 계산, 비용 합산, State 임의 확정,
 | G1 계약 확인 | 계약 조건 최초 추출 | TariffRule DRAFT → CONFIRMED |
 | G2 사실 확인 | LLM이 추출한 컨테이너 사실, Conflict, STALE | Event → CONFIRMED / REJECTED |
 | G3 계획 승인 | Recovery Plan 표시 | 계획 실행 허가만(`PLAN_APPROVAL` 결정 기록). 입력 사실은 확정되지 않는다. G2 차단이 남아 있으면 통과 불가(`05_event-and-state.md` 11.5) |
-| G4 발송 승인 | 메일 초안 | 발송 (PoC: 가상) |
+| G4 발송 승인 | 메일 초안 | 발송 (PoC: 가상 / Tech Validation 이후: 실제). **Event가 아니라 `comm_messages` 승인 필드 + `audit_log`에 남는다**(사실에 대한 주장이 아니므로). 승인한 내용 해시와 다른 내용은 나가지 않고, 수신자는 Backend가 판정한 **검증·승인·활성 Contact**여야 한다(`18` D.5·E.4, ADR-027·028) |
 | G5 실행 결과 | 실제 반출·입고 결과 (Pilot) | 마일스톤 Event |

@@ -1,25 +1,30 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-09-15 (T-066 Monorepo 재정렬 완료. 같은 날: T-060~T-063 완료, T-036 DEFERRED, T-064·T-065 추가)
+- 최종 수정: 2026-09-16 (**T-068 DONE** — 외부 통신 Architecture RFC + AI/Backend 책임 경계 Audit, ADR-026~029 Accepted, 문서 기준점 커밋. 다음은 T-069 Implementation Plan). 이전: 2026-09-15 (T-067 AI 협업 Workflow 완료. 같은 날 T-066 Monorepo 재정렬 완료. 같은 날: T-060~T-063 완료, T-036 DEFERRED, T-064·T-065 추가)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
+- 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
 
 ## 다음 추천 태스크
 
+0. **T-069** (Implementation Planner, P1) — T-068 설계가 승인·커밋됐다. `docs/18_external-communication.md` **N절 15가지**에 답하는 Implementation Plan을 `docs/tasks/plans/T-069-*.md`에 쓴다. **M-6·Q-46은 계획에서 확정하지 않는다.** 계획이 승인돼야 구현을 시작한다
 1. **T-064** (NEEDS_HUMAN, P0) — Control Tower Prototype 검토: `front/web/` 실행해 9단계 재생, 화면·숫자·용어가 현업에게 보여줄 수준인지, `16_frontend-prototype.md` 11절 발견사항과 Q-37~Q-43 판단, ADR-022·023 판정. **커밋 여부 결정** — 2026-09-15 기준 약 2만 줄이 미커밋이고 원격 백업이 없다(T-066 LOG)
 2. **T-001** (NEEDS_HUMAN, P0) — 기획 v0.2 + T-032 결과 검토, ADR 판정 (T-060 시각 규칙 개정 포함)
 3. **T-017** (에이전트, P2) — Prototype 기반 인터뷰 가이드 (Prototype이 생겨 의존 해소, 사람 지시상 착수 가능)
 4. **T-034** (에이전트, P1) — 메일 Event 스키마 + LLM 추출 계약 (Prototype 회신 3건이 입력 예시)
 5. **T-035** (에이전트, P1) — Risk 모델 명세 (Prototype 등급 규칙 `risk.json` grade_rules가 초안 입력)
 
-실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030 (6개). T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
+실행 가능(TODO + 의존 해소): **T-069(1순위)**, T-070, T-017, T-029, T-034, T-035, T-040, T-030 (8개). T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
 
 **사람 지시**
+- (2026-09-16) **T-068을 사용자 지시로 착수했다. 설계(Task Brief + Architecture/RFC)까지만 하고 구현은 하지 않는다.** 이번에 만들지 않는 것: Solver, 실제 Recovery Optimization, Tauri·Rust·Desktop, Public API 연동, Contract Parser 전체, Multi-tenancy, Production infra. **Gmail을 현업의 최종 채널로 가정하지 않는다** — "실제 외부 통신 Loop를 기술적으로 검증하는 첫 채널"로만 다룬다.
+- (2026-09-16) **T-068 설계 승인 + 문서 기준점 커밋.** ADR-026·027·028·029 모두 `Accepted`. **`Tech Validation` 단계 신설로 실제 Gmail 발송이 가능해졌다**(등록·검증·승인된 연락처 + 건별 승인 + 개발환경 수신자 제한). **2026-09-15의 "Gmail·Backend 구현 금지" 지시는 External Communication Vertical Slice 범위에 한해 해제된다.** 단 **Implementation Plan(T-069)이 승인돼야 구현을 시작한다.** Solver·T-036 금지는 그대로 유지. ADR-029의 폴더 배치 적용은 T-003.
 - (2026-09-11) T-004 결과를 사람이 검토하기 전에는 T-005 이후(공공 API 실호출)로 넘어가지 않는다.
 - (2026-09-11) 기획 v0.2 재정렬 결과는 사람이 검토하기 전까지 커밋하지 않는다. → 같은 날 세션 끝에 **사람 요청으로 커밋함**(`af47569`). 이후 커밋도 사람 요청 시에만.
 - (2026-09-11) **T-032 결과를 사람이 검토하기 전에는 T-036, T-037, Phase 1 코드 작업으로 넘어가지 않는다.** → 2026-09-14 지시로 **Frontend Prototype(T-060~T-063)만 예외**로 수행했다. Backend·Solver·Phase 1 코드 금지는 유지.
 - (2026-09-11) T-032는 조건부 승인됐고 4개 패치를 반영했다. **사람 최종 검토 전까지 T-036 착수, 솔버 확정 금지.**
 - (2026-09-14) **T-036을 보류(DEFERRED)하고 30대 시나리오 + Frontend Prototype(Control Tower)을 먼저 만든다.** Prototype이 끝나도 Solver·Backend로 넘어가지 않는다. 커밋은 사람 승인 전 금지. (T-060~T-063으로 수행, 2026-09-15 완료)
+- (2026-09-15) **AI 협업 개발 Workflow를 따른다(ADR-025).** 한 Task 한 Orchestrator(Claude 또는 Codex), 인계는 `CURRENT.md`, 사용자 승인 없이 commit·push 금지. 다음 제품 Task는 사용자가 아직 고르지 않았다(후보: 현업 검증 / Gmail 연락 루프 / 결정론 코어 — 확정 아님). (T-067)
 - (2026-09-15) **CERA는 하나의 Private Monorepo로 유지한다.** 영역: `front/`·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/`. 저장소를 나누지 않는다. Backend·Gmail·LLM·Solver·Tauri 구현은 아직 시작하지 않는다. (T-066, ADR-024)
 
 ---
@@ -59,7 +64,7 @@
 
 ## 진행 중
 
-(없음)
+(없음 — T-068 설계 완료. 다음은 T-069 Implementation Plan)
 
 ## 대기 — P0
 
@@ -103,6 +108,45 @@
 - 완료 후 큐잉 힌트: T-003이 풀린다. 판정이 바뀌면 영향받는 명세 태스크 범위를 수정한다.
 
 ## 대기 — P1
+
+### T-070: `Tech Validation` 단계 + 통신 요구사항 + **책임 경계 Audit 잔여분**을 정본에 반영
+- 상태: TODO | 우선: P1 | 단계: Phase 0.5 | 담당: -
+- 의존: **T-068 사용자 승인** (ADR-027 Accepted 필요. 아래 Audit 잔여분은 ADR-029 판정 필요)
+- 참조 문서: docs/18_external-communication.md 부록, docs/01 6절, docs/02 6절, docs/03 2.1·2.7절, docs/05 4.4·5.2절, docs/06 7절, docs/07 4·5·6절, docs/11 5절
+- 목표: ADR-026·027·028 판정 결과를 정본 문서에 반영해 코드와 문서가 어긋나지 않게 한다.
+- 작업 내용:
+  - `01` 6절·`02` 6절에 `Tech Validation` 단계와 세 조건(허용목록·테스트 주소·건별 승인) 추가
+  - `03` FR-ING-07(Gmail 연동) 등급 조정, FR-COM-02의 "가상 메일함으로만" 수정, 발송 실패·중복 방지 FR 신설
+  - `06` 7절 G4 행에 실제 발송·승인 해시·감사 요건 추가
+  - `07` 4·5·6절: `messages` → `comm_*` 분리, 새 엔드포인트, `back/channels` 배치, 새 설정 키
+  - `05` 4.4에 값 미변경 회신 처리(M-6 결정), 5.2 어댑터 매핑에 메일 채널 행
+  - ~~`11` 5절 메일함 행 갱신~~ (T-068에서 선행 완료)
+- **책임 경계 Audit 잔여분** (T-068에서 발견했으나 이번에 고치지 않은 것):
+  - **ADR-029 판정 뒤**: `ai/README.md`·`back/README.md`·루트 `README.md`의 영역 책임 문구, `07` 6절 배치표, ADR-024 영역 표 (제품 폴더 안이라 T-068에서 손대지 않았다). 코드 이동 자체는 T-003
+  - `03` FR-ING-05(발신자 분류 주체 = Backend 등록부 명시), FR-RSP-01(추출과 Event 생성 주체 분리), NFR-03(측정 기준에 "결정론 검증기 통과" 추가), FR-ING-07 등급
+  - `02`·`09`·`10`·`12`·`CHANGELOG`의 "Agent Activity"·"Agentic System" 표현: 결정론 계산(Baseline 계산, plan generated, 재최적화)이 AI가 한 일처럼 읽히는 곳. **전면 개명이 아니라 오해가 큰 곳만** 정리한다(`06` 1.1절이 정본)
+  - `front/web/src/contracts/cera.ts`의 `RiskView.explanation`·`RecoveryAction.rationale`·`MessageView.extraction.method`: 산문 필드의 출처(엔진 템플릿 / LLM)가 타입으로 구분되지 않는다 → 계약 개정 때 반영
+- 산출물: 위 문서 갱신
+- 완료 조건:
+  - [ ] 승인된 M절 결정 7건이 전부 반영되거나 보류 사유 기록
+  - [ ] ADR-029 판정 결과 반영 (승인이면 3개 README + `07` 6절 + ADR-024, 부결이면 사유 기록)
+  - [ ] `18`의 부록 표와 실제 문서 상태가 일치
+- 완료 후 큐잉 힌트: T-069(Implementation Plan) 작성의 전제가 정리된다.
+
+### T-069: T-068 Implementation Plan (HOW) — **다음 작업**
+- 상태: TODO | 우선: **P1 (다음 추천 1순위)** | 단계: Phase 0.5 → 1 | 담당: Implementation Planner
+- 의존: **T-068 (DONE, 2026-09-16 승인·커밋)**. T-003(뼈대)은 이 계획의 1단계로 흡수할지 선행으로 뺄지를 계획이 결정한다
+- 참조 문서: **docs/18_external-communication.md N절(전제·15가지·금지선)과 O절(책임 경계표)**, docs/17_ai-development-workflow.md 4·7절, docs/tasks/CURRENT.md
+- 목표: RFC를 변경 파일·DDL·모듈 경로·작업 순서·테스트까지 구체화한 실행 계획으로 만든다.
+- 작업 내용: `18` N.2의 15가지에 답한다 — ① Backend 기술 뼈대 ② 최소 DB 스키마 ③ 거래처·연락처·검증 모델 ④ Gmail OAuth·어댑터 ⑤ Outbox·멱등 ⑥ 확인 메일 흐름 ⑦ 초안·승인·발송 API ⑧ 회신 수신 폴링 ⑨ AI 추출 인터페이스 ⑩ Event·Reconciliation 최소 subset ⑪ OpenAPI 구성 ⑫ Frontend Mock → Real 교체 범위 ⑬ 테스트 전략 ⑭ 구현 순서 ⑮ Antigravity 작업 단위
+- 산출물: `docs/tasks/plans/T-069-external-communication-slice.md` (`plans/` 폴더는 첫 사용 때 생성)
+- 완료 조건:
+  - [ ] N.2의 15가지에 모두 답함
+  - [ ] J.4의 2단계(Mock 채널로 루프 완주)가 **독립 단계**로 분리됨 — 실제 발송은 마지막에 켠다
+  - [ ] K.2 성공 판정 13개가 테스트로 매핑됨
+  - [ ] **M-6·Q-46을 확정하지 않았음**을 확인 (N.3 금지선)
+  - [ ] 사용자 승인(`APPROVED`)
+- 완료 후 큐잉 힌트: 구현 태스크로 쪼갠다(T-041·T-048·T-049·T-051 범위 재조정 포함). T-003 선행 여부가 여기서 정해진다.
 
 ### T-065: Prototype 발견 요구사항을 정본에 반영
 - 상태: TODO | 우선: P1 | 단계: Phase 0.5 | 담당: -
@@ -360,6 +404,17 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-068: CERA External Communication Vertical Slice v0.1 — 설계(Architecture RFC) + AI/Backend 책임 경계 Audit — DONE (2026-09-16, 사용자 결정 반영 및 커밋)
+- 산출물: **`docs/18_external-communication.md`**(A~O절 RFC), **ADR-026·027·028·029 모두 Accepted**, `docs/01` 3·6·6.1절(**Tech Validation 단계 신설**), `docs/02` 6절, `docs/04` 4.1, `docs/06` 1.1절(**10개 중 LLM은 3개**)·2·7절, `docs/07` 4·6·6.1절, `docs/11` 5절, `docs/15`(Q-44~Q-48), `docs/tasks/CURRENT.md`
+- 요약: Mock으로만 있던 외부 연락 루프(초안 → 사람 승인 → 발송 → 실제 회신 → 구조화 → Event 후보 → 화면)를 구현 가능한 수준으로 설계했다. Gmail은 **최종 채널이 아니라 첫 기술검증 채널**로 두고 Channel Adapter 뒤에 뒀다. 같은 날 2차 지시로 **AI/LLM vs Backend·결정론 엔진 책임 경계 Audit**을 수행해 RFC 초안 자체 7건 + 기존 정본 8건의 오배치를 찾아 고쳤다.
+- 핵심 결정: ① **AI 사용 기준 = "입력이 비정형인가"** (값이 자주 바뀌는가가 아님) — 구조화 채널은 LLM을 거치지 않는다 ② 발송 자격 = **거래처 → 담당 연락처 → 이메일 검증 → 관계 승인 → 통신 활성**(제품 게이트)이며 개발용 수신자 제한은 별개 장치 ③ `ai/`는 LLM·비정형 처리만, 결정론 엔진은 Backend 영역(새 `engine/` 만들지 않음, 적용은 T-003) ④ OpenAPI를 API 계약 정본으로 전환 시작
+- 열린 채로 남긴 것: **M-6**(값이 같은 새 회신의 신선도 갱신), **Q-46**(상대방 포털 입력의 Source 모델 — 채널·역할·입력주체 축 분리), **Q-48**(공용 업무 메일함 구분)
+- 제품 코드 변경 없음(`front/`·`back/`·`ai/`·`data/`·`packages/`·`infra/`), 폴더 이동 없음, `engine/` 미생성
+
+### T-067: (사람 지시) AI 협업 개발 Workflow / Orchestrator Handoff 규칙 — DONE (2026-09-15, 사람 검토 대기)
+- 산출물: `docs/17_ai-development-workflow.md`, `docs/tasks/CURRENT.md`(IDLE), `docs/tasks/TASK_BRIEF_TEMPLATE.md`, ADR-025, `AGENTS.md` 2절·3.1·3.2·3.4·3.6·3.7절·4절 규칙 10·5절, `CLAUDE.md` Claude 전용 메모, 루트 `README.md` Development Workflow, `docs/01` 8절 commit 문구, `docs/README.md` 색인
+- 요약: 사용자 = 최종 결정, Orchestrator = Claude 또는 Codex(한 Task 하나), ChatGPT = Planner/Reviewer, Antigravity = Implementer. 인계 정본은 대화가 아니라 CURRENT.md. 제품 코드·데이터 변경 없음
 
 ### T-066: (사람 지시) Private Monorepo 재정렬 — DONE (2026-09-15, 사람 검토 대기)
 - 산출물: `web/` → `front/web/` 이동, `back/`·`ai/`·`packages/`·`infra/` README, 루트 `README.md`, `AGENTS.md` 1.1절·4절(규칙 9·10)·6절, `CLAUDE.md`, `docs/07` 6절, ADR-024, `.gitignore`, 경로 참조 수정(`next.config.ts`, `tsconfig.json`, 검사 스크립트 2개, docs 9개)

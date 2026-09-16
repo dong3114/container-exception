@@ -1,8 +1,8 @@
 # 11. 데이터 출처와 검증
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-15 (T-060: RECEIVED_ONLY → 신선도 UNKNOWN)
-- 관련: `05_event-and-state.md`(Event·신뢰도·신선도), `data/field-dictionary.md`(공공 API 필드 정본, 출처 ID `S-nn`), `data/code-tables.md`
+- 최종 수정: 2026-09-16 (T-068 Audit: 5절 메일 분류를 결정론 등록부 조회로 확정, "모호하면 LLM 분류" 폐기. 구조화 채널의 LLM 우회 규칙 추가). 이전: 2026-09-15 (T-060: RECEIVED_ONLY → 신선도 UNKNOWN)
+- 관련: `05_event-and-state.md`(Event·신뢰도·신선도), `18_external-communication.md`(외부 통신 루프·채널·상대방 등록부), `data/field-dictionary.md`(공공 API 필드 정본, 출처 ID `S-nn`), `data/code-tables.md`
 
 ---
 
@@ -104,8 +104,9 @@ flowchart LR
 
 | 항목 | PoC | Pilot |
 | --- | --- | --- |
-| 메일함 | 가상 메일함(DB 테이블 + 시나리오 스크립트 회신) | Gmail·회사 메일 연동 방식 `[TO VERIFY]` Q-33 |
-| 분류 | 발신자·스레드로 결정론적 분류, 모호하면 LLM 분류 | 같음 |
+| 메일함 | 가상 메일함(DB 테이블 + 시나리오 스크립트 회신) | Gmail·회사 메일 연동 방식 `[TO VERIFY]` Q-33. 기술검증 1차 제안: **Gmail API + 전용 계정 + 전용 라벨 + CERA가 만든 Thread만 수집** `[PROPOSED]` (`18` G절) |
+| 추출 여부 | **입력이 비정형일 때만 LLM을 부른다.** 구조화 채널(응답 폼·포털·TMS·CSV)은 스키마 검증만 하고 LLM을 거치지 않는다 (2026-09-16, ADR-026) | 같음 |
+| 분류 | **발신자 주소 → 상대방 등록부 조회 + 스레드 상관. 전부 결정론이다.** 등록부에 없거나 스레드가 매칭되지 않으면 **Quarantine**(사람이 처리)이며, LLM에게 "누구인지" 묻지 않는다 (2026-09-16 개정, `18` A.1·D.5) | 같음 |
 | 추출 | 구조화 출력 + 검증기(`05_event-and-state.md` 4.6) | 같음 |
 | 원문 보관 | `raw_inputs` (합성 메일만 커밋) | 실제 메일은 커밋 금지, 보관 기간 정책 필요 |
 | 발송 | 가상 발송 | 사람 승인 후 실제 발송 (ADR 필요) |

@@ -1,7 +1,7 @@
 # 07. 백엔드 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
+- 최종 수정: 2026-09-16 (T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted)). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
 - 관련 ADR: ADR-002(스택), ADR-004(DB), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생)
 
 ---
@@ -113,7 +113,7 @@ flowchart TB
 | `risk_snapshots` | run_id, as_of, subject, type, grade, slack_minutes, exposure_krw, breakdown(json) | 산출물 |
 | `recovery_runs` | run_id, as_of, trigger, input_hash, policy/rule versions, seed, solver_status, baseline_krw, recovery_krw, provisional_inputs(json), status(PROPOSED/APPROVED/SUPERSEDED/REJECTED) | 산출물 |
 | `assignments` | run_id, container_no, route, slot, delivery_day, cost_krw, baseline_cost_krw, locked | 산출물 |
-| `messages` | message_id, thread_id, direction(OUT/IN), counterparty, subject, body, structured(json), status(DRAFT/APPROVED/SENT/RECEIVED), approved_by/at, run_id | |
+| ~~`messages`~~ | **ADR-028(Proposed)이 대체를 제안한다**: `comm_threads` / `comm_messages` / `comm_message_events` + 상대방 등록부 `counterparties` → `counterparty_contacts` → `contact_channel_addresses`(발송 자격 3상태) + `contact_verifications` + `extractions`. 현재 컬럼에는 채널·외부 ID·재시도·멱등키·승인 내용 해시가 없어 실제 발송을 감당하지 못한다. 컬럼 정의는 `18` D.1 | 판정 전 |
 | `agent_activity` | id, at, agent, action, refs(json), text | append-only, 타임라인 |
 | `audit_log` | id, at, actor, action, target, detail(json) | append-only |
 | `scenarios` | scenario_id, seed, body(json) | SIMULATED |
@@ -177,15 +177,31 @@ container_exception/            ← 저장소 루트 = CERA 루트
 
 | 영역 | 들어갈 모듈 (옛 `src/cera/` 이름) | 비고 |
 | --- | --- | --- |
-| `back/` | `api`(REST + push), `storage`(DB·마이그레이션), `intake`(어댑터: public_api·csv·actions·mailbox·documents·scenario), `state`(reconcile·canonical·verification), `comms`(초안·승인·발송·스레드), `orchestrator`, `sim`(시나리오 재생·SimClock), `config`(policy.yaml) | Event 저장·Canonical State·연동·승인·감사가 모두 여기 |
-| `ai/` | `extraction`(LLM 구조화 추출·검증기·프롬프트), 결정론 엔진 `tariff`·`cost`·`risk`·`optimize` | 같은 영역이라도 LLM 코드와 결정론 엔진은 서로 다른 패키지로 나누고, 엔진은 LLM 클라이언트를 import하지 않는다(`01` 3절) |
+| `back/` | **I/O 계층**: `api`(REST + push), `storage`(DB·마이그레이션), `intake`(어댑터: public_api·csv·actions·mailbox·documents·scenario), `channels`(Gmail 등 통신 채널 어댑터·OAuth), `comms`(초안·승인·Outbox·스레드·상대방 등록부), `orchestrator`, `sim`(시나리오 재생·SimClock), `config`(policy.yaml)<br>**결정론 엔진**(ADR-029): `state`(reconcile·canonical·verification), `tariff`, `cost`, `risk`, `optimize` | Event 저장·Canonical State·연동·승인·감사·**모든 결정론 계산**이 여기. 엔진 패키지는 순수 함수이고 `storage`·네트워크·LLM 클라이언트를 import하지 않는다(`07` 1.2, `01` 3절) |
+| `ai/` | **LLM·비정형 처리만** (ADR-029 Accepted): LLM Provider, Email Extraction, Contract Extraction, Draft 자연어 문장, Explanation | 검증기·매핑은 Backend 쪽이다(`18` D.3). `ai/`는 DB 커넥션·ORM·외부 API 클라이언트를 갖지 않는다 |
 | back·ai 공통 | `domain`(Event, CanonicalFact, TariffRule, Plan … 모델) | 둘이 함께 쓰는 Python 패키지 위치는 T-003에서 정한다 |
 | `packages/` | 화면·백엔드 공유 계약 | Backend의 **OpenAPI를 정본**으로 두고 TypeScript 타입을 자동 생성하는 방향. 지금은 `front/web/src/contracts/cera.ts`(손 작성) |
 | `data/` | `scenarios/`(현재 JSON), `fixtures/`(마스킹·합성, 녹화 응답), `contracts/`(합성 계약서), `raw/`(실제 원본, `.gitignore`) | 현재는 `scenarios/`만 있음 |
 | `infra/` | Dockerfile, compose, 클라우드 배포 | 서비스별 이미지(front / back / ai) |
 | 테스트 | 각 영역 안에 둔다(`back/tests`, `ai/tests`, `front/web`의 검사 스크립트) | 옛 계획의 루트 `tests/`·`schemas/`는 영역별로 나눈다 |
 
-**향후 방향 (확정 아님)**: Frontend는 Web 우선. Backend는 중앙 API·DB·Integration. AI/Decision Engine은 LLM·Parsing·Risk·Solver. Desktop 앱은 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 **검토**한다.
+**향후 방향 (확정 아님)**: Frontend는 Web 우선. Backend는 중앙 API·DB·Integration. Desktop 앱은 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 **검토**한다(Tauri는 확정 기술이 아니다).
+
+### 6.1 결정론 엔진은 `ai/`에 두지 않는다 (ADR-029, Accepted 2026-09-16)
+
+**위험·비용·Tariff·Reconciliation·최적화·Solver는 AI가 아니다.** CERA의 핵심 주장은 "숫자는 결정론 엔진에서만 나온다"(`01` 3절)이고 금지 주장에는 "AI가 D&D 비용을 계산한다"(`01` 4절)가 들어 있다. 그 코드가 `ai/`라는 폴더에 있으면 저장소를 여는 사람마다 그 주장을 의심하게 된다. 게다가 옛 배치는 순수 엔진 중 **`state`만 `back/`에 두고 나머지를 `ai/`에 둬서** 이미 일관되지 않았다.
+
+| 영역 | 맡는 것 |
+| --- | --- |
+| `ai/` | LLM Provider, Email Extraction, Contract Extraction, Draft 자연어 문장, Explanation |
+| `back/` 결정론 엔진 | Reconciliation·Canonical State, Freshness, Tariff·LFD, Cost·D&D, Risk·Slack Time, Constraint Validation, Optimization·Solver |
+
+- **새 최상위 `engine/` 영역은 만들지 않는다.** 1인 개발·MVP 규모에서 세 번째 패키지·테스트 트리·의존 그래프는 과설계다. 별도 배포 이미지나 두 번째 소비자가 생기면 그때 다시 판단한다.
+- 엔진 패키지는 순수 함수이고 `storage`·네트워크·LLM 클라이언트를 import하지 않는다. 패키지 경계로 강제한다.
+- **적용 시점은 T-003(Backend scaffold)이다.** 지금은 `back/`·`ai/`에 코드가 없어 이동 비용이 0이다. T-068에서는 폴더를 옮기지 않았다.
+- `ai/README.md`·`back/README.md`·루트 `README.md`의 영역 문구는 T-070에서 맞춘다.
+
+책임 경계 전체는 `18_external-communication.md` O절 표를 본다.
 
 ## 7. 설정·비밀
 

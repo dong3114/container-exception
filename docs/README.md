@@ -1,6 +1,6 @@
 # docs — 정본 문서 색인
 
-- 기준: **기획 v0.2** (2026-09-11). 2026-09-15: `16_frontend-prototype.md` 추가, 저장소를 Monorepo 영역으로 재정렬(ADR-024)
+- 기준: **기획 v0.2** (2026-09-11). 2026-09-15: `16_frontend-prototype.md` 추가, 저장소를 Monorepo 영역으로 재정렬(ADR-024). 2026-09-16: `18_external-communication.md`(외부 통신 루프 RFC) 추가
 - 저장소 전체 구조(front·back·ai·packages·data·docs·infra)는 루트 `README.md`와 `07_backend-architecture.md` 6절. 코드가 의존하는 기술 문서는 이 폴더(Git)에 둔다. 발표 자료·사업계획서 같은 외부 공유 자료는 Git 밖(예: Google Drive)에 둘 수 있다
 - 이 폴더에 있는 문서가 현재 정본(canonical source)의 전부다. 옛 기획(v0.1) 문서와 원본 기획서는 저장소에 남기지 않는다. 무엇이 바뀌었고 무엇이 폐기됐는지는 `CHANGELOG.md`에 있다.
 
@@ -28,8 +28,12 @@
 | — | `CHANGELOG.md` | 기획 버전 간 변경 요약, 폐기된 가정, 문서 이전 지도 | Living |
 | — | `data/field-dictionary.md` | 공공 API 필드 사전 (공식 명세 기준, 출처 S-nn) | Draft (T-004) |
 | — | `data/code-tables.md` | 공공 API 코드값·에러코드 | Draft (T-004) |
-| — | `tasks/QUEUE.md` | 작업 큐 | Living |
-| — | `tasks/LOG.md` | 작업 인계 로그 | Living (append-only) |
+| 17 | `17_ai-development-workflow.md` | AI 협업 개발 Workflow: 역할, Task Brief → Plan → Implement → Review → Docs Sync → Commit, Orchestrator Handoff, Commit Gate | Accepted (ADR-025) |
+| 18 | `18_external-communication.md` | 외부 통신 루프 RFC: 초안 → 사람 승인 → 발송 → 회신 → 구조화 → Event 후보. Channel Adapter, Gmail 첫 검증 채널, OAuth·최소 권한, 실패·중복·재시도, Mock→Real | **RFC Draft — 사람 검토 대기** (T-068) |
+| — | `tasks/CURRENT.md` | **현재** 진행 중인 작업 하나의 인수인계 문서 (Claude ↔ Codex 교대 기준) | Living |
+| — | `tasks/TASK_BRIEF_TEMPLATE.md` | Task Brief 형식 (WHAT / WHY) | Living |
+| — | `tasks/QUEUE.md` | 작업 큐 (**예정** 작업) | Living |
+| — | `tasks/LOG.md` | 작업 인계 로그 (**끝난** 작업) | Living (append-only) |
 
 `Draft`: 초안이며 사람 검토 전이다. `Living`: 작업할 때마다 계속 갱신한다.
 
@@ -48,7 +52,7 @@
 3. `02_product-definition.md` (방향·범위)
 4. `05_event-and-state.md`, `04_domain-model.md`
 5. `06_agent-architecture.md`, `07_backend-architecture.md`, `08_optimization-model.md`
-6. `03_requirements.md`, `09_mvp-scenario.md`, `10_simulation-spec.md`, `11_data-sources.md`, `16_frontend-prototype.md`, `data/*`
+6. `03_requirements.md`, `09_mvp-scenario.md`, `10_simulation-spec.md`, `11_data-sources.md`, `16_frontend-prototype.md`, `18_external-communication.md`, `data/*`
 7. `12_roadmap.md`
 
 하위 문서가 상위 문서와 다르면 하위 문서를 고치거나, 상위 문서 변경이 필요하면 ADR을 먼저 올린다. 단, `data/field-dictionary.md`의 `[VERIFIED]` 사실이 상위 문서의 가정과 다르면 사실을 기준으로 상위 문서를 고친다.

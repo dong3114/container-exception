@@ -21,6 +21,42 @@
 
 ---
 
+## 2026-09-16 · T-068 External Communication Architecture RFC + AI/Backend 책임 경계 Audit · Claude Code (claude-opus-5)
+- 상태: 완료 (사용자 승인 뒤 **커밋함**). baseline `5972420` 위의 문서 변경만. 제품 코드 0건
+- 지시: ① Mock으로만 존재하던 외부 연락 루프(초안 → 사람 승인 → 발송 → 실제 회신 → 구조화 → Operational Event → 화면)를 구현 가능한 수준으로 설계 ② 같은 날 2차로 **AI/LLM과 Backend·결정론 엔진의 책임 경계 재정리** ③ 3차로 승인 결정 반영 + 문서 동기화 + 커밋. 구현·폴더 이동 금지
+- 한 일:
+  1. **RFC 작성** `docs/18_external-communication.md` (A~O절): 기능 흐름, Front/Back/AI 책임, 도메인 모델, 상태 전이, Event/State 연결, Gmail OAuth·최소 권한, 실패·중복·재시도, API 후보, Mock→Real 전환, MVP 범위, 미루는 것, 열린 결정, Planner Handoff, **O절 CERA 전체 책임 경계표**
+  2. **책임 경계 Audit**: RFC 초안 자체에서 7건(LLM이 `entity_id`·`fact_key` 출력 / `send_allowlist`가 제품·개발 혼재 / 허용 조건 축이 "실제 현업인가" / 구조화 채널 분기 없음 / 회신 결과 단일 분류 / Contact 개념 부재 / 경계표 부재), 기존 정본에서 8건(`11` "모호하면 LLM 분류", `06` 10개 중 7개가 결정론인데 Agent, `04` LLM → DB 구조체 직결 도식, `07` 순수 엔진 중 `state`만 `back/`, 3개 README의 `ai/` 배정, `03` FR 3건, `02`·`09`·`10`·`12`의 Agent 표현) 발견. 고칠 수 있는 것은 고치고 나머지는 T-070으로
+  3. **승인 결정 반영**: `01` 6·6.1절 **`Tech Validation` 단계 신설**(PoC "가상 메일함만" 규칙과의 충돌을 삭제가 아니라 단계 정의로 해소), `02` 6절 제품 단계, `01` 3절 LLM 사용 기준·금지 경계, ADR-026·027·028·029 **모두 Accepted**, ADR-024 `ai/` 영역 정의 개정 주석
+- 핵심 결정:
+  - **AI 사용 기준 = "입력이 비정형이고 해석이 필요한가"** (값이 자주 바뀌는가가 아님). 구조화 채널(폼·포털·TMS·CSV)은 LLM을 거치지 않는다. `Form → LLM → Structured Value` 금지
+  - **발송 자격 = 거래처 → 담당 연락처 → 이메일 검증 → 관계 승인 → 통신 활성** (제품 게이트, 영구). 개발환경 수신자 제한은 **별개 장치**. 테스트 상대도 같은 검증 흐름을 쓴다(우회 경로 없음)
+  - **`ai/`는 LLM·비정형 처리만.** 결정론 엔진(Tariff·Cost·Risk·Reconciliation·Optimize·Solver)은 Backend 영역. 새 `engine/`은 만들지 않음. 적용은 T-003
+  - LLM 출력에서 `entity_id`·`fact_key`·역할·강도를 걷어냄. LLM은 `ask_id` + 값 + 원문 인용만 내고 Backend가 매핑
+  - AI 책임 4가지는 **현재 MVP 허용 범위**이지 영구 고정 목록이 아니다
+- 변경 파일: 신규 `docs/18_external-communication.md` / 수정 `docs/01`(6·6.1절 신설), `docs/02`(6절), `docs/04`(4.1), `docs/06`(1.1절 신설·2·7절), `docs/07`(6.1절 신설·4·6절), `docs/11`(5절), `docs/14`(ADR-024 주석 + ADR-026~029), `docs/15`(Q-44~Q-48), `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`
+- 검증: `git status --porcelain -- front/ back/ ai/ data/ packages/ infra/` 결과 없음(제품 코드 무변경), `engine/` 미생성, remote 없음. 문서만 바꿔 코드 검증 명령은 돌리지 않음(baseline 검증은 2026-09-15 T-063 기준 유효)
+- 남은 일 / 다음 한 걸음: **T-069 Implementation Plan** — `18` N절의 15가지에 답한다. 계획이 승인돼야 구현 시작
+- 큐 변경: T-068 DONE, **T-069 신규(다음 1순위)**, T-070 신규(정본 잔여 반영). 2026-09-15 "Gmail·Backend 구현 금지" 지시는 이 Slice 범위에 한해 해제(Solver·T-036 금지는 유지)
+- 주의사항:
+  - **M-6**(값이 같은 새 회신의 신선도 갱신), **Q-46**(상대방 포털 입력의 Source 모델), **Q-48**(공용 업무 메일함 구분)은 **열린 상태**다. 구현 계획에서 확정하지 말 것
+  - 새 문서·코드에서 결정론 모듈을 "Agent"라고 부르지 않는다. 기존 스키마명(`agent_activity`)·제품명은 개명하지 않았다
+  - `ai/README.md`·`back/README.md`·루트 `README.md`의 영역 문구는 제품 폴더 안이라 손대지 않았다 → T-070
+
+## 2026-09-15 · T-067 (사람 지시) AI 협업 개발 Workflow / Orchestrator Handoff · Claude Code (claude-opus-5)
+- 상태: 완료 (사람 검토 대기, **커밋하지 않음**). baseline `5972420` 위의 문서 변경만
+- 지시: Claude·Codex가 번갈아 Orchestrator를 맡고 ChatGPT(계획·리뷰)·Antigravity(구현)를 함께 쓸 때 방향이 흔들리지 않도록, 인수인계를 Git 문서로 정식화. 제품 기능 구현 금지
+- 한 일:
+  1. 기존 규칙 점검 후 충돌 4건을 통합: ① `AGENTS.md` 2절의 1회성 `HANDOFF.md` → `CURRENT.md`로 대체(옛 파일이 있으면 옮기고 삭제) ② 3.1절 이어받기 기준 "LOG 중단 인계" → "CURRENT가 IDLE이 아님" ③ 3.6절 중단 기록 → CURRENT ④ `docs/01` 8절 "태스크 완료 조건에 있을 때 커밋" 예외 → 사람 승인 뒤로 일원화
+  2. 신규: `docs/17_ai-development-workflow.md`(역할, 정본 순서, 11단계 흐름과 작은 수정 간소화, Handoff 절차, QUEUE·CURRENT·LOG, ChatGPT·Antigravity 지시 최소 항목, Commit Gate), `docs/tasks/CURRENT.md`(Status IDLE — 가짜 Task 없이 현재 상태, 다음 Task 후보는 미확정으로), `docs/tasks/TASK_BRIEF_TEMPLATE.md`
+  3. `AGENTS.md`: 읽는 순서에 CURRENT·git status, 3.2 착수 때 CURRENT Task Brief, 3.4 완료 때 CURRENT → LOG, 3.7 Orchestrator Handoff Rule, 규칙 10에 "승인" 추가, 문서 지도. `CLAUDE.md`: Claude 전용 메모 3줄(규칙 복제 없음). 루트 `README.md`: Development Workflow 짧은 표. ADR-025(Accepted, 사람 결정)
+  4. CODEX.md·Antigravity 설정 파일은 만들지 않았다(모든 도구가 AGENTS.md·CURRENT.md를 읽는 구조)
+- 변경 파일: 신규 `docs/17_ai-development-workflow.md`, `docs/tasks/CURRENT.md`, `docs/tasks/TASK_BRIEF_TEMPLATE.md` / 수정 `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/01_project-rules.md`, `docs/14_decisions.md`, `docs/README.md`, `docs/tasks/QUEUE.md`, `docs/tasks/LOG.md`
+- 검증: `front/web/src`·`data/scenarios`·코드 파일 변경 없음(`git diff --name-status`로 확인). 새·수정 문서의 로컬 링크·경로가 실제 파일을 가리키는지 검사. Frontend 코드가 바뀌지 않아 build는 다시 돌리지 않음
+- 남은 일 / 다음 한 걸음: 사람 — T-067 커밋 여부, 다음 제품 Task 선택(CURRENT Open Questions), T-064·T-001
+- 큐 변경: T-067 추가·DONE, 사람 지시(Workflow) 추가, QUEUE 머리에 QUEUE·CURRENT·LOG 역할 구분
+- 주의사항: 다음 세션(Claude든 Codex든)은 `AGENTS.md` → `docs/tasks/CURRENT.md` → `git status` 순서로 시작한다. CURRENT는 IDLE이며 T-067 변경이 커밋 승인 대기로 적혀 있다
+
 ## 2026-09-15 · T-066 (사람 지시) Private Monorepo 재정렬 · Claude Code (claude-opus-5)
 - 상태: 완료 (사람 검토 대기, **커밋하지 않음**)
 - 지시: 저장소를 나누지 않고 하나의 Private Monorepo 안에서 `front/`·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/` 책임 영역으로 재정렬. 기능 추가·Backend·Gmail·LLM·Solver·Tauri 금지. Frontend Prototype을 깨뜨리지 않는 것이 최우선
