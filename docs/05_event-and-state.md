@@ -1,10 +1,10 @@
 # 05. 이벤트·상태 아키텍처 (Operational Event → Canonical Operational State)
 
-- 상태: Draft — **T-032 확정안, 사람 검토 대기** (기획 v0.2)
+- 상태: **구조 승인됨** — 이 문서가 정의하는 **구조**(Reconciliation, 출처 3축, 상태 차원 분리, 컨테이너 Hybrid)는 2026-09-16 사람 결정으로 확정됐다(ADR-019·020·021 `Accepted (구조 한정)`). **15절의 정책 파라미터 값은 계속 검증한다**(Q-23·Q-24). 기획 v0.2
 - 최종 수정: 2026-09-15 (T-060: `RECEIVED_ONLY`는 STALE이 아니라 신선도 `UNKNOWN`. `temporal_quality` → `evidence_time_quality`, `temporal_confidence` 추가. 5.2·5.3·6.2·8.4·9.1·14·15절)
 - 이전 수정: 2026-09-11 (T-032)
 - **완료 상태**: T-060 수정으로 Event/State 설계는 완료 상태다(사람 검토 T-001은 별도로 남음). 다음 개발 순서는 `12_roadmap.md` 2.5절(Prototype-led Discovery)
-- 관련 ADR: ADR-013(저장 방식), ADR-014(Freshness), ADR-017(사람 확인 게이트), **ADR-019(Reconciliation Policy)**, **ADR-020(상태 차원 분리·출처 모델)**, ADR-021(컨테이너 상태 모델, `04_domain-model.md` 2절). ADR-012의 전역 우선순위 규칙은 ADR-019로 대체
+- 관련 ADR: ADR-013(저장 방식, Proposed), ADR-014(Freshness, Proposed), ADR-017(사람 확인 게이트, Proposed), **ADR-019(Reconciliation Policy, Accepted 구조 한정)**, **ADR-020(상태 차원 분리·출처 모델, Accepted 구조 한정)**, **ADR-021(컨테이너 상태 모델, Accepted 구조 한정**, `04_domain-model.md` 2절). ADR-012의 전역 우선순위 규칙은 ADR-019로 대체
 - 이 문서가 답하는 질문: **서로 다른 출처가 서로 다른 현실을 말할 때, CERA는 어떤 근거로 현재 운영 상태를 정하는가?**
 
 ## 0. 결정 수준 표기

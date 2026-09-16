@@ -1,9 +1,10 @@
 # 03. 요구사항
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-15 (5절: Control Tower Prototype 메모)
-- 우선순위: `Must`(PoC 데모에 반드시) · `Should`(PoC에 있으면 좋음) · `Could`(Pilot 이후)
-- 단계: `PoC` · `Pilot` · `Scale` (`02_product-definition.md` 6절)
+- 최종 수정: 2026-09-16 (T-071: 외부 통신 상세 요구사항을 `19`로 분리하고 2.7절에 연결. FR-ING-05·07, FR-COM-02, FR-RSP-01, NFR-03을 ADR-026·027에 맞게 개정). 이전: 2026-09-15 (5절: Control Tower Prototype 메모)
+- 우선순위: `Must`(반드시) · `Should`(있으면 좋음) · `Could`(나중)
+- 단계: `PoC` · **`Tech Validation`** · `Pilot` · `Scale` (`02_product-definition.md` 6절, ADR-027)
+- **외부 통신(거래처·연락처·확인·승인·발송·회신·추출)의 상세 요구사항은 `19_external-communication-requirements.md`가 정본이다.** 이 문서는 전체 지도를 유지한다
 
 ---
 
@@ -28,9 +29,9 @@
 | FR-ING-02 | Watchlist(B/L·컨테이너 목록)와 초기 상태를 CSV/Excel로 받는다. 행 단위 검증(ISO 6346 체크디지트, 중복, 범위 밖 건) 결과를 보여준다 | Must | PoC |
 | FR-ING-03 | 사용자 짧은 액션을 Event로 기록한다: [확인] [수정] [도착] [통관 완료] [반출 완료] [입고 완료] [입고 거절] [ODCY 이동] [공컨 반납] [수용량 변경] | Must | PoC |
 | FR-ING-04 | 목적지 단위 **일일 집계 보고**를 받는다(예정·도착·입고 완료·대기·잔여 수용 가능 대수) | Must | PoC |
-| FR-ING-05 | 가상 메일함의 수신 메일을 읽어 추출 대상(운송사·ODCY·창고·선사)을 분류한다 | Must | PoC |
+| FR-ING-05 | 수신 메일을 읽어 어느 거래처·역할(운송사·ODCY·창고·선사)의 것인지 **상대방 등록부 조회로 결정론적으로** 분류한다. 등록부에 없으면 보류하고 사람에게 알린다. **LLM에게 "누구인지" 묻지 않는다** (2026-09-16 개정, `19` FR-INB-03·06) | Must | PoC |
 | FR-ING-06 | 공공 API(DS-01, DS-03, DS-02)를 읽기 전용으로 동기화해 자동 초기화·교차 검증·히스토리 보강에 쓴다. 응답 원문과 `fetched_at`을 보관한다 | Should | PoC (녹화 fixture로 데모 가능) |
-| FR-ING-07 | 실제 메일함(Gmail·회사 메일) 연동 | Could | Pilot |
+| FR-ING-07 | 실제 메일함(Gmail 등) 연동. **2026-09-16 개정(ADR-027 Accepted)**: `Could/Pilot` → **`Must` / Tech Validation**. 등록·검증·승인된 연락처에만, 건별 사람 승인 뒤 실제 발송·수신. 상세 요구사항은 **`19_external-communication-requirements.md`** | Must | Tech Validation |
 | FR-ING-08 | 파트너 시스템(TMS·터미널) 연동 | Could | Scale |
 
 ### 2.2 이벤트·상태 (Event Store / Reconciliation / Canonical State)
@@ -87,10 +88,14 @@
 
 | ID | 요구사항 | 우선 | 단계 |
 | --- | --- | --- | --- |
+> **상세 요구사항은 `19_external-communication-requirements.md`에 있다** (2026-09-16, T-071). 아래는 요약이고, 거래처·연락처 등록, 이메일 주소 확인, 발송 자격, 승인, 실제 발송, 회신 수신, AI 추출 계약, 실패 처리는 19번 문서가 정본이다. 19번은 `FR-CPY`·`FR-EVF`·`FR-ELG`·`FR-APV`·`FR-SND`·`FR-INB`·`FR-XAI`·`FR-STC`·`FR-EVL` 그룹과 `FR-COM-04~`·`FR-UI-09~`·`FR-AUD-02~`·`NFR-12~`를 쓴다.
+
+| ID | 요구사항 | 우선 | 단계 |
+| --- | --- | --- | --- |
 | FR-COM-01 | 계획과 부족 자원에서 연락 메일 초안을 만든다(운송사 차량 문의, ODCY 자리·요율 문의, 창고 추가 수용 문의). 수량·시각은 계획 값에서 넣는다 | Must | PoC |
-| FR-COM-02 | 초안은 사람이 승인해야 발송된다. PoC 발송은 가상 메일함으로만 간다 | Must | PoC |
+| FR-COM-02 | 초안은 사람이 승인해야 발송된다. **PoC 발송은 가상 메일함으로만 간다. Tech Validation 단계부터는 등록·검증·승인된 연락처에 실제로 발송한다**(2026-09-16 개정, ADR-027. `19` FR-ELG·FR-APV·FR-SND) | Must | PoC |
 | FR-COM-03 | 발송 메일과 회신을 스레드로 묶는다 | Must | PoC |
-| FR-RSP-01 | 회신에서 가능/불가, 수량, 시각, 비용, 조건을 추출해 자원 Event(PROVISIONAL)로 만들고 요약을 보여준다 | Must | PoC |
+| FR-RSP-01 | 회신에서 가능/불가, 수량, 시각, 비용, 조건을 **값 후보로** 추출하고, **서버가 검증·매핑한 뒤** 자원 Event(PROVISIONAL)로 만들어 요약을 보여준다. **LLM이 Event를 만들지 않는다**(2026-09-16 개정, `19` FR-XAI-05·06) | Must | PoC |
 | FR-RSP-02 | 추출이 불확실하면(스키마 불일치, 근거 없음, 모호) 확인 요청으로 보낸다 | Must | PoC |
 
 ### 2.8 시뮬레이션·화면
@@ -122,7 +127,7 @@
 | --- | --- | --- |
 | NFR-01 결정론·재현성 | 같은 입력이면 같은 상태·계획·금액 | 시나리오 3회 재생 결과의 해시가 같다 |
 | NFR-02 추적성 | 화면의 모든 숫자·상태는 근거(Event, 규칙 버전, Run ID)로 거슬러 올라갈 수 있다 | Container Detail·Recovery Console에서 한 번의 클릭으로 근거를 연다 |
-| NFR-03 안전성 (Human-in-the-loop) | 외부 발송·실행은 사람 승인 없이 일어나지 않는다. LLM 결과는 사람 확인 전 CONFIRMED가 될 수 없고, 컨테이너 사실·계약 조건은 확인 전 Canonical State에 반영되지 않는다(자원·견적 사실은 PROVISIONAL, 불리한 큰 변경은 보류) | 승인 없는 발송 경로가 코드에 없음을 테스트로 확인 |
+| NFR-03 안전성 (Human-in-the-loop) | 외부 발송·실행은 사람 승인 없이 일어나지 않는다. **LLM 출력은 결정론 검증기를 통과해야만** 후보 Event가 되고, 사람 확인 전 CONFIRMED가 될 수 없다. 컨테이너 사실·계약 조건은 확인 전 Canonical State에 반영되지 않는다(자원·견적 사실은 PROVISIONAL, 불리한 큰 변경은 보류) | ① 승인 없는 발송 경로가 코드에 없음 ② **검증기를 거치지 않고 Event가 만들어지는 경로가 없음** ③ **자격 없는 수신자로 발송되지 않음** — 셋 다 테스트로 확인 (2026-09-16 개정, `19` 20절) |
 | NFR-04 응답 시간 | 예외 입력부터 새 계획 표시까지 | 30대 기준 10초 이내 `[ASSUMPTION]` (솔버 5초 이내) |
 | NFR-05 LLM 비용·지연 | 추출·초안은 건당 수 초. 데모 1회 LLM 비용 상한을 설정으로 둔다 | 녹화 응답으로 오프라인 데모 가능 |
 | NFR-06 테스트 가능성 | 테스트는 네트워크 없이 통과한다(공공 API·LLM 녹화 fixture) | CI 없이 로컬 `pytest` |

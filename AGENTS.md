@@ -154,7 +154,8 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 | `docs/15_open-questions.md` | 미확정 사항, 리스크 | 가정을 세우거나 검증했을 때 |
 | `docs/16_frontend-prototype.md` | Control Tower Prototype: 실행, Data Contract, 단계별 화면, 발견한 요구사항 | 프론트·시나리오·계약 작업 |
 | `docs/17_ai-development-workflow.md` | AI 협업 개발 Workflow: 역할(사용자·Orchestrator·Planner·Implementer), 흐름, Handoff, Commit Gate | 새 Task 시작·도구 교대·구현 위임 때 |
-| `docs/18_external-communication.md` | 외부 통신 루프 RFC: 초안→승인→발송→회신→구조화→Event. Channel Adapter, Gmail(첫 검증 채널), OAuth·최소 권한, 실패·중복·재시도, Mock→Real | 연락·메일·채널·승인 흐름 작업 |
+| `docs/18_external-communication.md` | 외부 통신 **아키텍처(왜 이 구조인가)**: Channel Adapter, Gmail(첫 검증 채널), OAuth·최소 권한, 실패·중복·재시도, Mock→Real, **O절 CERA 전체 책임 경계표** | 연락·메일·채널 설계 판단이 필요할 때 |
+| `docs/19_external-communication-requirements.md` | 외부 통신 **요구사항(무엇을 만드나)**: 사용자 흐름, 거래처·연락처·이메일 확인, 발송 자격·승인·발송, 회신·AI 추출 계약, 실패 표, 화면 상태, 완료 조건 | **외부 통신을 구현·계획할 때 (정본)** |
 | `data/scenarios/busan-wh-capacity-01/README.md` | 30대 시나리오 데이터 팩(Prototype 판) | 시나리오 값을 바꿀 때 |
 | `docs/data/field-dictionary.md` | 공공 API 필드 사전(공식 명세 기준, 출처 S-nn) | 공공 API 어댑터 작업 |
 | `docs/data/code-tables.md` | 공공 API 코드값·에러코드 | 어댑터·파서 작업 |

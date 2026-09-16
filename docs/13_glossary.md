@@ -1,7 +1,7 @@
 # 13. 용어집
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
+- 최종 수정: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
 - 코드 식별자는 `코드 표기` 열을 따른다.
 
 ## 1. 물류·통관
@@ -35,6 +35,8 @@
 | 수입신고수리 | `customs_cleared` | 세관이 수입신고를 수리함 → 반출 가능 조건 중 하나 |
 | D/O | `delivery_order` | Delivery Order, 화물인도지시서. 선사가 발행하며 반출 조건 중 하나 |
 | ODCY | `odcy` | Off-Dock Container Yard. 부두 밖 컨테이너 장치장 |
+| **Facility** | — | **컨테이너가 머무르거나 거쳐 가는 물리적 장소의 공통 상위 개념** (창고·터미널·ODCY). 식별·위치·운영 시간이 공통이고 용량·요율·규격 제한은 종류마다 다르다. **개념적 부모일 뿐이며 "테이블 하나에 전부 넣는다"는 뜻이 아니다** — 저장 구조는 논리 설계에서 결정 (2026-09-16 T-072) |
+| **Destination** | `destination_id` | **특정 컨테이너·운영 계획에서 도착해야 하는 곳이라는 역할.** Facility의 한 종류로 바로 확정하지 않았다 — 같은 창고가 어떤 컨테이너에는 목적지이고 다른 컨테이너에는 경유지일 수 있다. Facility와의 관계는 개념 모델에서 검토 (2026-09-16 T-072) |
 | VBS | `vbs` | Vehicle Booking System. 터미널 반출입 차량 예약 시스템 |
 | Gate | `gate` | 터미널 출입구. Gate 처리 시간·버퍼 |
 | 공컨 반납 | `empty_return` | 적출 뒤 빈 컨테이너를 선사 지정 장소에 반납 |
@@ -62,6 +64,8 @@
 | Confidence | `confidence` | Event 입력 품질(HIGH / MEDIUM / LOW). 결정론적 검증기가 정한다(`05` 4.6) |
 | fact_kind | `fact_kind` | 사실 종류: MILESTONE / STATE / OFFER / TERM / IDENTITY / PLAN / FORECAST. 종류마다 선택 규칙이 다르다 |
 | FORECAST | `forecast.*` | 외부 예정·예상 또는 CERA 예측(ETA 등). 관측 사실과 다른 키이며, 실제 사건이 생기면 판단에서 빠진다 |
+| **PLAN (fact_kind)** | `plan.*` | **CERA 사용자가 세운 예정**(픽업 예정 시각, 입고 예정일). 3절의 **Operational Plan**에 해당한다. **최적화가 만든 Recovery Plan이 아니다** — 이름이 같아 혼동하기 쉬우므로 주의 (2026-09-16 T-072) |
+| **Actor** | — | **CERA 안에서 행동한 주체.** 승인·결정·확인 기록이 가리키는 대상(운영자, CERA 시스템, 향후 서비스 계정). **개념만 두고 사용자·조직·권한 모델은 만들지 않는다.** 실제 저장 구조는 논리 설계에서 결정 (2026-09-16 T-072) |
 | 사실 계열 | `family` | 권한·신선도 기준을 묶는 단위(customs, warehouse_capacity, truck_availability …) |
 | event_class | `event_class` | OBSERVATION(주장) / CORRECTION(정정) / VERIFICATION(사람 확인) |
 | source_event_time / source_recorded_at / received_at / recorded_at | — | 현실 발생 시각 / 출처 기록·발신 시각 / CERA 수신 운영 시각 / DB 기록 벽시계 시각 |
@@ -109,8 +113,9 @@
 | SlackTime | `slack_minutes` | 마감까지 남은 시간에서 필요 리드타임·버퍼를 뺀 실질 여유 |
 | Risk Grade | `grade` | LOW / WATCH / HIGH / CRITICAL |
 | Exposure | `exposure_krw` | 앞으로 생길 것으로 예상되는 비용 |
-| Baseline | `baseline` | 비교 기준. 현재 계획을 새 제약 아래에서 그대로 밀고 갈 때 |
-| Recovery Plan | `recovery_plan` | 최적화로 만든 대체계획 |
+| **Operational Plan** | — | **현실에서 지금 예정되어 있는 운영 계획.** 사용자가 입력했거나 기존 업무 계획으로 이미 존재한다. 컨테이너의 `plan.*` 사실(픽업 예정 시각, 입고 예정일)이 여기 속한다. **CERA가 만든 것이 아니다** (2026-09-16 T-072) |
+| **Recovery Plan** | `recovery_plan` | **예외가 생긴 뒤 CERA가 만든 대체·복구 계획.** 최적화 산출물이며 사실이 아니다 |
+| Baseline | `baseline` | 비교 기준. Operational Plan을 새 제약 아래에서 그대로 밀고 갈 때 |
 | Potential Saving | `potential_saving_krw` | Baseline 비용 − Recovery 비용 (시뮬레이션 기준). 옛 "Recoverable Exposure" |
 | Current Exposure (KPI) | `current_exposure_krw` | 조치하지 않을 때 추가비용 = Baseline TotalCost − 정상 직송 운임 `[PROPOSED]` Q-02 (Prototype, `16` 11절 G-3) |
 | Recoverable Exposure (KPI) | `recoverable_exposure_krw` | Control Tower KPI 라벨. 최신 Simulated Recovery Plan의 Potential Saving과 같은 값 `[PROPOSED]` Q-02 |

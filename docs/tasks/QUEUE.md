@@ -1,13 +1,18 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-09-16 (**T-068 DONE** — 외부 통신 Architecture RFC + AI/Backend 책임 경계 Audit, ADR-026~029 Accepted, 문서 기준점 커밋. 다음은 T-069 Implementation Plan). 이전: 2026-09-15 (T-067 AI 협업 Workflow 완료. 같은 날 T-066 Monorepo 재정렬 완료. 같은 날: T-060~T-063 완료, T-036 DEFERRED, T-064·T-065 추가)
+- 최종 수정: 2026-09-16 (**T-071 DONE** — 외부 통신 요구사항 명세 `docs/19`, 미커밋. 같은 날 **T-068 DONE** — Architecture RFC + 책임 경계 Audit, ADR-026~029 Accepted, 커밋 `2c37c28`. 다음은 T-069 Implementation Plan). 이전: 2026-09-15 (T-067 AI 협업 Workflow 완료. 같은 날 T-066 Monorepo 재정렬 완료. 같은 날: T-060~T-063 완료, T-036 DEFERRED, T-064·T-065 추가)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
 
 ## 다음 추천 태스크
 
-0. **T-069** (Implementation Planner, P1) — T-068 설계가 승인·커밋됐다. `docs/18_external-communication.md` **N절 15가지**에 답하는 Implementation Plan을 `docs/tasks/plans/T-069-*.md`에 쓴다. **M-6·Q-46은 계획에서 확정하지 않는다.** 계획이 승인돼야 구현을 시작한다
+0. **T-069** (Implementation Planner, P1) — 설계(T-068)와 요구사항(T-071)이 끝났다. **`docs/19` 24절 Handoff**와 **`docs/18` N절 15가지**를 입력으로 Implementation Plan을 `docs/tasks/plans/T-069-*.md`에 쓴다.
+   - **착수 전에 사용자에게 물을 것: Q-45(실제 메일 보관 기간·파기 정책), Q-44(근거 시각 선택 규칙).** 첫 회신을 저장하는 순간 둘 다 필요하다
+   - **계획에서 확정하지 않을 것: M-6, Q-46, `19` 23절의 기술 선택 목록**
+   - 계획이 승인돼야 구현(Antigravity)을 시작한다
+
+**앞으로의 순서**: `T-069 Implementation Plan 작성` → `사용자 승인` → `Antigravity 구현` → `리뷰` → `문서 동기화` → `사용자 승인` → `commit` (`17` 4절)
 1. **T-064** (NEEDS_HUMAN, P0) — Control Tower Prototype 검토: `front/web/` 실행해 9단계 재생, 화면·숫자·용어가 현업에게 보여줄 수준인지, `16_frontend-prototype.md` 11절 발견사항과 Q-37~Q-43 판단, ADR-022·023 판정. **커밋 여부 결정** — 2026-09-15 기준 약 2만 줄이 미커밋이고 원격 백업이 없다(T-066 LOG)
 2. **T-001** (NEEDS_HUMAN, P0) — 기획 v0.2 + T-032 결과 검토, ADR 판정 (T-060 시각 규칙 개정 포함)
 3. **T-017** (에이전트, P2) — Prototype 기반 인터뷰 가이드 (Prototype이 생겨 의존 해소, 사람 지시상 착수 가능)
@@ -405,7 +410,14 @@
 
 ## 완료
 
-### T-068: CERA External Communication Vertical Slice v0.1 — 설계(Architecture RFC) + AI/Backend 책임 경계 Audit — DONE (2026-09-16, 사용자 결정 반영 및 커밋)
+### T-071: External Communication 구현 전 요구사항 명세 — DONE (2026-09-16, 사람 검토 대기 · 미커밋)
+- 산출물: **`docs/19_external-communication-requirements.md`**, `docs/03`(2.7절을 19로 연결 + FR-ING-05·07·FR-COM-02·FR-RSP-01·NFR-03 개정), `docs/15`(Q-49~Q-52 추가, Q-44·Q-45를 구현 전 필수로 표시), `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`
+- 요약: `18`이 "왜 이 구조인가"라면 `19`는 **"정확히 무엇을 만들어야 하는가"**다. 사용자 흐름 A~J, 요구사항 그룹 9개 신설(`FR-CPY`·`FR-EVF`·`FR-ELG`·`FR-APV`·`FR-SND`·`FR-INB`·`FR-XAI`·`FR-STC`·`FR-EVL`) + 기존 그룹 확장(`FR-COM-04~`·`FR-UI-09~`·`FR-AUD-02~`·`NFR-12~30`), 실패·예외 35+ 상황 표, 사용자에게 보이는 상태 이름, 완료 조건 34개, 우선순위 3단계, Implementation Planner Handoff
+- 특징: **구현 기술을 고정하지 않았다.** AI 모델·공급자·SDK, 외부 API 호출 순서, 인증·DB·큐 라이브러리, 솔버, 배포 환경을 전부 열어 뒀다(23절). 요구사항은 행동과 계약만 정의한다
+- 열린 질문 분류: **구현 전 필수**(Q-44 근거 시각, Q-45 보관 기간) / **구현 중 사례 보고 결정**(M-6, Q-47, Q-48) / **범위 밖**(Q-46) / **신규**(Q-49~Q-52)
+- 제품 코드 변경 없음
+
+### T-068: CERA External Communication Vertical Slice v0.1 — 설계(Architecture RFC) + AI/Backend 책임 경계 Audit — DONE (2026-09-16, 사용자 결정 반영 및 커밋 `2c37c28`)
 - 산출물: **`docs/18_external-communication.md`**(A~O절 RFC), **ADR-026·027·028·029 모두 Accepted**, `docs/01` 3·6·6.1절(**Tech Validation 단계 신설**), `docs/02` 6절, `docs/04` 4.1, `docs/06` 1.1절(**10개 중 LLM은 3개**)·2·7절, `docs/07` 4·6·6.1절, `docs/11` 5절, `docs/15`(Q-44~Q-48), `docs/tasks/CURRENT.md`
 - 요약: Mock으로만 있던 외부 연락 루프(초안 → 사람 승인 → 발송 → 실제 회신 → 구조화 → Event 후보 → 화면)를 구현 가능한 수준으로 설계했다. Gmail은 **최종 채널이 아니라 첫 기술검증 채널**로 두고 Channel Adapter 뒤에 뒀다. 같은 날 2차 지시로 **AI/LLM vs Backend·결정론 엔진 책임 경계 Audit**을 수행해 RFC 초안 자체 7건 + 기존 정본 8건의 오배치를 찾아 고쳤다.
 - 핵심 결정: ① **AI 사용 기준 = "입력이 비정형인가"** (값이 자주 바뀌는가가 아님) — 구조화 채널은 LLM을 거치지 않는다 ② 발송 자격 = **거래처 → 담당 연락처 → 이메일 검증 → 관계 승인 → 통신 활성**(제품 게이트)이며 개발용 수신자 제한은 별개 장치 ③ `ai/`는 LLM·비정형 처리만, 결정론 엔진은 Backend 영역(새 `engine/` 만들지 않음, 적용은 T-003) ④ OpenAPI를 API 계약 정본으로 전환 시작

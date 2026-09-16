@@ -26,7 +26,7 @@
 | `[ASSUMPTION]` | PoC를 위한 가정값이다. 근거와 바꿀 조건을 적는다 | ODCY 보관료 1일 N원 |
 | `[TO VERIFY]` | 현업·제휴·법적·운영 검증이 필요하다. `15_open-questions.md`에 항목이 있어야 한다 | 선사별 Free Time 기산 기준 |
 | `[DECIDED]` | 설계 결정이 확정됐다: `Accepted` ADR 또는 이 규칙 문서 | ADR-008 LLM 역할 경계 |
-| `[PROPOSED]` | 설계 결정을 제안했고 사람 검토 전이다: `Proposed` ADR 또는 명세 문서의 결정 | ADR-019 Reconciliation Policy |
+| `[PROPOSED]` | 설계 결정을 제안했고 사람 검토 전이다: `Proposed` ADR 또는 명세 문서의 결정 | ADR-013 저장 방식 |
 
 - `[VERIFIED]`·`[TO VERIFY]`는 **사실**에, `[DECIDED]`·`[PROPOSED]`는 **설계 결정**에, `[ASSUMPTION]`은 **임시 파라미터 값**에 붙인다. `[DECIDED]` 내용을 바꿔야 하면 임의로 고치지 않고 새 ADR과 변경 이유를 먼저 올린다.
 

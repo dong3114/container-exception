@@ -1,7 +1,7 @@
 # 07. 백엔드 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-16 (T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted)). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
+- 최종 수정: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
 - 관련 ADR: ADR-002(스택), ADR-004(DB), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생)
 
 ---
@@ -70,7 +70,7 @@ flowchart TB
 | Risk Engine | `risk` | 순수 함수 | — |
 | Optimization Service | `optimize` | in-process 솔버 (후보 CP-SAT, T-036에서 결정) | 별도 워커(규모가 커지면) |
 | Agent Orchestrator | `orchestrator` | in-process 큐 + 핸들러 표 | — |
-| Communication Service | `comms` | 초안·승인·가상 발송·스레드 | 실제 메일 발송 (Pilot, ADR 필요) |
+| Communication Service | `comms` | 초안·승인·가상 발송·스레드 | **Tech Validation 단계부터 조건부 실제 발송** (ADR-027 Accepted. 조건은 `01_project-rules.md` 6.1절이 정본이며 여기에 복사하지 않는다) |
 | Response Parser | `extraction` | 구조화 출력 + 검증기 | — |
 | Notification Service | `api` SSE + `notifications` 테이블 | 앱 안 알림 | 메일·메신저 |
 | Audit Log | `audit` | activity + audit 테이블 (append-only) | — |
@@ -78,7 +78,18 @@ flowchart TB
 
 ## 3. 기술 스택 (ADR-002, ADR-016 Proposed)
 
-> **읽는 법 (2026-09-15)**: 아래 표에서 실제로 구현된 것은 **프론트엔드 줄(Current Prototype Implementation: Next.js + 2D SVG)뿐**이다. 나머지 줄(Python, FastAPI, DB, 최적화, LLM 등)은 판정 전 **후보(Future Option)**이며 코드가 없다.
+> **읽는 법 (2026-09-16 갱신)**: 아래 표의 각 줄을 네 가지로 구분해 읽는다. **특정 제품·모델 이름이 적혀 있다고 해서 요구사항이 아니다.**
+>
+> | 구분 | 뜻 | 해당 |
+> | --- | --- | --- |
+> | **A. 현재 구현된 기술** | 실제로 코드가 있다 | **프론트엔드 줄뿐** (Next.js + 2D SVG) |
+> | **B. Accepted 결정** | 뒤집으려면 새 ADR이 필요하다 | 이 표에는 없다 |
+> | **C. 판정 전 후보** | ADR이 Proposed다 | 언어·API·DB·HTTP·스케줄·휴일·테스트 줄 |
+> | **D. 구현 시점으로 미룬 선택** | **지금 고르지 않기로 한 것** | **LLM 공급자·모델·SDK**, 최적화 방식·솔버, DB 제품, ORM·마이그레이션 도구, 큐·워커, 클라우드 |
+>
+> **D는 특히 주의한다.** 사용자 방향은 *"구체적인 기술은 실제 구현 시점에 품질·비용·보안·유지보수성·최신 상황을 비교해 고른다"*이다. 아래 표에 적힌 특정 LLM 공급자·모델명은 **2026-09-11 시점의 예시**이지 CERA의 요구사항이 아니다.
+>
+> **요구사항인 것**은 따로 있다: 구조화된 출력을 받는다 · 값마다 원문 인용을 함께 받는다 · 결정론 검증기를 다시 돌린다 · 녹화 응답으로 네트워크 없이 재생할 수 있다 · 사용한 구현과 설정을 기록한다. 이것들은 `01` 3절·`19` 11절이 정본이다.
 
 | 영역 | 선택 | 이유 |
 | --- | --- | --- |
@@ -88,7 +99,7 @@ flowchart TB
 | DB | SQLite → PostgreSQL, SQLAlchemy 2.x + Alembic | 파일 하나로 시작, JSON 컬럼은 두 DB에서 모두 동작하는 방식만 |
 | 최적화 | **미정** — 현재 후보 OR-Tools CP-SAT (ADR-007 Reopened, T-036에서 MILP·min-cost flow 등과 비교해 결정) | 정수 비용·논리 제약 |
 | HTTP·XML | httpx, lxml | 공공 API가 XML |
-| LLM | Anthropic Python SDK, 기본 `claude-opus-5` | 구조화 출력, PDF 입력 (`06_agent-architecture.md` 6절) |
+| LLM | **[D] 미정 — 구현 시점에 선택한다.** 아래는 2026-09-11 시점의 예시일 뿐 요구사항이 아니다: Anthropic Python SDK, `claude-opus-5`. **요구사항은 "무엇을 하는가"이지 "어느 제품인가"가 아니다** | 구조화 출력, 문서 입력, 원문 인용, 녹화 재생 (`01` 3절, `19` 11절) |
 | 스케줄 | APScheduler (공공 API 동기화), SimClock (시나리오) | 단일 프로세스 |
 | 휴일 | `holidays`(KR) + 수동 보정 파일 | 영업일 Free Time |
 | 테스트·린트 | pytest, hypothesis, ruff | 속성 테스트(순서 무관성, 비용 단조성) |
@@ -113,7 +124,7 @@ flowchart TB
 | `risk_snapshots` | run_id, as_of, subject, type, grade, slack_minutes, exposure_krw, breakdown(json) | 산출물 |
 | `recovery_runs` | run_id, as_of, trigger, input_hash, policy/rule versions, seed, solver_status, baseline_krw, recovery_krw, provisional_inputs(json), status(PROPOSED/APPROVED/SUPERSEDED/REJECTED) | 산출물 |
 | `assignments` | run_id, container_no, route, slot, delivery_day, cost_krw, baseline_cost_krw, locked | 산출물 |
-| ~~`messages`~~ | **ADR-028(Proposed)이 대체를 제안한다**: `comm_threads` / `comm_messages` / `comm_message_events` + 상대방 등록부 `counterparties` → `counterparty_contacts` → `contact_channel_addresses`(발송 자격 3상태) + `contact_verifications` + `extractions`. 현재 컬럼에는 채널·외부 ID·재시도·멱등키·승인 내용 해시가 없어 실제 발송을 감당하지 못한다. 컬럼 정의는 `18` D.1 | 판정 전 |
+| ~~`messages`~~ | **ADR-028(Accepted)로 대체됐다**: 통신 도메인을 스레드 / 메시지 / 상태 전이 이력으로 나누고, 상대방 등록부를 **거래처 → 담당 연락처 → 채널 주소**(발송 자격 3상태) 3단계로 둔다. 검증 기록·추출 기록이 더해진다. 옛 단일 테이블에는 채널·외부 ID·재시도·멱등키·승인 내용 해시가 없어 실제 발송을 감당하지 못한다. **구조는 확정이고 테이블·컬럼 이름은 후보다**(ADR-028 본문: "구체 컬럼·DDL은 확정이 아니다"). 후보 컬럼은 `18` D.1 | **구조 확정 · DDL 미정** |
 | `agent_activity` | id, at, agent, action, refs(json), text | append-only, 타임라인 |
 | `audit_log` | id, at, actor, action, target, detail(json) | append-only |
 | `scenarios` | scenario_id, seed, body(json) | SIMULATED |
@@ -210,7 +221,7 @@ container_exception/            ← 저장소 루트 = CERA 루트
 | `UNIPASS_API_KEY` | UNI-PASS 인증키(`crkyCn`) |
 | `DATA_GO_KR_SERVICE_KEY` | 공공데이터포털 `serviceKey` |
 | `ANTHROPIC_API_KEY` | LLM (녹화 재생 모드에서는 불필요) |
-| `CERA_LLM_MODEL` | 기본 `claude-opus-5` |
+| `CERA_LLM_MODEL` | 쓸 모델 식별자. **기본값을 문서에 고정하지 않는다** — 구현 시점에 고른다(3절 D) |
 | `CERA_LLM_MODE` | `live` / `replay` |
 | `CERA_DB_URL` | 기본 `sqlite:///data/cera.db` |
 | `CERA_TZ` | `Asia/Seoul` 고정 |

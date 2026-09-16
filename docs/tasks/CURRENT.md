@@ -10,15 +10,18 @@
 
 ## Status
 
-**PLANNING** — T-068 설계 완료(Architecture/RFC + 책임 경계 Audit + 사용자 결정 반영). **Implementation Plan 작성 대기.**
+**PLANNING** — 아키텍처(T-068)와 **요구사항 명세(T-071)** 완료. **Implementation Plan 작성 대기.**
+
+> `17_ai-development-workflow.md`의 상태값에 `REQUIREMENTS`는 없다. 요구사항 명세는 **Plan(HOW) 앞의 준비 단계**이므로 `PLANNING`을 그대로 쓴다. 상태값을 새로 늘리지 않았다.
 
 다음 담당자는 **Implementation Planner**(ChatGPT 또는 Orchestrator의 별도 planning 단계)다. 산출물은 `docs/tasks/plans/T-069-external-communication-slice.md`. **아직 구현을 시작하지 않는다.**
 
-### 지금까지 한 것 (2026-09-16, 한 세션)
+### 지금까지 한 것 (2026-09-16)
 
-1. **Architecture/RFC 작성** — `docs/18_external-communication.md` (A~O절)
+1. **Architecture/RFC** — `docs/18_external-communication.md` (A~O절). 왜 이 구조인가
 2. **AI/Backend 책임 경계 Audit** — RFC 초안 자체 7건 + 기존 정본 8건의 오배치를 찾아 수정
-3. **사용자 결정 반영** — M-1~M-5·M-7 승인, M-6 미확정 유지, ADR-026~029 `Accepted`, `01` 6절 규칙 충돌 해소
+3. **사용자 결정 반영 + 커밋** — M-1~M-5·M-7 승인, M-6 미확정 유지, ADR-026~029 `Accepted`, `01` 6절 규칙 충돌 해소. 커밋 `2c37c28`
+4. **요구사항 명세 (T-071)** — `docs/19_external-communication-requirements.md`. 무엇을 만들어야 하는가: 사용자 흐름 A~J, 요구사항 130여 개, 실패 상황 35+, 사용자 상태 이름, 완료 조건 34개, 우선순위 3단계
 
 ### 설계의 결론 두 줄
 
@@ -32,10 +35,11 @@
 | branch | `main` |
 | baseline commit | `5972420b3699d9bd95e1d5ccd9d848bb76cd9f7d` — feat: establish CERA frontend prototype and monorepo structure |
 | remote | 없음 (push 한 적 없음) |
+| baseline commit | `2c37c28` — docs: define CERA AI workflow and external communication architecture |
 | last updated | 2026-09-16 |
-| current orchestrator | **없음 (설계 완료).** 다음 담당: Implementation Planner. 마지막 Orchestrator: Claude Code — T-068 |
+| current orchestrator | **없음 (설계·요구사항 완료).** 다음 담당: Implementation Planner. 마지막 Orchestrator: Claude Code — T-071 |
 
-T-067·T-068 문서는 2026-09-16 사용자 승인으로 커밋됐다(Commit Gate 참조). 제품 코드 변경 없음.
+T-067·T-068 문서는 `2c37c28`로 커밋됐다. **T-071(요구사항 명세)은 미커밋 상태다.** 제품 코드 변경 없음.
 
 ---
 
@@ -128,7 +132,8 @@ T-067·T-068 문서는 2026-09-16 사용자 승인으로 커밋됐다(Commit Gat
 | **M-6 / Q-40** | 값이 같은 새 회신("지금도 3대 가능합니다")이 신선도를 갱신하나 | `VALUE_CHANGE` / `OBSERVATION_REFRESH` / `NO_OPERATIONAL_CHANGE`로 나눴다. 가운데가 미결이며 **출처 권한·근거 강도·확인 상태·현재 충돌·사실 종류**를 함께 보는 Backend 정책 문제다. **AI가 결정하지 않는다** |
 | **Q-46** | 상대방이 포털·모바일 링크로 직접 입력한 값의 Source 모델 | 이름 확정 금지. 먼저 축을 분리해야 한다: `source_channel`(경로) / `source_role`(역할) / `actor_type`(입력 주체). **채널 하나로 근거 강도를 자동 결정하지 않는다** |
 | **Q-48** | Contact를 개인(PERSON)과 공용 업무 메일함(ROLE_MAILBOX)으로 나눠야 하나 | `dispatch@`·`operations@` 같은 공용함은 생애주기가 개인 주소와 다르다. **이번에 DB 스키마를 확정하지 않는다** — 구현 계획에서 검토 |
-| Q-44·Q-45·Q-47 | Date 헤더 선택 / 메일 보관 기간 / 회신 없을 때 운영 규칙 | 구현·실측·인터뷰 필요 |
+| **Q-44·Q-45** | 근거 시각 선택 규칙 / 실제 메일 보관 기간·파기 정책 | **구현 착수 전에 사용자가 정해야 한다.** 첫 회신을 저장하는 순간 둘 다 필요하다 |
+| Q-47·Q-49~52 | 회신 없을 때 운영 규칙 / 주소 중복 등록 / 다른 주소 회신 자동 연결 / 회신 기한·승인 기한 기본값 | 실제 사례를 보고 정해도 된다. 첫 구현은 안전한 쪽 |
 
 현업 검증이 필요한 핵심(변동 없음): 운송사·ODCY 연락 채널(Q-26·Q-28), 고객 메일함 접근 조건(Q-33, R-8), Tariff 실제 규칙(Q-08·Q-09).
 
@@ -164,9 +169,12 @@ T-067·T-068 문서는 2026-09-16 사용자 승인으로 커밋됐다(Commit Gat
 상태: **NOT_STARTED — 다음 담당자(Implementation Planner)의 첫 작업이다.**
 
 - 산출물: `docs/tasks/plans/T-069-external-communication-slice.md` (`plans/` 폴더는 첫 사용 때 만든다)
-- 입력: **`docs/18_external-communication.md` N절**(전제 · 답해야 할 15가지 · 넘으면 안 되는 선 · Antigravity 문구)과 **O절**(CERA 전체 책임 경계표)
+- 입력 (둘 다 필요):
+  - **`docs/19_…-requirements.md` 24절 Handoff** — 무엇을 만들어야 하는가. 요구사항 ID, 실패 표, 완료 조건 34개, 첫 구현 범위
+  - **`docs/18_external-communication.md` N절·O절** — 계획이 답해야 할 15가지와 책임 경계표
 - 답해야 할 15가지: ① Backend 기술 뼈대 ② 최소 DB 스키마 ③ 거래처·연락처·검증 모델 ④ Gmail OAuth·어댑터 ⑤ Outbox·멱등 ⑥ 확인 메일 흐름 ⑦ 초안·승인·발송 API ⑧ 회신 수신 폴링 ⑨ AI 추출 인터페이스 ⑩ Event·Reconciliation 최소 subset ⑪ OpenAPI 구성 ⑫ Frontend Mock → Real 교체 범위 ⑬ 테스트 전략 ⑭ 구현 순서 ⑮ Antigravity 작업 단위
-- 계획이 확정하면 안 되는 것: **M-6**(신선도 갱신 정책), **Q-46**(상대방 입력 Source 이름·강도), Q-48은 "구분이 필요한지"까지만 검토
+- **계획 착수 전에 사용자에게 물을 것**: **Q-45**(실제 메일 보관 기간·파기 정책), **Q-44**(근거 시각 선택 규칙). 둘 다 첫 회신을 저장하는 순간 필요하다(`19` 22.1)
+- 계획이 확정하면 안 되는 것: **M-6**(재관측의 신선도 갱신), **Q-46**(상대방 직접 입력의 출처 모델), Q-48은 "구분이 필요한지"까지만, 그리고 `19` 23절의 기술 선택 목록
 - 계획 승인 뒤에야 구현을 시작한다(`17` 4절 흐름).
 
 ## Implementation Status
@@ -241,13 +249,15 @@ T-067·T-068 문서는 2026-09-16 사용자 승인으로 커밋됐다(Commit Gat
 ## Commit Gate
 
 - baseline `5972420`: 커밋됨 (2026-09-15)
-- **T-067 + T-068 통합 문서 기준점: 2026-09-16 사용자 승인으로 커밋됨.** 워크플로 문서·외부 통신 RFC·책임 경계 Audit이 서로 연결되고 같은 파일을 겹쳐 수정하므로 하나의 일관된 문서 기준점으로 묶었다.
+- **T-067 + T-068 통합 문서 기준점 `2c37c28`**: 2026-09-16 사용자 승인으로 커밋됨
+- **T-071 (요구사항 명세, `docs/19`): 미커밋 — 사용자 승인 대기**
 - **remote 없음. push 하지 않았다.** 이 PC가 유일한 사본이다.
 
 ## Handoff Notes
 
-- **이 Task는 설계에서 끝났다. 다음은 Implementation Plan이고, 그 계획이 승인돼야 구현을 시작한다.**
-- 이어받는 사람은 `docs/18_external-communication.md` **N절 → O절** 순으로 읽는다. M절은 결정의 배경이고, 확정 상태는 M절 맨 위 표에 있다.
+- **설계와 요구사항이 끝났다. 다음은 Implementation Plan이고, 그 계획이 승인돼야 구현을 시작한다.**
+- 이어받는 사람은 **`docs/19` 24절(Handoff) → `docs/18` N절 → O절** 순으로 읽는다. `19`가 "무엇을", `18`이 "왜"다.
+- **Q-45·Q-44는 구현 착수 전에 사용자 답이 필요하다.** 계획을 쓰기 전에 먼저 묻는다.
 - **Gmail은 첫 기술검증 채널이다.** "CERA의 통신 채널은 메일"이라고 문서·UI에 쓰지 않는다. 채널이 전화·카카오톡·TMS로 바뀌어도 승인·멱등·등록부·검증·Reconciliation은 그대로여야 한다.
 - **새 문서·코드에서 결정론 모듈을 "Agent"라고 부르지 않는다.** Risk Engine·Cost Engine·Reconciliation Engine이 정확하다. 기존 스키마명(`agent_activity`)·제품명은 이번에 개명하지 않았고, 정리는 후속 작업(T-070)이다.
 - ADR-029의 폴더 배치는 **T-003에서 적용한다.** 지금 `back/`·`ai/`에 코드가 없어 이동 비용이 0이다.
