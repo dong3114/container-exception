@@ -21,6 +21,201 @@
 
 ---
 
+## 2026-09-17 · T-079 rev.2.1 최종 정합성 패치 · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — T-079 최종 승인 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건. **새 테이블 0개**
+- 지시: rev.2 검토 결과 **전체 구조는 승인 가능하지만 물리 설계 전에 정합성 몇 건을 정리**해야 한다. **새 설계를 벌리지 말고** 지적된 것만 닫는다. 이 작업 뒤 T-079 를 최종 승인·종료한다
+- 고친 것 (9건)
+  1. **`conflict` 에 적용 범위 2컬럼.** `canonical_fact` 의 식별자에 범위가 들어간 순간 충돌 판정 단위도 좁아져야 한다. `GLOBAL` 15,000원과 `RECOVERY_CONTEXT` 0원을 한 충돌로 묶으면 **있지도 않은 모순을 운영자에게 확인하라고 요구**하고 `blocks_automation` 까지 선다
+  2. **`verification_request` 에 적용 범위 2컬럼.** "평소 얼마인지 확인" 과 "이번 건 얼마인지 확인" 은 다른 문제다. 범위를 빼면 한 줄로 합쳐져 하나를 처리하면 다른 것도 처리된 것처럼 보인다
+  3. **`request_key` 재료에 범위 포함.** 안 넣으면 두 확인 요청이 같은 키를 갖고 처리 기록이 잘못 붙는다
+  4. **`question_item.target_applicability_scope_*` 신규.** "이번 사고 건 보관료" 와 "일반 보관료" 는 개체도 사실 키도 같고 범위만 다르다. **Backend 가 질문 만들 때 확정**해야 회신을 사건으로 만들 때 범위가 결정론적으로 나온다. LLM 출력은 그대로(`ask_id` + 값 + 단위 + 인용) — **범위는 LLM 이 만지지 않는다**(ADR-026)
+  5. **`question_item.verification_request_key` 의 FK 표기 제거.** `verification_request` 는 `REBUILDABLE` 이라 없어졌다 다시 생긴다. 사람이 실제로 보낸 질문이 파생 행의 생존에 의존하면 안 된다. `handling.request_key` 와 완전히 같은 취급
+  6. **발송 지문 비교 대상 분리.** rev.2 는 "`approved_content_hash` 와 같아야 한다"고만 적어, 승인이 없는 주소 확인 메일에서 모순이었다. 업무 = **유효한 승인**의 지문 / 주소 확인 = **그 메시지의 `content_hash`**. **어느 쪽도 "작성한 내용 != 보낸 내용" 은 허용하지 않는다.** I-3 를 I-3 / I-3b 로 나눴다
+  7. **승인 행 종류별 필수 컬럼 분리.** `APPROVED` 만 내용·수신자·지문·구조화 값 사본 필수. `REJECTED`/`REVISION_REQUESTED` 는 사유 필수 + 사본 선택. `REVOKED`/`INVALIDATED` 는 **대상 + 사유 종류만** 필수 — 새 내용을 승인한 행이 아니므로 사본을 요구하지 않는다. 무효화 대상은 **같은 메시지의 `APPROVED`**, 승인당 최대 1건(I-17)
+  8. **분류(Classification)와 변경 방식(Mutation Policy) 분리.** rev.2 는 `SOURCE_OF_TRUTH` = 덧붙이기만 이라고 적었는데 실제로는 제어된 UPDATE 가 있다. 두 축으로 나누고 **49개 표 전부에 변경 방식 코드**를 붙였다(`APPEND_ONLY` · `REBUILDABLE` · `CONTROLLED_UPDATE` · `IMMUTABLE_AFTER_CREATE` · `CACHE_UPDATE` · `VERSION_REPLACEMENT`). **"Source of Truth = 무조건 append-only" 라는 일반 문장은 지웠다**
+  9. **`contact_verification` 생애주기 명시.** `used_at`·`result` 를 갱신하므로 "덧붙이기만"이 아니다. **발급 기록 6컬럼은 불변**, **사용 결과 2컬럼만 한 방향으로 한 번** 바뀐다. 이 정도를 위해 별도 이력 표를 만들지 않았다
+- **적용 범위 전파 점검표 신설**(22.5): 범위를 **갖는 8곳**과 **갖지 않는 곳 + 이유**를 전부 대조했다. `extraction` 에 범위를 두지 않는 것이 LLM 경계를 지키는 방법이고, `commercial_offer` 는 근거라서 범위가 사건으로 갈 때 정해진다
+- **범위 선택 정책은 확정하지 않았다.** `CONTRACT`·`CONTAINER`·`RECOVERY_CONTEXT` 는 서로 다른 축이라 "좁다/넓다"로 한 줄에 못 세운다. 확정한 것은 ① 범위는 사실 식별자에 포함 ② 같은 범위끼리만 Reconciliation ③ 결정론적 선택 정책이 필요함 ④ 쓴 범위는 스냅샷에 남음 까지. **L-14 에 포함**하고 새 OPEN 항목을 만들지 않았다
+- rev.1/rev.2 잔재 정리 9건: 상단 "12건" → 실제 개수 · Structured Draft Field → `comm_message_structured_field` · L-2/L-3/L-9/L-10 의 "사용자 결정 필요" → D-1~D-5 CLOSED · PK 열 수(4열 → **6열**, 실제로 세어 확인) · ERD 의 `canonical_fact` PK 에 범위 추가 · 21절 "D-5 로 열려 있다" 제거
+- 테이블 수: **변화 없음** — MVP 50 · Next 1 · MVP 에서 만들지 않음 2 = **53**
+- 검증: 흐름 walkthrough 재실행, **26개 항목 전부 통과**(27.6). **새로 발견된 구조 문제 없음**. `git diff --check` 통과 · staged 0건 · 제품 영역 변경 0건 · Markdown 2절 ↔ 작업표 블록 불일치 0건 · 작업표 잔재 0건
+- 하지 않은 것: 새 테이블 · 새 개념 · DB 제품·ORM·SQL·인덱스 · UUID/ULID 확정 · 범위 우선순위 규칙 · L-13 복구 맥락 식별자(T-069) · **`docs/21` 수정** · `docs/04`·`07`·`18`·`19` 수정(T-070) · 제품 코드 변경 · staging·commit·push
+- 변경 파일: `docs/22_cera-logical-data-model.md`(2,412행 · 0~28절), `docs/22_cera-logical-data-model.xlsx`(11 시트 · 블록 51 · 컬럼 537 · 681행), `docs/15`, `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 큐 변경: **T-079-R** 을 rev.2.1 최종 승인으로 갱신. T-080 물리 설계 대기
+- 남은 일 / 다음 한 걸음: **T-079 최종 승인** → T-080 물리 설계
+- 주의사항: **논리 모델 50개 표 ≠ 첫 마이그레이션 50개 표**(26절). 첫 구현은 T-069 외부 통신 슬라이스의 최소 묶음부터다
+
+## 2026-09-17 · T-079 rev.2 논리 설계 구조 정합성 수정 · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — 사용자 + ChatGPT 최종 검토 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건
+- 지시: rev.1 검토 결과 **방향은 좋으나 물리 설계 전에 고쳐야 할 구조 정합성 문제**가 있다. **논리 모델을 갈아엎지 말고 지적된 것만 최소 범위로** 수정한다. `docs/21` 은 승인 문서라 수정 금지
+- **사용자 결정 5건 전부 CLOSED**: D-1 연결 테이블 유지 · D-2 제안 묶음 만든다 · **D-3 기본값을 "현재 복구 맥락"으로 변경**(rev.1 추천 뒤집음) · D-4 계획 배치 만들지 않는다 · D-5 예외 Case 만들지 않는다(나중에 다시 연다)
+- 고친 것 (13건)
+  1. **`raw_input.payload_hash` 유일 제약 제거.** 09시와 10시에 같은 값을 관측해도 **"다시 확인했다"는 새 수집 사실**이다. 내용이 같다고 행을 막으면 신선도가 09시에 멈춘다. 중복 처리는 출처가 주는 `source_record_key` 로만 한다
+  2. **`verification_request_handling.request_key` 를 DB 외래키에서 논리 연결 키로.** 파생 테이블을 지울 수 있다는 말과 외래키가 동시에 성립하지 않았다
+  3. **`request_key` 재료에서 `conflict_id` 제거.** 파생 대리키라 재계산 때 값이 바뀌어 과거 처리 기록을 못 찾는다 — 이 구조가 막으려던 바로 그 문제였다. 재료를 불변 정보(규칙 + 개체 + `fact_key` + 사건 id 집합)로 바꿨다
+  4. **스냅샷 보강 — 신규 `planning_snapshot_constraint` · `planning_snapshot_input`.** rev.1 은 사실만 얼려서, 마스터의 `default_travel_minutes_from_terminal` 을 다음 달에 고치면 과거 실행이 재현되지 않았다. 원칙을 명시했다: **계산에 쓴 모든 바뀔 수 있는 입력은 값으로 얼리거나 불변 판을 가리킨다**
+  5. **승인에 구조화 숫자 고정 — 신규 `comm_message_structured_field` · `message_approval_structured_field`.** 숫자가 본문 문자열에만 있으면 검사도 승인 고정도 문자열 비교가 된다. 값·단위·출처(실행·질문·경로)를 나눴다
+  6. **승인 생애주기.** `expires_at`(만들 때 정함) + `decision = REVOKED·INVALIDATED` + `invalidates_approval_id` + `invalidation_cause`. **UPDATE 없이** 취소·만료·계획 교체를 남긴다
+  7. **주소 확인 메일의 승인 예외.** `comm_message.message_kind`(`BUSINESS`/`CONTACT_VERIFICATION`) + `contact_verification_id`. `send_attempt.approval_id` 는 **조건부 필수**. 위장 방지 규칙 8개를 적었다(구조화 값·질문 연결 0건, 종류 변경 불가, 감사는 남는다)
+  8. **`ACTUAL_REPORTED` 제거.** 실제 발생액 보고는 계산 결과가 아니라 **현실 주장**이고 `event` → `canonical_fact` 로 간다. MVP 는 `ESTIMATED` · `PLAN` 둘뿐
+  9. **`event.source_tier` 제거.** 근거 강도는 정책으로 **계산되는 값**이라 append-only 원천 컬럼에 두면 정책이 바뀌어도 고칠 수 없다. 원천 축(`source_kind`·`source_role_at_ingestion`·`input_quality`)만 남기고 `canonical_fact.evidence_strength` + `evidence_policy_version` 으로 옮겼다
+  10. **사건마다 SUBJECT 정확히 1건.** 주체가 여럿이면 `canonical_fact` 의 키와 대응이 깨진다. 영향받는 컨테이너는 주체가 아니라 **위험 계산 결과**다
+  11. **`bl` 단순화.** `mbl_no` + `hbl_no` 두 컬럼 → **번호 하나 + 종류 + 부모 참조**. `(bl_type, bl_no, bl_year)` 는 **업무 식별 후보로만** 두고 실제 `UNIQUE` 는 실데이터 확인 뒤로 미뤘다(L-16) — 번호가 연도 안에서 유일한지는 확인된 적이 없다
+  12. **적용 범위와 유효 기간 분리 (22절 신설).** rev.1 은 적용 대상을 "사실의 주체로 정해진다"고 봤는데 틀렸다. 주체가 창고 B 인 것은 "창고 B 이야기"라는 뜻일 뿐이다. `applicability_scope_type`·`applicability_scope_ref` 추가, **기본값은 좁은 쪽**
+  13. **계획 조건 해제도 새 행.** `released_at` 을 나중에 채우는 것이 바로 UPDATE 였다. `action = SET/RELEASE` + `releases_constraint_id`
+- **흐름 검증(27절)에서 새 모순 1건 발견·수정**: 범위가 다른 현재 사실이 `canonical_fact` 의 같은 PK 를 다퉜다. 운영자의 "이번 건 0원"이 시설 전체 요율을 덮어쓸 수 있었다 → **PK 에 범위 2컬럼 추가**, 계산 시점에 가장 좁은 범위 선택(11.4.1)
+- 테이블 수: **MVP 50**(46 → +4) · **Next 1** · **MVP 에서 만들지 않음 2** = **53**. 삭제 0건
+- 신규 열린 질문: **L-13** 복구 맥락 식별자(T-069) · **L-14** 범위 값 목록(현업 검증) · **L-15** `message_kind` 값 목록 · **L-16** `bl` 유일 제약(실데이터)
+- 하지 않은 것: DB 제품·ORM·`CREATE TABLE`·마이그레이션·인덱스 · UUID/ULID/BIGINT 확정 · API endpoint · 솔버 · LLM 공급자 · **`docs/21` 수정** · `docs/04`·`07`·`18`·`19` 수정(T-070) · 제품 코드 변경 · staging·commit·push
+- 변경 파일: `docs/22_cera-logical-data-model.md`(2,138행), `docs/22_cera-logical-data-model.xlsx`(11 시트·블록 51·컬럼 531·678행), `docs/15`, `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 검증: `git diff --check` 통과 · staged 0건 · 제품 영역 변경 0건 · Markdown 2절 목록 ↔ 작업표 블록 대조 불일치 0건 · rev.1 잔재(`source_tier`·`ACTUAL_REPORTED`·`mbl_no`/`hbl_no`·`released_at` 채우기) 확정 표현 0건(설명 문단만 남음)
+- 큐 변경: **T-079-R** 을 rev.2 검토로 갱신. T-080 물리 설계는 그대로 대기
+- 남은 일 / 다음 한 걸음: **rev.2 최종 검토** → T-080 물리 설계
+- 주의사항: **논리 모델 50개 표 ≠ 첫 마이그레이션 50개 표**(26절). 첫 구현은 T-069 외부 통신 슬라이스에 필요한 최소 묶음부터다
+
+## 2026-09-17 · T-079 논리 DB 설계 (Logical DB Design) · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — 사용자 + ChatGPT 검토 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건
+- 전제: **T-076 에서 개념 모델 rev.3 이 최종 승인**됐다. 승인된 `docs/21` 은 이 작업에서 **한 글자도 고치지 않았다**. 문제가 보이면 고치지 말고 기록하라는 지시를 따랐고, 개념 모델 자체의 문제는 **발견되지 않았다**
+- 산출물
+  - **`docs/22_cera-logical-data-model.md`** (0~25절, 1,364행): 벤더 중립 논리 타입 · 테이블 분류 7종 · 전체 목록 · 테이블로 만들지 않은 개념 + **금지 안티패턴 10종 각각을 어떻게 피했는지** · **열린 질문 판정 20건** · 도메인 A~J 테이블 명세(기본 정보 · 컬럼 · 관계 · 무결성 규칙) · 식별자/시간/금액 모델 · 키·제약·참조 무결성 · 코드값 정책 · 논리 ERD · 시뮬레이션 분리 · 파생 조회 · **개념→테이블 추적표(E-01~E-39 전부)** · 문서 차이 X-10~X-13 · **사용자 결정 5건**
+  - **`docs/22_cera-logical-data-model.xlsx`** (11 시트: `00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`): 테이블 블록 **47개** + OPEN 2, 컬럼 **475개**, 데이터 **619행**. RPG 스타일(Arial · 기본키 `FFFF00` / 외래키 `93C47D` / 유일 제약 `F4CCCC` / 한글 필드행 `CFE2F3` / 테이블명 `D0E0E3` · 우측 범례 · 테두리 · 눈금선 끔)
+- 테이블 수: **MVP 46 · Next 1(`vessel_call`) · OPEN 2(`exception_case` · `operational_plan_batch`) = 49**. 개수의 정본은 `docs/22` 2절 표 하나다
+- 이번에 답한 것 (정본 `docs/22` 4절, 요약 `docs/15`)
+  1. **Q-54** 외부 식별자 — **하이브리드**. 조회 경로 id 는 컬럼(`comm_message.external_message_id` · `comm_thread.external_thread_id`), 발급 기관이 늘어나는 화물·통관 id 는 `external_identifier(issuing_system, id_type, id_value)`
+  2. **Q-55** 시설 — **공통 + 1:1 상세** (`facility` + `facility_warehouse`·`facility_terminal`·`facility_odcy`)
+  3. **Q-58** 금액 — **Money 테이블 없음**. `cost_line_item` 의 5컬럼 묶음(원화 정수 + 원통화·금액·환율·기준일)
+  4. **Q-59** 확인 요청 — **결정적 `request_key`**. 파생 대리키를 참조하면 재계산마다 사람의 처리 이력이 끊긴다
+  5. **Q-60** 비용 줄 — 필수 부모는 `cost_result` 하나. 귀속·근거는 `cost_line_link(link_role ∈ ATTRIBUTION·BASIS)`
+  6. **Q-62** Actor — 최소 4컬럼. 인증·권한·조직은 나중
+  7. **Q-63** 사실 키 — **원본은 문자열 그대로**, 분해 컬럼(`param_date` 등)은 파생 `canonical_fact` 에만
+  8. **L-1** 질문 항목 — 질문 생성 시 **대상 개체·사실 키를 확정**해 회신이 `ask_id` 단건 조회로 붙는다. LLM 이 사실 키를 정하지 않는다(ADR-026)
+  9. **L-4** `default_` 접두(평시 기준선) · **L-5** 풀·슬롯 수준 배정 · **L-7** `send_attempt` 별도 테이블 · **L-8** 같은 테이블 + `is_simulated`/`contains_simulated` · **L-11** 승인 덧붙이기 + 승인 시점 사본 · **L-12** `operator_planning_constraint`(현실 사실이 아님, 솔버 표현은 미확정)
+- **사용자 결정 필요 5건 (숨기지 않았다)**: **D-1** Container↔B/L 연결 테이블(L-2) · **D-2** 제안 묶음 생성(L-3) · **D-3** 운영자 입력의 기본 적용 범위(L-3b·L-12) · **D-4** `operational_plan_batch` 미생성 확정(L-9) · **D-5** `exception_case` 생성 여부(L-10·L-6)
+- 설계에서 지킨 선: **정정은 UPDATE 가 아니라 새 행**(`supersedes_event_id`) · **계획 입력은 값을 복사해 얼린다**(`planning_snapshot_fact`) · **계산 결과는 사람이 고치지 않는다**(입력을 고치고 재계산) · **승인 없이 발송 시도 행이 생길 수 없다** · **비밀값은 DB 에 넣지 않는다**(`credential_reference` 참조만) · **모든 운영 조회에 `is_simulated = false`**
+- 하지 않은 것: DB 제품(PostgreSQL·MySQL·SQLite) · ORM · 실제 `CREATE TABLE`·마이그레이션 · 인덱스·파티션 · API endpoint · LLM 공급자 · 솔버와 내부 표현 · 위험·신선도 임계값 · `plan_decision.decision_type` 값 목록 · **`docs/21` 수정** · 제품 코드 변경 · staging·commit·push
+- 변경 파일: 신규 `docs/22_cera-logical-data-model.md`·`docs/22_cera-logical-data-model.xlsx` / 수정 `docs/15`(상태 20건 + 결론 절 + X-10~X-13), `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 검증: `git diff --check` 통과. 제품 영역(`back/`·`ai/`·`data/`·`packages/`·`infra/`·`front/`·`scripts/`) 변경 0건. Markdown 2절 테이블 목록과 작업표 블록을 대조해 **불일치 0건**(OPEN 2개는 `10_OpenDecisions` 시트에 있음). Markdown 에 `CREATE TABLE`·DB 제품명·ORM 명이 확정 표현으로 등장하지 않음
+- 큐 변경: **T-076 DONE**(개념 모델 승인) · **T-079 DONE** · **T-079-R**(검토 + 결정, NEEDS_HUMAN) 과 **T-080 물리 설계** 신규
+- 남은 일 / 다음 한 걸음: **D-1~D-5 결정** → T-080 물리 설계. 그 뒤 T-070 문서 동기화가 X-10~X-13 을 흡수한다
+- 주의사항: 논리 설계의 합격 기준은 **재현 테스트**다(`docs/22` I-7) — `canonical_fact` 를 전부 지우고 `event` 로부터 재계산했을 때 같은 결과가 나와야 한다. 나오지 않으면 파생에만 있는 정보가 생긴 것이고 설계 오류다
+
+## 2026-09-17 · T-078 개념 모델 최종 정합성 정리 · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — 최종 승인 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건
+- 지시: 검토 방향이 승인 가능하다는 판정 뒤, **새 개념을 추가하거나 기존 설계를 다시 흔들지 않고** ① Markdown 표현 불일치 제거 ② 요구사항 ↔ 개념 모델 정합성 ③ 작업표 ↔ Preview ↔ Markdown 번호·개수 동기화 ④ 요구사항에서 아직 선택하지 않은 **구현 기술 선결 표현 제거** ⑤ 최종 승인 가능한 상태로 정리
+- 고친 것 (10건):
+  1. **후보 개수**: 21.1절 "미확정 후보 3개" → **4개**(OperatorPlanningConstraint 포함). QUEUE 체크리스트도. 최종 기준 MVP **33** / 시설 종류 **3** / 미확정 **4** / Next·보류 **2** / 올리지 않은 것 **16**
+  2. **발송 승인 옛 표현 제거**: 9절·12.2절·18절의 "메시지 승인 필드" · "Send Approval · AuditLog" → **MessageApproval + AuditLog**. 12.3절의 "rev.1 은 …로만 봤다"는 **역사 서술이라 유지**
+  3. **PlanDecision 통일**: "복구 계획에 대한 사람의 의사결정 기록" + **채택·거부·기존 계획 유지**. **enum 은 논리 설계**. "아직 행동하지 않은 상태"와 "의도적으로 유지하기로 결정한 상태"의 구분을 명시
+  4. **계산 결과 용어**: 복구 계획 실행·배정·위험 평가·비용 계산 결과·비용 줄 → **"보존되는 산출 기록"**. 18절에 Source of Truth 와 다르다는 용어 주의 추가
+  5. **`FR-CON-04` 구현 중립화**: 저장 구조 대신 **무엇을 보존해야 하는가**(제안 주체·시각·금액·유효기간·조건·원문 근거·관련 질문 항목)
+  6. **`NFR-06`**: `pytest` 선결 제거 → 외부 네트워크 없이 자동 테스트 · 녹화 fixture·mock · 로컬 반복 실행
+  7. **`NFR-09`**: "단일 DB 파일" 선결 제거 → PoC 최소 구성 로컬 실행, 명령 1~2개
+  8. **신규 OPEN L-3b**: 운영자 직접 입력 요율의 **적용 대상·적용 기간**. 기존 L-3 옆에 붙여 질문군을 늘리지 않았다
+  9. **작업표(16시트) 동기화** + 데이터 **585행**
+  10. **메타 숫자 정정**: docs/21 1.3절 523행 → **585행**, CURRENT 의 "26개"·"523행"
+- **미반영 1건 (다음 세션 또는 사용자 조치 필요)**: `docs/21_cera-db-template-preview.xlsx` 가 작업 중 **Excel 에서 열려 있어**(`docs/~$…` 잠금 파일) 덮어쓰지 못했다. 갱신본은 scratchpad `pending/` 에 생성해 뒀고 반영 방법을 `CURRENT.md` Handoff Notes 에 적었다. **E-ID·OPEN 표시는 현재 저장소 판에서도 정확**하며, 남은 차이는 05_계획 표시 번호 순서 · `decision_type` 값 목록 미확정 표시 · Notes 한 줄이다
+- 하지 않은 것: 새 엔티티·새 요구사항 그룹 · **법적 책임·면책 문구** · `docs/04`·`docs/07`·`docs/18` 확대 수정(T-070 유지) · `AGENTS.md`·`.gitattributes` 불필요한 변경 · 솔버·enum·DB·ORM·API 확정
+- 변경 파일: 수정 `docs/03`, `docs/15`, `docs/21_cera-conceptual-data-model.md`, `docs/21_cera-conceptual-data-model.xlsx`, `docs/README.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 검증: `git diff --check` 통과. 제품 영역(`back/`·`ai/`·`data/`·`packages/`·`infra/`·`scripts/`) 변경 0건. `front/` 와 다른 작업의 untracked(`data/Proposal/`·`scripts/`) 무변경. 작업표를 openpyxl 로 다시 열어 **옛 표현 잔재 0건**(원본(기록) · PLAN_APPROVAL · 승인·반려 기록 · 미확정 3) 확인
+- 남은 일 / 다음 한 걸음: **T-076 최종 승인** + Preview 갱신본 반영. 승인되면 **논리 DB 설계**
+- 큐 변경: **T-078 DONE**, T-076 을 "최종 승인" 으로 갱신
+- 주의사항: **개수는 `docs/21` 6절 개수 블록 하나만 정본**이다. 다른 절·작업표·부록은 그것을 따른다
+
+## 2026-09-17 · T-077 운영자 개입과 재계산 요구사항 반영 (rev.3) · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — 최종 검토 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건
+- 지시: 개념 모델 rev.2 검토가 거의 끝난 시점에, **CERA 운영 UX의 핵심 요구사항 하나**가 정본에 부분적으로만 표현돼 있음이 확인됐다 — "CERA가 위험·D&D·예상 비용·복구안을 먼저 계산해 제시하고, 운영자가 현실 정보 또는 계획 조건을 수정하면 그 입력을 근거로 다시 계산한다". **기존 개념 모델을 대규모 재수정하지 않고 의미만 명확히 한다.** 새 최적화 알고리즘·DB 논리 설계·UI·Backend 는 하지 않는다. front 는 Antigravity 작업이므로 건드리지 않는다
+- 한 일:
+  1. **`docs/03` 2.6.1절 신설** (운영자 개입과 재계산): `FR-OPR-01~12` + 합격 기준 `AC-OPR-01~10`. 흐름도, **운영자 개입 4종 비교표**, 예시 2개(제2창고 0원 / ODCY A 제외)를 넣었다
+  2. **기존 요구사항에 연결**: `FR-RSK-05`(위험 표현 경계 — 확률 모델이 아니다), `FR-CON-05`(운영자 상업 조건 입력도 같은 경로), `FR-VER-04`(개입 4종 구분), `FR-OPT-04·05` 주석, 사용자 여정 4번 확장
+  3. **`docs/21` rev.3**: **12.5절 신설**(12.5.1 선계산 / 12.5.2 개입 4종 / 12.5.3 결과 대신 입력 수정 / 12.5.4 계획 조건은 현실 사실이 아니다 / 12.5.5 스냅샷·실행 연결과 재계산 이유 / 12.5.6 무조치도 결정), 4.3절 운영자 계획 조건 행, 11절 선계산 문장 + **비용 3종 표** + 위험 경계, 6.2절 **E-37 OperatorPlanningConstraint**(VesselCall→E-38, Truck→E-39), 6.4절 자원 사실 오염 금지, 15절 관계 3건, 16절 ERD `_CAND` 노드, 25.3·부록 A/B
+  4. **작업표 16 시트 동기화**: Overview 개수·주의 2건 추가, ConceptInventory·AttributeCandidates·Events·CalculatedOutputs·Plans_Decisions·Relationships·OpenDecisions 반영. `04_EntityCandidates` **42행**(MVP 33 + 시설종류 3 + 형태 미확정 4 + Next·보류 2)
+  5. **RPG Preview 에 `operator_planning_constraint` 블록 추가**: Table Candidate **38개**. `Schema Status: OPEN` · "현실 사실이 아니다" · "값 목록 미확정" 을 Notes 에 적었고, 경고 배너에 "계산 결과 숫자는 사용자 편집 대상이 아니다"를 더했다. `00_목록` 의 제외 목록에 **계산 결과 숫자**와 **자원 사용 불가 플래그**를 추가했다
+  6. **`docs/13` 최소 3개 추가**: 운영자 계획 조건 · 예상 비용 · 실제 비용. 용어집 전체 동기화는 T-070 계획을 그대로 뒀다
+  7. **`docs/15` 신규 L-12**: 운영자 계획 조건의 적용 범위·유효기간·강제/선호 구분·변경 이력·스냅샷 포함 방식을 **한 질문군으로** 묶었다(세분화하지 않았다)
+- 이번에 못박은 경계:
+  - **계산은 사람 승인 전에 이미 돌아간다.** 승인은 결과를 채택하는 결정이고, 사실 확인이 아니다
+  - **운영자는 결과 숫자를 고치지 않고 입력을 고친다.** "350,000 → 0" 이 아니라 "창고 B 보관료 0원" 을 입력한다
+  - **계획 조건은 현실 사실이 아니다.** "이번엔 ODCY A 쓰지 마"를 자원의 가용 사실로 기록하면 그 시설이 현실에서 못 쓰는 자원처럼 오염된다
+  - **사실 입력은 기존 사건을 덮어쓰지 않는다.** 새 관측과 정정은 다른 사건 부류다
+  - **무조치도 정당한 결정이다.** 복구안 하나를 반드시 승인해야 하는 시스템이 아니다
+  - **예상 비용 ≠ 실제 비용.** 실제 비용은 Future 이고 CERA는 결제·송금·Invoice 정산·회계 처리를 하지 않는다
+  - **위험은 확률이 아니다.** 등급·여유시간·노출액·자원 제약·데이터 불확실성·원인의 결정론적 평가다
+- 하지 않은 것: 솔버 선택(CP-SAT/MILP) · 제약 표현 형식 · 제약 값 목록(enum) · 제약 DB 테이블 · 위험 확률·ML 모델 · 비용 공식·D&D 공식 변경 · DB 제품·ORM · API endpoint · UI·Backend 구현
+- **rev.2 결정을 되돌리지 않았다**: QuestionItem · 견적 3층 · MessageApproval 후보 · OperationalPlan 묶음 OPEN · ExceptionCase OPEN · CostLineItem 귀속 완화 · ChannelConnection · MVP 33개 — 전부 그대로다
+- 변경 파일: 수정 `docs/03`, `docs/13`, `docs/15`, `docs/21_cera-conceptual-data-model.md`(rev.3), `docs/21_cera-conceptual-data-model.xlsx`, `docs/21_cera-db-template-preview.xlsx`, `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 검증: `git status --porcelain -- back/ ai/ packages/ infra/` 결과 없음. **`data/Proposal/` 이 untracked 로 새로 생겼으나 이 세션이 만들지 않았고 `data/` 는 손대지 않는 영역이라 그대로 뒀다.** `front/` 미커밋 변경은 Antigravity 것이며 읽지도 staging 하지도 않았다. `git diff --check` 통과. 두 워크북을 openpyxl 로 다시 열어 시트·행수·한글·색·범례·경고 배너 확인, 셀의 `**` 0건
+- 남은 일 / 다음 한 걸음: **T-076 최종 검토**(rev.2 항목 + rev.3 운영자 개입·재계산). 승인되면 **논리 DB 설계**(L-1~L-12) → **T-070** → **T-069**
+- 큐 변경: **T-077 DONE**, T-076 검토 항목에 rev.3 추가
+- 주의사항:
+  - 산출물은 모두 미커밋이고 **최종 DB 스키마가 아니다**
+  - **운영자 계획 조건은 개념만 확정했다.** 표현 방식·값 목록·솔버 형식은 L-12 다
+  - 화면을 만들 때 **계산 결과 숫자를 입력 필드로 두지 않는다**
+  - **프론트는 Antigravity 소관이다.** `front/` 를 건드리지 않는다
+
+## 2026-09-17 · T-075 개념 데이터 모델 검토 반영 (rev.2) + RPG 스타일 DB Preview · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — 재검토 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건
+- 지시: 사용자 + ChatGPT 1차 검토(T-074) 결과를 반영한다. **기존 개념 모델을 폐기하지 않고 수정** — ① 과하게 확정한 개념을 다시 OPEN ② 기존 요구사항 용어와 정렬 ③ Markdown·Excel 개념 목록·개수 동기화 ④ 기존 16시트 Excel 은 개념 검토 작업표로 유지 ⑤ RPG DB 문서 스타일의 별도 Preview Excel 추가. front 는 Antigravity 작업이므로 건드리지 않는다
+- 유지한 구조적 결론: 사건 덧붙이기 · 원문 보존 · 사건 → 현재 사실 · 재생성 가능 · 현실/계획/계산 분리 · Facility 상위 개념 · Destination 역할 · 차량 풀 중심 · 개별 차량 비필수 · Actor 개념만 · 사건과 감사 분리 · 활동 타임라인 파생 · 단계·영향 파생 · 계획 스냅샷 · 복구실행/배정/승인 분리 · AI 는 값 후보와 인용까지
+- 한 일:
+  1. **다시 연 것 5건**: 견적을 **세 층**(제안 묶음 / 요율 사실 / 현재 요율)으로 나누고 묶음을 `OPEN FOR LOGICAL DESIGN` 으로 / 발송 승인을 **독립 불변 결정 기록 후보**로 승격 / 운영 계획 **묶음·버전**을 OPEN / 예외 Case 를 "파생 뷰가 기본안이지만 운영 Case 필요 여부 OPEN" 으로 / 비용 줄 귀속을 배정 하나에서 **비용 계산 결과의 종속 + 선택 귀속**으로 완화
+  2. **용어 정렬**: `Ask` → **`QuestionItem`**(새 개념이 아니라 요구사항의 질문 항목이 저장 개념에서만 빠져 있었다. **추출 계약의 `ask_id` 는 깨지 않았다**), `ChannelCredential` → **`ChannelConnection`**(비밀값을 DB 에 담는 것처럼 읽히던 이름)
+  3. **개수 전면 재계산**: MVP 저장 개념 후보 **33**(E-01~E-33) + 시설 종류 3 + 형태 미확정 3(E-34~36) + Next·보류 2(E-37·38) + 올리지 않은 것 16. 최소 집합 16 + 17 = 33. `docs/21` 6·21.1·25·부록 A 와 작업표 `04_EntityCandidates`·`01_Overview` 를 모두 맞췄다. **rev.1 의 "26개" 와 작업표 E-28 의 불일치를 해소**
+  4. **`docs/21` rev.2 개정**: 3·4·5.6·5.7·5.11·5.12·6·8.4·11·12.3·12.4·14·14.4·15·16·19·20·21·24·25·부록 A/B. 6절·16절(ERD)·25절은 전면 교체. ERD 에서 `ASK` → `QUESTION_ITEM`, `MESSAGE_APPROVAL` 추가, 비용 줄을 `COST_RESULT` 아래로, 제안 묶음은 `_CAND` 접미로 후보 표시, 예외 Case·운영계획 묶음은 **확정 엔티티처럼 그리지 않았다**
+  5. **작업표 16 시트 동기화**: 삭제·덮어쓰기 없이 같은 경로·같은 시트 구조를 유지하고 수정 개념을 반영(데이터 567행). Excel 셀의 markdown 강조(`**`)를 제거해 읽기 쉽게 했다
+  6. **`docs/21_cera-db-template-preview.xlsx` 신규**: 참조 파일 `C:\Users\PC\Downloads\RPG 문서.xlsx`(2026-09-16)를 **직접 열어** 스타일을 확인했다 — 글꼴 Arial, 테이블 블록 5행(테이블명 / 한글 필드명 / 영문 필드명 / 타입 / 제약) + 예시 데이터, 색(PK `FFFF00` · FK `93C47D` · 한글행 `CFE2F3` · 라벨 `D0E0E3` · 보조 `F4CCCC`), 우측 범례(기본키·외래키), 얇은 테두리, 열 너비 ~15-20. 이 구조를 8 시트(`00_목록` `01_물류핵심` `02_시설자원` `03_사건상태` `04_계약비용` `05_계획` `06_외부통신` `07_감사운영`)에 **Table Candidate 37개**로 재현하고, 각 블록에 합성 예시 2~5행과 우측 Notes(Schema Status / 이유 / 주의 / 샘플 표시)를 붙였다
+- 신규 질문: **L-9**(운영 계획 묶음 Aggregate·Version) · **L-10**(예외 운영 Case) · **L-11**(발송 승인 기록 표현). 갱신: L-1(이름 정정) · L-3(제안 묶음과 요율 사실의 관계) · Q-60(귀속 대상)
+- 변경 파일: 수정 `docs/21_cera-conceptual-data-model.md`(rev.2), `docs/21_cera-conceptual-data-model.xlsx`, `docs/15`, `docs/README.md`, `AGENTS.md`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md` / 신규 **`docs/21_cera-db-template-preview.xlsx`**
+- 손대지 않은 것: `docs/18`·ADR 본문·LOG 의 옛 항목(**그때의 기록**). 어긋난 지점만 `docs/21` 24.3절 **X-7·X-8·X-9** 로 등록해 T-070 에서 한 번에 고치도록 했다. `docs/04`·`docs/07` 도 `docs/20` 6.3절 방침대로 승인 뒤 T-070
+- 검증: `git status --porcelain -- back/ ai/ data/ packages/ infra/` 결과 없음, `front/` 는 Antigravity 미커밋 변경이 그대로 있고 이 세션이 건드리지 않았다. 두 워크북을 openpyxl 로 다시 열어 시트 수·행수·한글·PK/FK 색·범례·경고 배너 확인, Excel 셀의 `**` 0건, `git check-attr binary` 로 xlsx 바이너리 확인. 문서 Task 라 코드 검증 명령은 돌리지 않음
+- 남은 일 / 다음 한 걸음: **T-076 재검토**(개수 일치, 다시 연 5건, 이름 정리, Preview 가 확정 스키마처럼 읽히지 않는지). 승인되면 **논리 DB 설계** → **T-070** → **T-069**
+- 큐 변경: T-074 DONE(1차 검토 결과 기록), **T-075 DONE**, **T-076 신규(NEEDS_HUMAN, P0)**
+- 주의사항:
+  - **산출물 3개 모두 미커밋이고 최종 DB 스키마가 아니다.** Preview 도 Table Candidate 일 뿐이다
+  - **작업표(16 시트)와 Preview(8 시트)는 역할이 다르다.** 하나로 합치거나 덮어쓰지 않는다
+  - **Markdown 과 Excel 이 어긋나면 임의로 한쪽을 덮어쓰지 않는다.** 어긋난 항목을 보고하고 사람 검토로 넘긴다
+  - **`ask_id` 계약은 그대로다.** 개념 이름만 `QuestionItem` 이고, 이름 통일 여부는 논리·API 설계에서 본다
+  - **프론트는 Antigravity 소관이다.** `front/` 를 건드리지 않는다
+
+## 2026-09-17 · T-073 CERA Conceptual Data Model (개념 데이터 모델) · Claude Code (claude-opus-5)
+- 상태: 완료 (**미커밋 — 사람 검토 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건
+- 지시: ① 어제(2026-09-16) 작업을 **Git 정본 기준으로 복구**하고 ② 이미 진행된 DB 관련 작업이 있으면 **중복 작성하지 않고 이어서** 진행 ③ 작업 관리 문서를 실제 커밋 상태와 동기화 ④ 다음 단계인 **개념 데이터 모델**을 SQL 없이 작성. 세션 도중 추가 지시: **어제 Excel 작업이 있었는지 먼저 확인하고, 있으면 이어서 쓸 것**. 그리고 **프론트는 Antigravity가 디자인 작업 중이므로 손대지 말 것**
+- 한 일:
+  1. **Git 정본 확인**: HEAD `1b97905`, T-071·T-072 모두 **커밋됨**. 사용자가 기억한 것과 한 가지 다름 — **작업 트리가 clean이 아니다**(`front/web/src/app/globals.css`, `front/web/src/components/PlaybackBar.tsx` 미커밋 UI 리스타일 = **Antigravity 작업**). 읽기만 하고 건드리지 않았다
+  2. **어제 DB 작업 복구**: 저장소 전체·Git 이력·파일명·내용 검색 결과 **존재하는 것은 `docs/20`(DB 설계 전 검토)까지**였다. 개념 모델 초안은 없었다. **Excel·CSV도 전혀 없었다** — git 이력에 xlsx/xls/csv가 단 한 번도 없고, 작업 트리·untracked에도 없다(워크스페이스 전체에서 발견된 csv는 다른 프로젝트 것). 그래서 개념 모델과 작업표를 **새로 만들었다**
+  3. **작업 관리 문서 동기화**: QUEUE 머리말·완료 섹션·`사람 지시`, CURRENT 전면 재작성(baseline `2c37c28` → `1b97905`, **중복 `baseline commit` 행 제거**), T-072를 QUEUE·LOG에 **뒤늦게 등록**(사전 등록 없이 사용자 직접 지시로 수행된 경위를 그대로 적었다). `docs/20` 헤더에서 **검토 시작 기준점(`2c37c28` + 당시 미커밋)과 완료 커밋(`1b97905`)을 구분**해 덮어쓰지 않았다
+  4. **`docs/21_cera-conceptual-data-model.md` 신규** (25개 절 + 부록 2): 데이터 설계 원칙, 도메인 용어집(56행), Concept Inventory(61행), 독립 엔티티 후보 26개 + **깨지는 기능**, 속성·사실·현실 사건·현재 상태·계산 결과·계획·근거·통신, 개념 관계 46건 + Mermaid 개념 ERD, 생애주기 5종, Source of Truth·이력 정책, 시나리오 역매핑, 외부 통신 요구사항 역매핑, MVP/Next/Future, **제외 물류 영역 18개**, 미확정 사항, 논리 설계 전 질문, Minimum Conceptual Model
+  5. **`docs/21_cera-conceptual-data-model.xlsx` 신규** (16 시트·523행): Overview · DomainGlossary · ConceptInventory · EntityCandidates · AttributeCandidates · OperationalFacts · Events · CurrentState · CalculatedOutputs · Plans_Decisions · Contracts_Rates_Cost · Facilities_Resources · Communication · Relationships · ScenarioMapping · OpenDecisions. 헤더 고정·자동 필터·열 너비 적용. **Markdown = 왜 그렇게 보는가 / Excel = 무엇이 후보인가**로 역할을 갈랐다
+- 답한 열린 질문 (개념 수준): **Q-53** MVP는 컨테이너 : B/L = N:1(Import FCL 전제 `[ASSUMPTION]`), 다대다는 구조로 배제하지 않음, `Shipment`는 만들지 않음 · **Q-56** Destination은 엔티티가 아니라 **관계에 붙은 역할** · **Q-57** 개별 차량은 **MVP 필수 아님**(풀 + 시간대별 가용량으로 성립) · **Q-61** 활동 타임라인은 **저장하지 않고 조합**(물질화는 허용)
+- 엔티티로 올리지 않은 것과 근거: Destination(역할) · 선사(거래처 역할) · 개별 차량(보류) · SlotPool(터미널의 자원 단위) · 자원 가용량(사실) · 견적(사실 + 뷰) · 구간(값 객체) · 금액·환율(값 객체) · 예외(조합 뷰) · 단계·영향(파생) · 계획 버전(복구 계획 실행이 곧 버전) · 활동 타임라인(조합 뷰) · 운영 계획(PLAN 사실) · Shipment · 기사
+- **새로 발견한 개념: Ask(문의 항목)** — 회신 값을 사실 키로 매핑하는 결정론 축인데 정본 스키마에 자리가 없다. 저장되지 않으면 LLM이 `fact_key`를 정하게 되어 **ADR-026 위반** → **L-1**, T-069에서 바로 필요
+- 사실 카탈로그의 빈 자리 6건(F-1~F-6), 신규 질문 8건(L-1~L-8), 문서·데이터 불일치 6건(X-1~X-6) 등록
+- 변경 파일: 신규 `docs/21_cera-conceptual-data-model.md`, `docs/21_cera-conceptual-data-model.xlsx` / 수정 `docs/15`, `docs/20`(헤더), `docs/README.md`, `AGENTS.md`, `.gitattributes`, `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 검증: `git status --porcelain -- back/ ai/ data/ packages/ infra/` 결과 없음. `front/`의 미커밋 변경 2건은 **Antigravity 작업이며 이 세션이 만들지 않았고 건드리지 않았다**. 문서 Task라 코드 검증 명령은 돌리지 않음. xlsx는 openpyxl로 다시 읽어 시트·행수·한글 무결성 확인(523행), `.gitattributes`에 `*.xlsx binary` 추가 후 `git check-attr`로 확인
+- 남은 일 / 다음 한 걸음: **T-074 사람 검토**(과설계 여부, 5절 판정 근거, MVP 구분, 최소 집합, L-1~L-8). 승인되면 **논리 DB 설계** → **T-070 문서 동기화** → **T-069 외부 통신 구현 계획**
+- 큐 변경: T-073 DONE, **T-074 신규(NEEDS_HUMAN, P0)**, T-072를 완료 섹션에 뒤늦게 등록, T-069는 삭제하지 않고 **데이터 모델 뒤로 순서만 이동**
+- 주의사항:
+  - **`docs/21`과 xlsx 모두 미커밋이고 최종 DB 스키마가 아니다.** 논리 설계로 자동 진행하지 않는다
+  - xlsx **재생성 스크립트를 저장소에 두지 않았다** — 사람이 직접 편집하는 작업표이므로 자동 생성이 사람의 기록을 덮어쓸 위험이 있다
+  - **Q-44·Q-45는 여전히 사용자 결정 대기**다. 개념 모델은 막지 않지만 T-069 착수 전에 필요하다
+  - `docs/04`·`docs/07`은 **일부러 고치지 않았다**(`docs/20` 6.3절 방침: 개념 모델 승인 뒤 T-070에서 한 번에)
+  - **프론트는 Antigravity 소관이다.** 이 세션 이후에도 `front/`를 건드리지 않는다
+
+## 2026-09-16 · T-072 (사용자 직접 지시) DB 설계 전 요구사항 검토 · Claude Code (claude-opus-5)
+> **뒤늦은 기록 (2026-09-17 추가).** 이 작업은 2026-09-16에 끝나 `1b97905`로 커밋됐지만, 그날 세션이 QUEUE·CURRENT·LOG를 갱신하지 못한 채 끊겼다. 과거를 꾸미지 않고 그 경위와 결과만 여기 남긴다.
+- 상태: 완료. **커밋 `1b97905`** (T-071과 함께 하나의 문서 기준점으로 묶임)
+- 검토 시작 기준점: `2c37c28` + 당시 미커밋이던 T-071 변경 / **완료 커밋: `1b97905`** — 둘은 다른 의미다
+- 지시: 사용자 직접 지시. QUEUE에 사전 등록되지 않았다. "어떤 테이블을 만들까"가 아니라 **테이블을 만들기 전에 무엇이 확정돼 있고 무엇을 더 결정해야 하는가**를 가를 것
+- 한 일:
+  1. **`docs/20_data-model-preconditions.md` 신규**: DB가 반드시 따라야 하는 확정 규칙 24개(A-01~A-24), Proposed 설계 분류(DB 구조를 좌우하는 10건), 시나리오 가정(제품 규칙이 아닌 것), 문서 충돌 D-01~D-06, **원본 / 물질화하는 파생 / 계산 결과 기록 / 조회 시 조립값** 4분류, Event·Canonical State 14문항, 도메인별 분석(Container·B/L·Facility·운송사·차량·계약·요율·비용·통신·감사), 검증 스크립트 규칙 5분류, 식별자 4종, 단계별 결정사항, Planner Handoff
+  2. **사용자 결정 7건 반영**: 사건·상태 **구조 승인**(ADR-019·020·021을 `Accepted (구조 한정)`으로 판정, 파라미터 값은 계속 검증) · **B/L은 컨테이너와 별개 개념** · **Facility 공통 상위 개념 사용**(테이블 하나라는 뜻은 아님) · **개별 차량을 MVP 필수로 확정하지 않는다**(이전 결론 철회 → Q-57) · 환율·기준일은 **보존 요구만 확정**(저장 위치는 논리 설계) · **Operational Plan / Recovery Plan 용어 분리** · **Actor 개념만 도입**(인증·권한 모델은 만들지 않는다)
+  3. **낡은 표기 정정**: `docs/07` 3절 기술 표를 A~D 4분류로(특정 LLM 공급자·모델은 요구사항이 아니라 구현 시점 선택), `messages` 행의 ADR-028을 **Accepted**로, 실제 발송을 **Tech Validation**으로. `docs/01`·`04`·`05`에서 ADR-019/021을 Proposed로 부르던 곳 정정. `docs/13`에 Facility·Destination·Operational Plan·Recovery Plan·Actor·PLAN 추가·구분. `docs/15`에 Q-53~Q-63 추가
+- 판정: **개념 데이터 모델 착수 조건 충족**(18절 6건 모두 처리). 다음은 CERA 전체 개념 데이터 모델이며 **SQL은 아직 쓰지 않는다**
+- 변경 파일: 신규 `docs/20_data-model-preconditions.md` / 수정 `docs/01`, `docs/04`, `docs/05`, `docs/07`, `docs/13`, `docs/14`, `docs/15`, `docs/19`(헤더)
+- 검증: 제품 영역 변경 0건. 문서만 바꿔 코드 검증 명령은 돌리지 않음
+- 남은 일 / 다음 한 걸음: **개념 데이터 모델**(→ 2026-09-17 T-073으로 수행)
+- 큐 변경: (당시 누락) → 2026-09-17에 QUEUE 완료 섹션에 등록
+- 주의사항: 이 문서의 **검토 시작 기준점을 완료 커밋으로 덮어쓰지 않는다.** 역사적 의미가 다르다
+
 ## 2026-09-16 · T-071 External Communication 구현 전 요구사항 명세 · Claude Code (claude-opus-5)
 - 상태: 완료 (**미커밋 — 사람 검토·승인 대기**). 기준 커밋 `2c37c28` 위의 문서 변경만. 제품 코드 0건
 - 지시: 아키텍처·책임 경계가 확정됐으니 "무엇을 구현해야 하는지 / 어떤 상태가 있어야 하는지 / 어떤 입력과 결과가 필요한지 / 어떤 실패를 처리해야 하는지 / 언제 완료로 볼지"를 **구현 계획을 세울 수 있을 만큼** 구체화. **구현 기술은 고정하지 말 것**

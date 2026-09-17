@@ -1,7 +1,7 @@
 # 13. 용어집
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
+- 최종 수정: 2026-09-17 (**T-077: 운영자 계획 조건 · 예상 비용 · 실제 비용 3개만 최소 추가.** 용어집 전체 동기화는 T-070 계획을 그대로 둔다). 이전: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
 - 코드 식별자는 `코드 표기` 열을 따른다.
 
 ## 1. 물류·통관
@@ -115,6 +115,9 @@
 | Exposure | `exposure_krw` | 앞으로 생길 것으로 예상되는 비용 |
 | **Operational Plan** | — | **현실에서 지금 예정되어 있는 운영 계획.** 사용자가 입력했거나 기존 업무 계획으로 이미 존재한다. 컨테이너의 `plan.*` 사실(픽업 예정 시각, 입고 예정일)이 여기 속한다. **CERA가 만든 것이 아니다** (2026-09-16 T-072) |
 | **Recovery Plan** | `recovery_plan` | **예외가 생긴 뒤 CERA가 만든 대체·복구 계획.** 최적화 산출물이며 사실이 아니다 |
+| **운영자 계획 조건** | `operator_planning_constraint` | **운영자가 복구 최적화에 명시적으로 준 사용·제외·선호·한도 조건** (예: "이번 건에서는 ODCY A 제외", "창고 B 우선", "추가 비용 50만원까지"). **현실 사실이 아니다** — 자원의 가용 사실로 기록하면 이번 계획에서만 제외한 시설이 현실에서 못 쓰는 자원처럼 오염된다. 강제 조건과 선호 조건을 표현할 수 있어야 하지만 **표현 방식·값 목록은 미정**이다 (2026-09-17 T-077, `docs/21` 12.5절, L-12) |
+| **예상 비용** | `estimated_cost` / `expected_cost` | **현재 입력으로 CERA가 계산한 비용.** 실제 청구액이 아니다. **계획 비용**(특정 복구 계획을 실행한다고 가정한 값)과도 구분한다 (2026-09-17 T-077, `docs/03` FR-OPR-10) |
+| **실제 비용** | `actual_cost` | **실제로 청구·지불된 금액.** **현재 범위 밖(Future)** 이다. CERA는 결제·정산 시스템이 아니다 (2026-09-17 T-077) |
 | Baseline | `baseline` | 비교 기준. Operational Plan을 새 제약 아래에서 그대로 밀고 갈 때 |
 | Potential Saving | `potential_saving_krw` | Baseline 비용 − Recovery 비용 (시뮬레이션 기준). 옛 "Recoverable Exposure" |
 | Current Exposure (KPI) | `current_exposure_krw` | 조치하지 않을 때 추가비용 = Baseline TotalCost − 정상 직송 운임 `[PROPOSED]` Q-02 (Prototype, `16` 11절 G-3) |

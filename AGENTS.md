@@ -17,7 +17,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 현재 단계 | **Phase 0.5 → External Communication 구현 계획.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**. 다음은 **T-069 Implementation Plan**이고, 계획 승인 뒤 구현을 시작한다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
+| 현재 단계 | **Phase 0.5 → 데이터 모델 설계.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**, **외부 통신 요구사항 명세(T-071, `docs/19`)**, **DB 설계 전 요구사항 검토(T-072, `docs/20`)**, **개념 데이터 모델 승인(T-073 → rev.2 T-075 → rev.3 T-077 → T-078 정합성 정리 → **T-076 최종 승인**, `docs/21`)**, **논리 DB 설계(T-079 → rev.2 → **rev.2.1 최종 정합성 패치**, `docs/22` + 논리 스키마 작업표, **최종 승인 대기**)**. 작업 순서는 `요구사항 → DB 설계 전 검토 → 개념 데이터 모델 → 논리 DB 설계 → 물리 설계 → 구현 계획(T-069)`이다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
 | 기획 버전 | v0.2 (2026-09-11, 2026-09-15 개정). 변경 이력은 `docs/CHANGELOG.md` |
 | 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · 운영 시뮬레이터(Prototype은 2D) |
 | 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider)만 있음. `back/`·`ai/`·`packages/`·`infra/`는 README만 있는 빈 책임 영역 (T-003) |
@@ -139,7 +139,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 | `docs/CHANGELOG.md` | 기획 v0.1 → v0.2 변경, 폐기된 가정, 문서 이전 지도, 옛 경로 대응 | 옛 기록을 읽을 때 |
 | `docs/01_project-rules.md` | 원칙, 검증 태그, LLM 경계, 금지 주장, 계산·보안·코드 규칙 | **매 세션** |
 | `docs/02_product-definition.md` | 제품 정의, 포지셔닝, 고객, 초기 범위, 단계, KPI, BM, Discovery | 제품 방향을 판단할 때 |
-| `docs/03_requirements.md` | 기능·비기능 요구사항, 행위자, 화면 목록 | 기능·UI 작업 |
+| `docs/03_requirements.md` | 기능·비기능 요구사항, 행위자, 화면 목록. **2.6.1절 = 운영자 개입과 재계산**(CERA가 먼저 계산 → 운영자가 입력 수정 → 재계산. 계획 조건은 현실 사실이 아니다) | 기능·UI 작업 |
 | `docs/04_domain-model.md` | 엔티티, 생애주기, 자원, 계약·Tariff, 비용, 위험 | 엔진 작업 |
 | `docs/05_event-and-state.md` | Event, 출처·신뢰도·신선도, Reconciliation, Canonical State | 수집·상태 작업 |
 | `docs/06_agent-architecture.md` | 에이전트 역할, 오케스트레이션, AI vs 결정론, LLM 통합, 사람 게이트 | 에이전트·LLM 작업 |
@@ -156,6 +156,9 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 | `docs/17_ai-development-workflow.md` | AI 협업 개발 Workflow: 역할(사용자·Orchestrator·Planner·Implementer), 흐름, Handoff, Commit Gate | 새 Task 시작·도구 교대·구현 위임 때 |
 | `docs/18_external-communication.md` | 외부 통신 **아키텍처(왜 이 구조인가)**: Channel Adapter, Gmail(첫 검증 채널), OAuth·최소 권한, 실패·중복·재시도, Mock→Real, **O절 CERA 전체 책임 경계표** | 연락·메일·채널 설계 판단이 필요할 때 |
 | `docs/19_external-communication-requirements.md` | 외부 통신 **요구사항(무엇을 만드나)**: 사용자 흐름, 거래처·연락처·이메일 확인, 발송 자격·승인·발송, 회신·AI 추출 계약, 실패 표, 화면 상태, 완료 조건 | **외부 통신을 구현·계획할 때 (정본)** |
+| `docs/20_data-model-preconditions.md` | **DB 설계 전 검토**: DB가 따라야 하는 확정 규칙 24개(A-01~A-24), 원본·파생·계산결과 분류, 검증기 규칙 5분류, 단계별 결정사항 | DB·스키마 작업 전 |
+| `docs/21_cera-conceptual-data-model.md` | **개념 데이터 모델 (정본, rev.3, 승인)**: 개념 분류(엔티티·속성·사실·상태·계산·계획·결정·근거), 저장 개념 후보 33개와 그 근거, 관계·ERD, Source of Truth 정책, MVP 구분, Minimum Conceptual Model. 짝 산출물 두 개: **개념 검토 작업표** `docs/21_cera-conceptual-data-model.xlsx`, **RPG 스타일 DB 명세 Preview** `docs/21_cera-db-template-preview.xlsx`. **셋 다 확정 스키마가 아니다** | **데이터 모델·DB 작업 (정본)** |
+| `docs/22_cera-logical-data-model.md` | **논리 DB 설계 (정본, rev.2.1)**: 승인된 개념을 테이블·컬럼·관계·제약으로 옮긴 것. 테이블 분류 7종, MVP 50 · Next 1, 키·무결성 전략, 금지 안티패턴 10종, **적용 범위와 유효 기간 분리**, 개념→테이블 추적표, 전체 흐름 walkthrough. 짝 산출물 **논리 스키마 작업표** `docs/22_cera-logical-data-model.xlsx`. **DB 제품·ORM·CREATE TABLE·인덱스는 확정하지 않았다** | **논리 스키마·DB 작업 (정본)** |
 | `data/scenarios/busan-wh-capacity-01/README.md` | 30대 시나리오 데이터 팩(Prototype 판) | 시나리오 값을 바꿀 때 |
 | `docs/data/field-dictionary.md` | 공공 API 필드 사전(공식 명세 기준, 출처 S-nn) | 공공 API 어댑터 작업 |
 | `docs/data/code-tables.md` | 공공 API 코드값·에러코드 | 어댑터·파서 작업 |
