@@ -1,12 +1,25 @@
 # 22. CERA 논리 데이터 모델 (Logical Data Model)
 
-- 상태: **Draft rev.2.1 — T-079 최종 승인 대기** (2026-09-17). rev.1 검토 지적 **13건**(rev.2) + rev.2 검토 지적 **9건**(rev.2.1)을 반영했다. 논리 설계를 갈아엎지 않았고 **새 테이블을 추가하지 않았다**
-- 기준 커밋: `1b97905`
+- 상태: **rev.2.2 최종 — T-079 DONE (2026-09-18, 사용자 + ChatGPT 최종 승인).** rev.1 검토 지적 **13건**(rev.2) + rev.2 검토 지적 **9건**(rev.2.1) + 최종 검증에서 나온 **정합성 5건(A~E)과 표현 잔재**(rev.2.2)를 반영했다. rev.2.2 에서 **기술 운영 표 `system_error` 1개**를 더했다(16.2a). 논리 설계를 갈아엎지 않았다
+- 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
 - 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다
-- 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **51개**(MVP 50 + Next 1), 컬럼 **537개**, 데이터 **681행**. 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
-- 다음 단계: 물리 설계(DB 제품·인덱스·마이그레이션) 및 구현 계획(T-069)
+- 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **52개**(MVP 51 + Next 1), 컬럼 **557개**. 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
+- 다음 단계: ~~T-079 최종 승인~~(완료) → T-070 주변 문서 동기화 → **T-069 구현 계획(첫 슬라이스 확정)** → Backend·DB 기술 결정 → **T-080 물리 설계(첫 슬라이스에 필요한 표부터)** — 28절
+- 런타임·오류 처리·관측성의 행동 규칙은 **`docs/23_runtime-platform-and-observability.md`** 가 정본이다. 이 문서는 그중 **DB 에 남는 `system_error` 표**만 다룬다
 - **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절)
 
+> **rev.2.2 (최종 정리) 에서 고친 것** — 최종 검증에서 나온 정합성 5건 + 기술 운영 표 1개 + 표현 잔재.
+>
+> | # | 고친 것 | 어디 |
+> | --- | --- | --- |
+> | A | `message_approval` 의 컬럼 표가 `approved_content_hash` 를 **모든 행 필수**로 적고 있었다 → **`APPROVED` 행만 필수**. 행 종류별 필수 규칙을 무결성 규칙으로도 적었다 | 15.5 · 15.5.0 |
+> | B | `extraction` · `send_attempt` 가 `APPEND_ONLY` 로 적혀 있었지만 결과 컬럼을 나중에 채운다 → **생성 내용은 불변 + 정해진 결과 컬럼만 한 번 갱신**(`CONTROLLED_UPDATE`) | 15.7.3 · 15.9.1 · 1.3 |
+> | C | `planning_snapshot_input.value_path` 가 **PK 일부인데 NULL 허용**이었다 → **NOT NULL**. 행 전체·판 전체를 뜻할 때도 논리적 "전체" 표시를 넣는다 | 13.2b |
+> | D | `verification_request_handling` · `message_status_transition` 의 `is_simulated` 가 작업표에만 있었다 → **Markdown 누락**이었다(20절 목록에는 이미 있었다) | 11.7 · 15.8 |
+> | E | 작업표의 복구 맥락 예시가 `RUN-0001` 이었다 → **자리표시자 `<RECOVERY_CONTEXT_REF>`**. 식별 방식은 L-13 이 정한다 | 4절 L-13 · 11.4.1 · 11.6.1 · 15.2.1 · 27.3 · 작업표 |
+> | + | **`system_error` 신규**(기술 운영 표). `event`·`audit_log`·`send_attempt` 와 역할이 다르다 | 16.2a |
+> | + | 표현 잔재: 안티패턴 번호 · 흐름 검증 절 번호 · 17.1 표 깨짐 · 17.3 논리 연결 키 누락 · 유효 승인 조건 개수 · L-1 설명 · 28절 순서 | 각 절 |
+>
 > **rev.2.1 에서 고친 것** (9건) — **새 테이블 0개.** 정합성만 맞췄다.
 >
 > | # | 고친 것 | 어디 |
@@ -98,9 +111,13 @@
 | `event` | `SOURCE_OF_TRUTH` | `APPEND_ONLY` | 아무것도. 정정은 새 행 |
 | `message_approval` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 무효화는 새 행 |
 | `operator_planning_constraint` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 해제는 새 행 |
+| `plan_decision` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 결정이 바뀌면 새 결정 행이다 (13.5) |
 | `canonical_fact` | `DERIVED_MATERIALIZED` | `REBUILDABLE` | 재계산이 전부 덮어쓴다 |
 | `conflict` · `verification_request` | `DERIVED_MATERIALIZED` | `REBUILDABLE` | 같다 |
 | `comm_message` | `SOURCE_OF_TRUTH` | **내용 `IMMUTABLE_AFTER_CREATE` + 포인터 `CACHE_UPDATE`** | `current_status` · `current_approval_id` 만. **제목·본문·구조화 값은 절대 아니다** |
+| `send_attempt` | `SOURCE_OF_TRUTH` | **요청 `IMMUTABLE_AFTER_CREATE` + 결과 `CONTROLLED_UPDATE`** (rev.2.2) | 결과 5컬럼(`finished_at` · `result` · `error_code` · `error_message` · `provider_message_id`)만 **한 번**. 식별·승인·지문·멱등 키는 절대 아니다 (15.7.3) |
+| `extraction` | `EVIDENCE` | **추출 결과 `IMMUTABLE_AFTER_CREATE` + 검토 `CONTROLLED_UPDATE`** (rev.2.2) | 검토 4컬럼(`review_status` · `reviewed_by_actor_id` · `reviewed_at` · `created_event_id`)만. **후보 값·인용·모델 판은 절대 아니다** (15.9.1) |
+| `system_error` | `EVIDENCE` | `APPEND_ONLY` (rev.2.2 신규) | 아무것도. 오류 발생 기록 자체는 고치지 않는다 (16.2a) |
 | `contact_verification` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `used_at` · `result` 만 (10.4) |
 | `comm_thread` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `thread_status` · `last_activity_at` 만 |
 | `question_item` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `question_status` 만. **대상 개체·사실 키·범위는 절대 아니다** |
@@ -112,12 +129,14 @@
 
 ## 2. 전체 테이블 목록
 
-| 구분 | 개수 | rev.1 대비 |
+| 구분 | 개수 | 바뀐 과정 |
 | --- | --- | --- |
-| **MVP 논리 테이블** | **50** | 46 → 50 (**+4**) |
+| **MVP 논리 테이블** | **51** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) |
 | Next (구조만 두고 MVP 에서 쓰지 않음) | **1** (`vessel_call`) | 변화 없음 |
-| **MVP 에서 만들지 않음** (요구가 생기면 다시 연다) | **2** (`exception_case` · `operational_plan_batch`) | **OPEN → 결정 완료**(D-4 · D-5) |
-| 표에 적은 것 전체 | **53** | 49 → 53 |
+| **MVP 에서 만들지 않음** (요구가 생기면 다시 연다) | **2** (`exception_case` · `operational_plan_batch`) | rev.2 에서 **OPEN → 결정 완료**(D-4 · D-5) |
+| 표에 적은 것 전체 | **54** | 49 → 53 → 54 |
+
+**rev.2.2 에서 늘어난 표 1개** — `system_error`. **업무 도메인 개념이 아니라 기술 운영(관측성) 표**다. 승인된 개념 모델(`docs/21`)의 저장 개념이 아니므로 개념 모델을 다시 열지 않고, 23절 추적표에 "개념 모델 밖 기술 운영 표"로 따로 적었다. 행동 규칙(무엇을 기록하나·어떻게 기록하나)의 정본은 `docs/23` 이다.
 
 **rev.2 에서 늘어난 표 4개** — 전부 **"계산·승인에 실제로 쓴 값을 얼린다"** 는 같은 이유다.
 
@@ -140,7 +159,7 @@
 | F. 계획·최적화 (8) | `planning_snapshot` · `planning_snapshot_fact` · **`planning_snapshot_constraint`** · **`planning_snapshot_input`** · `recovery_run` · `assignment` · `plan_decision` · `operator_planning_constraint` |
 | G. 위험·비용 (4) | `risk_assessment` · `cost_result` · `cost_line_item` · `cost_line_link` |
 | H. 외부 통신 (10) | `comm_thread` · `question_item` · `comm_message` · **`comm_message_structured_field`** · `comm_message_question` · `message_approval` · **`message_approval_structured_field`** · `message_status_transition` · `send_attempt` · `extraction` |
-| I. 주체·감사 (2) | `actor` · `audit_log` |
+| I. 주체·감사·운영 (3) | `actor` · `audit_log` · **`system_error`**(rev.2.2) |
 | J. 시뮬레이션 (1) | `scenario` |
 | MVP 에서 만들지 않음 | `exception_case`(D-5) · `operational_plan_batch`(D-4) |
 
@@ -271,7 +290,7 @@
 
 - **문제**: 회신 값을 사실 키로 **LLM 없이** 매핑해야 한다.
 - **근거**: `docs/18` D.3 — LLM 은 `ask_id` + 값 + 원문 인용만 낸다. 매핑은 Backend.
-- **추천**: `question_item` 을 `comm_thread` 의 종속 테이블로 두고, **질문을 만들 때 대상 사실 키를 미리 확정해 컬럼으로 저장**한다: `target_entity_type` · `target_entity_id` · `target_fact_key` · `answer_shape` · `unit` · `target_slots`. 그러면 추출 결과 매핑은 **`ask_id` 로 행 하나를 찾는 것**으로 끝난다. LLM 이 사실 키를 정할 여지가 구조적으로 사라진다.
+- **추천**: `question_item` 을 `comm_thread` 의 종속 테이블로 두고, **질문을 만들 때 대상을 미리 확정해 컬럼으로 저장**한다: `target_entity_type` · `target_entity_id` · `target_fact_key` · **`target_applicability_scope_type` · `target_applicability_scope_ref`**(rev.2.1) · `expected_value_type` · `expected_unit`. 그러면 추출 결과 매핑은 **`ask_id` 로 행 하나를 찾는 것**으로 끝나고, **개체·사실 키·적용 범위가 전부 그 행에서 나온다.** LLM 이 사실 키나 범위를 정할 여지가 구조적으로 사라진다(15.2.1).
 - **되돌리기**: 어려움(추출 계약과 맞물린다).
 - **사용자 결정**: 불필요.
 - **반영**: `question_item`, `UNIQUE(thread_id, ask_id)`.
@@ -407,6 +426,7 @@
 - **문제**: D-3 의 기본값이 "현재 복구 맥락에만 적용"인데, **그 맥락의 식별자가 아직 없다.** `exception_case` 를 만들지 않기로 했으므로(D-5) 대신 무엇을 쓸지 정해야 한다.
 - **후보**: ① `recovery_run` 계보의 뿌리 실행 id ② 최초 계기가 된 사건 id ③ 대상 컨테이너 집합의 지문 ④ 운영자 세션.
 - **지금 하는 것**: `applicability_scope_ref` · `scope_ref` 를 **문자열**로 두고 무엇을 담을지는 열어 둔다. `recovery_run.previous_run_id` 계보가 이미 있으므로 ①이 가장 가깝다.
+- **예시 표기 (rev.2.2)**: 이 문서와 작업표의 예시는 복구 맥락 참조를 **`<RECOVERY_CONTEXT_REF>`** 라는 자리표시자로 쓴다. 이것은 **별도 `RecoveryContext` 테이블이 있다는 뜻도, 복구 맥락 = `recovery_run` id 라는 뜻도 아니다.** 실제 식별 방식은 이 L-13 이 정한다.
 - **사용자 결정**: 지금은 불필요. **T-069 구현 계획에서 답한다.**
 
 ### L-14 적용 범위의 **값 목록과 선택 정책** **(rev.2 신규 · rev.2.1 확장 · OPEN)**
@@ -562,6 +582,7 @@
 
 - 분류 **`MASTER`** · 변경 **`CONTROLLED_UPDATE`** · MVP **아님**. 구조만 정의하고 MVP 에서 채우지 않는다.
 - 키: `vessel_call_id` PK, `UNIQUE(port_authority_code, call_year, call_seq, call_sign)`.
+- 컬럼: `vessel_call_id` · `port_authority_code CODE` · `call_year INTEGER` · `call_seq INTEGER` · `call_sign STRING(20)` · `vessel_name STRING(100)` · `is_active` (rev.2.2 — 작업표와 맞춰 적음).
 - 이유: 같은 배로 온 컨테이너에 입항 지연이 공통으로 걸릴 때 필요하다. 지금은 컨테이너별 도착 사실로 충분하다.
 
 ---
@@ -587,7 +608,7 @@
 
 | 테이블 | 고유 컬럼 (모두 `default_` 기본값) |
 | --- | --- |
-| `facility_warehouse` | `default_capacity_per_day INTEGER` · `default_receiving_from/to TIME` · `default_last_departure_for_same_day TIME` · `default_accepted_size_types STRING(50)` · `default_travel_minutes_from_terminal INTEGER` |
+| `facility_warehouse` | `default_capacity_per_day INTEGER` · `default_receiving_from` · `default_receiving_to TIME` · `default_last_departure_for_same_day TIME` · `default_accepted_size_types STRING(50)` · `default_travel_minutes_from_terminal INTEGER` |
 | `facility_terminal` | `default_gate_open/close TIME` |
 | `facility_odcy` | `default_gate_close TIME` · `default_round_trip_slots INTEGER` · `default_accepted_size_types STRING(50)` · `rejects_note STRING(200)` |
 
@@ -766,7 +787,7 @@
 | 시나리오 | `scenario_id` | `REF(scenario)` | 아니오 | FK | `is_simulated = true` 일 때만 |
 
 **Integrity Rules**
-1. `event` 에 대한 UPDATE·DELETE 는 허용하지 않는다(안티패턴 3). 정정은 `supersedes_event_id` 를 가진 **새 행**이다.
+1. `event` 에 대한 UPDATE·DELETE 는 허용하지 않는다. 정정은 `supersedes_event_id` 를 가진 **새 행**이다.
 2. `supersedes_event_id` 는 **자기 자신을 가리킬 수 없고 순환할 수 없다**.
 3. 정정 사건의 `fact_kind` 와 대상 개체는 원래 사건과 같아야 한다.
 4. `is_simulated = false` 인 사건은 `scenario_id` 가 비어 있어야 한다.
@@ -816,7 +837,7 @@
 ### 11.4 `canonical_fact` — 현재 사실 (**파생·물질화**)
 
 - 분류 **`DERIVED_MATERIALIZED`** · 변경 **`REBUILDABLE`** (재계산으로 덮어쓴다) · MVP
-- **원칙: 이 테이블 전체를 지워도 `event` 만으로 똑같이 복원된다.** 여기에만 있는 정보는 없어야 한다(안티패턴 4).
+- **원칙: 이 테이블 전체를 지워도 `event` 만으로 똑같이 복원된다.** 여기에만 있는 정보는 없어야 한다(I-7 재현 테스트).
 
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
 | --- | --- | --- | --- | --- | --- |
@@ -850,11 +871,11 @@
 | 계산 시각 | `computed_at` | `TIMESTAMP_TZ` | 예 | | |
 
 - **PK** = (`entity_type`, `entity_id`, `fact_key`, `applicability_scope_type`, `applicability_scope_ref`, `is_simulated`).
-- `value` 를 사람이 직접 고치는 경로는 없다. 운영자 수정은 **새 사건**이고 재계산이 이 표를 바꾼다(안티패턴 6).
+- `value` 를 사람이 직접 고치는 경로는 없다. 운영자 수정은 **새 사건**이고 재계산이 이 표를 바꾼다(3.1 안티패턴 9 와 같은 원리 — 현재 사실은 `event` 경로로만 바뀐다).
 
 #### 11.4.1 범위가 다른 현재 사실은 서로를 밀어내지 않는다 **(rev.2 신규 — 흐름 검증에서 발견)**
 
-21절 흐름 검증에서 **rev.2 초안의 모순**이 하나 드러났다.
+27절 흐름 검증에서 **rev.2 초안의 모순**이 하나 드러났다.
 
 ```
 이미 있던 사실:  창고 B 보관료 = 15,000원   (범위 GLOBAL)
@@ -881,9 +902,9 @@ PK 가 (주체 + 사실 키 + 시뮬레이션)뿐이면 **두 사실이 같은 �
 **범위 선택 정책은 이번 단계에서 확정하지 않는다** (rev.2.1). 위 예시는 **범위가 둘(`RECOVERY_CONTEXT` · `GLOBAL`)일 때**의 동작이고, 좁은 쪽이 이긴다는 직관이 통한다. 그러나 범위가 늘면 그렇게 간단하지 않다.
 
 ```
-CONTRACT (A 계약)        ┐
-CONTAINER (CNT-0001)     ├─ 셋 다 "GLOBAL 보다 좁다". 서로는 누가 더 좁은가?
-RECOVERY_CONTEXT (RC-1)  ┘
+CONTRACT (A 계약)                          ┐
+CONTAINER (CNT-0001)                       ├─ 셋 다 "GLOBAL 보다 좁다". 서로는 누가 더 좁은가?
+RECOVERY_CONTEXT (<RECOVERY_CONTEXT_REF>)  ┘
 ```
 
 **셋은 서로 다른 축**이라 한 줄로 세울 수 없다. `RECOVERY_CONTEXT > CONTAINER > CONTRACT > GLOBAL` 같은 우선순위를 지금 임의로 박으면, 현업이 실제로 쓰는 조합이 확인되기 전에 잘못된 답을 고정하게 된다.
@@ -910,7 +931,7 @@ RECOVERY_CONTEXT (RC-1)  ┘
 
 ### 11.5 `conflict` — 충돌
 
-- 분류 **`DERIVED_MATERIALIZED`** · 변경 **`REBUILDABLE`** (재계산으로 덮어쓴다(`REBUILDABLE`)) · MVP
+- 분류 **`DERIVED_MATERIALIZED`** · 변경 **`REBUILDABLE`** (재계산으로 덮어쓴다) · MVP
 
 `conflict_id` PK · 대상 **5열**(`entity_type` · `entity_id` · `fact_key` · **`applicability_scope_type`** · **`applicability_scope_ref`**) · `conflict_type CODE` · `event_ids JSON`(대립한 사건들) · `severity CODE` · `detected_rule CODE` · `rule_version` · `blocks_automation BOOLEAN` · `computed_as_of` · `is_simulated` · `scenario_id`.
 
@@ -920,7 +941,7 @@ RECOVERY_CONTEXT (RC-1)  ┘
 
 ```
 창고 B 보관료 = 15,000원   (범위 GLOBAL)
-창고 B 보관료 = 0원        (범위 RECOVERY_CONTEXT / RC-001)
+창고 B 보관료 = 0원        (범위 RECOVERY_CONTEXT / <RECOVERY_CONTEXT_REF>)
 
 주체 같다 · 사실 키 같다  →  rev.2 구조에서는 한 충돌로 묶인다  ← 틀렸다
 ```
@@ -957,7 +978,7 @@ RECOVERY_CONTEXT (RC-1)  ┘
 
 ```
 "창고 B 의 평소 보관료가 얼마인지 확인해 주세요"        (GLOBAL)
-"창고 B 의 이번 건 보관료가 얼마인지 확인해 주세요"     (RECOVERY_CONTEXT / RC-001)
+"창고 B 의 이번 건 보관료가 얼마인지 확인해 주세요"     (RECOVERY_CONTEXT / <RECOVERY_CONTEXT_REF>)
 ```
 
 주체도 같고 사실 키도 같지만 **묻는 내용이 다르다.** 범위를 빼면 두 요청이 한 줄로 합쳐져서, 하나를 처리하면 다른 하나도 처리된 것처럼 보인다.
@@ -976,6 +997,7 @@ RECOVERY_CONTEXT (RC-1)  ┘
 | 메모 | `note` | `STRING(500)` | 아니오 | | |
 | 연결된 질문 | `question_item_id` | `REF(question_item)` | 아니오 | FK | 외부에 물었으면 |
 | 해소 사건 | `resolving_event_id` | `REF(event)` | 아니오 | FK | 사실이 들어와 풀렸으면 |
+| 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | | **rev.2.2 표기 보강**(20절 목록에는 이미 있었다). 부모 `verification_request` 는 재생성으로 사라질 수 있으므로 **처리 기록이 실제/시뮬레이션 구분을 스스로 가져야 한다** |
 
 #### 11.7.1 `request_key` 는 DB 외래키가 아니다 (rev.2 수정)
 
@@ -1076,7 +1098,7 @@ rev.1 은 이 컬럼을 **FK → `verification_request.request_key`** 라고 적
 
 `offer_item_id` PK · `offer_id` FK · `cost_type CODE` · `applies_to JSON` · **금액 5종 묶음**(§7) · `unit CODE` · `quantity DECIMAL(12,2)` · **`created_event_id` FK**(이 줄이 만든 OFFER 사건).
 
-> **계산의 정본은 여전히 `canonical_fact` 다.** 제안은 근거이고, 계산에 들어가려면 사건이 되어 사실로 채택되어야 한다(안티패턴 8을 피하는 방향). `created_event_id` 가 그 다리다.
+> **계산의 정본은 여전히 `canonical_fact` 다.** 제안은 근거이고, 계산에 들어가려면 사건이 되어 사실로 채택되어야 한다(3.1 안티패턴 4 — 제안과 현재 요율의 이중 정본 — 를 피하는 방향). `created_event_id` 가 그 다리다.
 
 ---
 
@@ -1156,7 +1178,7 @@ rev.1 은 이 컬럼을 **FK → `verification_request.request_key`** 라고 적
 | 입력 종류 | `input_kind` | `CODE` | 예 | **PK 일부** | `MASTER_DEFAULT` · `TARIFF_RULE` · `POLICY` |
 | 원천 테이블 | `source_table` | `CODE` | 예 | **PK 일부** | `facility_warehouse` · `tariff_rule` 등 |
 | 원천 키 | `source_key` | `STRING(60)` | 예 | **PK 일부** | 그 행의 식별자 |
-| 값 경로 | `value_path` | `STRING(60)` | 아니오 | **PK 일부** | `default_travel_minutes_from_terminal` 같은 컬럼 이름 |
+| 값 경로 | `value_path` | `STRING(60)` | **예** | **PK 일부** | `MASTER_DEFAULT` 면 실제 컬럼 경로(`default_travel_minutes_from_terminal` 등). 행 전체·판 전체를 뜻하면 **논리적 "전체" 표시**를 넣는다 — rev.2.2 정정, 아래 참고 |
 | 얼린 값 | `frozen_value_text` | `TEXT` | 아니오 | | 사람이 읽는 값 |
 | 얼린 값(수치) | `frozen_value_number` | `DECIMAL(18,4)` | 아니오 | | |
 | 판 | `source_version` | `STRING(20)` | 아니오 | | 불변 판을 가리킬 수 있으면 여기 |
@@ -1171,6 +1193,18 @@ rev.1 은 이 컬럼을 **FK → `verification_request.request_key`** 라고 적
 | **`MASTER_DEFAULT`** | 사실이 없어서 마스터의 `default_*` 값을 대신 쓴 경우 **그 값만** 기록 | 마스터는 수정 가능하다. 나중에 고치면 과거 실행이 재현되지 않는다 |
 | **`TARIFF_RULE`** | 실제로 **고려·적용한** `tariff_rule_id` 들 | `tariff_rule` 자체는 수정 금지·판 교체라 **id 참조로 충분**하다. 다만 `tariff_version` 문자열 하나로는 **어느 규칙 집합이었는지** 복원되지 않는다 |
 | **`POLICY`** | 위험·신선도·근거 강도 정책의 판 | 판이 바뀌면 판정이 달라진다 |
+
+**`value_path` 는 비어 있을 수 없다** (rev.2.2 수정)
+
+rev.2.1 은 이 컬럼을 PK 일부이면서 NULL 허용으로 적었다. **PK 구성요소가 비어 있을 수 있으면 "하나만 존재해야 하는 조합"이라는 PK 의 뜻이 성립하지 않는다.** 그래서 NOT NULL 로 고친다.
+
+| `input_kind` | `value_path` 에 들어가는 것 |
+| --- | --- |
+| `MASTER_DEFAULT` | 실제로 쓴 **컬럼 경로** 하나 |
+| `TARIFF_RULE` | 규칙 **행 전체**를 가리키므로 논리적 "전체" 표시 |
+| `POLICY` | 정책 **판 전체**를 가리키면 "전체" 표시, 정책 안의 특정 값을 얼렸으면 그 경로 |
+
+- "전체" 표시의 **정확한 문자열(예: `*` 또는 빈 문자열 금지 규칙)** 은 물리 설계(T-080)에서 정한다. 논리 설계가 정하는 것은 **비어 있으면 안 된다**는 것까지다.
 
 > **사실이 있으면 마스터 값을 쓰지 않는다.** `MASTER_DEFAULT` 행이 남았다는 것은 "그날 값을 아무도 알려 주지 않아 평시 기준선으로 계산했다"는 뜻이고, 그 자체가 읽을 만한 정보다.
 
@@ -1424,7 +1458,7 @@ rev.1 은 `ACTUAL_REPORTED`(사실로 보고된 발생액)를 성격 값에 넣�
 #### 15.2.1 질문에 범위까지 못 박는 이유 (rev.2.1 수정)
 
 ```
-"이번 사고 건에 적용할 창고 B 보관료는 얼마입니까?"     → RECOVERY_CONTEXT / RC-001
+"이번 사고 건에 적용할 창고 B 보관료는 얼마입니까?"     → RECOVERY_CONTEXT / <RECOVERY_CONTEXT_REF>
 "앞으로 일반적으로 적용되는 창고 B 보관료는 얼마입니까?" → GLOBAL
 ```
 
@@ -1526,11 +1560,11 @@ CERA 의 발송 초안은 이렇게 만들어진다.
 | **무효 사유 종류** | `invalidation_cause` | `CODE` | 아니오 | | `USER_REVOKED` · `PLAN_SUPERSEDED` · `CONTENT_CHANGED` |
 | 결정 주체·시각 | `actor_id` · `decided_at` | — | 예 | FK | |
 | **유효 만료 시각** | `expires_at` | `TIMESTAMP_TZ` | 아니오 | | **승인할 때 정하고 이후 고치지 않는다** |
-| **승인 시점 제목·본문** | `approved_subject` · `approved_body_text` | `STRING(300)` · `TEXT` | 아니오 | | 승인한 내용 그대로의 사본 |
-| 승인 시점 계획 | `approved_plan_run_id` | `REF(recovery_run)` | 아니오 | FK | 어느 계산 결과를 근거로 승인했나 |
-| **승인 내용 지문** | `approved_content_hash` | `HASH` | 예 | | 수신자 + 제목 + 본문 + **구조화 값**을 모두 덮는다 |
-| 승인 시점 수신자 | `approved_to_address_id` | `REF(contact_channel_address)` | 아니오 | FK | 수신자 바꿔치기 차단 |
-| 사유 | `reason` | `STRING(500)` | 아니오 | | 반려·수정 요청·무효화일 때 |
+| **승인 시점 제목·본문** | `approved_subject` · `approved_body_text` | `STRING(300)` · `TEXT` | **조건부** | | 승인한 내용 그대로의 사본. **`APPROVED` 면 메시지에 값이 있는 범위에서 필수**(15.5.0) |
+| 승인 시점 계획 | `approved_plan_run_id` | `REF(recovery_run)` | 아니오 | FK | 어느 계산 결과를 근거로 승인했나. 계획 기반 메시지의 `APPROVED` 면 필수 |
+| **승인 내용 지문** | `approved_content_hash` | `HASH` | **조건부** | | 수신자 + 제목 + 본문 + **구조화 값**을 모두 덮는다. **`APPROVED` 면 필수**, 다른 행 종류는 필수 아님(15.5.0) — rev.2.2 정정 |
+| 승인 시점 수신자 | `approved_to_address_id` | `REF(contact_channel_address)` | **조건부** | FK | 수신자 바꿔치기 차단. **`APPROVED` 면 필수** |
+| 사유 | `reason` | `STRING(500)` | **조건부** | | `REJECTED` · `REVISION_REQUESTED` 면 필수. 무효화일 때도 권장 |
 
 > 승인 뒤 내용이 바뀌면 **새 메시지 + 새 승인**이다. 승인 행을 고쳐 재사용하지 않는다.
 
@@ -1546,12 +1580,14 @@ CERA 의 발송 초안은 이렇게 만들어진다.
 
 **Integrity Rules**
 
-1. `decision ∈ {REVOKED, INVALIDATED}` 이면 `invalidates_approval_id` 와 `invalidation_cause` 가 **NOT NULL** 이다.
+1. `decision ∈ {REVOKED, INVALIDATED}` 이면 `invalidates_approval_id` 와 `invalidation_cause` 가 **NOT NULL** 이다. 새 `approved_content_hash` 나 승인 사본은 **요구하지 않는다.**
 2. 무효화가 가리키는 행은 **`decision = APPROVED`** 여야 한다. 반려나 다른 무효화를 무효화하지 않는다.
 3. 무효화가 가리키는 행은 **같은 `message_id`** 에 속해야 한다. 다른 메시지의 승인을 무효화할 수 없다.
 4. 한 승인을 가리키는 무효화 행은 **최대 1건**(`invalidates_approval_id` 부분 유일).
-5. `decision = APPROVED` 이면 `approved_content_hash` 가 **NOT NULL** 이다.
-6. 어떤 행도 만들어진 뒤 **UPDATE 되지 않는다**(`expires_at` 포함).
+5. `decision = APPROVED` 이면 `approved_content_hash` · `approved_to_address_id` 가 **NOT NULL** 이다. 메시지에 제목·본문이 있으면 `approved_subject` · `approved_body_text` 도 NOT NULL 이고, 메시지의 **`comm_message_structured_field` 한 줄마다** `message_approval_structured_field` 사본이 한 줄씩 있어야 한다.
+6. `decision ∈ {REJECTED, REVISION_REQUESTED}` 이면 `reason` 이 **NOT NULL** 이다. 승인 성공 행이 아니므로 규칙 5의 사본 조건을 **적용하지 않는다**(검토한 내용의 지문을 남기고 싶으면 넣을 수는 있다).
+7. `decision ≠ APPROVED` 인 행은 `invalidates_approval_id` 로 가리켜지지 않고(규칙 2), **발송 근거가 될 수 없다**(15.5.1).
+8. 어떤 행도 만들어진 뒤 **UPDATE 되지 않는다**(`expires_at` 포함).
 
 #### 15.5.1 승인의 취소·만료·계획 교체 (rev.2 수정)
 
@@ -1567,11 +1603,15 @@ rev.1 은 승인을 덧붙이기 전용이라고 했지만 **무효화를 표현
 **어떤 승인이 지금 쓸 수 있는가** — 조회로 판정한다.
 
 ```
-decision = APPROVED
+message_id = 지금 보낼 메시지
+  AND  decision = APPROVED
   AND  (expires_at 이 비었거나 아직 지나지 않음)
   AND  이 행을 invalidates_approval_id 로 가리키는 행이 없음
   AND  approved_content_hash = 지금 보낼 내용의 지문
+  AND  approved_to_address_id = 실제 수신자
 ```
+
+이 **여섯 조건**이 "유효한 승인"의 정의다. 15.7.1 · 15.7.2 · I-3 · I-9 는 모두 이 정의를 가리킨다(rev.2.2 — 조건 개수 표현 통일).
 
 이렇게 하면 다음 사슬이 전부 복원된다.
 
@@ -1598,7 +1638,7 @@ decision = APPROVED
 
 ### 15.7 `send_attempt` — 발송 시도 (**L-7**)
 
-- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`APPEND_ONLY`** (덧붙이기 전용) · MVP
+- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`IMMUTABLE_AFTER_CREATE`**(식별·요청 내용) **+ `CONTROLLED_UPDATE`**(결과 5컬럼, 한 번) · MVP — rev.2.2 정정, 15.7.3
 
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
 | --- | --- | --- | --- | --- | --- |
@@ -1609,9 +1649,9 @@ decision = APPROVED
 | **멱등 키** | `idempotency_key` | `STRING(100)` | 예 | **UNIQUE** | 중복 발송 차단. 재료는 **채널 + 메시지 + 내용 지문 + (있으면) 승인**. 주소 확인 메일은 승인이 없으므로 승인을 재료에서 뺀다 |
 | 채널 연결 | `channel_connection_id` | `REF(channel_connection)` | 아니오 | FK | 어느 연결로 나갔나 |
 | 발송 내용 지문 | `sent_content_hash` | `HASH` | 예 | | **비교 대상이 메시지 종류에 따라 다르다** — 15.7.2 |
-| 시작·종료 시각 | `started_at` · `finished_at` | `TIMESTAMP_TZ` | 예/아니오 | | |
-| 결과 | `result` | `CODE` | 예 | | `SUCCESS`·`RETRYABLE_FAILURE`·`PERMANENT_FAILURE`·`UNKNOWN` |
-| 채널 오류 | `error_code` · `error_message` | `CODE` · `STRING(500)` | 아니오 | | |
+| 시작·종료 시각 | `started_at` · `finished_at` | `TIMESTAMP_TZ` | 예/아니오 | | `started_at` 은 외부 호출 **전에** 기록. `finished_at` 은 결과 기록 때 한 번 |
+| 결과 | `result` | `CODE` | **아니오 (결과 기록 전 NULL)** | | `SUCCESS`·`RETRYABLE_FAILURE`·`PERMANENT_FAILURE`·`UNKNOWN`. **NULL = 아직 결과를 기록하지 않음(호출 중이거나 중단됨)**. `UNKNOWN` = 호출은 끝났는데 결과를 모름 — 둘은 다르다 |
+| 채널 오류 | `error_code` · `error_message` | `CODE` · `STRING(500)` | 아니오 | | CERA 내부 오류 코드로 정규화한 값(`docs/23` 6절). **비밀값·토큰·원문 본문을 넣지 않는다** |
 | 채널 응답 id | `provider_message_id` | `STRING(200)` | 아니오 | | |
 | 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | | Mock 채널 발송 |
 
@@ -1621,7 +1661,7 @@ rev.1 은 `approval_id` 를 **NOT NULL** 로 두고 "승인 없는 발송 시도
 
 | `comm_message.message_kind` | `send_attempt.approval_id` | 그 대신 필요한 것 |
 | --- | --- | --- |
-| **`BUSINESS`** | **필수** | 유효한 `APPROVED` 승인 (15.5.1 의 4개 조건 전부) |
+| **`BUSINESS`** | **필수** | 유효한 `APPROVED` 승인 (15.5.1 의 여섯 조건 전부) |
 | **`CONTACT_VERIFICATION`** | **비어 있어야 한다** | `comm_message.contact_verification_id` 가 **필수** + 토큰 유효 |
 
 **Integrity Rules** — 업무 메시지가 주소 확인으로 위장해 승인을 우회하지 못하게 한다.
@@ -1647,13 +1687,14 @@ rev.2 는 `sent_content_hash` 를 "`approved_content_hash` 와 같아야 한다"
 | `sent_content_hash` 를 무엇과 비교 | **유효한 승인**의 `approved_content_hash` | **그 메시지 자신**의 `content_hash` |
 | 무엇을 막나 | 승인 뒤 내용·수신자·숫자 바꿔치기 | 작성한 내용과 실제 보낸 내용이 달라지는 것 |
 
-**업무 메시지에서 "유효한 승인"이란** (15.5.1 과 같은 조건):
+**업무 메시지에서 "유효한 승인"이란** (15.5.1 의 여섯 조건과 같다):
 
 ```
 같은 message_id 에 속하고
 decision = APPROVED 이고
 expires_at 이 비었거나 아직 지나지 않았고
 이 행을 invalidates_approval_id 로 가리키는 행이 없고
+approved_content_hash 가 지금 보낼 내용의 지문과 같고
 approved_to_address_id 가 실제 수신자와 같다
 ```
 
@@ -1663,17 +1704,34 @@ approved_to_address_id 가 실제 수신자와 같다
 
 > **`UNKNOWN`(응답을 못 받음)을 성공·실패로 접지 않는다.** 이 값이 있어야 재시도 정책이 중복 발송을 만들지 않는다.
 
+#### 15.7.3 발송 시도의 생애주기 — 요청은 불변, 결과는 한 번 (rev.2.2 수정)
+
+rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었다. 그런데 중복 발송을 막으려면 **외부 호출 전에** 시도 행을 먼저 커밋해야 하고(`docs/18` H.2 — "보냈는지 모르겠다" 상태를 남기기 위해), 결과는 호출이 끝난 뒤에야 안다. 그래서 두 부분으로 나눈다. **결과를 담는 별도 표는 만들지 않는다.**
+
+| 부분 | 컬럼 | 변경 |
+| --- | --- | --- |
+| **식별·요청 (불변)** | `send_attempt_id` · `message_id` · `approval_id` · `attempt_no` · `idempotency_key` · `channel_connection_id` · `sent_content_hash` · `started_at` · `is_simulated` | **만든 뒤 절대 고치지 않는다** |
+| **결과 (정해진 생애주기)** | `finished_at` · `result` · `error_code` · `error_message` · `provider_message_id` | `result = NULL` 에서 **종료 값으로 한 번만** 간다 |
+
+**Integrity Rules**
+
+1. 식별·요청 9컬럼은 **어떤 경우에도 UPDATE 하지 않는다.** 재시도는 이 행을 고치지 않고 **새 행**(`attempt_no + 1`)이다.
+2. `result` 는 `NULL` 에서 `SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` · `UNKNOWN` 중 하나로 **한 번만** 간다. 종료 값에서 다른 값으로 바꾸지 않는다.
+3. `result` 를 기록할 때 `finished_at` 도 함께 기록한다. `result = SUCCESS` 이면 `error_code` 는 비어 있다.
+4. 프로세스가 호출 중에 죽어 `result = NULL` 로 남은 행은 **다시 보내지 않고 먼저 외부 조회로 화해**한다(`docs/18` H.2). 화해 결과를 그 행의 결과로 한 번 기록한다.
+5. 기술 오류의 상세(어느 구성요소·어떤 예외·재시도 가능 여부·추적 id)는 여기가 아니라 **`system_error`** 에 남는다(16.2a). 이 표는 "이 시도가 어떻게 끝났나"만 답한다.
+
 ### 15.8 `message_status_transition` — 메시지 상태 전이
 
 - 분류 **`SOURCE_OF_TRUTH`** · 변경 **`APPEND_ONLY`** (덧붙이기 전용) · MVP
 
-`transition_id` PK · `message_id` FK · `status CODE`(`DRAFTED`·`PENDING_APPROVAL`·`APPROVED`·`REJECTED`·`QUEUED`·`SENT`·`DELIVERY_FAILED`·`REPLIED`·`CLOSED`) · `occurred_at` · `actor_id` FK · `send_attempt_id` FK · `note`.
+`transition_id` PK · `message_id` FK · `status CODE`(`DRAFTED`·`PENDING_APPROVAL`·`APPROVED`·`REJECTED`·`QUEUED`·`SENT`·`DELIVERY_FAILED`·`REPLIED`·`CLOSED`) · `occurred_at` · `actor_id` FK · `send_attempt_id` FK · `note` · **`is_simulated BOOLEAN`**(rev.2.2 표기 보강 — 20절 목록에는 이미 있었다).
 
 > `comm_message.current_status` 는 이 표의 마지막 행을 접어 둔 **캐시**다. 상태의 정본은 여기다(안티패턴 3).
 
 ### 15.9 `extraction` — LLM 추출 후보
 
-- 분류 **`EVIDENCE`** · 변경 **`APPEND_ONLY`** (덧붙이기 전용) · MVP
+- 분류 **`EVIDENCE`** · 변경 **`IMMUTABLE_AFTER_CREATE`**(추출 결과) **+ `CONTROLLED_UPDATE`**(검토 4컬럼) · MVP — rev.2.2 정정, 15.9.1
 - **LLM 이 만든 것은 여기까지다.** 여기서 사실로 넘어가는 다리는 사람 또는 결정론 규칙이다(A-15).
 
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
@@ -1696,6 +1754,23 @@ approved_to_address_id 가 실제 수신자와 같다
 
 > **`extraction` 에는 신원·권한·근거 강도·상태·확정 숫자가 없다.** 그것들은 전부 결정론 경로(`event` → `canonical_fact`)에서 정해진다(ADR-026·029).
 
+#### 15.9.1 추출 기록의 생애주기 — 추출 결과는 불변, 검토만 갱신 (rev.2.2 수정)
+
+rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었지만, 사람이 후보를 채택하거나 거절하면 **검토 컬럼이 나중에 채워진다.** 두 부분으로 나눈다.
+
+| 부분 | 컬럼 | 변경 |
+| --- | --- | --- |
+| **추출 결과 (불변)** | `extraction_id` · `message_id` · `raw_input_id` · `ask_id` · `candidate_value_text` · `candidate_unit` · `source_quote` · `quote_location` · `model_version` · `prompt_version` · `model_confidence` · `is_simulated` | **만든 뒤 절대 고치지 않는다.** LLM 이 낸 것은 그대로 남는다 |
+| **검토 (정해진 생애주기)** | `review_status` · `reviewed_by_actor_id` · `reviewed_at` · `created_event_id` | `PENDING` → `ACCEPTED` / `REJECTED` / `SUPERSEDED` **한 방향으로 한 번만** |
+
+**Integrity Rules**
+
+1. 추출 결과 12컬럼은 **어떤 경우에도 UPDATE 하지 않는다.** 다시 추출하면 새 행이고, 이전 행은 `SUPERSEDED` 로 닫는다.
+2. `review_status` 는 `PENDING` 에서 출발해 종료 상태로 **한 번만** 간다.
+3. `review_status = ACCEPTED` 이면 `created_event_id` 가 NOT NULL 이다(채택 = 사건 생성). `REJECTED` · `SUPERSEDED` 면 비어 있다.
+4. `ACCEPTED` · `REJECTED` 는 `reviewed_at` 이 NOT NULL 이다. 사람이 판정했으면 `reviewed_by_actor_id` 도 있다(결정론 규칙이 채택하면 `SYSTEM` 주체).
+5. 검토 결과가 사실이 되는 길은 **새 `event` 한 행**뿐이다. 추출 행의 값을 고쳐 사실로 쓰지 않는다.
+
 ### 15.10 `comm_message_question` — 메시지와 질문 연결
 
 - 분류 **`SOURCE_OF_TRUTH`** · 변경 **`APPEND_ONLY`** · MVP · **PK** = (`message_id`, `question_item_id`), 둘 다 FK.
@@ -1703,7 +1778,7 @@ approved_to_address_id 가 실제 수신자와 같다
 
 ---
 
-## 16. I. 주체·감사 / J. 시뮬레이션 / MVP 에서 만들지 않는 것
+## 16. I. 주체·감사·운영 / J. 시뮬레이션 / MVP 에서 만들지 않는 것
 
 ### 16.1 `actor` — 행위 주체 (**Q-62**)
 
@@ -1720,6 +1795,61 @@ approved_to_address_id 가 실제 수신자와 같다
 `audit_id` PK · `occurred_at` · `actor_id` FK · `action CODE` · `target_type`·`target_id` · `before_ref`·`after_ref` · `request_context STRING(300)` · `result CODE` · `is_simulated`.
 
 > 사람의 **결정**은 `plan_decision`·`message_approval`·`verification_request_handling` 에 남는다. `audit_log` 는 그 위에 얹는 **행위 기록**이며, 결정 기록을 대체하지 않는다.
+
+### 16.2a `system_error` — 시스템·연동 오류 기록 **(rev.2.2 신규 · 기술 운영 표)**
+
+- 분류 **`EVIDENCE`** · 변경 **`APPEND_ONLY`** (오류 발생 기록 자체는 고치지 않는다) · MVP
+- **업무 도메인 개념이 아니다.** CERA 안이나 외부 시스템 호출에서 난 **기술적 실패**를 나중에 DB 에서 찾아보기 위한 기술 운영(관측성) 표다. 승인된 개념 모델(`docs/21`)의 저장 개념이 아니며, 개념 모델을 다시 열지 않는다(23절).
+- **무엇을 여기에 남기고 무엇을 로그에만 두는지, 어떻게 기록하는지**의 정본은 **`docs/23_runtime-platform-and-observability.md`** 4~6절이다(DB vs 로그 기준 4.3, 비밀 금지 4.4, 추적 id 5절, 오류 정규화 6절). 이 절은 **표 모양**만 정한다.
+
+| 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
+| --- | --- | --- | --- | --- | --- |
+| 오류 id | `error_id` | `STRING(40)` | 예 | **PK** | |
+| 발생 시각 | `occurred_at` | `TIMESTAMP_TZ` | 예 | | Asia/Seoul |
+| 서비스 | `service_name` | `STRING(60)` | 예 | | 어느 배포 단위인가(예: API 서버, 백그라운드 작업자). 이름 목록은 구현 때 |
+| 구성요소 | `component_name` | `STRING(100)` | 예 | | 어느 모듈인가(예: `channels.gmail`, `comms.outbox`) |
+| 작업 | `operation_name` | `STRING(100)` | 예 | | 무엇을 하다가 났나(예: `send_message`, `fetch_inbound`) |
+| **경계** | `error_boundary` | `CODE` | 예 | | `API_REQUEST` · `INTEGRATION` · `BACKGROUND_JOB` — 오류를 잡은 공통 처리 지점(`docs/23` 4절) |
+| **오류 분류** | `error_category` | `CODE` | 예 | | CERA 내부 분류(예: 외부 시간 초과 · 외부 인증 · 외부 요청 한도 · 외부 서버 오류 · 외부 응답 형식 오류 · 내부 예상 밖 오류 · 데이터 처리 실패 · 작업 실패). **값 목록은 확정하지 않았다**(Q-66) |
+| **오류 코드** | `error_code` | `STRING(60)` | 예 | | 정규화한 코드(예: `GMAIL_TIMEOUT` · `GMAIL_RATE_LIMITED` · `GMAIL_AUTH_EXPIRED` · `EXTERNAL_RESPONSE_INVALID`) |
+| **안전한 메시지** | `safe_error_message` | `STRING(500)` | 예 | | 사람이 읽을 요약. **비밀값·토큰·수신자 주소 원문·메일 본문·전체 스택 트레이스를 넣지 않는다** |
+| 예외 종류 | `exception_type` | `STRING(200)` | 아니오 | | 프로그램 예외 클래스 이름 |
+| **요청 id** | `request_id` | `STRING(64)` | 아니오 | | 한 번의 API 요청·작업 실행을 가리킨다 |
+| **추적 id** | `trace_id` | `STRING(64)` | 아니오 | | 서버 안 여러 계층과 외부 호출을 한 흐름으로 잇는다. **업무 상관 id(`docs/05` 의 `correlation_id` — 메일 스레드·복구 실행)와 다른 것이다**(`docs/23` 5절) |
+| 대상 외부 시스템 | `target_system` | `CODE` | 아니오 | | 외부 호출 실패일 때(예: `GMAIL` · `UNIPASS` · `DATA_GO_KR` · `LLM_PROVIDER`) |
+| HTTP 상태 | `http_status` | `INTEGER` | 아니오 | | 외부 응답·API 응답 코드가 있으면 |
+| **재시도 가능** | `retryable` | `BOOLEAN` | 예 | | 분류 규칙이 판정한 값. **재시도를 실제로 했는지는 여기 쓰지 않는다**(발송이면 `send_attempt` 가 답한다) |
+| 관련 개체 종류 | `related_entity_type` | `CODE` | 아니오 | 다형 | `COMM_MESSAGE` · `SEND_ATTEMPT` · `RECOVERY_RUN` · `RAW_INPUT` · `EXTRACTION` 등 |
+| 관련 개체 id | `related_entity_id` | `STRING(40)` | 아니오 | 다형 | **DB FK 없음**(17.4 — 관련 행이 만들어지다 실패한 경우에도 남아야 한다) |
+| 로그 참조 | `raw_log_ref` | `STRING(300)` | 아니오 | | 전체 스택 트레이스·상세 로그가 있는 **외부 로그 저장소의 위치**. 본문을 여기 넣지 않는다 |
+| 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | | Mock 채널·시나리오 재생 중 난 오류 |
+| 시나리오 | `scenario_id` | `REF(scenario)` | 아니오 | FK | `is_simulated = true` 일 때만 |
+
+**Integrity Rules**
+
+1. **행을 고치지 않는다.** 오류가 해결됐는지·사람이 대응했는지·재시도했는지는 이 행에 덮어쓰지 않는다. 발송 재시도는 `send_attempt` 새 행이 답하고, 사람의 행위는 `audit_log` 가 답한다. **이번 단계에서 대응 이력 표(`system_error_handling` 같은 것)는 만들지 않는다.**
+2. **현실 사실이 아니다.** `system_error` 는 `event` 를 만들지 않고, `canonical_fact` 나 계산의 입력이 되지 않는다(I-19).
+3. **사람의 행위 기록이 아니다.** `audit_log` 를 대신하지 않고, `audit_log` 도 이것을 대신하지 않는다.
+4. **모든 로그를 넣지 않는다.** 검색·대응이 필요한 중요한 오류만 남긴다. 정상적인 입력 검증 실패(4xx)·debug/info 로그·반복되는 낮은 가치의 경고는 넣지 않는다(`docs/23` 4.3).
+5. 비밀값·토큰·실제 메일 본문·원문 응답·전체 스택 트레이스는 **어느 컬럼에도 넣지 않는다**(I-20, `docs/01` 6절).
+6. `is_simulated = true` 이면 `scenario_id` 가 있다(S-2).
+
+**같은 실패가 두 곳에 남을 수 있다 — 역할이 다르다**
+
+```
+Gmail API 가 503 을 돌려줬다
+  → send_attempt   : result = RETRYABLE_FAILURE, error_code = GMAIL_SERVER_ERROR   "이 발송 시도는 어떻게 끝났나"
+  → system_error   : INTEGRATION · GMAIL · 503 · retryable = true · trace_id        "시스템 어디서 어떤 기술 오류가 났나"
+  → event          : 만들지 않는다                                                   (현실 세계의 사실이 아니다)
+  → audit_log      : 발송을 누른 사람의 행위는 원래대로 남는다. 오류 자체는 감사 기록이 아니다
+```
+
+| 표 | 답하는 질문 | 누가 읽나 |
+| --- | --- | --- |
+| `event` | 현실 세계에서 무엇이 사실이라고 주장됐나 | Reconciliation · 계산 |
+| `audit_log` | CERA 안에서 누가 무엇을 했나 | 책임 추적 |
+| `send_attempt` | 이 발송 시도가 어떻게 끝났나 | 발송 재시도·화해, 통신 화면 |
+| **`system_error`** | **시스템 어디서 어떤 기술 오류가 났나, 다시 해도 되나, 무엇과 관련됐나** | **개발자·운영자** |
 
 ### 16.3 `scenario` — 시나리오 (**L-8**)
 
@@ -1766,10 +1896,10 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | 방식 | 쓰는 곳 | 이유 |
 | --- | --- | --- |
 | **단일 대리키** | 대부분의 테이블 | 업무 번호가 바뀌어도 참조가 깨지지 않는다 |
-| **복합 자연키** | `canonical_fact`(**6열**) · `planning_snapshot_fact`(**6열**) · `planning_snapshot_input`(5열) · `cost_line_link`(4열) · `event_entity_link`(3열) · `planning_snapshot_constraint`(2열) · `container_bl`(2열) · `comm_message_question`(2열) · `comm_message_structured_field`(2열) · `message_approval_structured_field`(2열) | 그 조합 자체가 "하나만 존재해야 하는 것"이다 |
+| **복합 자연키** | `canonical_fact`(**6열**) · `planning_snapshot_fact`(**6열**) · `planning_snapshot_input`(5열) · `cost_line_link`(4열) · `event_entity_link`(3열) · `planning_snapshot_constraint`(2열) · `container_bl`(2열) · `comm_message_question`(2열) · `comm_message_structured_field`(2열) · `message_approval_structured_field`(2열) | 그 조합 자체가 "하나만 존재해야 하는 것"이다. **PK 구성 컬럼은 전부 NOT NULL 이다**(rev.2.2 — 13.2b `value_path`) |
+| **위임 PK(1:1)** | `facility_warehouse` · `facility_terminal` · `facility_odcy` | `facility_id` 가 PK 이자 FK. 상세가 공통보다 먼저 생길 수 없다 |
 
 > **`canonical_fact` 와 `planning_snapshot_fact` 가 6열인 이유**: 개체 2열 + 사실 키 + **적용 범위 2열** + (`canonical_fact` 는 `is_simulated`, `planning_snapshot_fact` 는 `snapshot_id`). rev.2 에서 범위가 키에 들어가면서 4열 → 6열이 됐다(11.4.1).
-| **위임 PK(1:1)** | `facility_warehouse` · `facility_terminal` · `facility_odcy` | `facility_id` 가 PK 이자 FK. 상세가 공통보다 먼저 생길 수 없다 |
 
 **업무 번호는 PK 가 아니다**: `container_no` · `bl_no` · `ask_id` · 외부 메시지 id 는 전부 별도 컬럼이다(`bl_no` 의 유일 제약만 L-16 으로 보류).
 
@@ -1805,6 +1935,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | `event_entity_link` → `event` | N:1 | 필수 | 사건과 함께만 존재 |
 | `canonical_fact` → `event`(채택) | N:1 | 필수 | `canonical_fact` 는 재생성 대상이므로 전체 삭제 후 재계산은 허용 |
 | `verification_request_handling` → `verification_request.request_key` | N:1 | **DB FK 아님** | **논리 연결 키.** 요청이 재생성으로 사라져도 처리 기록은 남는다(11.7.1) |
+| `question_item.verification_request_key` → `verification_request.request_key` | N:0..1 | **DB FK 아님** | **논리 연결 키.** 사람이 실제로 보낸 질문이 파생 행의 생존에 의존하지 않는다(15.2.2) — rev.2.2 표기 보강 |
 | `planning_snapshot_constraint` → `planning_snapshot` | N:1 | 필수 | 스냅샷 삭제 금지 |
 | `planning_snapshot_input` → `planning_snapshot` | N:1 | 필수 | 스냅샷 삭제 금지 |
 | `planning_snapshot_fact` → `planning_snapshot` | N:1 | 필수 | 스냅샷 삭제 금지 |
@@ -1821,10 +1952,13 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | `cost_line_link` → 대상 | N:1 | 다형 | **DB FK 없음**. 쓰기 경로 검증 |
 | `container` → `facility`(목적지) | N:0..1 | 선택 | 시설은 비활성화만 |
 | `extraction` → `event`(생성) | 1:0..1 | 선택 | 채택 전에는 비어 있다 |
+| `system_error` → 관련 개체 | N:0..1 | **다형 · DB FK 없음** | 오류 기록은 관련 행이 지워지거나 재생성돼도 남는다(16.2a) |
 
 ### 17.4 다형 참조 (DB FK 로 강제할 수 없는 곳)
 
-`event_entity_link` · `external_identifier` · `cost_line_link` · `risk_assessment` · `operator_planning_constraint` · `audit_log` 은 (`*_type`, `*_id`) 쌍을 쓴다.
+`event_entity_link` · `external_identifier` · `cost_line_link` · `risk_assessment` · `operator_planning_constraint` · `audit_log` · `system_error` 은 (`*_type`, `*_id`) 쌍을 쓴다.
+
+> **`system_error` 만 규칙 2 의 예외**다(rev.2.2). 오류는 관련 행이 **만들어지다 실패했을 때**도 기록해야 하므로, 쓰기 경로에서 대상 존재를 강제하지 않는다. 대신 `related_entity_type` 허용값은 규칙 1 대로 한 곳에서 관리한다.
 
 **규칙 3개**
 1. `*_type` 의 허용값 목록을 문서와 코드 한 곳에서 관리한다.
@@ -1844,7 +1978,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | I-6 | `recovery_run.run_status = INFEASIBLE` 이면 `unmet_constraints` 가 비어 있으면 안 된다 |
 | I-7 | `canonical_fact` 전체 삭제 후 `event` 로부터 재계산했을 때 같은 결과가 나와야 한다(재현 테스트) |
 | **I-8** | 사건마다 `link_role = SUBJECT` 인 링크가 **정확히 1건**(11.3) |
-| **I-9** | `message_kind = BUSINESS` 인 발송 시도는 **유효한 승인**(15.5.1 네 조건) 없이 만들 수 없다 |
+| **I-9** | `message_kind = BUSINESS` 인 발송 시도는 **유효한 승인**(15.5.1 여섯 조건) 없이 만들 수 없다 |
 | **I-10** | `message_kind = CONTACT_VERIFICATION` 인 메시지는 `contact_verification_id` 가 있어야 하고, **승인·구조화 값·질문 연결을 가질 수 없다** |
 | **I-11** | 지문은 어느 종류든 **수신자 + 제목 + 본문 + 구조화 값**을 덮는다. 비교 대상만 I-3 / I-3b 로 갈린다 |
 | **I-15** | 충돌은 **같은 적용 범위** 안의 사건들 사이에서만 만든다(11.5.1) |
@@ -1853,6 +1987,9 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **I-12** | 과거 `planning_snapshot` 하나로 **사실 + 계획 조건 + 마스터 기본값 + 요율·정책 판**을 모두 복원할 수 있어야 한다 |
 | **I-13** | `event` 에 근거 강도(Evidence Strength) 컬럼이 없다. 정책 판이 바뀌어도 같은 사건 집합으로 재계산된다 |
 | **I-14** | `operator_planning_constraint` 와 `message_approval` 에 UPDATE 경로가 없다. 해제·무효화는 새 행이다 |
+| **I-18** | `send_attempt` · `extraction` 의 **불변 부분**은 UPDATE 되지 않고, 결과·검토 컬럼은 **한 방향으로 한 번만** 채워진다(15.7.3 · 15.9.1) — rev.2.2 |
+| **I-19** | `system_error` 는 **현재 사실·계산 결과·승인·발송 판정의 입력이 아니다.** 오류 기록이 `event`·`canonical_fact`·Activity Timeline 으로 흘러가지 않는다(16.2a) — rev.2.2 |
+| **I-20** | `system_error` 에 **비밀값·토큰·원문 본문·전체 스택 트레이스를 넣지 않는다.** 필요하면 `raw_log_ref` 참조만 둔다(`docs/23` 4.4) — rev.2.2 |
 
 ---
 
@@ -1913,13 +2050,17 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 [commercial_offer] 1──N [commercial_offer_item] ── created_event_id ──> [event]
 
 [actor] ──> 모든 결정·승인·감사 기록      [audit_log]      [scenario] ──> is_simulated 자산
+
+[system_error] ··(다형, DB FK 없음)··> comm_message / send_attempt / recovery_run / raw_input / extraction …
+               (기술 운영 기록. 위 어느 흐름의 입력도 아니다 — 16.2a)
 ```
 
 **읽는 법 4가지**
 1. **모든 사실은 `event` 에서 나간다.** 사건 하나에 **주체 하나**(11.3).
 2. **계산 산출물은 스냅샷을 통해서만 입력에 닿는다.** 현재 사실·계획 조건·마스터를 직접 보지 않는다 — **전부 복사해 얼린다**.
 3. **사람의 결정은 계산 산출물 옆에 따로 쌓인다.** 계산 결과를 고치지 않는다.
-4. **되돌리기(해제·무효화)도 새 행이다.** `UPDATE` 로 상태를 바꾸는 곳이 없다.
+4. **되돌리기(해제·무효화)도 새 행이다.** 결정 기록(`message_approval` · `operator_planning_constraint` · `plan_decision`)에는 `UPDATE` 로 상태를 바꾸는 곳이 없다. `UPDATE` 가 있는 표는 **정해진 컬럼만, 한 방향으로** 바뀌며 표마다 명시돼 있다(1.3).
+5. **`system_error` 는 옆에 붙은 관측 기록이다.** 사실·계산·승인 흐름으로 들어가지 않는다(rev.2.2).
 
 ---
 
@@ -1935,7 +2076,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | S-6 | 시뮬레이션 데이터로 **실제 외부 발송을 하지 않는다**. Mock 채널만 쓴다 |
 | S-7 | `result_kind = SCENARIO_RESULT` 표기는 화면·API 계약의 몫이고, 저장 쪽 근거는 `is_simulated`·`contains_simulated` 다 |
 
-`is_simulated` 를 갖는 테이블: `container` · `bl` · `raw_input` · `event` · `canonical_fact` · `conflict` · `verification_request` · `verification_request_handling` · `commercial_offer` · `commercial_offer_item` · `comm_thread` · `question_item` · `comm_message` · `send_attempt` · `message_status_transition` · `extraction` · `audit_log`.
+`is_simulated` 를 갖는 테이블: `container` · `bl` · `raw_input` · `event` · `canonical_fact` · `conflict` · `verification_request` · `verification_request_handling` · `commercial_offer` · `commercial_offer_item` · `comm_thread` · `question_item` · `comm_message` · `send_attempt` · `message_status_transition` · `extraction` · `audit_log` · **`system_error`**(rev.2.2).
 `contains_simulated` 를 갖는 테이블: `planning_snapshot` · `recovery_run` · `assignment` · `risk_assessment` · `cost_result`.
 스냅샷의 자식 표(`planning_snapshot_fact` · `planning_snapshot_constraint` · `planning_snapshot_input`)와 승인·메시지의 자식 표(`comm_message_structured_field` · `message_approval_structured_field`)는 **부모에서 판정이 정해지므로 플래그를 따로 두지 않는다.**
 
@@ -1946,7 +2087,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | 파생 | 어떻게 만드나 | 캐시 테이블? |
 | --- | --- | --- |
 | **단계(Phase)** | 컨테이너의 마일스톤·상태 사실 조합 규칙 | 필요해지면 `container_phase_cache`(재생성 가능, `DERIVED_MATERIALIZED`). **지금은 만들지 않는다** |
-| **Activity Timeline** | `event` + `message_status_transition` + `plan_decision` + `message_approval` + `audit_log` 를 시각순 결합 | 아니다 |
+| **Activity Timeline** | `event` + `message_status_transition` + `plan_decision` + `message_approval` + `audit_log` 를 시각순 결합. **`system_error` 는 섞지 않는다**(운영자의 업무 타임라인이 아니라 기술 운영 기록이다. 발송 실패는 `message_status_transition` 으로 이미 보인다) | 아니다 |
 | **예외 목록** | 위험 평가 + 수용량 사실 + 마감 규칙 | **아니다.** D-5 CLOSED FOR MVP — 표를 만들지 않는다(16.4) |
 | **현재 계획** | `plan_decision` 중 마지막 유효 결정 → 그 `run_id` 의 `assignment` | 아니다 |
 | **Impacts (자원 영향)** | 배정 합계 대비 가용량 | 아니다 |
@@ -2051,6 +2192,7 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | `risk_assessment` · `cost_result` · `cost_line_item` | **계산 결과**다. 어느 범위의 사실을 썼는지는 `planning_snapshot_fact` 에 남는다 |
 | `tariff_rule` · `contract` | 계약·요율 규칙은 **`applies_to` 와 유효 기간**으로 적용 대상을 표현한다. 사실의 범위 축과 다른 것이다 |
 | 마스터 표 전부 | 등록 정보다. 범위 개념이 없다 |
+| `system_error` | **기술 운영 기록**이다. 사실이 아니므로 적용 범위가 없다(rev.2.2) |
 
 **두 경로를 끝까지 따라가 본 결과**
 
@@ -2112,7 +2254,7 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | E-38 VesselCall | `vessel_call` (구조만, Next) | MASTER |
 | E-39 Truck | **만들지 않음** (Q-57) | — |
 
-**개념에 1:1 로 대응하지 않는 테이블 13개** — 전부 새 개념이 아니라 **관계·시도·속성 묶음·값 고정의 구현**이다.
+**개념에 1:1 로 대응하지 않는 테이블 14개** — 13개는 새 개념이 아니라 **관계·시도·속성 묶음·값 고정의 구현**이고, 1개(`system_error`)는 **개념 모델 밖의 기술 운영 표**다.
 
 | 테이블 | 무엇의 구현인가 |
 | --- | --- |
@@ -2127,6 +2269,9 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | **`comm_message_structured_field`** | CommMessage 의 **구조화 값**(숫자) (rev.2) |
 | **`message_approval_structured_field`** | MessageApproval 이 얼린 **구조화 값 사본** (rev.2) |
 | `facility_*` 상세 3개 | Facility 하위 종류 (Q-55) |
+| **`system_error`** | **개념 모델 밖 — 기술 운영(관측성) 표** (rev.2.2). 업무 도메인 개념이 아니므로 `docs/21` 을 다시 열지 않는다. 근거·행동 규칙은 `docs/23` |
+
+> **개념 모델 확장이 필요한가?** 아니다. `docs/21` 은 "CERA 업무에 무엇이 존재하는가"를 다루고, `system_error` 는 "CERA 프로그램이 어떻게 실패했는가"를 다룬다. 업무 흐름(사실 → 계산 → 승인 → 발송)의 어느 개념도 이 표에 의존하지 않는다(I-19). 만약 나중에 오류 대응 자체가 업무 기능(담당 배정·종결·SLA)이 되면 그때 개념 모델 확장을 검토한다.
 
 ---
 
@@ -2211,19 +2356,20 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **L-15** | `message_kind` 값 목록 | 필요해지면 |
 | **L-16** | `bl` 의 업무 유일 제약 | 실데이터 확인(T-005·T-006) |
 | — | `plan_decision.decision_type` 값 목록 | 물리 설계 |
+| **Q-66** | `system_error.error_category` · `error_code` 값 목록 (rev.2.2) | T-069 구현 계획 · 구현 |
 
 ---
 
 ## 26. 논리 모델 전체 ≠ 첫 마이그레이션 전체 **(rev.2 신규)**
 
-**MVP 논리 테이블이 50개라고 해서 첫 구현에서 50개를 한꺼번에 만든다는 뜻이 아니다.**
+**MVP 논리 테이블이 51개라고 해서 첫 구현에서 51개를 한꺼번에 만든다는 뜻이 아니다.**
 
 논리 모델은 **전체 지도**다. "이 제품이 다 자랐을 때 데이터가 어떤 모양이어야 하는가"를 그린 것이고, 지금 당장 무엇을 만드는지와는 다른 질문이다.
 
 | 이것은 | 이것이 아니다 |
 | --- | --- |
 | 전체 구조의 정합성 검증 | 첫 마이그레이션 명세 |
-| 나중에 되돌리기 비싼 결정을 지금 피하기 | 지금 50개 표를 만들라는 지시 |
+| 나중에 되돌리기 비싼 결정을 지금 피하기 | 지금 51개 표를 만들라는 지시 |
 | 어느 표가 무엇의 정본인지 합의 | 구현 순서 |
 
 **첫 구현은 T-069 External Communication Vertical Slice 에 필요한 최소 묶음부터 시작한다.** 그 슬라이스가 실제로 무엇을 건드리는지 보면 대략 이 범위다.
@@ -2249,7 +2395,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | --- | --- | --- | --- | --- |
 | 1 | 창고 A 가 메일로 "9/18 수용량 8 TEU" 통보 | `raw_input`(`source_record_key` = 메일 id) · `comm_message`(INBOUND · BUSINESS) | 없음 | `raw_input` |
 | 2 | 회신에서 값 추출 | `extraction`(후보 + 원문 인용) | 없음 | `extraction`(근거) |
-| 3 | 사실로 채택 | `event`(STATE · `warehouse.capacity@2026-09-18` = 8) · `event_entity_link`(**SUBJECT = 창고 A, 1건**) | 없음 | **`event`** |
+| 3 | 사실로 채택 | `event`(STATE · `warehouse.capacity@2026-09-18` = 8) · `event_entity_link`(**SUBJECT = 창고 A, 1건**) | `extraction` **검토 4컬럼**(`ACCEPTED` · `created_event_id`) — 한 번, 15.9.1 | **`event`** |
 | 4 | 현재 사실 갱신 | — | `canonical_fact` **재계산 덮어쓰기**(파생이므로 허용) | `event` |
 | 5 | 이전 API 값 12 와 충돌 (**같은 범위 `GLOBAL`**) | `conflict`(범위 포함) · `verification_request`(범위 포함, `request_key` = 규칙+주체+사실키+**범위**+**사건 id 집합**) | 없음 | 파생 |
 | 6 | 운영자가 확인 요청을 열람 | `verification_request_handling`(ACKNOWLEDGED) | 없음 | **결정 기록** |
@@ -2260,7 +2406,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | 11 | ODCY 용량이 모자라 물어봐야 함 | `comm_thread` · `question_item`(대상 개체 · 사실 키 · **적용 범위** 확정) | 없음 | `question_item` |
 | 12 | 초안 작성 (숫자는 계획에서 주입, 문장은 AI) | `comm_message`(OUTBOUND · **BUSINESS**) · `comm_message_structured_field`(4 TEU + `source_run_id` = RUN-1) · `comm_message_question` | 없음 | `comm_message` |
 | 13 | 운영자 승인 (A-17) | `message_approval`(APPROVED · `expires_at` · `approved_plan_run_id` = RUN-1) · `message_approval_structured_field`(숫자 사본) | `comm_message.current_approval_id`(**편의 포인터 캐시**) | **`message_approval`** |
-| 14 | 발송 | `send_attempt`(`approval_id` 필수 · `sent_content_hash` = **유효한 승인의** `approved_content_hash`) · `message_status_transition` · `audit_log` | `comm_message.current_status`(캐시) | `send_attempt` |
+| 14 | 발송 | `send_attempt`(**외부 호출 전에** 커밋 · `approval_id` 필수 · `sent_content_hash` = **유효한 승인의** `approved_content_hash`) · `message_status_transition` · `audit_log` | `send_attempt` **결과 5컬럼**(호출 뒤 한 번, 15.7.3) · `comm_message.current_status`(캐시) | `send_attempt` |
 | 15 | ODCY 회신 도착 | `raw_input` · `comm_message`(INBOUND · `external_message_id` UNIQUE 로 중복 수신 차단) | 없음 | `raw_input` |
 | 16 | 제안 기록 + 사실화 | `commercial_offer` · `commercial_offer_item` · `extraction`(`ask_id` = ASK-1) · `event`(TERM) | 없음 | 제안은 **근거**, 계산값은 `event` → `canonical_fact` |
 | 17 | 재계산 v2 | 새 `planning_snapshot` · `recovery_run`(RUN-2, `previous_run_id` = RUN-1, 계기 `REPLY_RECEIVED`) | 없음 | 산출 기록 |
@@ -2293,7 +2439,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 | 단계 | 범위가 어떻게 따라가나 |
 | --- | --- |
-| `question_item` 생성 | `target_applicability_scope_type = RECOVERY_CONTEXT`, `..._ref = RC-001` **을 Backend 가 못 박는다** |
+| `question_item` 생성 | `target_applicability_scope_type = RECOVERY_CONTEXT`, `..._ref = <RECOVERY_CONTEXT_REF>` **을 Backend 가 못 박는다**(식별 방식은 L-13) |
 | 회신 → `extraction` | `ask_id` + 값 + 단위 + 원문 인용. **LLM 은 범위를 만지지 않는다** |
 | 사건 생성 | `ask_id` → `question_item` 한 줄 조회로 **범위가 그대로 나온다** |
 | 충돌이 생기면 | `RECOVERY_CONTEXT` 끼리만 비교한다. `GLOBAL` 15,000원과 다투지 않는다 |
@@ -2324,7 +2470,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 **UPDATE 가 한 번도 필요하지 않다.** 승인 #1 이 왜 죽었는지, #2 가 왜 못 쓰이는지, #4 로 무엇을 보냈는지 전부 남는다(15.5.1).
 
-### 27.6 검증 결과 (rev.2.1 재검증, 26항목)
+### 27.6 검증 결과 (rev.2.1 재검증 26항목 + rev.2.2 추가 4항목 = 30항목)
 
 **A. 사건 · 적용 범위**
 
@@ -2385,7 +2531,16 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 | # | 확인 | 결과 |
 | --- | --- | --- |
-| 26 | S-1 ~ S-7 그대로 유지 | **통과** — 20절 변경 없음 |
+| 26 | S-1 ~ S-7 그대로 유지 | **통과** — 20절 규칙 변경 없음(`system_error` 는 목록에 추가) |
+
+**H. rev.2.2 최종 정리에서 추가한 확인**
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 27 | 승인 표의 컬럼 필수 표기와 행 종류별 규칙이 **한 문서 안에서** 일치한다 | **통과 (rev.2.2)** — 15.5 컬럼 표 "조건부" + 15.5.0 무결성 규칙 1~8 |
+| 28 | 나중에 채워지는 컬럼이 있는 표가 `APPEND_ONLY` 로 적혀 있지 않다 | **통과 (rev.2.2)** — `send_attempt` · `extraction` 을 불변 부분 + 결과·검토 `CONTROLLED_UPDATE` 로 정정(15.7.3 · 15.9.1) |
+| 29 | PK 구성 컬럼 중 NULL 허용이 없다 | **통과 (rev.2.2)** — `planning_snapshot_input.value_path` NOT NULL(13.2b). 복합 PK 10개 표 전부 재확인 |
+| 30 | 기술 오류가 사실·감사·발송 기록과 섞이지 않는다 | **통과 (rev.2.2)** — `system_error` 는 `event` 를 만들지 않고 계산 입력이 아니다(I-19 · 27.8) |
 
 ### 27.7 이 검증에서 새로 나온 것
 
@@ -2394,19 +2549,36 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **(rev.2) 모순 1건** — 범위가 다른 현재 사실이 같은 PK 를 다툰다 | rev.2 에서 수정 — `canonical_fact` · `planning_snapshot_fact` PK 에 범위 2컬럼(11.4.1) |
 | **(rev.2.1) 정합성 9건** — 범위가 충돌·확인 요청·질문까지 전파되지 않음, 지문 규칙·승인 행 종류·분류 축의 모순 | **이번에 전부 수정.** 새 테이블 0개 |
 | **rev.2.1 에서 새로 발견된 구조 문제** | **없다.** 흐름을 다시 걸었을 때 26항목 전부 통과했다 |
+| **(rev.2.2) 정합성 5건 A~E + 표현 잔재** — 최종 검증에서 발견 | **이번에 전부 수정.** 기술 운영 표 `system_error` 1개 추가. 30항목 전부 통과 |
 | 범위 종류 사이의 **우선순위 규칙** | **확정하지 않았다.** 서로 다른 축이라 지금 박으면 틀린 답을 고정한다 → **L-14** 에 포함(22.2) |
 
 > **개념 모델(`docs/21`)의 문제는 이번에도 발견되지 않았다.** 위 수정은 전부 **논리 설계 단계에서 생긴 것**이고 이 문서 안에서 닫혔다.
+
+### 27.8 기술 오류 한 건 (rev.2.2 신규) — Gmail 503
+
+| # | 단계 | INSERT | UPDATE | 비고 |
+| --- | --- | --- | --- | --- |
+| a | 승인된 업무 메시지 발송 시작 | `send_attempt`(`attempt_no = 1`, `result = NULL`) · `message_status_transition`(QUEUED) | — | 외부 호출 **전에** 커밋(`docs/18` H.2) |
+| b | Gmail 이 503 | `system_error`(`INTEGRATION` · `GMAIL` · `http_status = 503` · `retryable = true` · `request_id` · `trace_id` · 관련 = `SEND_ATTEMPT`) | `send_attempt` 결과 5컬럼(`RETRYABLE_FAILURE` · `GMAIL_SERVER_ERROR`) 한 번 | **`event` 는 만들지 않는다** |
+| c | 재시도 | 새 `send_attempt`(`attempt_no = 2`) — 승인·Contact Gate·지문을 **다시 검사** | — | 1번 시도 행은 그대로 |
+| d | 성공 | — | 2번 시도 결과 `SUCCESS` 한 번 · `comm_message.current_status`(캐시) | `message_status_transition`(SENT) |
+
+- 운영자는 통신 화면에서 **"1번 실패, 2번 성공"**(`send_attempt`)을 보고, 개발자는 `trace_id` 로 **Backend → Gmail Adapter → Gmail 503** 한 흐름(`system_error` + 구조화 로그)을 찾는다.
+- 현재 사실·계산·승인 판정은 이 오류 때문에 바뀌지 않는다.
 
 ---
 
 ## 28. 다음 단계
 
-1. **이 문서 rev.2 + 작업표 최종 검토** (사용자 + ChatGPT)
-2. 승인되면 **물리 설계(T-080)**: DB 제품 선택 · `event_id` 형식 · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · 마이그레이션 · 실제 `CREATE TABLE`
-3. **T-069 구현 계획**과 합류: **어느 표를 첫 슬라이스에서 만드는가**(26절) · **L-13 복구 맥락 식별자**
-4. `docs/07_backend-architecture.md` 갱신 (X-10) — T-070
-5. 실데이터 확인 뒤 **L-16 `bl` 유일 제약** 확정 (T-005·T-006)
-6. 재현 테스트 설계: **`canonical_fact` 전체 삭제 → `event` 로부터 재계산 → 동일성 확인**(I-7) + **과거 스냅샷 완전 복원**(I-12)
+> **rev.2.2 순서 정정** — rev.2.1 까지는 "물리 설계(T-080) → 구현 계획(T-069)" 순서로 적혀 있었다. **바뀌었다.** 첫 구현 슬라이스가 정해져야 그 슬라이스에 필요한 표만 물리 설계할 수 있다(26절).
+
+1. ~~**이 문서 rev.2.2 + 작업표 최종 검토** (사용자 + ChatGPT) → **T-079 DONE**~~ — **완료 (2026-09-18)**
+2. **T-070 주변 문서 동기화** — `docs/04`·`07`·`13`·`19` 등을 이 논리 설계와 맞춘다(X-10~X-13)
+3. **T-069 외부 통신 구현 계획** — Q-44·Q-45 사용자 결정, **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
+4. **Backend·DB 기술 최종 결정** — 현재 우선 후보와 판단 근거는 `docs/23` · ADR-031(Proposed)
+5. **T-080 물리 설계** — **논리 표 51개를 한 번에 물리 설계하지 않는다.** 4번에서 **결정된 기술**을 T-069 가 정한 첫 슬라이스에 필요한 표부터 반영한다: 결정된 DB 제품 위의 물리 설정 · `event_id` 형식 · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · `value_path` "전체" 표시 문자열 · 마이그레이션 · 실제 `CREATE TABLE`
+6. 구현(Antigravity) → 검토(Claude/Codex) → 사용자 승인 → commit
+7. 실데이터 확인 뒤 **L-16 `bl` 유일 제약** 확정 (T-005·T-006)
+8. 재현 테스트 설계: **`canonical_fact` 전체 삭제 → `event` 로부터 재계산 → 동일성 확인**(I-7) + **과거 스냅샷 완전 복원**(I-12)
 
 > **이 문서는 여전히 DB 제품·ORM·SQL·인덱스·솔버·LLM 공급자를 확정하지 않는다.**

@@ -1,7 +1,7 @@
 # 12. 로드맵
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-15 (2.5절 Prototype-led Discovery 추가, T-036 DEFERRED)
+- 최종 수정: 2026-09-18 (7절에 Web First · Desktop 위치 한 줄. 런타임 방향 정본은 `23_runtime-platform-and-observability.md`). 이전: 2026-09-15 (2.5절 Prototype-led Discovery 추가, T-036 DEFERRED)
 - 이 문서는 `tasks/QUEUE.md`에 넣을 태스크의 **원천**이다. 큐가 비어 가면 여기서 다음 태스크를 꺼낸다.
 - 옛 v0.1 로드맵의 백로그 ID(T-009~T-016, T-018~T-028)는 폐기했다. 다시 쓰지 않는다(`CHANGELOG.md` 6절).
 
@@ -136,4 +136,5 @@ LLM 없이, 시나리오를 CLI로 재생해 숫자가 나오게 한다. 회신�
 ## 7. Pilot 이후 (개요)
 
 - **Pilot**: 실제 고객 1~2곳의 데이터, 실제 메일함 연동(읽기 + 승인 후 발송), 실행 결과 입력, 실측 KPI.
+- **Desktop (선택지, 일정 없음)**: **Web First.** Web 에서 폐쇄 루프(예외 → 상태 → 위험·비용 → 복구 계획 → 문의 → 승인 → 발송 → 회신 → 재계산)가 동작하고 현업 필요성이 확인된 뒤에만 검토한다. Desktop 은 중앙 Backend 의 Client 이고 첫 후보는 Electron 이다(ADR-031 Proposed, `23` 7~10절).
 - **Scale**: 파트너 시스템(TMS·터미널) 연동, 권한을 확보한 범위의 예약·배차 Write, 2단계 차량 스케줄링.

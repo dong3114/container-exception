@@ -22,7 +22,7 @@ CERA는 **하나의 Private Monorepo**로 관리한다. Git 저장소는 하나�
 
 - AI 개발 도구(Claude Code, Codex 등)는 루트의 `AGENTS.md`부터 읽는다. `CLAUDE.md`는 `AGENTS.md`를 가져온다.
 - **`ai/`와 `back/`의 경계 (ADR-029)**: AI를 쓰는 기준은 *"값이 자주 바뀌는가"*가 아니라 **"입력이 비정형이고 해석이 필요한가"**다. 메일 본문·계약서처럼 사람이 자유롭게 쓴 글만 AI가 읽고, 응답 폼·포털·TMS·CSV처럼 이미 구조화된 입력은 Backend가 검증만 한다. 위험·비용·최적화는 규칙과 계수로 답이 정해지므로 결정론 계산이며 AI가 아니다. 전체 책임 경계표는 `docs/18_external-communication.md` O절. **폴더 배치 적용은 Backend 뼈대를 만들 때(T-003)이고, `ai/README.md`·`back/README.md`는 아직 옛 설명이다.**
-- 향후 방향(미확정): Frontend는 **Web 우선**. 현업 담당자용 Desktop 앱은 필요성이 검증되면 기존 React 화면을 **Tauri로 재사용하는 방안을 검토**한다(확정 기술 아님).
+- 향후 방향(미확정): Frontend는 **Web 우선**. 현업 담당자용 Desktop 앱은 필요성이 검증되면 기존 React 화면을 재사용하는 **중앙 Backend 의 Client**로 검토한다 — 첫 후보 Electron, Tauri 는 나중 재평가(확정 기술 아님, `docs/23_runtime-platform-and-observability.md`).
 
 ## 실행 (Frontend Prototype)
 

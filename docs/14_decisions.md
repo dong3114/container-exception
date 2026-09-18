@@ -1,7 +1,7 @@
 # 14. 설계 결정 기록 (ADR)
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-16 (**T-072: ADR-019·020·021을 `Accepted (구조 한정)`으로 판정** — 구조는 승인, 정책 파라미터는 계속 검증. 상태 값에 `Accepted (구조 한정)` 도입). 같은 날 T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가 + 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가. 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
+- 최종 수정: 2026-09-18 (**T-079 최종 정리: ADR-030 오류·관측성 원칙, ADR-031 런타임 방향(Backend 우선 후보 NestJS · Web First · Desktop = Client · Electron 첫 후보 · AI 분리 조건) 추가 — 둘 다 Proposed.** ADR-002·024 에 2026-09-18 주석). 이전: 2026-09-16 (**T-072: ADR-019·020·021을 `Accepted (구조 한정)`으로 판정** — 구조는 승인, 정책 파라미터는 계속 검증. 상태 값에 `Accepted (구조 한정)` 도입). 같은 날 T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가 + 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가. 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
 
 상태 값: `Proposed`(제안, 사람 승인 전) · `Accepted`(확정) · **`Accepted (구조 한정)`**(구조·형태는 확정, 그 안의 파라미터 값은 계속 검증. 2026-09-16 도입) · `Superseded by ADR-NNN`(대체됨) · `Rejected`(기각).
 `Accepted` ADR은 에이전트가 혼자 뒤집지 않는다. 바꾸려면 새 ADR을 `Proposed`로 올린다.
@@ -24,7 +24,7 @@
 | ADR | 제목 | 상태 |
 | --- | --- | --- |
 | 001 | 문서 체계 | Proposed (v0.2 구조로 갱신) |
-| 002 | 백엔드 스택 Python | Proposed |
+| 002 | 백엔드 스택 Python | Proposed (2026-09-18 주석: **현재 우선 후보는 ADR-031 의 NestJS + TypeScript.** 최종 결정 전까지 둘 다 Proposed) |
 | 003 | PoC UI Streamlit | **Superseded by ADR-016** |
 | 004 | SQLite → PostgreSQL | Proposed |
 | 005 | 마일스톤 유도 + 예외 오버레이 | Proposed (ADR-012 아래의 뷰로 유지) |
@@ -52,6 +52,8 @@
 | 027 | 제품 단계에 `Tech Validation` 신설 — 검증·승인된 연락처에만, 건별 승인 뒤 실제 발송 (`01` 6절 개정) | **Accepted** (2026-09-16 사람 결정) |
 | 028 | 통신 도메인 저장 분리(`comm_*`) + Counterparty→Contact→Address 3상태 발송 자격 + 쓰기 계약(`CeraCommandClient`)과 OpenAPI 정본 전환 시작 | **Accepted** (2026-09-16 사람 결정) |
 | 029 | **결정론 엔진(Tariff·Cost·Risk·Reconciliation·Optimize·Solver)을 `ai/`에서 분리** — `ai/`는 LLM·비정형 처리만. 새 `engine/`은 만들지 않음. ADR-024 영역 정의 개정 | **Accepted** (2026-09-16 사람 결정). 실행은 T-003 |
+| 030 | **오류·관측성 원칙**: Event · Audit · System Error 세 기록 분리, 중요한 오류만 `system_error`(DB), 세 경계(API·연동·작업) 공통 오류 처리, `request_id`·`trace_id`, 외부 연동 오류 정규화 | Proposed (2026-09-18) |
+| 031 | **런타임 방향**: Backend **현재 우선 후보 NestJS + TypeScript**(Spring Boot 후보 유지, 최종 결정은 T-069 뒤 사용자 — T-080 은 그 결정을 반영), Web First, Desktop = 중앙 Backend 의 Client, Electron 첫 후보·Tauri 나중 재평가, `DesktopBridge`, Python AI 서비스는 Python 전용 요구가 생길 때만 | Proposed (2026-09-18). **기술 최종 승인 아님** |
 
 ---
 
@@ -72,6 +74,7 @@
 - 대안: TypeScript/Node(OR-Tools 바인딩이 약함), Java(개발 속도).
 - 결과: UI는 별도 결정(ADR-003 → ADR-016).
 - **v0.2 주석**: 백엔드 스택은 그대로다. LLM SDK(Anthropic Python SDK)와 SSE가 추가됐다. 프론트엔드는 ADR-016.
+- **2026-09-18 주석**: 사용자가 Backend 언어를 다시 검토하고 있다. **현재 우선 후보는 NestJS + TypeScript**(ADR-031 Proposed, `docs/23` 3절)이고 Java / Spring Boot 도 후보다. 이 ADR 은 **폐기하지 않고 Proposed 로 둔다.** 최종 결정이 나면 `Superseded by ADR-031` 또는 Accepted 로 정리한다. 이 ADR 의 대안 줄에 적힌 "TypeScript/Node(OR-Tools 바인딩이 약함)"는 여전히 유효한 위험이며 `docs/23` 3.3 에서 선택지로 다룬다.
 
 ## ADR-003: PoC UI — Streamlit
 - 상태: **Superseded by ADR-016** (Proposed 상태에서 대체됨, 2026-09-11)
@@ -297,6 +300,7 @@
 - 방향 (미확정, 해당 시점에 별도 결정):
   - 계약: Backend가 생기면 OpenAPI를 정본으로 두고 TypeScript 타입을 `packages/`에 자동 생성한다(지금은 `front/web/src/contracts/cera.ts` 손 작성).
   - Desktop: 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 검토한다. **Tauri는 확정 기술이 아니다.**
+  - **2026-09-18 주석**: 위 Desktop 방향(미확정)을 ADR-031(Proposed)이 갱신한다 — **Web First, Desktop 은 중앙 Backend 의 Client, 첫 후보 Electron, Tauri 는 크기·메모리·네이티브 보안 요구가 실제 문제가 될 때 재평가.** 이 ADR 의 확정 결정(1~6)은 바뀌지 않는다.
 - 대안: 저장소 3개 분리(front·back·ai — 1인 개발에 조율 비용 과다, 계약 변경마다 여러 저장소 수정), 영역 없는 단일 폴더(책임 경계 흐림).
 - 결과: `web/`을 `front/web/`으로 옮겼다(미커밋 상태에서의 이동이라 git 이동 이력은 없음). 옛 레이아웃의 `src/cera/<모듈>`은 `back/`과 `ai/`로 나눠 배치한다(`07` 6절). T-003 범위가 `back/`·`ai/` 뼈대로 바뀐다.
 - **2026-09-16 개정 (ADR-029, 사람 결정)**: 결정 2의 **`ai/` 영역 정의가 바뀐다.** `ai/`는 **LLM·비정형 처리만** 맡는다(LLM Provider, Email Extraction, Contract Extraction, Draft 자연어 문장, Explanation). 결정론 엔진 **Tariff·Cost·Risk·Reconciliation·Optimization·Solver는 Backend 내부의 결정론 영역**에 둔다. 새 최상위 `engine/` 영역은 만들지 않는다(1인 MVP에 과설계). 나머지 결정(저장소 하나, `data/` 공통, 서비스별 이미지, 루트 AGENTS, 엔진의 LLM import 금지)은 그대로다. 이유: "숫자는 결정론 엔진에서만 나온다"(`01` 3절)와 금지 주장 "AI가 D&D 비용을 계산한다"(`01` 4절)가 폴더 이름과 충돌했고, 순수 엔진 중 `state`만 `back/`에 있어 배치가 이미 일관되지 않았다. 적용 시점은 T-003.
@@ -374,3 +378,35 @@
   - (d) 절충: 지금은 `ai/llm/`·`ai/engine/`으로 내부만 나누고 폴더 이동은 나중 — 선택지로 유효하다. 다만 `state`가 이미 `back/`에 있어 결정론 엔진이 두 군데로 갈리는 문제는 그대로 남는다.
 - 결과: `ai/README.md`, `back/README.md`, 루트 `README.md`, `07` 6절, ADR-024의 영역 표를 이 결정에 맞게 고친다(T-070). **실제 폴더·코드 배치는 T-003(Backend scaffold)에서 적용한다** — 지금은 `back/`·`ai/`에 코드가 없으므로 이동 비용이 0이다.
 - **ADR-024와의 관계**: ADR-024(Accepted, Monorepo)의 결정 1·4·5·6(저장소 하나, `data/` 공통, 서비스별 이미지, 루트 AGENTS)은 그대로다. 결정 2의 **영역 책임 정의만** 이 ADR이 개정한다: `ai/` = LLM·비정형 처리(LLM Provider, Email Extraction, Contract Extraction, Draft 문장, Explanation), 결정론 엔진(Tariff·Cost·Risk·Reconciliation·Optimization·Solver) = Backend 내부의 결정론 영역. 결정 3(엔진이 LLM 클라이언트를 import하지 않는다)은 유지되며, 분리로 물리적으로 더 쉽게 지켜진다.
+
+## ADR-030: 오류·관측성 원칙 — 세 기록 분리 + `system_error` + 공통 오류 처리
+- 상태: **Proposed** (2026-09-18)
+- 날짜: 2026-09-18 (T-079 최종 정리)
+- 맥락: 사용자는 서버 내부 오류와 외부 시스템 호출 오류를 **한 곳에서 추적**하고, 어디서·어떤 요청/실행에서·어떤 외부 호출이 실패했는지, 재시도 가능한지, 관련 메시지·발송 시도·복구 실행이 무엇인지 확인하길 원한다(Java 프로젝트에서 전역 예외 처리 + 오류 DB 기록을 구현한 경험). 그런데 CERA 에는 이미 `event`(현실 사실)·`audit_log`(사람의 행위)·`send_attempt`(발송 결과)가 있어, 오류를 아무 데나 넣으면 "Gmail 이 503 을 줬다"가 현실 사실이나 감사 기록처럼 섞인다.
+- 결정 (상세: `docs/23` 4~6절, 표 모양: `docs/22` 16.2a):
+  1. **Operational Event · Audit · System/Integration Error 를 섞지 않는다.** 같은 실패가 `send_attempt` 와 `system_error` 두 곳에 남을 수 있지만 답하는 질문이 다르다.
+  2. **`system_error` 논리 표를 MVP 에 둔다.** 분류 `EVIDENCE`, 변경 `APPEND_ONLY`. 업무 도메인 개념이 아니라 기술 운영 표이므로 개념 모델(`docs/21`)을 다시 열지 않는다. 대응 이력 표는 만들지 않는다.
+  3. **DB 에는 중요한 오류만**(중요한 ERROR · 외부 연동 실패 · 예상 밖 5xx · 작업 실패 · 데이터 처리 실패). 입력 검증 4xx · debug/info · 반복 저가치 경고는 로그에만. 전체 스택 트레이스는 외부 로그, DB 에는 참조만.
+  4. **비밀값·토큰·실제 본문·원문 응답은 로그와 `system_error` 어디에도 넣지 않는다.**
+  5. **API Request · External Integration · Background Job 세 경계가 같은 Error Recorder · Structured Logger 를 쓴다.** 프레임워크 구현은 정하지 않는다.
+  6. **`request_id` · `trace_id` 를 MVP 첫 구현부터 둔다.** 업무 `correlation_id`(`docs/05`)와 다른 것이다. OpenTelemetry 등 특정 제품은 정하지 않는다.
+  7. **외부 호출은 공통 Integration Client(또는 같은 역할의 계층)** 가 시간 제한·오류 정규화(분류·코드)·재시도 가능 판정·기록을 맡는다. 재시도 **정책**은 업무 쪽(`docs/18` H절)이 정한다.
+- 대안: (a) 오류 표 하나에 모든 로그 — 로그 저장소를 DB 로 흉내 내게 되고 비밀·원문이 새기 쉽다. (b) 오류를 `event` 로 — 현실 사실이 아닌 것이 Reconciliation 에 들어간다. (c) `audit_log` 에 섞기 — 사람의 행위와 프로그램 실패가 구분되지 않는다. (d) DB 기록 없이 로그만 — 사용자가 원하는 "DB 에서 찾아보기"가 안 되고, 관련 개체와의 연결을 조회로 볼 수 없다.
+- 결과: `docs/22` 에 `system_error` 추가(MVP 51 · Next 1 · MVP 에서 만들지 않음 2 = 54). `docs/23` 신설. 오류 분류·코드 값 목록은 Q-66, 관측 제품은 Q-67.
+
+## ADR-031: 런타임 방향 — Backend 우선 후보 · Web First · Desktop = Client · AI 분리 조건
+- 상태: **Proposed** (2026-09-18). **기술 최종 승인이 아니다.** Backend 언어는 사용자 최종 결정 필요 — T-069 로 첫 구현 슬라이스를 정한 뒤 **사용자가 결정**하고, T-080 은 결정된 기술을 물리 설계에 반영한다
+- 날짜: 2026-09-18
+- 맥락: 기록상 Backend 초안은 Python 3.12 + FastAPI(ADR-002 Proposed)다. 그 뒤 상황이 바뀌었다 — Frontend 는 이미 Next.js + React + TypeScript 로 구현됐고, 1인 개발이며, 사용자가 회사에서 NestJS 를 실제로 쓰고, Backend·API·데이터 흐름 위주 개발을 선호한다. 향후 Desktop 클라이언트(Electron/Tauri)와 AI 모듈도 고려한다. 반대로 결정론 엔진(최적화·솔버)은 ADR-029 에 따라 Backend 영역이다.
+- 결정 (상세: `docs/23` 3·7~12절):
+  1. **Backend 현재 우선 후보는 NestJS + TypeScript.** 이유: Frontend 와 언어 통일, 스키마·타입 공유, 1인 개발 문맥 전환 감소, 사용자 실무 경험, Module·DI·Guard·Pipe·Interceptor·ExceptionFilter 구조, Electron 과의 생태계 연속성, Outbox·재시도·연동 어댑터·전역 오류 처리에 충분함.
+  2. **Java / Spring Boot 는 후보로 남긴다.** 성숙한 트랜잭션·영속성 생태계, 사용자의 Spring 전역 예외 처리 경험, Java/Spring 포트폴리오가 목표라면 충분한 선택 이유다.
+  3. **NestJS 의 가장 큰 기술 위험은 솔버**다(OR-Tools 공식 Node 바인딩 없음 `[TO VERIFY]`). TS 내 솔버 / Python **결정론** 솔버 워커(`back/` 영역, AI 아님) / 다른 Backend 언어 중 무엇인지는 T-036 재개 뒤, Backend 확정 때 함께 본다. 첫 슬라이스(외부 통신)는 솔버가 필요 없다.
+  4. **Web First.** MVP 에서 Desktop 을 만들지 않는다.
+  5. **Desktop 은 중앙 Backend 의 Client 다.** Desktop 안에 정본 Backend·DB 를 넣지 않는다.
+  6. **Desktop 첫 후보는 Electron**, Tauri 는 배포 크기·메모리·네이티브 보안 요구가 실제 문제가 될 때 재평가. 지금 Rust/Tauri 를 들이지 않는다.
+  7. 화면은 데스크톱 런타임 API 를 직접 부르지 않고 **`DesktopBridge`** 뒤에 숨긴다(Web·Electron·Tauri 구현).
+  8. **Python AI 서비스는 Python 전용 요구(로컬 추론·OCR·커스텀 모델·GPU·Python 중심 데이터 처리)가 실제로 생길 때만** 뗀다. 그 전에는 Backend 가 LLM API 를 직접 부르고, `ai/` 는 같은 프로세스 안의 모듈 경계로 시작할 수 있다. LLM 공급자·모델은 여전히 미정.
+  9. Web·Desktop·향후 외부 Client 는 **같은 Backend OpenAPI 계약**을 쓴다(ADR-028).
+- 대안: (a) Python/FastAPI 유지(ADR-002) — 솔버·데이터 생태계는 가장 강하지만 Frontend 와 언어가 갈리고 사용자 실무 경험과 멀다. (b) Spring Boot 확정 — 운영 성숙도는 가장 높지만 1인 개발 문맥 전환이 크다. (c) 지금 NestJS 를 Accepted 로 — 첫 슬라이스 요구와 솔버 위험을 보기 전에 닫게 된다. (d) Desktop 에 Backend·DB 내장 — 여러 운영자가 같은 사실·승인을 공유할 수 없다. (e) Tauri 먼저 — 1인 개발에 Rust 를 더한다.
+- 결과: `docs/23` 신설. `docs/01` 7절 · `docs/07` 3·6절 · ADR-002 · ADR-024 의 Python/Tauri 표현에 "미결 · `docs/23` 참조" 주석. 본문 전면 정리는 T-070. 미결 항목은 `docs/15` Q-64(Backend 언어) · Q-65(솔버 실행 위치).

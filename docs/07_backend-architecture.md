@@ -1,7 +1,7 @@
 # 07. 백엔드 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
+- 최종 수정: 2026-09-18 (**런타임·오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본**. 3절 머리와 6절 Desktop 문장에 참조만 달았다. Python 전제의 본문 정리는 T-070). 이전: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
 - 관련 ADR: ADR-002(스택), ADR-004(DB), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생)
 
 ---
@@ -77,6 +77,8 @@ flowchart TB
 | Simulation Service | `sim` | 시나리오 로더, SimClock, 스크립트 회신 | — |
 
 ## 3. 기술 스택 (ADR-002, ADR-016 Proposed)
+
+> **2026-09-18 — 이 표의 Backend 줄(Python·FastAPI·Pydantic·SQLAlchemy·pytest 등)은 ADR-002 초안 기록이다.** Backend 언어는 **미결**이고 현재 우선 후보는 **NestJS + TypeScript**(ADR-031 Proposed, Spring Boot 후보 유지)다. 후보 비교·솔버 위험·결정 시점, 그리고 **오류 처리·관측성(`system_error`, `request_id`·`trace_id`)** 은 `23_runtime-platform-and-observability.md` 가 정본이다. 이 절과 1·2절의 Python 전제 표현은 T-070 에서 정리한다.
 
 > **읽는 법 (2026-09-16 갱신)**: 아래 표의 각 줄을 네 가지로 구분해 읽는다. **특정 제품·모델 이름이 적혀 있다고 해서 요구사항이 아니다.**
 >
@@ -196,7 +198,7 @@ container_exception/            ← 저장소 루트 = CERA 루트
 | `infra/` | Dockerfile, compose, 클라우드 배포 | 서비스별 이미지(front / back / ai) |
 | 테스트 | 각 영역 안에 둔다(`back/tests`, `ai/tests`, `front/web`의 검사 스크립트) | 옛 계획의 루트 `tests/`·`schemas/`는 영역별로 나눈다 |
 
-**향후 방향 (확정 아님)**: Frontend는 Web 우선. Backend는 중앙 API·DB·Integration. Desktop 앱은 현업 필요성이 검증되면 기존 React 화면을 Tauri로 재사용하는 방안을 **검토**한다(Tauri는 확정 기술이 아니다).
+**향후 방향 (확정 아님)**: Frontend는 Web 우선. Backend는 중앙 API·DB·Integration. Desktop 앱은 현업 필요성이 검증되면 기존 React 화면을 재사용하는 **중앙 Backend 의 Client**로 검토한다 — **2026-09-18 갱신: 첫 후보 Electron, Tauri 는 나중 재평가**(ADR-031 Proposed, `23_runtime-platform-and-observability.md` 8~10절).
 
 ### 6.1 결정론 엔진은 `ai/`에 두지 않는다 (ADR-029, Accepted 2026-09-16)
 

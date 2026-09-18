@@ -1,7 +1,7 @@
 # 01. 프로젝트 규칙
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-16 (T-068: 3절 LLM 사용 기준(비정형 여부)·금지 경계 확장, **6절 `Tech Validation` 단계 신설**(ADR-027 Accepted), 6.1절 실제 발송 3조건). 이전: 2026-09-15 (8절: commit은 사람 승인 뒤로 일원화, AI 협업 Workflow 참조. 같은 날 7절 프론트엔드: Next.js, Prototype 단계의 MockProvider·SCENARIO_RESULT 규칙). 이전: 2026-09-11 T-032 태그·LLM 규칙·Event 필수 필드
+- 최종 수정: 2026-09-18 (T-079 최종 정리: 6절에 로그·오류 기록의 비밀 금지 한 줄, 7절 백엔드 언어를 "미결 — `docs/23`"로 표시). 이전: 2026-09-16 (T-068: 3절 LLM 사용 기준(비정형 여부)·금지 경계 확장, **6절 `Tech Validation` 단계 신설**(ADR-027 Accepted), 6.1절 실제 발송 3조건). 이전: 2026-09-15 (8절: commit은 사람 승인 뒤로 일원화, AI 협업 Workflow 참조. 같은 날 7절 프론트엔드: Next.js, Prototype 단계의 MockProvider·SCENARIO_RESULT 규칙). 이전: 2026-09-11 T-032 태그·LLM 규칙·Event 필수 필드
 
 이 문서의 규칙은 모든 에이전트와 사람 작업자에게 적용되며, 다른 문서와 충돌하면 이 문서가 이긴다. 규칙을 바꾸려면 `14_decisions.md`에 ADR을 올린다.
 
@@ -127,12 +127,13 @@ PoC의 "가상 메일함만" 규칙은 **화면과 의사결정 흐름을 검증
 
 - API 키·OAuth 토큰은 `.env`에만 둔다. `.env`는 커밋하지 않고 `.env.example`만 커밋한다.
 - 실제 B/L 번호, 컨테이너 번호, 화주명, 계약서, **실제 메일 본문**은 커밋하지 않는다. 테스트 fixture는 식별자를 마스킹하거나 합성한다.
+- **로그와 오류 기록(`system_error`)에도** API 키·OAuth 토큰·주소 확인 토큰·실제 메일 본문·원문 응답·전체 스택 트레이스를 넣지 않는다. 필요하면 마스킹한 요약이나 참조만 둔다(`23_runtime-platform-and-observability.md` 4.4, ADR-030 Proposed).
 - `data/raw/`(실제 원본)는 `.gitignore`에 넣는다. `data/fixtures/`에는 마스킹·합성본만 둔다.
 - 저작권·이용 제한 문구가 있는 공식 문서 원문은 저장소에 두지 않는다(Q-17).
 
 ## 7. 코드 규칙 (T-003에서 확정, 초안)
 
-- 백엔드: Python 3.12. 타입힌트 필수. 도메인 모델은 Pydantic v2. 포맷·린트는 ruff, 테스트는 pytest.
+- 백엔드: **언어·프레임워크 미결.** 기록상 초안은 Python 3.12 · Pydantic v2 · ruff · pytest(ADR-002 Proposed)이고, **현재 우선 후보는 NestJS + TypeScript**(ADR-031 Proposed, Spring Boot 후보 유지). T-069 가 첫 구현 슬라이스를 확정한 뒤 사용자가 결정하고, T-080 은 그 결정을 물리 설계에 반영한다(`23_runtime-platform-and-observability.md` 3절). 어느 언어든 타입을 강제하고, 금액·시각·`as_of`·엔진 순수성 규칙은 그대로다.
 - 프론트엔드: TypeScript, Next.js (ADR-016·ADR-022 Proposed). 비즈니스 로직을 넣지 않는다. 화면에 보이는 숫자는 모두 백엔드 결과다. 백엔드가 없는 Prototype 단계에서는 MockProvider(백엔드 대역)가 시나리오 데이터 팩의 **명시값**을 돌려주고, 그 값은 `result_kind = SCENARIO_RESULT`로 표시한다. 컴포넌트는 Frontend Data Contract(`front/web/src/contracts/cera.ts`)에만 의존하고 raw fixture를 import하지 않는다(`16_frontend-prototype.md` 5절).
 - 식별자는 영어로 쓰고, 도메인 용어는 `13_glossary.md`의 영문 표준 표기를 쓴다.
 - 엔진(`state`, `tariff`, `cost`, `risk`, `optimize`)은 순수 함수 위주로 짜고 I/O를 넣지 않는다.

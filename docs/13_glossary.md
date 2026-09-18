@@ -1,7 +1,7 @@
 # 13. 용어집
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-17 (**T-077: 운영자 계획 조건 · 예상 비용 · 실제 비용 3개만 최소 추가.** 용어집 전체 동기화는 T-070 계획을 그대로 둔다). 이전: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
+- 최종 수정: 2026-09-18 (**T-079 최종 정리: 오류·관측성·런타임 용어 5개만 추가**(System Error · Request ID · Trace ID · Structured Log · DesktopBridge). 전체 동기화는 여전히 T-070). 이전: 2026-09-17 (**T-077: 운영자 계획 조건 · 예상 비용 · 실제 비용 3개만 최소 추가.** 용어집 전체 동기화는 T-070 계획을 그대로 둔다). 이전: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
 - 코드 식별자는 `코드 표기` 열을 따른다.
 
 ## 1. 물류·통관
@@ -154,6 +154,11 @@
 | Result Kind | `result_kind` | 숫자의 출처: `SCENARIO_RESULT`(시나리오 명시값) / `ENGINE_RESULT`(결정론 엔진 결과) |
 | Scenario Data Pack | `data/scenarios/<id>/` | 시나리오 입력과 명시 결과값 묶음(JSON). Prototype 판은 T-061 |
 | DEFERRED (태스크 상태) | — | 폐기가 아니라 보류. 재개 조건을 적는다(`tasks/QUEUE.md` 상태 규칙) |
+| System Error | `system_error` | CERA 안이나 외부 호출에서 난 **기술적 실패** 중 DB 에 남기는 중요한 것. 현실 사실(`event`)도, 사람의 행위(`audit_log`)도, 발송 결과(`send_attempt`)도 아니다(`22` 16.2a, `23` 4절) |
+| Request ID | `request_id` | 한 번의 API 요청·작업 실행을 가리키는 기술 식별자(`23` 5절) |
+| Trace ID | `trace_id` | 서버 안 여러 계층과 외부 호출을 한 흐름으로 잇는 기술 식별자. 업무 상관 id `correlation_id`(`05` 4.2)와 다르다 |
+| Structured Log | — | 레벨·경계·구성요소·작업·오류 코드·`request_id`·`trace_id` 를 필드로 가진 로그. 대량 로그는 DB 가 아니라 로그 저장소에 둔다(`23` 4.3) |
+| DesktopBridge | `DesktopBridge` | 화면이 데스크톱 런타임(Electron·Tauri) API 를 직접 부르지 않도록 감싸는 인터페이스. Web 구현도 있다. 업무 로직을 갖지 않는다(`23` 10절) |
 
 ## 5. 폐기된 용어
 

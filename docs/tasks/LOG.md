@@ -21,6 +21,40 @@
 
 ---
 
+## 2026-09-18 · T-079 DONE — Minor Cleanup 4건 + 종료 처리 · Claude Code (claude-opus-5)
+- 상태: **완료 — T-079 DONE** (사용자 + ChatGPT rev.2.2 최종 승인). **미커밋 — commit 은 사용자 지시 대기**
+- 경과: 읽기 전용 최종 검증 판정 **B(READY AFTER MINOR CLEANUP)** — 구조 문제·blocker 없음, 표현 4건만 → 사용자가 4건 정리 + 종료를 지시
+- 고친 것 (4건, 새 설계 판단 없음)
+  1. **QUEUE 순서 통일**: "다음 추천" 번호 목록을 T-070(1) → T-069(2, Q-44·Q-45·L-13·첫 슬라이스) → Backend·DB 기술 결정(3, 사용자) → T-080(4) → 구현(5) 로 재배열. T-069 제목의 "다음 작업 / 1순위" 제거, T-070 을 "다음 작업 / 1순위"로. "실행 가능"·"앞으로의 순서"·T-080 의존·T-079 완료 블록의 옛 후속 순서 표기를 같은 순서로 맞춤
+  2. **기술 결정 시점 표현 통일**: "T-080 때 닫는다 / T-080 에서 확정" → **"T-069 가 첫 슬라이스·요구사항 확정 → 사용자가 Backend·DB 결정 → T-080 이 결정된 기술을 물리 설계에 반영"**. `docs/23`(머리 표 · 2절 · 3.1 · 3.3 · 13절)에 더해 **같은 표현이 있던 `docs/14` ADR-031(요약·상태 줄) · `docs/01` 7절 · `docs/22` 28절 5번**도 같은 뜻으로 맞췄다(후보 상태는 그대로, 기술 확정 없음)
+  3. **`docs/22` 1.3 요약 표에 `plan_decision` 행 추가**: `DECISION_RECORD` · `APPEND_ONLY` — 13.5 와 같은 의미(결정이 바뀌면 새 결정 행)
+  4. **작업표 `message_approval`**: `approved_subject` · `approved_body_text` 제약을 "APPROVED 이고 원 메시지에 값이 있으면 필수" 로 Markdown 과 일치
+- 종료 처리: QUEUE T-079-R·T-079 DONE, `진행 중` 비움 · CURRENT 를 **IDLE**(다음 작업 T-070)로 — T-073~T-079 경과는 이 LOG 에 있으므로 CURRENT 에서 뺐다(이전 내용은 `687d458` 의 CURRENT 에 남아 있다) · `docs/22` 상태 "rev.2.2 최종" · `docs/README.md`·`AGENTS.md` 상태 표기
+- **최종 상태**: `docs/21` 승인·동결(무변경) · `docs/22` rev.2.2 최종 — **MVP 51 · Next 1 · MVP 에서 만들지 않음 2 = 54**(작업표 블록 52 · 컬럼 557) · `docs/23` 추가(ADR-030·031 Proposed, 기술 최종 결정 아님)
+- 검증: `git diff --check` 통과 · 4건 Markdown ↔ 작업표 차이 0 · QUEUE 순서 충돌 0 · 기술 결정 시점 충돌 0("T-080 에서 확정" 류 표현 0건) · `plan_decision` 변경 방식 충돌 0 · staged 0건
+- 하지 않은 것: 새 표 · `docs/21` 수정 · 기술 확정 · `AGENTS.md` 1.1절 `ai/` 행(T-070) · `front/web/`·`data/Proposal/`·`scripts/` · staging·commit·push
+- 다음 한 걸음: **사용자 지시 시 commit** → **T-070**
+- 주의사항: 바로 아래 항목(같은 날 rev.2.2 정리)의 "최종 검토 대기"는 당시 상태다. 2026-09-17 항목들의 "미커밋"은 rev.2.1 이 `687d458` 로 저장되기 전 표현이다
+
+## 2026-09-18 · T-079 최종 정리(rev.2.2) + 런타임·관측성 문서화 · Claude Code (claude-opus-5)
+- 상태: 완료 (**사용자 + ChatGPT 최종 검토 대기 · rev.2.2 미커밋**). rev.2.1 은 이미 `687d458` 에 저장돼 있다 — 바로 아래 2026-09-17 항목의 "미커밋"은 당시 표현이다(LOG 는 append-only 라 고치지 않았다)
+- 지시: ① T-079 최종 검증에서 나온 A~E 정합성 5건 + 표현 잔재 정리 ② 시스템·외부 연동 오류 추적 구조를 설계 문서에 반영 ③ Backend·Web·Desktop 기술 방향이 기존 문서에 있으면 갱신, 정본이 없으면 새 문서 **하나**. 기술을 최종 결정하지 않는다. 제품 코드·SQL·staging·commit·push 금지. `docs/21` 수정 금지
+- 조사 결과: 관측성·오류 처리 정본 문서 **없음**(`observability`·`trace_id`·`system_error` 0건). Backend 기술은 ADR-002(Python/FastAPI, **Proposed**)·`docs/07` 3절·`docs/01` 7절(초안)에만 있음. Desktop 은 ADR-024 "방향(미확정)"·`docs/07` 6절·루트 README 에 "Tauri 검토" 한 줄씩. NestJS·Spring·Electron 언급 0건. `docs/17` 의 AI 협업 역할은 사용자가 말한 역할과 **이미 일치**(수정 불필요)
+- 한 일
+  - `docs/22` **rev.2.2**: A `message_approval` 컬럼 표 "조건부" + 무결성 규칙 1~8 · B `send_attempt`(15.7.3)·`extraction`(15.9.1) 생애주기 · C `value_path` NOT NULL + "전체" 표시(물리 문자열은 T-080) · D `is_simulated` 2건 표기 · E `<RECOVERY_CONTEXT_REF>` · 유효 승인 **여섯 조건** 통일 · 안티패턴·절 번호 · 17.1 표 · 17.3 논리 연결 키 행 · L-1 · 머리의 커밋 표기(설계 입력 `1b97905` / rev.2.1 저장 `687d458`, 자기 최신 커밋은 적지 않음) · 28절 새 순서 · `vessel_call` 컬럼 표기
+  - **`system_error` 추가**(16.2a): 분류 `EVIDENCE` · `APPEND_ONLY` · 20컬럼 · 다형 관련 개체(DB FK 없음, 쓰기 경로 존재 검사 예외) · I-18~I-20 · 27.8 Gmail 503 walkthrough · 27.6 H(4항목, 총 30항목) · 23절 "개념 모델 밖 기술 운영 표" · 21절 Activity Timeline 에 섞지 않음
+  - 작업표: A~E 반영, `system_error` 블록, `00_목록` 51/1/2/54, `10_OpenDecisions` 제목·L-1·Q-66
+  - **`docs/23_runtime-platform-and-observability.md` 신설**: 기준선 · Backend 후보 비교(**현재 우선 후보 NestJS + TypeScript**, Spring Boot 후보 유지, Python ADR-002 기록 유지) · **솔버 위험(3.3)** · 세 기록 분리 · 세 경계 공통 오류 처리 · DB vs 로그 기준 · 비밀 금지 · `request_id`·`trace_id`(업무 `correlation_id` 와 구분) · 공통 Integration Client · 오류 정규화 예시 · Web First · Desktop = Client · Electron 첫 후보/Tauri 나중 · `DesktopBridge` · AI 런타임 분리 조건 · OpenAPI · 미룬 결정과 시점
+  - ADR-030(오류·관측성) · ADR-031(런타임 방향) **Proposed**. ADR-002·024 에 2026-09-18 주석
+  - `docs/01` 6절(로그·오류 기록 비밀 금지)·7절(Backend 미결), `docs/07` 3·6절 참조 주석, `docs/12` 7절 Desktop 한 줄, `docs/13` 용어 5개, `docs/15` Q-64~Q-67, `docs/README.md`·`AGENTS.md`·루트 `README.md` 색인·Desktop 문구
+- 테이블 수 (실제로 다시 셈): **MVP 51 · Next 1 · MVP 에서 만들지 않음 2 = 54**. 작업표 블록 52 · 컬럼 557. Markdown 2절 목록 ↔ 작업표 블록 이름 차이 0건
+- 검증: Markdown ↔ 작업표 컬럼 대조(차이 0 — 축약 표기 제외), PK 컬럼 NULL 허용 0건, 목록 시트 ↔ 블록의 분류·변경 방식 일치, `git diff --check` 통과, staged 0건, 제품 영역 변경 0건, `docs/21` 변경 0건
+- 하지 않은 것: 기술 최종 결정 · 제품 코드 · SQL · 대응 이력 표 · 오류 코드 전체 목록 · L-13 결정 · `back/`·`ai/`·`packages/` README 수정(T-070) · `docs/07` 본문 전면 정리(T-070) · 옛 LOG 항목의 "미커밋" 수정 · staging·commit·push
+- 변경 파일: `docs/22_cera-logical-data-model.md`·`.xlsx` · **`docs/23_runtime-platform-and-observability.md`(신규)** · `docs/01` · `docs/07` · `docs/12` · `docs/13` · `docs/14` · `docs/15` · `docs/README.md` · `AGENTS.md` · `README.md` · `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 큐 변경: T-079-R 을 rev.2.2 + `docs/23` 검토로 갱신 · 순서를 T-070 → T-069 → 기술 결정 → T-080 으로 · **T-080 을 템플릿 코드 블록 밖으로 옮기고** 의존·범위(첫 슬라이스부터)를 고침 · T-069·T-070 에 2026-09-18 추가 항목
+- 남은 일 / 다음 한 걸음: 사용자 + ChatGPT 최종 검토 → T-079 DONE → T-070
+- 주의사항: **Backend 언어는 결정되지 않았다.** NestJS 를 고르면 솔버를 어디서 돌릴지(Q-65)를 같이 답해야 한다. `system_error` 는 업무 개념이 아니며 `event`·계산·Activity Timeline 으로 흘러가지 않는다
+
 ## 2026-09-17 · T-079 rev.2.1 최종 정합성 패치 · Claude Code (claude-opus-5)
 - 상태: 완료 (**미커밋 — T-079 최종 승인 대기**). 기준 커밋 `1b97905` 위의 문서 변경만. 제품 코드 0건. **새 테이블 0개**
 - 지시: rev.2 검토 결과 **전체 구조는 승인 가능하지만 물리 설계 전에 정합성 몇 건을 정리**해야 한다. **새 설계를 벌리지 말고** 지적된 것만 닫는다. 이 작업 뒤 T-079 를 최종 승인·종료한다
