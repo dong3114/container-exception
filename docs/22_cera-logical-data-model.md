@@ -3343,7 +3343,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 3. ~~**이 문서 rev.2.3 + 작업표 검토** → **T-081 DONE**~~ — **완료 (2026-09-21, 사용자 최종 승인)**
 3-1. ~~**Q-44 · Q-45 사용자 결정**~~ — **완료 (2026-09-21, rev.2.4)**. Q-44 CLOSED(11.2e) · Q-45 구조 CLOSED / 기간 OPEN(29절)
 4. **T-069 외부 통신 구현 계획** ← **다음** — ~~Q-44·Q-45 사용자 결정~~(완료), **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
-5. **Backend·DB 기술 최종 결정** — 현재 우선 후보와 판단 근거는 `docs/23` · ADR-031(Proposed)
+5. **Backend·DB 기술 최종 결정** — **Backend 는 결정(2026-09-21, ADR-033 Accepted — Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임).** DB 제품·ORM·마이그레이션은 **Q-68(T-084)** 로 남는다
 6. **T-080 물리 설계** — **논리 표 52개를 한 번에 물리 설계하지 않는다.** 5번에서 **결정된 기술**을 T-069 가 정한 첫 슬라이스에 필요한 표부터 반영한다: 결정된 DB 제품 위의 물리 설정 · `event_id` 형식 · **`idempotency_key` 직렬화·해시·주장 위치 형식**(11.2d) · **`schema_version` 문자열 형식** · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · `value_path` "전체" 표시 문자열 · 마이그레이션 · 실제 `CREATE TABLE`
 6. 구현(Antigravity) → 검토(Claude/Codex) → 사용자 승인 → commit
 7. 실데이터 확인 뒤 **L-16 `bl` 유일 제약** 확정 (T-005·T-006)

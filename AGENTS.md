@@ -17,10 +17,10 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 현재 단계 | **Phase 0.5 → 데이터 모델 설계.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**, **외부 통신 요구사항 명세(T-071, `docs/19`)**, **DB 설계 전 요구사항 검토(T-072, `docs/20`)**, **개념 데이터 모델 승인(T-073 → rev.2 T-075 → rev.3 T-077 → T-078 정합성 정리 → **T-076 최종 승인**, `docs/21`)**, **논리 DB 설계(T-079 → rev.2.2 → **rev.2.3**(T-081 논리 모델 후속 — `docs/05` 4.2 대조로 누락 13건 복구 + ADR-020 상태 차원 복구 + `event_verification_target`, MVP 52 · Next 1 · 만들지 않음 2 = 55), `docs/22` + 논리 스키마 작업표, **T-079 DONE 2026-09-18 · T-081 DONE 2026-09-21 · rev.2.4 Q-44·Q-45 결정(메일 근거 시각 · 기록·내용 분리 보관, ADR-032) 2026-09-21**)**, **런타임·오류 처리·관측성 문서(`docs/23`, ADR-030·031 Proposed — Backend 현재 우선 후보 NestJS, 최종 결정 아님)**. 작업 순서는 `(논리 DB 설계 완료) → (T-070 문서 동기화 완료) → (T-081 논리 모델 후속 완료) → (T-069 구현 계획 DONE — 첫 Slice = Mock 루프, L-13 CLOSED, P0 29개) → **T-083 Q-64 Backend 결정 · T-084 Q-68 DB 결정(사용자, 다음)** → T-080 물리 설계(P0 29개) → T-085~T-096 구현(U0~U11)`이다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
+| 현재 단계 | **Phase 0.5 → 데이터 모델 설계.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**, **외부 통신 요구사항 명세(T-071, `docs/19`)**, **DB 설계 전 요구사항 검토(T-072, `docs/20`)**, **개념 데이터 모델 승인(T-073 → rev.2 T-075 → rev.3 T-077 → T-078 정합성 정리 → **T-076 최종 승인**, `docs/21`)**, **논리 DB 설계(T-079 → rev.2.2 → **rev.2.3**(T-081 논리 모델 후속 — `docs/05` 4.2 대조로 누락 13건 복구 + ADR-020 상태 차원 복구 + `event_verification_target`, MVP 52 · Next 1 · 만들지 않음 2 = 55), `docs/22` + 논리 스키마 작업표, **T-079 DONE 2026-09-18 · T-081 DONE 2026-09-21 · rev.2.4 Q-44·Q-45 결정(메일 근거 시각 · 기록·내용 분리 보관, ADR-032) 2026-09-21**)**, **런타임·오류 처리·관측성 문서(`docs/23`, ADR-030 Proposed)**, **Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임 결정(T-083, Q-64 CLOSED, ADR-033 Accepted 2026-09-21)**. 작업 순서는 `(논리 DB 설계 완료) → (T-070 문서 동기화 완료) → (T-081 논리 모델 후속 완료) → (T-069 구현 계획 DONE — 첫 Slice = Mock 루프, L-13 CLOSED, P0 29개) → (T-083 Q-64 Backend 결정 DONE — NestJS) → **T-084 Q-68 DB 결정(사용자, 다음)** → T-080 물리 설계(P0 29개) → T-085~T-096 구현(U0~U11)`이다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
 | 기획 버전 | v0.2 (2026-09-11, 2026-09-15 개정). 변경 이력은 `docs/CHANGELOG.md` |
 | 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · 운영 시뮬레이터(Prototype은 2D) |
-| 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider)만 있음. `back/`·`ai/`·`packages/`·`infra/`는 README만 있는 빈 책임 영역 (T-003) |
+| 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider)만 있음. `back/`(Main Backend — NestJS 예정)·`ai/`(별도 Python AI Server 예정)·`packages/`·`infra/`는 README만 있는 빈 책임 영역. 뼈대는 T-085(U0, 옛 T-003 흡수) |
 
 ### 1.1 저장소 구조 (Private Monorepo, ADR-024)
 
@@ -159,7 +159,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 | `docs/20_data-model-preconditions.md` | **DB 설계 전 검토**: DB가 따라야 하는 확정 규칙 24개(A-01~A-24), 원본·파생·계산결과 분류, 검증기 규칙 5분류, 단계별 결정사항 | DB·스키마 작업 전 |
 | `docs/21_cera-conceptual-data-model.md` | **개념 데이터 모델 (정본, rev.3, 승인)**: 개념 분류(엔티티·속성·사실·상태·계산·계획·결정·근거), 저장 개념 후보 33개와 그 근거, 관계·ERD, Source of Truth 정책, MVP 구분, Minimum Conceptual Model. 짝 산출물 두 개: **개념 검토 작업표** `docs/21_cera-conceptual-data-model.xlsx`, **RPG 스타일 DB 명세 Preview** `docs/21_cera-db-template-preview.xlsx`. **셋 다 확정 스키마가 아니다** | **데이터 모델·DB 작업 (정본)** |
 | `docs/22_cera-logical-data-model.md` | **논리 DB 설계 (정본, rev.2.4)**: 승인된 개념을 테이블·컬럼·관계·제약으로 옮긴 것. 테이블 분류 7종, MVP 52 · Next 1(rev.2.2 `system_error` · rev.2.3 `event_verification_target`), 키·무결성 전략, 금지 안티패턴 10종, **적용 범위와 유효 기간 분리**, 개념→테이블 추적표, 전체 흐름 walkthrough. 짝 산출물 **논리 스키마 작업표** `docs/22_cera-logical-data-model.xlsx`. **DB 제품·ORM·CREATE TABLE·인덱스는 확정하지 않았다** | **논리 스키마·DB 작업 (정본)** |
-| `docs/23_runtime-platform-and-observability.md` | **런타임 · 오류 처리 · 관측성 (정본)**: Backend 후보(현재 우선 후보 NestJS + TypeScript, **최종 결정 아님**), Event · Audit · System Error 분리, 공통 오류 처리, `request_id`·`trace_id`, 외부 연동 오류 정규화, Web First, Desktop = Client(Electron 첫 후보), `DesktopBridge`, AI 런타임 분리 조건 | **Backend·오류 처리·Desktop·기술 선택을 판단할 때** |
+| `docs/23_runtime-platform-and-observability.md` | **런타임 · 오류 처리 · 관측성 (정본)**: **Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임(ADR-033 Accepted)**, Event · Audit · System Error 분리, 공통 오류 처리, `request_id`·`trace_id`, 외부 연동 오류 정규화, Web First, Desktop = Client(Electron 첫 후보), `DesktopBridge`, AI Server 호출 원칙 | **Backend·오류 처리·Desktop·기술 선택을 판단할 때** |
 | `data/scenarios/busan-wh-capacity-01/README.md` | 30대 시나리오 데이터 팩(Prototype 판) | 시나리오 값을 바꿀 때 |
 | `docs/data/field-dictionary.md` | 공공 API 필드 사전(공식 명세 기준, 출처 S-nn) | 공공 API 어댑터 작업 |
 | `docs/data/code-tables.md` | 공공 API 코드값·에러코드 | 어댑터·파서 작업 |
@@ -172,7 +172,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 
 ## 6. 개발 명령어
 
-> 백엔드 명령은 T-003(저장소 초기화)에서 채운다. 지금은 `front/web/` Prototype만 있다(Node 22 기준, `docs/16_frontend-prototype.md` 3절).
+> 백엔드 명령은 T-085(U0 Backend 뼈대 — NestJS, 옛 T-003 흡수)에서 채운다. 지금은 `front/web/` Prototype만 있다(Node 22 기준, `docs/16_frontend-prototype.md` 3절).
 
 ```text
 [front/web — Control Tower Prototype]  (모든 명령은 front/web 폴더에서)
@@ -185,7 +185,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 개발 서버:    npm run dev
 
 [back / ai]  (구현 전)
-설치·테스트·린트: (T-003에서 정의)
+설치·테스트·린트: (T-085 U0에서 정의)
 로컬 실행:       (T-052 / T-054에서 정의)
 시나리오 CLI:    (T-046에서 정의)
 ```

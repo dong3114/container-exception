@@ -20,7 +20,7 @@
 | 한다 | 하지 않는다 |
 | --- | --- |
 | 30대 합성 시나리오 데이터 팩(의도 설계, Faker 없음) | Solver·Risk·Cost 엔진, T-036 상세 모델, CP-SAT·MILP·OR-Tools |
-| Frontend Data Contract + Mock Data Provider | Backend 본 구현(언어·프레임워크 미결 — `23` 3절), DB, 마이그레이션, 캐시 |
+| Frontend Data Contract + Mock Data Provider | Backend 본 구현(Main Backend = TypeScript + NestJS — ADR-033, 2026-09-21. 구현 전), DB, 마이그레이션, 캐시 |
 | Control Tower 한 화면 + 시나리오 재생(Reset·이전·다음·Play) | 실제 메일·공공 API·VBS/TMS 연동, LLM 연결 |
 | 결과값은 fixture에 명시하고 `SCENARIO_RESULT`로 표시 | 인증, Microservice, Kafka, Event Sourcing 프레임워크 |
 | 추상 2D 운영 지도(SVG) | 부산항 지형 재현, 게임형 3D, Digital Twin |

@@ -133,7 +133,7 @@ PoC의 "가상 메일함만" 규칙은 **화면과 의사결정 흐름을 검증
 
 ## 7. 코드 규칙 (T-003에서 확정, 초안)
 
-- 백엔드: **언어·프레임워크 미결.** 기록상 초안은 Python 3.12 · Pydantic v2 · ruff · pytest(ADR-002 Proposed)이고, **현재 우선 후보는 NestJS + TypeScript**(ADR-031 Proposed, Spring Boot 후보 유지). T-069 가 첫 구현 슬라이스를 확정한 뒤 사용자가 결정하고, T-080 은 그 결정을 물리 설계에 반영한다(`23_runtime-platform-and-observability.md` 3절). 어느 언어든 타입을 강제하고, 금액·시각·`as_of`·엔진 순수성 규칙은 그대로다.
+- 백엔드: **Main Backend = TypeScript + NestJS**(ADR-033 Accepted, 2026-09-21). **AI Server = 별도 Python 런타임**(권한 없음 — LLM 문장·추출 후보만). 옛 초안 Python 3.12 · Pydantic · ruff · pytest(ADR-002)는 Main Backend 에서 **Superseded**. 구체 라이브러리·버전은 U0(T-085), DB·ORM·마이그레이션은 Q-68. 어느 런타임이든 금액·시각·`as_of`·엔진 순수성 규칙은 그대로다.
 - 프론트엔드: TypeScript, Next.js (ADR-016·ADR-022 Proposed). 비즈니스 로직을 넣지 않는다. 화면에 보이는 숫자는 모두 백엔드 결과다. 백엔드가 없는 Prototype 단계에서는 MockProvider(백엔드 대역)가 시나리오 데이터 팩의 **명시값**을 돌려주고, 그 값은 `result_kind = SCENARIO_RESULT`로 표시한다. 컴포넌트는 Frontend Data Contract(`front/web/src/contracts/cera.ts`)에만 의존하고 raw fixture를 import하지 않는다(`16_frontend-prototype.md` 5절).
 - 식별자는 영어로 쓰고, 도메인 용어는 `13_glossary.md`의 영문 표준 표기를 쓴다.
 - 엔진(`state`, `tariff`, `cost`, `risk`, `optimize`)은 순수 함수 위주로 짜고 I/O를 넣지 않는다.

@@ -1,7 +1,7 @@
 # 14. 설계 결정 기록 (ADR)
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-21 (**ADR-032 메일 근거 시각 + 기록·내용 분리 보관 — Q-44 · Q-45 사용자 결정, Accepted.** 보관 기간 숫자는 미결). 이전: 2026-09-18 (**T-079 최종 정리: ADR-030 오류·관측성 원칙, ADR-031 런타임 방향(Backend 우선 후보 NestJS · Web First · Desktop = Client · Electron 첫 후보 · AI 분리 조건) 추가 — 둘 다 Proposed.** ADR-002·024 에 2026-09-18 주석). 이전: 2026-09-16 (**T-072: ADR-019·020·021을 `Accepted (구조 한정)`으로 판정** — 구조는 승인, 정책 파라미터는 계속 검증. 상태 값에 `Accepted (구조 한정)` 도입). 같은 날 T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가 + 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가. 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
+- 최종 수정: 2026-09-21 (**ADR-033 Main Backend = NestJS + TypeScript, AI Server = 별도 Python 런타임 — Q-64 사용자 결정, Accepted. ADR-002 Superseded, ADR-031 결정 1·2·8 Superseded.** 같은 날 앞서: **ADR-032 메일 근거 시각 + 기록·내용 분리 보관 — Q-44 · Q-45 사용자 결정, Accepted.** 보관 기간 숫자는 미결). 이전: 2026-09-18 (**T-079 최종 정리: ADR-030 오류·관측성 원칙, ADR-031 런타임 방향(Backend 우선 후보 NestJS · Web First · Desktop = Client · Electron 첫 후보 · AI 분리 조건) 추가 — 둘 다 Proposed.** ADR-002·024 에 2026-09-18 주석). 이전: 2026-09-16 (**T-072: ADR-019·020·021을 `Accepted (구조 한정)`으로 판정** — 구조는 승인, 정책 파라미터는 계속 검증. 상태 값에 `Accepted (구조 한정)` 도입). 같은 날 T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가 + 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가. 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
 
 상태 값: `Proposed`(제안, 사람 승인 전) · `Accepted`(확정) · **`Accepted (구조 한정)`**(구조·형태는 확정, 그 안의 파라미터 값은 계속 검증. 2026-09-16 도입) · `Superseded by ADR-NNN`(대체됨) · `Rejected`(기각).
 `Accepted` ADR은 에이전트가 혼자 뒤집지 않는다. 바꾸려면 새 ADR을 `Proposed`로 올린다.
@@ -24,7 +24,7 @@
 | ADR | 제목 | 상태 |
 | --- | --- | --- |
 | 001 | 문서 체계 | Proposed (v0.2 구조로 갱신) |
-| 002 | 백엔드 스택 Python | Proposed (2026-09-18 주석: **현재 우선 후보는 ADR-031 의 NestJS + TypeScript.** 최종 결정 전까지 둘 다 Proposed) |
+| 002 | 백엔드 스택 Python | **Superseded by ADR-033** (2026-09-21 사용자 결정 — Main Backend 는 NestJS + TypeScript. Python 은 **별도 AI Server 런타임**으로만 쓴다) |
 | 003 | PoC UI Streamlit | **Superseded by ADR-016** |
 | 004 | SQLite → PostgreSQL | Proposed |
 | 005 | 마일스톤 유도 + 예외 오버레이 | Proposed (ADR-012 아래의 뷰로 유지) |
@@ -53,8 +53,9 @@
 | 028 | 통신 도메인 저장 분리(`comm_*`) + Counterparty→Contact→Address 3상태 발송 자격 + 쓰기 계약(`CeraCommandClient`)과 OpenAPI 정본 전환 시작 | **Accepted** (2026-09-16 사람 결정) |
 | 029 | **결정론 엔진(Tariff·Cost·Risk·Reconciliation·Optimize·Solver)을 `ai/`에서 분리** — `ai/`는 LLM·비정형 처리만. 새 `engine/`은 만들지 않음. ADR-024 영역 정의 개정 | **Accepted** (2026-09-16 사람 결정). 실행은 T-003 |
 | 030 | **오류·관측성 원칙**: Event · Audit · System Error 세 기록 분리, 중요한 오류만 `system_error`(DB), 세 경계(API·연동·작업) 공통 오류 처리, `request_id`·`trace_id`, 외부 연동 오류 정규화 | Proposed (2026-09-18) |
-| 031 | **런타임 방향**: Backend **현재 우선 후보 NestJS + TypeScript**(Spring Boot 후보 유지, 최종 결정은 T-069 뒤 사용자 — T-080 은 그 결정을 반영), Web First, Desktop = 중앙 Backend 의 Client, Electron 첫 후보·Tauri 나중 재평가, `DesktopBridge`, Python AI 서비스는 Python 전용 요구가 생길 때만 | Proposed (2026-09-18). **기술 최종 승인 아님** |
+| 031 | **런타임 방향**: Web First, Desktop = 중앙 Backend 의 Client(Electron 첫 후보), `DesktopBridge`, 같은 OpenAPI 계약. **결정 1·2(Backend 후보)와 8(AI 분리 조건)은 ADR-033 이 대체**(2026-09-21) | Proposed (Desktop·Web First 부분) · **결정 1·2·8 Superseded by ADR-033** |
 | 032 | **메일 근거 시각 + 기록·내용 분리 보관**: 메일 `source_recorded_at` 은 `Date` 헤더가 정상이고 채널 수신 시각보다 **미래가 아니면** `Date`, 아니면 채널 수신 시각(원래 두 시각 보존, Q-44). 실제 메일은 **기록과 내용을 분리** — 행 삭제 ≠ 내용 파기. 원문·본문·인용·승인 문장은 참조 + 지문으로 기록에 붙고 보관 정책에 따라 내용만 파기, 파기는 감사(Q-45). **보관 기간 숫자는 미결(Pilot 정책)** | **Accepted** (2026-09-21 사용자 결정 — 구조·규칙 확정, 기간 숫자 제외) |
+| 033 | **Main Backend = TypeScript + NestJS**(모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON) · 큐 제품 없이 DB Outbox · OpenAPI → 생성 TS 타입 · 스키마 단일 원천 · 정확성 규칙 5가지 | **Accepted** (2026-09-21 사용자 결정 — Q-64 CLOSED) |
 
 ---
 
@@ -68,13 +69,14 @@
 - **v0.2 주석 (2026-09-11)**: 원칙은 유지한다. 정본 파일 구성을 01~15로 재편했고, 기획 변경 이력은 `CHANGELOG.md`에 요약한다. 옛 기획 문서는 저장소에 남기지 않는다(git 이력으로만 보존).
 
 ## ADR-002: 기술 스택 — Python 3.12 + Pydantic + OR-Tools + FastAPI
-- 상태: Proposed
+- 상태: **Superseded by ADR-033** (2026-09-21 사용자 결정 — Q-64). 원래 상태는 Proposed. 본문은 결정 당시 기록으로 남긴다
 - 날짜: 2026-09-10
 - 맥락: 최적화(OR-Tools), XML 공공 API, LLM 연동이 모두 필요하다. 1인 + 에이전트 개발이다.
 - 결정: `07_backend-architecture.md` 3절의 스택.
 - 대안: TypeScript/Node(OR-Tools 바인딩이 약함), Java(개발 속도).
 - 결과: UI는 별도 결정(ADR-003 → ADR-016).
 - **v0.2 주석**: 백엔드 스택은 그대로다. LLM SDK(Anthropic Python SDK)와 SSE가 추가됐다. 프론트엔드는 ADR-016.
+- **2026-09-21 주석 — Superseded by ADR-033**: 사용자가 **Main Backend = TypeScript + NestJS** 로 결정했다(Q-64). Python 은 Main Backend 가 아니라 **별도 AI Server 런타임**(초안 문장 · 추출 후보 등 AI 전용)으로 쓴다. 이 ADR 의 Python 스택(Pydantic · FastAPI · APScheduler · pytest 등)은 **Main Backend 기술로는 폐기**되고, AI Server 의 구체 패키지는 구현 시점에 정한다. 솔버 위치는 Q-65 로 남는다.
 - **2026-09-18 주석**: 사용자가 Backend 언어를 다시 검토하고 있다. **현재 우선 후보는 NestJS + TypeScript**(ADR-031 Proposed, `docs/23` 3절)이고 Java / Spring Boot 도 후보다. 이 ADR 은 **폐기하지 않고 Proposed 로 둔다.** 최종 결정이 나면 `Superseded by ADR-031` 또는 Accepted 로 정리한다. 이 ADR 의 대안 줄에 적힌 "TypeScript/Node(OR-Tools 바인딩이 약함)"는 여전히 유효한 위험이며 `docs/23` 3.3 에서 선택지로 다룬다.
 
 ## ADR-003: PoC UI — Streamlit
@@ -396,7 +398,7 @@
 - 결과: `docs/22` 에 `system_error` 추가(MVP 51 · Next 1 · MVP 에서 만들지 않음 2 = 54). `docs/23` 신설. 오류 분류·코드 값 목록은 Q-66, 관측 제품은 Q-67.
 
 ## ADR-031: 런타임 방향 — Backend 우선 후보 · Web First · Desktop = Client · AI 분리 조건
-- 상태: **Proposed** (2026-09-18). **기술 최종 승인이 아니다.** Backend 언어는 사용자 최종 결정 필요 — T-069 로 첫 구현 슬라이스를 정한 뒤 **사용자가 결정**하고, T-080 은 결정된 기술을 물리 설계에 반영한다
+- 상태: **Proposed** (2026-09-18) — **2026-09-21: 결정 1·2(Backend 후보)와 결정 8(Python AI 서비스는 나중에만 분리)은 ADR-033 이 대체했다(Superseded).** 결정 3(솔버 위험)은 Q-65 의 맥락으로 남고, 결정 4~7·9(Web First · Desktop = Client · Electron 첫 후보 · `DesktopBridge` · 같은 OpenAPI 계약)는 그대로 Proposed 다. 본문은 당시 기록으로 남긴다
 - 날짜: 2026-09-18
 - 맥락: 기록상 Backend 초안은 Python 3.12 + FastAPI(ADR-002 Proposed)다. 그 뒤 상황이 바뀌었다 — Frontend 는 이미 Next.js + React + TypeScript 로 구현됐고, 1인 개발이며, 사용자가 회사에서 NestJS 를 실제로 쓰고, Backend·API·데이터 흐름 위주 개발을 선호한다. 향후 Desktop 클라이언트(Electron/Tauri)와 AI 모듈도 고려한다. 반대로 결정론 엔진(최적화·솔버)은 ADR-029 에 따라 Backend 영역이다.
 - 결정 (상세: `docs/23` 3·7~12절):
@@ -427,3 +429,21 @@
 - 대안: Q-44 — (a) 대칭 허용 오차(T-068 초안): 늦게 도착한 메일을 최신처럼 만든다 (b) 항상 `internalDate`: 같은 문제 (c) 항상 `Date`: 미래 시각 조작이 통과한다. Q-45 — (a) 무기한 보관: 최소 보관 원칙과 Pilot 고객사 요구에 맞지 않고 나중에 쌓인 것을 처리해야 한다 (b) 원문 즉시 파기: `docs/20` A-05(재추출)를 사실상 없앤다 (c) 내용 컬럼을 `NULL` 로 비우기: 불변 규칙을 깬다.
 - 결과: `docs/22` rev.2.4(11.2e · 29절 · I-28~I-33 · 안티패턴 11). **논리 테이블 수 변화 없음(52).** `docs/05` 5.2 `EMAIL` 매핑 · `docs/18` F.2 · G.7 · `docs/19` NFR-21 · `docs/23` 4.4 · `docs/15` Q-44 CLOSED · Q-45 구조 CLOSED. **`docs/20` A-05 는 유지하되 "원문이 보관된 동안" 보장되는 것으로 읽는다** — 원문이 파기돼도 Event → Canonical 재계산·스냅샷 재현·감사는 그대로 된다(재현성 ≠ 원문 재처리 능력). `docs/21` 은 변경 없음 — 원문 보관 기간은 `docs/21` 23절이 Q-45 로 사용자에게 넘겨 둔 것이다.
 - 미결: 보관 범주별 **기간 숫자**(Pilot — 고객사 IT · 계약 · 보안·감사 요구 · 개인정보·관련 법률 검토) · 연락처 익명화·법적 보관 의무(`[TO VERIFY]`, Q-48) · `internalDate` 의 정확한 의미(`[TO VERIFY]`, Tech Validation) · 물리 저장 위치와 파기 실행 방식(T-080 이후)
+
+## ADR-033: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임 (Q-64)
+- 상태: **Accepted** (2026-09-21, 사용자 결정 — Q-64 CLOSED)
+- 날짜: 2026-09-21 (T-083)
+- 맥락: T-069 가 첫 구현 Slice(Mock 외부 통신 루프)와 그 기술 조건을 확정했다(`docs/tasks/plans/T-069-external-communication-slice.md` 16절). 사용자는 CERA 의 기본 구조를 **React/Next.js → Main Backend → DB**, 그리고 **Main Backend → Python AI Server** 로 정했고, Main Backend 후보로 NestJS 와 Spring Boot 를 비교해 NestJS 를 골랐다. Python/FastAPI 는 Main Backend 후보가 아니다.
+- 결정:
+  1. **Main Backend = TypeScript + NestJS, 모듈형 모놀리스.** 같은 코드베이스에서 **API 프로세스**와 **Worker 프로세스**를 따로 실행할 수 있게 한다. 마이크로서비스 분할 · service mesh · Kafka · 분산 워커 클러스터 · 브로커 중심 구조를 처음부터 두지 않는다.
+  2. **Main Backend 가 운영 권한의 유일한 주체다**: 인증·인가 · 거래처·연락처 등록부 · DB 권한 · 트랜잭션 · 승인 · 메시지 생애주기 · Outbox · 발송 시도 · Gmail/ChannelAdapter · 발신자 매핑 · 결정론 검증 · 사건 append · 현재 사실 · Reconciliation · 사람 확인 · 감사 · `system_error` · 멱등 · API 계약. **AI Server 가 돌려준 결과의 검증도 Main Backend 가 한다.**
+  3. **AI Server = 별도 Python 런타임**(FastAPI 또는 동등한 Python API 런타임 — 구체 패키지는 구현 시점). 맡는 것: 초안 **문장** 생성 · 자유 형식 회신의 **추출 후보** · 향후 문서 추출 · 향후 AI/ML 추론 · Python 전용 AI 작업. **하지 않는 것**: DB 접근 · 수신자 신원 · 거래처 권한 · 사건 확정 · 현재 사실 변경 · 승인 · 외부 발송 · 비용/위험/솔버 권한 · 운영 상태 변경. 가질 수 있는 외부 클라이언트는 **LLM 공급자 호출뿐**이다. **출력은 언제나 후보**이고 Main Backend 가 검증한 뒤에만 반영된다(ADR-026 · ADR-029 는 그대로).
+  4. **Main Backend → AI Server 는 HTTP/JSON 을 우선한다.** 요청·응답 스키마를 계약으로 두고, 짧은 timeout · 제한된 재시도(같은 입력이면 다시 불러도 안전한 요청만) · `correlation_id`/`trace_id` 전달 · **장애 격리**(AI 실패 → 추출 실패로 기록 + `system_error` + 사람 확인. 초안은 템플릿으로 대체 가능 — FR-COM-06)를 둔다. AI 장애가 Main Backend 의 권한·DB 상태를 깨뜨리지 않는다. 정확한 프로토콜·endpoint 는 정하지 않는다.
+  5. **Worker·Outbox**: Slice 1 은 큐 제품 없이 **DB Outbox → 단일 워커 폴링 → `ChannelAdapter.send()` → `lookup_sent()` 화해**. 워커 잠금·스케줄 방식은 Q-68 · T-080 · U0 에서 정한다. Redis · BullMQ · Kafka · RabbitMQ · 스케줄러 패키지는 정하지 않는다.
+  6. **API 계약**: NestJS Backend → **OpenAPI** → `packages/` 에 생성한 TypeScript client/types → React/Next.js. **Frontend 는 Backend 내부 DTO·도메인 타입을 직접 import 하지 않는다**(같은 언어여도 — ADR-028).
+  7. **스키마 단일 원천**: API 검증 · OpenAPI · 생성 타입은 **하나의 정본 스키마에서 파생**한다. 실행 시 검증 스키마 · TS 타입 · OpenAPI 스키마를 따로 손으로 관리하지 않는다. 라이브러리 선택은 U0.
+  8. **정확성 규칙 — U0 필수 요구**: ① 스키마 단일 원천(7) ② 트랜잭션은 명시적 블록으로만, **외부 호출은 트랜잭션 밖**(T-069 12절 T5 — 시도 선커밋 · 결과는 별도 트랜잭션) ③ 시각은 **타임존이 붙은 한 가지 타입**으로, 날짜·시각 연산은 시간 모듈 안에서만 ④ 금액은 **원 단위 정수**, DB BIGINT 변환 규칙을 정한다 ⑤ Frontend 는 생성 타입만 import(린트로 강제).
+  9. **솔버는 Q-65 로 남는다.** NestJS 를 골랐다고 솔버를 TypeScript 로 강제하지 않는다. 솔버는 불변 **PlanningSnapshot 계약**(`docs/05` 14절)을 입력으로 받아 배정을 돌려주는 경계로 붙이고, 런타임(Python · Java · 기타 결정론 런타임)은 Q-65 에서 정한다. 솔버는 결정론 엔진이지 AI 가 아니다(ADR-029).
+  10. 저장소 영역은 ADR-024 · ADR-029 그대로다: `back/` = Main Backend(결정론 엔진 포함), `ai/` = AI Server 런타임 코드. **`back/` 와 `ai/` 는 코드·도메인 패키지를 공유하지 않고 HTTP 계약으로만 만난다.**
+- 대안: (a) **Spring Boot + Java** — 트랜잭션·시각·금액·실행 시 타입 검증·OpenAPI 일치가 기본으로 더 강하다. 그러나 Frontend(TS) · Backend(Java) · AI(Python) 로 1인 개발 언어가 셋이 된다. (b) **Python/FastAPI 를 Main Backend 로**(ADR-002) — 사용자 전제에서 제외. Python 은 AI Server 로 쓴다.
+- 결과: ADR-002 **Superseded by ADR-033**. ADR-031 결정 1·2·8 **Superseded**(나머지는 Proposed 유지). `docs/07` 1·2·3·6절 · `docs/23` 2·3·11·13절 · `docs/01` 7절 · `docs/15` Q-64 CLOSED · `back/`·`ai/` README · T-069 계획 · `AGENTS.md` 동기화. **미결로 남는 것**: Q-68(DB 제품 · ORM/쿼리 · 마이그레이션 · 트랜잭션 구현 · append-only 강제 · 부분 유일 · JSON · 타임존 시각 타입 · BIGINT 매핑 · 워커 잠금 · 내용 저장소 위치) · Q-65(솔버) · U0 선택(스키마 라이브러리 · Node/Nest 버전 · HTTP 클라이언트 · 로깅 · 스케줄러) · AI Server 구체 패키지 · LLM 공급자·모델 · 폴더 세부 구조.

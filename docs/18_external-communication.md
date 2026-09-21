@@ -98,21 +98,22 @@ flowchart TB
 
 ## C. Front / Back / AI 책임 경계
 
-ADR-024의 영역 분리를 이 루프에 적용한 것이다.
+ADR-024의 영역 분리를 이 루프에 적용한 것이다. **2026-09-21 (ADR-033 Accepted)**: `back/` = Main Backend(TypeScript + NestJS), `ai/` = **처음부터 별도인 Python AI Server 런타임**. 둘은 HTTP/JSON 으로만 만나고, AI Server 출력은 언제나 후보다.
 
 | 영역 | 맡는 것 | 맡지 않는 것 |
 | --- | --- | --- |
 | `front/web` | 스레드·메시지·원문 표시, 초안 검토·수정·승인 UI, 추출 결과와 신뢰 배지 표시, 발송 실패·재시도 상태 표시, 확인 요청 목록 | 비즈니스 로직 없음. 숫자를 만들지 않는다. 메일 서버에 직접 접속하지 않는다. 토큰을 만지지 않는다. HTML 본문을 그대로 렌더링하지 않는다 |
 | `back/` | `comms`(스레드·메시지·승인·Outbox·Dispatcher), `channels`(Gmail 등 어댑터), `intake/mailbox`(수신·원문 보관·Quarantine), 상대방 등록부, OAuth 토큰 저장·갱신, `state`(Event 저장·Reconciliation), `audit`, 스케줄러, 화면 push | 값 추출을 하지 않는다(LLM 호출은 `ai/`에 위임). 최적화·비용 계산을 하지 않는다 |
-| `ai/` | `extraction`: 회신 원문 → 구조화 후보 + 필드별 근거, 결정론 검증기, 초안 **문장** 생성 | 네트워크로 메일을 읽거나 보내지 않는다. Event를 저장하지 않는다. 사실을 확정하지 않는다. 숫자를 만들어 내지 않는다 |
+| `ai/` (AI Server) | `extraction`: 회신 원문 → 구조화 후보 + 필드별 근거, 초안 **문장** 생성. 자기 출력의 **형식 수준 스키마 검사**는 할 수 있다 | **결정론 검증기와 최종 판정을 하지 않는다**(인용 대조·단위·모호성 → `confidence`, 근거 강도, 권한, 발신자 신원, 최종 매핑, Event 수용, 현재 상태 — 모두 `back/`). 네트워크로 메일을 읽거나 보내지 않는다. Event를 저장하지 않는다. 사실을 확정하지 않는다. 숫자를 만들어 내지 않는다 |
 
-**경계 규칙 3개**
+**경계 규칙**
 
 1. **Gmail 클라이언트는 `back/`에만 있다.** `ai/`는 메일 주소도, 토큰도, 스레드 ID도 모른다. `ai/extraction`의 입력은 "텍스트 + 스레드 문맥 요약"이고 출력은 "후보 값 + 근거 인용"뿐이다.
-2. **`ai/`의 결정론 엔진(tariff·cost·risk·optimize)은 이 루프에 등장하지 않는다.** 등장하더라도 LLM 클라이언트를 import하지 않는다(`01` 3절).
+2. **결정론 엔진(tariff·cost·risk·optimize)은 `back/` 에 있고(ADR-029) 이 루프에 등장하지 않는다.** 등장하더라도 LLM 클라이언트를 import하지 않는다(`01` 3절).
 3. **초안 문장 생성과 회신 추출은 서로 다른 프롬프트·스키마·호출**이다. 한 LLM 세션이 "쓰고 읽는" 구조를 만들지 않는다(회신 내용이 다음 초안 문장에 새어 들어가는 경로를 막는다).
 4. **LLM 호출 조건은 "비정형 입력"이다.** 값이 자주 바뀐다는 것은 LLM을 부르는 이유가 아니다. 구조화된 입력(응답 폼·포털·TMS·CSV·Human UI)은 Backend 검증만 거친다(J.6).
-5. **`ai/`는 값을 저장하지 않는다.** 입력을 받아 후보를 돌려주는 순수 호출이다. DB 커넥션·ORM·외부 API 클라이언트를 갖지 않는다.
+5. **`ai/`(AI Server)는 값을 저장하지 않는다.** 입력을 받아 후보를 돌려주는 순수 호출이다. **허용되는 외부 호출은 LLM 공급자 API 뿐이다**(ADR-033). DB 커넥션·ORM·DB 권한, Gmail·채널 API 클라이언트, 외부 운영 시스템 호출, Event·CanonicalFact 직접 변경은 갖지 않는다.
+6. **회신 처리 순서**: 수신(Main Backend) → AI Server 추출 **후보** → Main Backend **결정론 검증** → Event → CanonicalFact(Reconciliation). 검증 권한은 Main Backend 에만 있다.
 
 ### C.1 AI가 이 루프에서 **하지 않는** 일 (금지 목록)
 
@@ -127,7 +128,7 @@ ADR-024의 영역 분리를 이 루프에 적용한 것이다.
 | 신선도·`evidence_time` 계산 | Backend(`05` 5.2) | 결정론 |
 | 수신자 발송 자격 판정 | Backend Contact Gate(G.5) | 권한은 DB가 안다 |
 | 승인·발송·재시도·멱등 판단 | Backend Outbox(H절) | 결정론 |
-| DB·Canonical State 직접 쓰기, 외부 시스템 직접 호출 | Backend만 | `ai/`에 클라이언트가 없다 |
+| DB·Canonical State 직접 쓰기, 채널·외부 운영 시스템 직접 호출 | Backend만 | `ai/`(AI Server)에는 LLM 공급자 클라이언트만 있다(ADR-033) |
 | 초안의 수량·시각·금액 생성 | 계획에서 주입(D.2) | `01` 3절 |
 
 > **주의**: ADR-024(Accepted)는 `ai/` 영역에 LLM 해석과 **결정론 엔진(Tariff·Cost·Risk·Optimization·Solver)** 을 함께 둔다. 이 루프에는 그 엔진들이 등장하지 않지만, `ai/`라는 이름이 "위험·비용을 AI가 계산한다"로 읽히는 문제가 있다(`01` 4절 금지 주장과 충돌). 영역 재배치는 이 RFC의 범위가 아니며 **ADR-029(Proposed)** 로 따로 올렸다.

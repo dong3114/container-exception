@@ -1,6 +1,6 @@
 # 23. 런타임 플랫폼 · 오류 처리 · 관측성 (Runtime Platform & Observability)
 
-- 상태: **Draft — T-079 최종 승인과 함께 검토 통과** (2026-09-18). 문서 구조·원칙은 검토를 통과했지만 **ADR-030·031 은 Proposed 이고 기술 선택은 확정이 아니다**
+- 상태: **Draft — T-079 최종 승인과 함께 검토 통과** (2026-09-18). **2026-09-21: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임으로 결정됐다(ADR-033 Accepted, Q-64 CLOSED).** ADR-030 과 ADR-031 의 나머지(Desktop·Web First)는 여전히 Proposed
 - 관련 ADR: **ADR-030**(오류·관측성 원칙, Proposed) · **ADR-031**(런타임 방향: Backend 우선 후보·Web First·Desktop Client·AI 분리 조건, Proposed) · ADR-002(백엔드 스택 Python, Proposed) · ADR-024(Monorepo, Accepted) · ADR-026~028(외부 통신, Accepted) · ADR-029(결정론 엔진 분리, Accepted)
 - 이 문서가 답하는 질문: **"CERA 프로그램이 어디서 돌고, 실패했을 때 무엇을 어디에 남기며, 어떤 기술을 언제 고르는가"**
 
@@ -38,20 +38,20 @@
 | 저장소 | **Accepted** | 하나의 Private Monorepo, `front/`·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/` | ADR-024 |
 | 결정론 엔진 위치 | **Accepted** | Tariff·Cost·Risk·Reconciliation·Optimize·Solver 는 `back/`, `ai/` 는 LLM·비정형 처리만 | ADR-029 |
 | API 계약 | **Accepted (외부 통신 슬라이스부터)** | Backend OpenAPI 를 계약 정본으로, TypeScript 타입 생성 | ADR-028 |
-| Backend 언어 | **미결** | 기록상 초안은 Python 3.12 + FastAPI(ADR-002 **Proposed**). **현재 우선 후보는 NestJS + TypeScript**(ADR-031 **Proposed**, 3절) | 이 문서 3절 |
+| Backend 언어 | **결정 — ADR-033 Accepted (2026-09-21)** | **Main Backend = TypeScript + NestJS** 모듈형 모놀리스(API + Worker). **AI Server = 별도 Python 런타임**(권한 없음). ADR-002(Python Backend) Superseded | 이 문서 3·11절 |
 | DB 제품 · ORM | **미결** | 초안 SQLite → PostgreSQL(ADR-004 Proposed). T-069 뒤 사용자가 Backend 와 함께 결정 → T-080 에 반영 | `docs/22` 28절 |
 | 솔버 | **미결 (DEFERRED)** | 후보 CP-SAT 등. T-036 | ADR-007 |
 | LLM 공급자·모델 | **미결 — 구현 시점 선택** | 요구사항은 "무엇을 하나"이지 "어느 제품인가"가 아니다 | `docs/07` 3절 D |
 | Desktop | **미결 — MVP 에 없음** | Web First. 첫 후보 Electron, Tauri 는 나중 재평가(8~9절) | ADR-031 |
 | 오류 처리·관측성 | **원칙 Proposed** | 세 기록 분리 + `system_error` + 공통 오류 처리 + 요청·추적 id | ADR-030, 4~6절 |
 
-> **기존 문서와 어긋나는 곳**: `docs/07` 1·2·3절과 `docs/01` 7절은 아직 "Python 3.12 · FastAPI"를 적고 있다. 두 곳 모두 **초안(Proposed)** 이었고 이번에 "미결 — `docs/23` 참조"로 표시만 바꿨다. 본문 전면 정리는 **T-070**(주변 문서 동기화)에서 한다.
+> **2026-09-21**: `docs/07` 1·2·3·6절과 `docs/01` 7절을 ADR-033 에 맞췄다. 옛 Python Backend 표현은 "폐기"로 표시돼 있다.
 
 ## 3. Backend 후보 (Backend Candidates)
 
 ### 3.1 현재 판단
 
-**현재 우선 후보: NestJS + TypeScript.** 단 **사용자 최종 결정 필요**이며, **T-069 가 첫 구현 슬라이스와 요구사항을 확정한 뒤 사용자가 결정**하고 **T-080 은 그 결정을 물리 설계에 반영**한다. Java / Spring Boot 는 후보로 남는다. 기록상의 Python / FastAPI(ADR-002) 도 폐기하지 않았다 — 결정이 나면 ADR-002 를 `Superseded` 로 바꾼다.
+**결정 (2026-09-21, ADR-033 Accepted — Q-64 CLOSED): Main Backend = TypeScript + NestJS.** 사용자가 Main Backend 후보를 NestJS 와 Spring Boot 로 좁혀 비교한 뒤 NestJS 를 골랐다. Python 은 Main Backend 가 아니라 **별도 AI Server 런타임**이다(11절). 아래 3.2 표는 **결정 전 비교 기록**으로 남긴다. 솔버 위치(3.3)는 **Q-65 로 계속 열려 있고 Slice 1 을 막지 않는다.**
 
 ### 3.2 비교
 
@@ -304,14 +304,16 @@ TauriDesktopBridge     Tauri API
 
 ## 11. AI 런타임 분리 (AI Runtime Split)
 
-### 11.1 지금
+### 11.1 지금 (2026-09-21 ADR-033 으로 변경)
+
+> **AI Server 는 처음부터 별도 Python 런타임이다.** 이전 판(아래 11.1 원문 · 11.2)은 "처음에는 Backend 프로세스 안의 모듈로 시작하고 Python 전용 요구가 생길 때 뗀다"였다. 사용자 결정(Q-64)으로 **Main Backend(NestJS) → HTTP/JSON → Python AI Server** 구조가 기본이 됐다. **권한 경계는 그대로다** — AI Server 는 DB·발송·확정 권한이 없고, 가진 외부 클라이언트는 LLM 공급자뿐이며, 출력은 후보다(ADR-026·029). 호출 원칙: 요청·응답 스키마 계약 · 짧은 timeout · 제한된 재시도 · `correlation_id`/`trace_id` 전달 · 장애 격리(AI 실패 → 추출 실패 기록 + `system_error` + 사람 확인, 초안은 템플릿 대체). 아래 원문은 결정 전 기록이다.
 
 현재 AI 가 하는 일은 **이메일 초안 문장 · 회신 구조화 추출 · 계약/문서 추출 · 자연어 설명**이다. 이 수준에서는 **Backend 가 LLM API 를 직접 호출해도 충분하다.** 처음부터 Python AI 마이크로서비스를 만들지 않는다.
 
 - ADR-029 의 **`ai/` 영역 경계는 그대로다** — LLM 코드는 `ai/` 패키지에 모이고, 결정론 엔진은 그것을 import 하지 않는다. 다만 `ai/` 는 **별도 서비스가 아니라 같은 Backend 프로세스 안의 모듈**로 시작할 수 있다(언어는 Backend 결정을 따른다).
 - LLM 출력이 후보일 뿐이라는 규칙(`docs/01` 3절, ADR-026)은 런타임 배치와 무관하다.
 
-### 11.2 Python 서비스를 따로 떼는 조건
+### 11.2 Python 서비스를 따로 떼는 조건 — **ADR-033 으로 대체됨**(AI Server 는 처음부터 별도). 아래 신호는 이제 **AI Server 가 맡을 일이 늘어나는 신호**로 읽는다
 
 "AI 니까 Python" 이 아니라 **Python 전용 요구가 실제로 생길 때** 뗀다.
 
@@ -340,16 +342,16 @@ TauriDesktopBridge     Tauri API
 
 | 결정 | 지금 상태 | 언제 · 어디서 |
 | --- | --- | --- |
-| Backend 언어·프레임워크 | **현재 우선 후보 NestJS + TypeScript**, Spring Boot 후보 유지, **사용자 최종 결정 필요** (Q-64) | T-069 로 첫 슬라이스 확정 → **Backend·DB 기술 결정** → T-080 |
+| Backend 언어·프레임워크 | **결정 — ADR-033**: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임 (Q-64 CLOSED) | 2026-09-21 사용자 결정. 구체 버전·라이브러리는 U0(T-085) |
 | 솔버 실행 위치·언어 | 미결 (Q-65) | T-036 재개 뒤. Backend 결정 때 3.3 표를 함께 본다 |
-| DB 제품 · ORM · 마이그레이션 도구 | 미결 | T-069 뒤 사용자 결정(Backend 와 함께) → T-080 에 반영. 마이그레이션 도구 세부는 T-080 |
+| DB 제품 · ORM · 마이그레이션 도구 | 미결 (**Q-68**, T-084) | Q-64 뒤 사용자 결정 → T-080 에 반영. 마이그레이션 도구 세부는 T-080 |
 | `system_error` 분류·코드 값 목록 | 예시만 (Q-66) | T-069 · 구현 |
 | 로그 저장소·관측 제품(OpenTelemetry 등) | 미결 (Q-67) | 첫 배포 환경을 정할 때 |
 | `request_id`·`trace_id` 헤더 이름·형식 | 미결 | 구현 |
 | 오류 묶음·표본 규칙 | 미결 `[ASSUMPTION]` | 구현 |
 | Desktop 착수 여부·시점 | **MVP 에 없음** | 현업 인터뷰(T-064·T-017) + Web 폐쇄 루프 동작 뒤 |
 | Electron / Tauri | Electron 첫 후보, Tauri 나중 재평가 | Desktop 착수 시점 |
-| Python AI 서비스 분리 | 하지 않음 | 11.2 신호가 실제로 생길 때 |
+| Python AI 서비스 분리 | **결정 — 처음부터 별도 AI Server**(ADR-033) | AI Server 의 구체 패키지는 구현 시점 |
 | LLM 공급자·모델 | 미결 — 구현 시점 선택 | 구현 |
 | 공통 오류 응답 모양 | 방향만 | T-069 구현 계획 |
 

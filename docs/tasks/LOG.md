@@ -21,6 +21,20 @@
 
 ---
 
+## 2026-09-21 · T-083 DONE — Q-64 Main Backend 결정 반영 · Claude Code (claude-opus-5)
+- 상태: **완료 — T-083 DONE (사용자 결정).** **미커밋**(staging·commit·push 는 사용자 승인 뒤). 기준 HEAD `cad92ed`
+- 결정(사용자): **Main Backend = TypeScript + NestJS**, 모듈형 모놀리스(같은 코드베이스의 API + Worker 프로세스). **AI Server = 별도 Python 런타임**(FastAPI 또는 동등) — 권한 없음(DB·발송·사건·사실·승인 X), LLM 공급자 클라이언트만, 출력은 후보. Main Backend → AI Server 는 HTTP/JSON(timeout · 제한 재시도 · `correlation_id`/`trace_id` · 장애 격리)
+- 함께 적은 원칙: DB Outbox + 단일 워커 폴링(큐 제품 없음) · OpenAPI → 생성 TS 타입(Frontend 는 Backend 내부 타입 import 금지) · 스키마 단일 원천 · 외부 호출은 트랜잭션 밖 · 시각은 타임존 붙은 한 타입 · 금액은 원 정수(BIGINT 변환 규칙은 U0/T-080)
+- 한 일
+  - `docs/14`: **ADR-033 Accepted** 추가 · ADR-002 **Superseded by ADR-033** · ADR-031 결정 1·2·8 **Superseded**(3~7·9 는 Proposed 유지) · ADR-026·029 는 그대로
+  - `docs/15`: **Q-64 CLOSED**. Q-65 · Q-68 은 OPEN
+  - `docs/07` 1·2·3·6절(Python 스택 줄은 "폐기" 표시, back·ai 공통 domain 패키지 없음) · `docs/23` 2·3.1·11·13절(AI Server 는 처음부터 별도) · `docs/01` 7절 · `back/README` · `ai/README`(LLM 공급자 클라이언트만) · `AGENTS.md`(현재 단계 · 코드 · 문서 지도 · 명령 T-085) · T-069 계획 사후 주석(AI 포트 = HTTP 어댑터, 위치는 U0/U7) · QUEUE · CURRENT
+  - 남은 "미결" 한 줄씩: `docs/16` 1절 범위 표 · `docs/22` 다음 작업 5번(rev 는 올리지 않음 — 표·컬럼·제약 변경 0건). `docs/15` Q-65 에 "솔버는 TS 로 강제하지 않음" 주석
+- 정하지 않은 것: DB 제품 · ORM · 마이그레이션(Q-68) · 스키마·HTTP·로깅·스케줄러 라이브러리 · 버전 · 큐 제품 · Python 패키지 · LLM 공급자 · 솔버(Q-65) · endpoint · 폴더 구조
+- `docs/18` C절(사용자 지시로 T-083 범위에 포함): `ai/` 행에서 "결정론 검증기" 제거 — 형식 수준 스키마 검사만, 검증·강도·권한·신원·매핑·Event 수용·현재 상태는 Main Backend · 규칙 2 결정론 엔진 위치 `back/` · 규칙 5 "허용 외부 호출 = LLM 공급자 API 뿐, Gmail·채널·DB 권한·운영 시스템·Event/CanonicalFact 변경 없음" · 규칙 6 회신 처리 순서 신설 · C.1 마지막 줄. T-069 계획 5.x `ai/` 줄과 19.3 #3 "정리 완료"
+- **제품 코드 0건 · 패키지 설치 0건 · `docs/21` 변경 0건**
+- 다음 한 걸음: 사용자 **T-084(Q-68)** → T-080(P0 29개 물리 설계) → T-085~T-096
+
 ## 2026-09-21 · T-069 DONE — 첫 Vertical Slice 구현 계획 종료 · Claude Code (claude-opus-5)
 - 상태: **완료 — T-069 DONE (사용자 최종 승인).** 커밋은 이 기록과 같은 커밋(`git log` 이 정본). push 없음
 - 산출물: `docs/tasks/plans/T-069-external-communication-slice.md`
