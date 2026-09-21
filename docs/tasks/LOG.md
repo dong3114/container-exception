@@ -21,6 +21,24 @@
 
 ---
 
+## 2026-09-21 · Q-44 · Q-45 Decision Closure (`docs/22` rev.2.4) · Claude Code (claude-opus-5)
+- 상태: **완료 — 사용자 최종 승인(2026-09-21).** 기준 커밋 `c16e1d7`(T-081). 제품 코드 0건. 커밋은 이 기록과 같은 커밋(`git log` 이 정본)
+- 지시: 사용자 결정 Q-44 = ②, Q-45 = ① 을 정본에 반영하고 Q-45 때문에 필요한 **최소 논리 구조 보완까지만**. T-069 본문 · T-080 · 기술 선택 · 제품 코드 금지. `docs/21` 수정 금지. 새 표·개념 변경이 반드시 필요하면 멈추고 보고
+- **Q-44 (CLOSED)**: `Date` 가 있고·정상 파싱되고·**채널 수신 시각보다 미래가 아니면** `Date`, 아니면 채널 수신 시각 + `date_header_rejected` · 거부 사유(`MISSING` · `UNPARSEABLE` · `AFTER_CHANNEL_RECEIVED`). 과거 `Date` 허용. 원래 두 시각·선택 결과는 **`event.payload` 여섯 키**(11.2d 판단 기준 — 조회·제약 대상이 아니어서 컬럼 불필요). 허용 오차 없음(필요하면 정책 파라미터, τ 재사용 안 함). `internalDate` 의미 `[TO VERIFY]`
+- **Q-45 (구조 CLOSED / 기간 OPEN)**: **기록과 내용 분리 — 행 삭제 ≠ 내용 파기.** 단순 파기는 기존 규칙 4개(원문 행 삭제 금지 · 본문·인용·승인 사본 UPDATE 금지)와 `docs/21` 18절에 부딪혔다. **새 표 없이** `raw_input.payload_ref` 패턴을 확장해 풀었다
+  - 내용 컬럼 → 참조 + 지문: `comm_message.subject`·`body_text` → `message_content_ref` · `message_approval.approved_subject`·`approved_body_text` → `approved_content_ref` · `extraction.source_quote` → `source_quote_ref` + `source_quote_hash` · `commercial_offer.conditions_text` → `conditions_content_ref` + `conditions_hash` · `raw_input.attachment_manifest`(지문·크기·형식만, 파일명 금지)
+  - 논리 모델 자유 입력 필드 전수 조사 → A 기록 / B 민감 내용 / C 감사 메타 / D 별도 보안 정책 분류(29.2)
+  - 파기 가능 조건(29.7 — 진행 중 흐름의 내용은 파기 불가) · **파기 감사는 `audit_log` 기존 컬럼으로**(`CONTENT_PURGED`, 새 컬럼 없음) · 파기 여부는 저장하지 않고 조회 · **재현성 ≠ 원문 재처리 능력**(A-05 는 원문이 보관된 동안 보장)
+  - HTML 따로 저장 안 함 · 첨부는 보관 + 지문까지 · 연락처 익명화·법적 의무 `[TO VERIFY]` · Tech Validation 은 전용 계정·단계 종료 후 정리 · 기간 숫자는 Pilot 정책
+- **새 표 0개 · 논리 테이블 수 52 그대로.** 보관 관리 내용은 논리 테이블이 아니라 기록이 가리키는 내용의 저장 위치다(`payload_ref` 와 같은 성격). **`docs/21` 수정 불필요** — 원문 보관 기간은 `docs/21` 23절이 Q-45 로 사용자에게 넘겨 둔 것이고, 원본 기록 행은 지워지지 않는다
+- 추가: 무결성 I-28~I-34 · 안티패턴 11 · walkthrough 27.12(메일 시각) · 27.13(내용 파기) · 검증 **17항목 추가 → 64개 PASS** · **ADR-032 Accepted**(사용자 결정, 기간 숫자 제외)
+- **(승인 전 최종 확인) 정상 파기 vs 데이터 손실** — 규칙이 **없었다.** 29.1 은 "내용 없음 = 파기됨"으로 읽혔고 27.13 은 감사를 삭제보다 먼저 남겼다. 29.8.1 · I-34 로 보완: 내용 부재 × 성공한 `CONTENT_PURGED` 감사로 판정, 근거 없는 부재는 손실(`system_error`), `SUCCESS` 는 제거 확인 뒤에만. 새 표·새 컬럼 없음
+- 함께 정리: `docs/18` F.2 표를 rev.2.3 필드명으로(`extraction.method` → `extraction_method`, `confidence` → `input_confidence_level`, 옛 멱등 키 공식 → `docs/22` 11.2d 재료) — 새 설계 없음
+- 작업표: 블록 53 · **컬럼 586 → 587**(참조 + 지문 교체의 순증 +1) · 키 색 보존 확인 · 필수 컬럼 존재·옛 컬럼 잔재 0 · Markdown ↔ 작업표 컬럼 이름 일치
+- 변경 파일: `docs/22`(.md · .xlsx) · `docs/14`(ADR-032) · `docs/05` · `docs/15` · `docs/18` · `docs/19` · `docs/23` · `docs/README.md` · `AGENTS.md` · `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 하지 않은 것: T-069 본문 · T-080 · 기술 선택 · 제품 코드 · L-13 · T-082 · 기간 숫자 · 물리 저장 위치 · staging·commit·push
+- 다음 한 걸음: 사용자 검토 → commit(지시 시) → **T-069**
+
 ## 2026-09-21 · T-081 논리 모델 후속 (rev.2.3) · Claude Code (claude-opus-5)
 - 상태: **완료 — T-081 DONE (2026-09-21, 사용자 최종 승인).** 승인 전 최종 확인 3항목 통과 후 닫았다. 최종: **MVP 52 · Next 1 · MVP 에서 만들지 않음 2 = 55** · 작업표 블록 53 · 컬럼 586 · 흐름 검증 **47개 PASS** · `docs/21` 변경 0건 · 제품 코드 0건. 커밋은 이 기록과 같은 커밋(`git log` 이 정본). push 없음
 - (아래는 작성 당시 기록. append-only 라 고치지 않는다 — "검토 대기" 표현은 당시 상태)

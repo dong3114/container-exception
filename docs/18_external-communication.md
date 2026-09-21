@@ -377,24 +377,37 @@ stateDiagram-v2
 
 ### F.2 회신 → Event 매핑
 
-| Event 필드 | 값 | 정하는 주체 |
+> **2026-09-21 정리 — 이 표의 필드 이름·재료는 `docs/22` rev.2.3~2.4 가 정본이다.** 옛 판의 `extraction.method` · `confidence` · `raw_ref` · `hash(raw_ref, entity, fact_key)` 표현을 논리 모델에 맞췄다. 새 설계는 넣지 않았다.
+
+| Event 필드 (`docs/22` 11.2) | 값 | 정하는 주체 |
 | --- | --- | --- |
+| `event_class` | `OBSERVATION` (회신이 사실을 주장) | 어댑터 |
+| `event_type` | `docs/05` 4.4 카탈로그의 업무 사건 유형(예: `TRUCK_AVAILABILITY_REPORTED`) | 어댑터 |
 | `source_type` | `EMAIL` | 채널 어댑터 |
-| `source_role` / `source_org` | 상대방 등록부 조회 결과 | **결정론(등록부). LLM 아님** |
-| `source_id` | `counterparty_addresses.address_id` | 어댑터 |
-| `extraction.method` | `LLM_EXTRACTED` | 어댑터 |
+| `source_role_at_ingestion` · `asserted_by_counterparty_id` | 상대방 등록부 조회 결과(역할 · 거래처) | **결정론(등록부). LLM 아님** |
+| `source_id` | 발신 주소의 등록 id(`contact_channel_address`) | 어댑터 |
+| `extraction_method` | 비정형 본문이면 `LLM_EXTRACTED`, 구조화 회신이면 `DIRECT` · `RULE_PARSED` | 어댑터 |
+| `input_quality` · `input_confidence_level` (+ `input_confidence_reasons`) | 입력 형태 · **결정론 검증기** 판정(`05` 4.6) | 결정론 |
 | `source_event_time` | 본문에 기준 시각이 명시될 때만 그 시각 | 추출 + 검증기 |
-| `source_recorded_at` | 메일 발신 시각(Date 헤더). 검증 실패 시 채널의 internal 수신 시각 | 어댑터 |
+| `source_recorded_at` | **Q-44 규칙**(아래 · `docs/22` 11.2e) | 어댑터 |
 | `received_at` | CERA가 받은 운영 시각 | SYS |
-| `confidence` | 검증기 결과 (`05` 4.6) | 결정론 |
-| `correlation_id` | `thread_id` | SYS |
-| `raw_ref` | `raw_inputs.id` (RFC822 원문) | SYS |
-| `idempotency_key` | `hash(raw_ref, entity, fact_key)` | SYS |
+| `correlation_id` | `thread_id` (업무 상관 id — 기술 추적 `trace_id` 와 다르다) | SYS |
+| `raw_input_id` | 원문 기록 행(원문 내용은 보관 관리 내용 — `docs/22` 29절) | SYS |
+| `extraction_id` | LLM 추출이면 그 추출 기록 | SYS |
+| `idempotency_key` | 원천 입력 · SUBJECT · `fact_key` · **적용 범위** · `event_class` · **주장 위치**에서 결정적으로 (`docs/22` 11.2d) | SYS |
+| `payload` | Q-44 의 원래 두 시각과 선택 결과 (`date_header_raw` · `channel_received_at` · `recorded_at_basis` · `date_header_rejected` …) | 어댑터 |
 | `is_simulated` | 채널이 Mock이면 true | SYS |
 
 **근거 시각**: 대부분 `RECORDED_TIME`(발신 시각)이 된다. `05` 5.2의 3단계 폴백 그대로다. 시나리오 데이터도 이미 그렇게 되어 있다(`evidence_time_quality: "RECORDED_TIME"`).
 
-`[TO VERIFY]` Gmail의 `Date` 헤더는 발신자가 조작할 수 있고 `internalDate`는 Google 수신 시각이다. 둘이 크게 어긋나면(> τ) 어느 쪽을 `source_recorded_at`으로 쓸지 정해야 한다. **제안**: `Date`가 유효하고 `internalDate`와 τ 안이면 `Date`, 아니면 `internalDate`를 쓰고 `payload.date_header_rejected = true`를 남긴다. → 새 질문 Q-44.
+**Q-44 — 2026-09-21 사용자 결정(CLOSED).** `Date` 헤더는 발신자가 조작할 수 있다. 그래서 **방향에 따라 다르게** 본다.
+
+- `Date` 가 있고, 정상 파싱되고, **채널 수신 시각(`internalDate`)보다 미래가 아니면** → `Date` 를 쓴다. 늦게 도착한 메일(과거 `Date`)도 **발신 시각 그대로** 둔다 — 채널 수신 시각을 쓰면 오래된 주장이 최신 관측보다 새것처럼 보인다.
+- `Date` 가 없거나, 파싱되지 않거나, **채널 수신 시각보다 미래**이면 → 채널 수신 시각을 쓰고 `date_header_rejected` 와 거부 사유를 남긴다. 근거 시각은 **채널이 받은 시각보다 늦을 수 없다.**
+- 원래 두 시각은 사건 `payload` 에 남는다. 허용 오차는 두지 않는다(필요하면 정책 파라미터, `[TO VERIFY]`).
+- `[TO VERIFY]` `internalDate` 의 정확한 의미(Google 이 받은 시각인가)는 Tech Validation 에서 확인한다.
+
+초안의 "τ 안이면 `Date`, 아니면 `internalDate`"(대칭) 제안은 **늦게 도착한 메일을 최신처럼 만드는 문제**가 있어 채택하지 않았다(`docs/22` 11.2e · ADR-032).
 
 ### F.3 Canonical 반영 조건 (기존 규칙의 결과)
 
@@ -541,7 +554,9 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 ### G.7 개인정보
 
 - 실제 메일 본문·주소는 `data/raw/`(gitignore) 와 로컬 DB에만. `data/fixtures/`에는 마스킹·합성본만.
-- 회신에 담당자 이름·연락처가 들어올 수 있다. 화면 표시는 하되 **보관 기간 정책이 필요하다**(`11` 5절이 이미 "실제 메일은 커밋 금지, 보관 기간 정책 필요"라고 적어 놓았다). → 새 질문 Q-45.
+- 회신에 담당자 이름·연락처가 들어올 수 있다. 화면 표시는 하되 **보관 기간 정책이 필요하다**(`11` 5절이 이미 "실제 메일은 커밋 금지, 보관 기간 정책 필요"라고 적어 놓았다). → Q-45.
+- **Q-45 — 2026-09-21 사용자 결정(구조 CLOSED · 기간 OPEN).** **기록과 내용을 나눈다 — 행 삭제 ≠ 내용 파기.** 원문(RFC822, 첨부·HTML 포함)·메시지 제목·본문·승인 문장·추출 인용·제안 조건 원문은 **보관 관리 내용**이고 기록은 참조 + 지문만 갖는다. 사건·외부 메시지 id·지문·시각·구조화 값·승인·발송 시도·감사는 **기록**이라 파기하지 않는다. 원본 HTML 은 따로 저장하지 않는다. 파기는 감사된다(본문 복사 금지). **실제 보관 기간 숫자는 Pilot 정책**(`docs/22` 29절 · ADR-032).
+- **Tech Validation** 은 전용 테스트 계정만 쓰고 개인·회사 실메일을 쓰지 않으며, 단계가 끝나면 원문·내용을 정리한다.
 
 ---
 
@@ -831,7 +846,7 @@ CeraCommandClient  (쓰기, 신규)
 | 컨테이너 사실 추출 | 강도 0이라 이득이 없고 확인 요청만 늘린다 | T-034 |
 | 다국어·영문 메일 | 한국어 회신 먼저 | 이후 |
 | 회신 자동 분류 LLM | 발신자·스레드 결정론 분류로 충분(`11` 5절) | 필요해지면 |
-| 보관 기간 자동 삭제 | 정책이 먼저 필요(Q-45) | Pilot |
+| 보관 기간 자동 삭제 | **구조는 결정됨**(Q-45, `docs/22` 29절). 기간 숫자와 자동 삭제 실행은 Pilot 정책 뒤 | Pilot |
 
 ---
 
@@ -924,8 +939,8 @@ kim@company.com           개인
 
 | ID | 질문 |
 | --- | --- |
-| Q-44 | 메일의 `Date` 헤더와 채널 수신 시각이 크게 다를 때 `source_recorded_at`으로 무엇을 쓰나 |
-| Q-45 | 실제 메일 본문·연락처의 보관 기간과 파기 정책 |
+| Q-44 | 메일의 `Date` 헤더와 채널 수신 시각이 크게 다를 때 `source_recorded_at`으로 무엇을 쓰나 — **2026-09-21 CLOSED**(F.2) |
+| Q-45 | 실제 메일 본문·연락처의 보관 기간과 파기 정책 — **2026-09-21 구조 CLOSED · 기간 OPEN**(G.7) |
 | Q-46 | 상대방이 직접 입력한 구조화 값(모바일 응답 링크·포털)의 Source 모델. **채널·역할·입력 주체 축 분리 여부 포함** (M.4) |
 | Q-47 | 회신이 오지 않을 때의 운영 규칙(재촉 메일 자동화 여부, 기한, 전화 전환 시점) |
 | Q-48 | Contact를 개인(PERSON)과 공용 업무 메일함(ROLE_MAILBOX)으로 구분해야 하나 (M.5) |

@@ -1,12 +1,23 @@
 # 22. CERA 논리 데이터 모델 (Logical Data Model)
 
-- 상태: **rev.2.3 — T-081 DONE (2026-09-21, 사용자 최종 승인).** 흐름 검증 **47개 전부 PASS**. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
+- 상태: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
 - 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. rev.2.2 저장 커밋: `8d47a99`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
 - 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다. **rev.2.3 에서도 `docs/21` 변경 0건**
-- 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **53개**(MVP 52 + Next 1), 컬럼 **586개**(rev.2.2 는 52블록·557컬럼). 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
+- 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **53개**(MVP 52 + Next 1), 컬럼 **587개**(rev.2.4 — 내용 컬럼을 참조 + 지문으로 바꾸며 +1. rev.2.3 은 586, rev.2.2 는 52블록·557). 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
 - 다음 단계: ~~T-079~~ → ~~T-070 주변 문서 동기화~~ → ~~T-081 논리 모델 후속~~ → **T-069 구현 계획(첫 슬라이스 확정)** ← 다음 → Backend·DB 기술 결정 → **T-080 물리 설계(첫 슬라이스에 필요한 표부터)** — 28절
 - 런타임·오류 처리·관측성의 행동 규칙은 **`docs/23_runtime-platform-and-observability.md`** 가 정본이다. 이 문서는 그중 **DB 에 남는 `system_error` 표**만 다룬다
-- **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절). **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다** — 11.2c
+- **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절). **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다** — 11.2c. **Q-44 CLOSED · Q-45 구조 CLOSED(기간 OPEN)** — 2026-09-21 사용자 결정, 11.2e · 29절
+
+> **rev.2.4 (Q-44 · Q-45 사용자 결정) 에서 고친 것** — 새 표 **0개**, 논리 테이블 수 **52 그대로**.
+>
+> | # | 고친 것 | 어디 |
+> | --- | --- | --- |
+> | **Q-44** | 메일의 `source_recorded_at` 선택 규칙 — `Date` 가 정상이고 채널 수신 시각보다 **미래가 아니면** `Date`, 아니면 채널 수신 시각 + `date_header_rejected`. 원래 두 시각은 `event.payload` 에 보존 | **11.2e** · I-28 |
+> | **Q-45** | **기록과 내용의 분리.** 원문·메시지 제목·본문·승인 문장·추출 인용·제안 조건 원문을 **참조 + 지문**으로 바꿨다(`message_content_ref` · `approved_content_ref` · `source_quote_ref`+`_hash` · `conditions_content_ref`+`conditions_hash`). `raw_input` 에 `attachment_manifest` | 11.1 · 12.3 · 15.3 · 15.5 · 15.9 · **29절** |
+> | Q-45 | 파기 가능 조건 · 파기 감사(`audit_log` 기존 컬럼) · 파기 여부는 조회로 · 재현성 ≠ 재처리 | 29.7 ~ 29.9 · I-29 ~ I-34 · 안티패턴 11 |
+> | + | 흐름 검증 **17항목 추가(총 64)** · walkthrough **27.12 메일 시각 · 27.13 내용 파기** · **정상 파기 vs 데이터 손실 구분**(29.8.1 · I-34) | 27 · 29 |
+>
+> **Q-45 에서 닫지 않은 것**: 보관 기간 **숫자**(Pilot 정책) · 물리 저장 위치 · 연락처 익명화·법적 보관 의무(`[TO VERIFY]`).
 
 > **rev.2.3 (T-081) 에서 고친 것** — **승인된 규칙의 누락 복구**다. 새 제품 설계 없음. 표 **+1**(`event_verification_target`), 표 삭제 0.
 >
@@ -146,11 +157,13 @@
 
 **표마다의 변경 방식은 각 절 머리에 적혀 있다.** 위는 읽는 법을 보여 주는 요약이다.
 
+> **rev.2.4 — 내용 파기는 위 어느 표의 `UPDATE` 도 아니다.** 원문·본문·인용·승인 문장·조건 원문은 기록 행 밖의 **보관 관리 내용**이고, 기록 행은 참조와 지문만 갖는다. 파기되는 것은 내용이지 행이 아니다(29절).
+
 ## 2. 전체 테이블 목록
 
 | 구분 | 개수 | 바뀐 과정 |
 | --- | --- | --- |
-| **MVP 논리 테이블** | **52** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) |
+| **MVP 논리 테이블** | **52** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) → rev.2.4 **52** (변화 없음 — 보관 관리 내용은 표가 아니다, 29.1) |
 | Next (구조만 두고 MVP 에서 쓰지 않음) | **1** (`vessel_call`) | 변화 없음 |
 | **MVP 에서 만들지 않음** (요구가 생기면 다시 연다) | **2** (`exception_case` · `operational_plan_batch`) | rev.2 에서 **OPEN → 결정 완료**(D-4 · D-5) |
 | 표에 적은 것 전체 | **55** | 49 → 53 → 54 → 55 |
@@ -203,7 +216,7 @@
 | Impacts (자원 영향) | 계산 결과, 저장 안 함 | `risk_assessment` 의 산출값 |
 | Activity Timeline | 조합 뷰 | 다섯 원본을 합쳐 조회 |
 | Operational Plan (개별 예정 값) | PLAN 종류의 사실 | `event` → `canonical_fact` |
-| Extraction Candidate | 추출 기록의 내용 | `extraction.candidate_value_text` + `source_quote` |
+| Extraction Candidate | 추출 기록의 내용 | `extraction.candidate_value_text` + `source_quote_ref`(인용은 보관 관리 내용, 29절) |
 | Structured Draft Field | 메시지가 싣는 값 | **`comm_message_structured_field`** (값 · 단위 · 출처 실행 · 출처 질문 · 출처 경로) |
 | Truck (개별 차량) | MVP 아님 | — (도입 시 `truck` 신설, `assignment` 에 컬럼 추가) |
 
@@ -221,6 +234,7 @@
 | 8 | `audit_log` 를 Operational Event 로 사용 | 두 테이블이 분리돼 있고 `audit_log` 는 현재 상태에 영향을 주지 않는다 |
 | 9 | 추출 결과를 바로 `canonical_fact` 로 저장 | `extraction` → (검증) → `event` → Reconciliation → `canonical_fact` |
 | 10 | 시나리오 데이터를 실제와 구분 불가하게 저장 | 모든 입구 테이블에 `is_simulated` + `scenario_id`, 조회 규칙 (20절) |
+| **11** | **민감한 내용(원문·본문·인용·승인 문장)을 불변 기록 행의 컬럼에 직접 저장** — 그러면 파기하려면 불변 규칙을 깨야 한다 | 기록에는 **참조 + 지문**만, 내용은 **보관 관리 내용**으로 (29절, rev.2.4) |
 
 ---
 
@@ -742,10 +756,11 @@
 | 출처 종류(채널) | `source_type` | `CODE` | 예 | | **rev.2.3 값 변경.** `HUMAN_UI`·`FILE_IMPORT`·`EMAIL`·`DOCUMENT`·`PUBLIC_API`·`PARTNER_SYSTEM`·`INFERENCE` (ADR-020). `event.source_type` 과 **같은 값 집합**이다 — 11.2c |
 | 출처 이름 | `source_name` | `STRING(60)` | 예 | | `S-01` 같은 카탈로그 키 또는 채널명 |
 | 요청 내용 | `request_ref` | `STRING(300)` | 아니오 | | 조회 파라미터(민감값 마스킹) |
-| 원문 위치 | `payload_ref` | `STRING(300)` | 아니오 | | **본문을 여기 직접 넣지 않는 선택지를 남긴다** |
-| 원문 지문 | `payload_hash` | `HASH` | 예 | **UNIQUE 아님** | 내용 지문. 무결성 확인·비교용이며 **행 생성을 막지 않는다** |
+| 원문 위치 | `payload_ref` | `STRING(300)` | 아니오 | | **보관 관리 내용 참조**(29절). 원문(RFC822 등)은 행에 넣지 않는다. **내용이 파기돼도 이 참조는 남는다** — rev.2.4 |
+| 원문 지문 | `payload_hash` | `HASH` | 예 | **UNIQUE 아님** | 내용 지문. 무결성 확인·비교용이며 **행 생성을 막지 않는다**. **원문이 파기돼도 남는다** |
+| **첨부 목록** | `attachment_manifest` | `JSON` | 아니오 | | **rev.2.4 신규.** 첨부마다 **지문 · 크기 · 형식**만. **파일명·내용은 넣지 않는다**(파일명도 원문의 일부다). 첨부 내용은 원문 안에 있고 원문과 함께 파기된다 — 29.4 |
 | **출처 전달 키** | `source_record_key` | `STRING(200)` | 아니오 | **UNIQUE**(source_name, source_record_key) | 출처가 주는 **같은 전달·수집 건 식별자**. 줄 때만 쓴다 |
-| 출처 기록 시각 | `source_recorded_at` | `TIMESTAMP_TZ` | 아니오 | | |
+| 출처 기록 시각 | `source_recorded_at` | `TIMESTAMP_TZ` | 아니오 | | 메일이면 **Q-44 규칙으로 고른 값**(11.2e). 원래 두 시각은 사건의 `payload` 에 남는다 |
 | 수신 시각 | `received_at` | `TIMESTAMP_TZ` | 예 | | |
 | 수집 주체 | `collected_by_actor_id` | `REF(actor)` | 아니오 | FK | 시스템·운영자 |
 | 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | | |
@@ -789,7 +804,7 @@
 | **업무 사건 유형** | `event_type` | `CODE` | 예 | | **rev.2.3 신규.** `WAREHOUSE_CAPACITY_CHANGED` 같은 **업무 의미**. `fact_key` 와 다른 축이다 — 11.2d |
 | 사실 종류 | `fact_kind` | `CODE` | **조건부** | | `MILESTONE`·`STATE`·`OFFER`·`TERM`·`IDENTITY`·`PLAN`·`FORECAST`. **`VERIFICATION` 이면 비어 있다** |
 | **사실 키** | `fact_key` | `STRING(120)` | **조건부** | | `discharge.actual` · `warehouse.capacity@2026-09-18` 같은 **불변 문자열**. 여기서는 쪼개지 않는다(Q-63). **`VERIFICATION` 이면 비어 있다** |
-| 값 | `value_text` | `TEXT` | 아니오 | | 원형 그대로 |
+| 값 | `value_text` | `TEXT` | 아니오 | | 원형 그대로. **주장한 값만 넣는다 — 원문 인용·문장을 넣지 않는다**(인용은 `extraction` 의 보관 관리 내용, 29.2) — rev.2.4 |
 | 값(수치) | `value_number` | `DECIMAL(18,4)` | 아니오 | | 수치형일 때만 |
 | 값(시각) | `value_timestamp` | `TIMESTAMP_TZ` | 아니오 | | 시각형일 때만 |
 | 값(코드) | `value_code` | `CODE` | 아니오 | | 코드형일 때만 |
@@ -1062,8 +1077,64 @@ SUBJECT · fact_key · 적용 범위 · 출처 3축 · 시각들 · 값 · 신�
 | `change_reason` | 수용량이 왜 줄었나 | R6 의 "변화 선언" 예외 판정(값 목록은 **Q-34 OPEN**) |
 | `forecast_kind` | `SCHEDULED` · `ESTIMATED` · `PREDICTED` | `forecast.eta` 의 해석 |
 | `tz_assumed` | 원천에 타임존이 없어 어댑터가 붙였다 | `docs/20` **A-03** 이 "그 사실을 기록한다"고 요구 |
+| `date_header_raw` · `channel_received_at` · `recorded_at_basis` · `date_header_rejected` 등 | 메일의 원래 두 시각과 선택 결과 (rev.2.4) | **Q-44** 재판정·감사 — 11.2e |
 
 **판단 기준**: 조회·조인·제약의 대상이면 컬럼이고, 설명·감사용이면 `payload` 다. 새 키를 넣기 전에 이 기준을 먼저 적용한다.
+
+### 11.2e 메일의 출처 기록 시각 — 두 시각 중 무엇을 고르나 **(rev.2.4 · Q-44 사용자 결정)**
+
+**2026-09-21 사용자 결정 — Q-44 CLOSED.** 메일에는 시각이 둘 있다.
+
+| 시각 | 누가 붙이나 | 성질 |
+| --- | --- | --- |
+| **`Date` 헤더** (RFC 5322) | 발신자 쪽 메일 프로그램 | 발신자가 **바꿀 수 있다** |
+| **채널 수신 시각** (Gmail `internalDate`) | 채널(Google) | 발신자가 바꿀 수 없다. 정확한 의미는 **`[TO VERIFY]`** — Tech Validation 에서 확인 |
+
+**선택 규칙 (결정론)**
+
+```
+if  Date 헤더가 있고
+and 정상 파싱되고                (타임존 해석 포함. 타임존이 없으면 A-03 — Asia/Seoul + tz_assumed)
+and Date ≤ 채널 수신 시각         (채널이 받은 것보다 미래가 아니다)
+then  source_recorded_at = Date                       recorded_at_basis = DATE_HEADER
+else  source_recorded_at = 채널 수신 시각              recorded_at_basis = CHANNEL_RECEIVED
+      date_header_rejected = true
+      date_header_reject_reason = MISSING | UNPARSEABLE | AFTER_CHANNEL_RECEIVED
+```
+
+**왜 방향에 따라 다르게 보나** — 위험한 쪽은 **근거 시각이 실제보다 늦게 찍히는 것**이다. 오래된 주장이 최신처럼 보이면 R4-a "최근 우선"에서 진짜 최신 관측을 이긴다.
+
+```
+09:00  담당자가 "지금 8대" 메일 작성 (Date = 09:00)
+10:00  다른 출처가 "12대" 관측
+11:00  메일이 늦게 도착 (채널 수신 = 11:00)
+
+채널 수신 시각을 쓰면 → 11:00 의 주장이 된다 → 10:00 관측을 이긴다   ← 틀렸다
+Date 를 쓰면           → 09:00 의 주장이다   → 10:00 관측이 이긴다   ← 맞다
+```
+
+| `Date` 가 채널 수신 시각보다 | 무엇을 쓰나 | 왜 안전한가 |
+| --- | --- | --- |
+| **과거** (늦게 도착) | `Date` — **허용** | 주장이 약해지는 쪽이다. 발신자가 일부러 과거로 적어도 자기 주장만 약해진다 |
+| **미래** | 채널 수신 시각 + `date_header_rejected` | 발신자가 미래로 적어 **최신처럼 위장하는 것을 막는다**. 근거 시각은 **채널이 받은 시각보다 늦을 수 없다** |
+
+- **허용 오차는 두지 않는다**(MVP 규칙: `Date > 채널 수신 시각` 이면 거부). 시계 오차 때문에 허용 오차가 필요하다고 드러나면 **정책 파라미터로 추가**하고 값은 `[TO VERIFY]` 로 둔다. 기존 `clock_tolerance_tau`(τ, "동시로 보는 시각 차이")와는 뜻이 달라 **같은 값을 재사용하지 않는다**.
+- 아주 오래된 `Date`(예: 시계가 크게 틀린 발신자)는 거부하지 않는다. 주장이 약해지는 안전한 방향이다.
+
+**원래 두 시각을 버리지 않는다 — `event.payload` 에 남긴다**
+
+| `payload` 키 | 값 |
+| --- | --- |
+| `date_header_raw` | `Date` 헤더 원래 문자열 (없으면 비움) |
+| `date_header_parsed` | 파싱한 시각 (실패면 비움) |
+| `channel_received_at` | 채널 수신 시각(Gmail `internalDate`) |
+| `recorded_at_basis` | `DATE_HEADER` · `CHANNEL_RECEIVED` |
+| `date_header_rejected` | `true` / `false` |
+| `date_header_reject_reason` | `MISSING` · `UNPARSEABLE` · `AFTER_CHANNEL_RECEIVED` |
+
+**왜 컬럼이 아니라 `payload` 인가** (11.2d 판단 기준 적용). 이 값들은 조회·조인·제약의 대상이 아니다. 선택 결과는 이미 정식 컬럼 `source_recorded_at` 에 있고, 원래 두 시각은 **설명·감사와 정책이 바뀔 때의 재판정**에만 쓰인다. 한 메일에서 나온 사건이 여럿이면 같은 값이 각 사건에 반복되지만, 모두 같은 원문에서 결정론적으로 나오므로 서로 어긋나지 않는다(정규화 여부는 물리 설계).
+
+**원문이 파기돼도 재판정할 수 있다.** 원래 `Date` 문자열은 원문(RFC822) 안에도 있지만, 원문은 가장 먼저 파기되는 내용이다(29절). 두 시각을 사건에 남겨 두었으므로 **선택 정책이 나중에 바뀌어도 원문 없이 다시 판정할 수 있다.** 사건 행은 고치지 않는다 — 재판정은 근거 시각을 **계산하는 쪽**(파생)에서 한다.
 
 ### 11.3 `event_entity_link` — 사건이 가리키는 개체
 
@@ -1426,7 +1497,8 @@ rev.1 은 이 컬럼을 **FK → `verification_request.request_key`** 라고 적
 | 관련 질문 | `question_item_id` | `REF(question_item)` | 아니오 | FK | 무엇을 물어서 받은 답인가 |
 | 제안 시각 | `offered_at` | `TIMESTAMP_TZ` | 예 | | |
 | 유효 기간 | `valid_from` · `valid_until` | `TIMESTAMP_TZ` | 아니오 | | **비면 적용 범위는 제품 정책**(D-3) |
-| 조건 | `conditions_text` | `TEXT` | 아니오 | | 원문 그대로 |
+| 조건 원문 참조 | `conditions_content_ref` | `STRING(300)` | 아니오 | | **rev.2.4 — 옛 `conditions_text`.** 상대가 적은 조건 원문은 **보관 관리 내용**이다(29절). 계산에 쓰는 값은 `commercial_offer_item` 에 구조화돼 있다 |
+| 조건 원문 지문 | `conditions_hash` | `HASH` | 아니오 | | **rev.2.4 신규.** 참조가 있으면 필수. 조건 원문이 파기돼도 남는다 |
 | 상태 | `offer_status` | `CODE` | 예 | | `RECEIVED`·`SUPERSEDED`·`EXPIRED`·`WITHDRAWN` |
 | 시뮬레이션 | `is_simulated` · `scenario_id` | — | | FK | |
 
@@ -1864,9 +1936,8 @@ rev.1 은 `ACTUAL_REPORTED`(사실로 보고된 발생액)를 성격 값에 넣�
 | **외부 메시지 id** | `external_message_id` | `STRING(200)` | 아니오 | **UNIQUE**(channel_type, external_message_id) | 중복 수신 차단(Q-54) |
 | 발신 주소 | `from_address` | `STRING(200)` | 아니오 | | |
 | 수신 주소 | `to_address_id` | `REF(contact_channel_address)` | 아니오 | FK | 발신 자격 검사 대상 |
-| 제목 | `subject` | `STRING(300)` | 아니오 | | |
-| 본문 | `body_text` | `TEXT` | 아니오 | | **AI 가 쓰는 것은 문장뿐이다** |
-| 본문 지문 | `content_hash` | `HASH` | 예 | | 수신자·제목·본문·**구조화 값**을 모두 덮는 지문 |
+| **제목·본문 참조** | `message_content_ref` | `STRING(300)` | 아니오 | | **rev.2.4 — 옛 `subject` · `body_text`.** 제목과 안전한 텍스트 본문을 **한 묶음의 보관 관리 내용**으로 두고 참조만 기록한다(29절). 받은 메일은 원문에서 만든 **안전한 텍스트**다(원본 HTML 아님). **AI 가 쓰는 것은 문장뿐이다** |
+| 본문 지문 | `content_hash` | `HASH` | 예 | | 수신자·제목·본문·**구조화 값**을 모두 덮는 지문. **제목·본문이 파기돼도 남는다**(승인·발송 대조는 지문으로 한다) |
 | 현재 상태 | `current_status` | `CODE` | 예 | | `message_status_transition` 를 접은 **캐시** |
 | 현재 승인 | `current_approval_id` | `REF(message_approval)` | 아니오 | FK | **편의 포인터일 뿐. 정본은 `message_approval`** |
 | 작성 주체 | `drafted_by` | `CODE` | 예 | | `AI_DRAFT`·`HUMAN`·`TEMPLATE` |
@@ -1931,7 +2002,7 @@ CERA 의 발송 초안은 이렇게 만들어진다.
 | **무효 사유 종류** | `invalidation_cause` | `CODE` | 아니오 | | `USER_REVOKED` · `PLAN_SUPERSEDED` · `CONTENT_CHANGED` |
 | 결정 주체·시각 | `actor_id` · `decided_at` | — | 예 | FK | |
 | **유효 만료 시각** | `expires_at` | `TIMESTAMP_TZ` | 아니오 | | **승인할 때 정하고 이후 고치지 않는다** |
-| **승인 시점 제목·본문** | `approved_subject` · `approved_body_text` | `STRING(300)` · `TEXT` | **조건부** | | 승인한 내용 그대로의 사본. **`APPROVED` 면 메시지에 값이 있는 범위에서 필수**(15.5.0) |
+| **승인 시점 제목·본문 참조** | `approved_content_ref` | `STRING(300)` | **조건부** | | **rev.2.4 — 옛 `approved_subject` · `approved_body_text`.** 승인한 제목·본문 그대로의 사본을 **보관 관리 내용**으로 두고 참조만 기록한다(29절). **`APPROVED` 면 메시지에 제목·본문이 있는 범위에서 필수**(15.5.0) |
 | 승인 시점 계획 | `approved_plan_run_id` | `REF(recovery_run)` | 아니오 | FK | 어느 계산 결과를 근거로 승인했나. 계획 기반 메시지의 `APPROVED` 면 필수 |
 | **승인 내용 지문** | `approved_content_hash` | `HASH` | **조건부** | | 수신자 + 제목 + 본문 + **구조화 값**을 모두 덮는다. **`APPROVED` 면 필수**, 다른 행 종류는 필수 아님(15.5.0) — rev.2.2 정정 |
 | 승인 시점 수신자 | `approved_to_address_id` | `REF(contact_channel_address)` | **조건부** | FK | 수신자 바꿔치기 차단. **`APPROVED` 면 필수** |
@@ -1955,7 +2026,7 @@ CERA 의 발송 초안은 이렇게 만들어진다.
 2. 무효화가 가리키는 행은 **`decision = APPROVED`** 여야 한다. 반려나 다른 무효화를 무효화하지 않는다.
 3. 무효화가 가리키는 행은 **같은 `message_id`** 에 속해야 한다. 다른 메시지의 승인을 무효화할 수 없다.
 4. 한 승인을 가리키는 무효화 행은 **최대 1건**(`invalidates_approval_id` 부분 유일).
-5. `decision = APPROVED` 이면 `approved_content_hash` · `approved_to_address_id` 가 **NOT NULL** 이다. 메시지에 제목·본문이 있으면 `approved_subject` · `approved_body_text` 도 NOT NULL 이고, 메시지의 **`comm_message_structured_field` 한 줄마다** `message_approval_structured_field` 사본이 한 줄씩 있어야 한다.
+5. `decision = APPROVED` 이면 `approved_content_hash` · `approved_to_address_id` 가 **NOT NULL** 이다. 메시지에 제목·본문이 있으면 `approved_content_ref` 도 NOT NULL 이고(rev.2.4), 메시지의 **`comm_message_structured_field` 한 줄마다** `message_approval_structured_field` 사본이 한 줄씩 있어야 한다.
 6. `decision ∈ {REJECTED, REVISION_REQUESTED}` 이면 `reason` 이 **NOT NULL** 이다. 승인 성공 행이 아니므로 규칙 5의 사본 조건을 **적용하지 않는다**(검토한 내용의 지문을 남기고 싶으면 넣을 수는 있다).
 7. `decision ≠ APPROVED` 인 행은 `invalidates_approval_id` 로 가리켜지지 않고(규칙 2), **발송 근거가 될 수 없다**(15.5.1).
 8. 어떤 행도 만들어진 뒤 **UPDATE 되지 않는다**(`expires_at` 포함).
@@ -2143,7 +2214,8 @@ rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었다. 그런데 중복 발송�
 | **질문 표식** | `ask_id` | `STRING(40)` | 아니오 | | `question_item` 으로 되붙는 열쇠(L-1) |
 | 후보 값 | `candidate_value_text` | `TEXT` | 예 | | |
 | 후보 단위 | `candidate_unit` | `CODE` | 아니오 | | |
-| **근거 인용** | `source_quote` | `TEXT` | 예 | | **원문 어디서 왔는지 반드시 남긴다** |
+| **근거 인용 참조** | `source_quote_ref` | `STRING(300)` | 예 | | **rev.2.4 — 옛 `source_quote`.** 원문 어디서 왔는지 반드시 남긴다. 인용도 원문의 일부라 **보관 관리 내용**이다(29절). 원문보다 오래 둘 수 있다 |
+| **근거 인용 지문** | `source_quote_hash` | `HASH` | 예 | | **rev.2.4 신규.** 인용이 파기돼도 **이 사건이 어떤 인용에서 왔는지**의 증거로 남는다 |
 | 인용 위치 | `quote_location` | `STRING(100)` | 아니오 | | |
 | 모델 판 | `model_version` | `STRING(60)` | 예 | | |
 | 프롬프트 판 | `prompt_version` | `STRING(20)` | 예 | | |
@@ -2164,12 +2236,12 @@ rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었지만, 사람이 후보를 �
 
 | 부분 | 컬럼 | 변경 |
 | --- | --- | --- |
-| **추출 결과 (불변)** | `extraction_id` · `message_id` · `raw_input_id` · `ask_id` · `candidate_value_text` · `candidate_unit` · `source_quote` · `quote_location` · `model_version` · `prompt_version` · **`schema_version`** · **`input_hash`** · **`validator_result`** · `model_confidence` · `is_simulated` | **만든 뒤 절대 고치지 않는다.** LLM 이 낸 것과 검증기가 판정한 것은 그대로 남는다 (rev.2.3 — 12 → **15컬럼**) |
+| **추출 결과 (불변)** | `extraction_id` · `message_id` · `raw_input_id` · `ask_id` · `candidate_value_text` · `candidate_unit` · **`source_quote_ref`** · **`source_quote_hash`** · `quote_location` · `model_version` · `prompt_version` · **`schema_version`** · **`input_hash`** · **`validator_result`** · `model_confidence` · `is_simulated` | **만든 뒤 절대 고치지 않는다.** LLM 이 낸 것과 검증기가 판정한 것은 그대로 남는다 (rev.2.3 12 → 15 · rev.2.4 **16컬럼** — 인용은 참조 + 지문). 인용 **내용**의 파기는 이 규칙의 UPDATE 가 아니다(29.3) |
 | **검토 (정해진 생애주기)** | `review_status` · `reviewed_by_actor_id` · `reviewed_at` · `created_event_id` | `PENDING` → `ACCEPTED` / `REJECTED` / `SUPERSEDED` **한 방향으로 한 번만** |
 
 **Integrity Rules**
 
-1. 추출 결과 **15컬럼**(rev.2.3)은 **어떤 경우에도 UPDATE 하지 않는다.** 다시 추출하면 새 행이고, 이전 행은 `SUPERSEDED` 로 닫는다.
+1. 추출 결과 **16컬럼**(rev.2.4)은 **어떤 경우에도 UPDATE 하지 않는다.** 다시 추출하면 새 행이고, 이전 행은 `SUPERSEDED` 로 닫는다.
 2. `review_status` 는 `PENDING` 에서 출발해 종료 상태로 **한 번만** 간다.
 3. `review_status = ACCEPTED` 이면 `created_event_id` 가 NOT NULL 이다(채택 = 사건 생성). `REJECTED` · `SUPERSEDED` 면 비어 있다.
 4. `ACCEPTED` · `REJECTED` 는 `reviewed_at` 이 NOT NULL 이다. 사람이 판정했으면 `reviewed_by_actor_id` 도 있다(결정론 규칙이 채택하면 `SYSTEM` 주체).
@@ -2428,6 +2500,13 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **I-25** | **같은 논리 주장은 사건이 하나다.** `event.idempotency_key` 는 적용 범위와 주장 위치를 재료에 포함한다(11.2d) — rev.2.3 |
 | **I-26** | **한 확인 사건의 모든 대상은 같은 현재 사실 좌표**(SUBJECT + `fact_key` + 적용 범위) 안에 있고, **확인 사건 자신의 SUBJECT·적용 범위도 그 좌표와 같다**(11.2a 규칙 7·8 · 11.2a.1) — rev.2.3 |
 | **I-27** | 과거 `planning_snapshot` 만으로 **그때의 `decision_usability` 판정을 재현**할 수 있다. 네 차원 사본 + `rule_version` 사본 + 스냅샷의 `policy_version` 이 모두 얼려져 있다(13.2.1) — rev.2.3 |
+| **I-28** | 메일의 `source_recorded_at` 은 **채널 수신 시각보다 늦을 수 없다.** `Date` 가 없거나 파싱되지 않거나 채널 수신 시각보다 미래면 채널 수신 시각을 쓰고 `date_header_rejected` 를 남긴다. 원래 두 시각은 `payload` 에 있다(11.2e · Q-44) — rev.2.4 |
+| **I-29** | **민감한 내용은 기록 행의 컬럼에 직접 들어가지 않는다.** 원문·메시지 제목·본문·승인 문장·추출 인용·제안 조건 원문은 참조(`*_ref`) + 지문으로만 기록에 붙는다(29.1 · 안티패턴 11) — rev.2.4 |
+| **I-30** | **파기는 기록 행을 `DELETE`·`UPDATE` 하지 않는다.** 참조와 지문은 파기 뒤에도 그대로 남고, 참조가 가리키던 내용만 "파기됨"이 된다(29.3) — rev.2.4 |
+| **I-31** | **진행 중인 흐름이 쓰는 내용은 파기하지 않는다**(29.7 — 미처리 원문 · `PENDING` 추출 · 미발송 업무 메시지 · 유효한 승인 · 열린 확인 요청의 인용 · 유효한 제안) — rev.2.4 |
+| **I-32** | **모든 파기는 `audit_log` 에 남는다**(`CONTENT_PURGED` · 내용 범주 · 기록 id · 보관 정책 판 · 주체 · 결과). **파기된 내용은 감사 기록에 복사하지 않는다**(29.8) — rev.2.4 |
+| **I-33** | 원문·내용이 파기돼도 **I-7(재계산) · I-12 · I-27(스냅샷 재현) · 감사 · 승인/발송 지문 대조가 성립한다.** 파기로 잃는 것은 **원문 재추출 능력뿐**이다(29.9) — rev.2.4 |
+| **I-34** | **내용 부재는 성공한 `CONTENT_PURGED` 감사가 있을 때만 정상 파기다.** 감사 없는 부재는 **데이터 손실**, 감사가 성공인데 내용이 남아 있으면 **파기 불일치**이며 둘 다 `system_error` 대상이다. 파기는 부모 기록·참조·지문을 바꾸지 않고, `SUCCESS` 감사는 **내용 제거를 확인한 뒤에만** 남긴다(29.8 · 29.8.1) — rev.2.4 |
 
 ---
 
@@ -2533,6 +2612,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **현재 계획** | `plan_decision` 중 마지막 유효 결정 → 그 `run_id` 의 `assignment` | 아니다 |
 | **Impacts (자원 영향)** | 배정 합계 대비 가용량 | 아니다 |
 | **거래처 발송 가능 여부** | 주소 3상태 AND + 거래처 활성 | 아니다 (조회 시 판정) |
+| **내용이 파기됐는가** (rev.2.4) | **내용 존재 여부 × `audit_log` 의 `CONTENT_PURGED` · `SUCCESS` 행** — 보관 중 / 정상 파기 / **데이터 손실** / 파기 불일치 (29.8.1) | 아니다. **기록 행에 파기 표시 컬럼을 두지 않는다** — 두면 불변 규칙을 깬다 |
 
 > **캐시를 만들 때의 유일한 조건**: 지우고 다시 만들어도 같아야 한다. 그렇지 않으면 그것은 캐시가 아니라 원본이고, 원본은 `event` 에만 있어야 한다.
 
@@ -2745,7 +2825,7 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | 13 | `source_org` | `event.asserted_by_counterparty_id` | RENAMED | 조직을 문자열이 아니라 거래처 참조로 |
 | 14 | `source_id` | `event.source_id` (+ `entered_by_actor_id`) | SPLIT | **rev.2.3 복구.** 채널 안의 주체 식별자와 CERA 사용자 참조를 나눴다 — 11.2c |
 | 15 | `source_event_time` | `event.source_event_time` | SAME | |
-| 16 | `source_recorded_at` | `event.source_recorded_at` | SAME | Q-44 는 "무엇을 넣나"이고 자리는 있다 |
+| 16 | `source_recorded_at` | `event.source_recorded_at` | SAME | 메일은 **Q-44 결정(rev.2.4)** 으로 고른다. 원래 두 시각은 `payload` — 11.2e |
 | 17 | `received_at` | `event.received_at` | SAME | |
 | 18 | `recorded_at` | `event.recorded_at` | SAME | |
 | 19 | `confidence` | `event.input_confidence_level` + `input_confidence_reasons` | SPLIT · RENAMED | **rev.2.3 복구.** 이름을 바꾼 이유는 11.2b |
@@ -2880,6 +2960,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **Q-66** | `system_error.error_category` · `error_code` 값 목록 (rev.2.2) | T-069 구현 계획 · 구현 |
 | **Q-46** | 상대방이 직접 입력한 구조화 값의 Source 모델 — `source_type` 에 값을 더할지, `actor_type` 축을 신설할지 (rev.2.3) | **권한 모델과 함께.** 11.2c 의 7값은 현재 ADR 기준 정렬이지 영구 확정이 아니다 |
 | **Q-34** | `payload.change_reason` 값 목록 (rev.2.3) | T-037 · 인터뷰 |
+| **Q-45 (기간)** | 보관 범주별 **실제 보관 기간 숫자** (rev.2.4 — 구조는 CLOSED) | **Pilot 정책** — 고객사 IT · 계약 · 보안·감사 요구 · 개인정보·관련 법률 검토 |
 
 > **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다.** 7값 채택은 **ADR-020 을 따른 것**이고, 값 목록 자체의 현장 적합성은 ADR-020 본문이 "아직 승인되지 않았다"고 적어 둔 그대로 Q-46 에서 계속 본다.
 
@@ -2999,7 +3080,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 **UPDATE 가 한 번도 필요하지 않다.** 승인 #1 이 왜 죽었는지, #2 가 왜 못 쓰이는지, #4 로 무엇을 보냈는지 전부 남는다(15.5.1).
 
-### 27.6 검증 결과 (rev.2.1 재검증 26항목 + rev.2.2 추가 4항목 + **rev.2.3 추가 17항목 = 47항목**)
+### 27.6 검증 결과 (rev.2.1 재검증 26항목 + rev.2.2 추가 4항목 + rev.2.3 추가 17항목 + **rev.2.4 추가 17항목 = 64항목**)
 
 **A. 사건 · 적용 범위**
 
@@ -3110,6 +3191,28 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | 46 | `fact_key` 필수 · 값 최소 1개 규칙이 **`event_class` 별 조건부**로 실제 고쳐졌나 (Markdown ↔ 작업표 둘 다) | **통과** — Markdown 11.2 무결성 규칙 5 의 부류별 표 + 작업표 `event` 블록 제약 칸(`fact_kind`·`fact_key` = "조건부 - VERIFICATION 이면 비움", `value_text` = "OBSERVATION 이면 4종 중 최소 1개 / VERIFICATION 은 비움") |
 | 47 | `decision_usability` 가 **네 차원 + 판에서 유도되는 파생**이고, 과거 스냅샷에서 그 판정까지 재현되나 | **통과 (rev.2.3 보강)** — 11.4.2 규칙 5 에 입력표를 넣고 I-24 를 "(네 차원, `rule_version`, 중요도 정책 판)" 으로 고쳤다. 재현은 13.2.1 의 입력표 + **I-27** |
 
+**K. Q-44 · Q-45 사용자 결정 반영 (rev.2.4) — 17항목**
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 48 | 메일 `source_recorded_at` 선택이 **결정론적**이다 | **통과** — 11.2e 의 규칙은 두 시각만 입력으로 받는다. 27.12 다섯 경우 |
+| 49 | **미래 `Date` 헤더가 최신 주장으로 위장할 수 없다** | **통과** — `Date > 채널 수신 시각` 이면 쓰지 않는다(I-28, 27.12 c) |
+| 50 | 원래 `Date` · 채널 수신 시각을 **다시 볼 수 있다** | **통과** — `event.payload` 의 여섯 키(11.2e) |
+| 51 | **원문 파기 뒤에도** 시각 정책을 다시 판정할 수 있다 | **통과** — 두 시각이 원문이 아니라 사건에 있다 |
+| 52 | 원문 파기 뒤 **사건이 고아가 되지 않는다** | **통과** — `raw_input` 행은 지우지 않는다(I-30, 27.13) |
+| 53 | `comm_message` **식별·이력이 유지된다** | **통과** — id · 외부 id · `content_hash` · 참조 · 상태 전이 · 발송 시도가 남는다 |
+| 54 | **승인 이력이 유지된다** | **통과** — `message_approval` 행 · 지문 · 무효화 사슬이 남는다. 문장 사본만 파기 가능 |
+| 55 | **추출 기록의 식별이 유지된다** | **통과** — `extraction` 16컬럼 불변, 인용은 참조 + 지문 |
+| 56 | **감사가 유지된다** | **통과** — `audit_log` 는 파기 대상이 아니고 원래 본문이 없다 |
+| 57 | `event` → `canonical_fact` **재계산**이 된다 | **통과** — 원문을 읽지 않는다(I-7 · I-33) |
+| 58 | `planning_snapshot` **재현**이 된다 | **통과** — I-12 · I-27 · I-33 |
+| 59 | 파기로 잃는 것이 **원문 재추출뿐**임이 명확하다 | **통과** — 29.9 표 · "재현성 ≠ 재처리 능력" |
+| 60 | **불변 규칙과 파기가 충돌하지 않는다** | **통과** — 파기는 어떤 기록 행도 `UPDATE`·`DELETE` 하지 않는다(29.3 · I-30) |
+| 61 | **파기 행위 자체가 감사된다** | **통과** — `CONTENT_PURGED` 감사 행, 본문 복사 금지(29.8 · I-32) |
+| 62 | 실제 보관 기간 **숫자가 고정되지 않았다** | **통과** — 정책 파라미터 · Pilot 정책으로 OPEN(29.6 · 29.11 · 25절) |
+| 63 | **정상 파기와 데이터 손실을 구분**할 수 있다 | **통과 (rev.2.4 보강)** — 내용 부재 × 성공한 `CONTENT_PURGED` 감사로 판정. 근거 없는 부재는 손실 → `system_error`(29.8.1 · I-34). **보강 전에는 "내용 없음 = 파기됨"으로 읽힐 수 있었다** |
+| 64 | 파기가 **부모 기록 · 참조 · 지문을 바꾸지 않고**, 감사 `SUCCESS` 는 제거 확인 뒤에만 남는다 | **통과 (rev.2.4 보강)** — 29.8.1 · I-34 · 27.13 순서 정정(제거 → 확인 → 감사) |
+
 ### 27.7 이 검증에서 새로 나온 것
 
 | 무엇 | 처리 |
@@ -3121,6 +3224,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **(rev.2.3) 누락 13건** — `docs/05` 4.2 와 대조한 적이 없었다 | **이번에 전부 복구**(23.1). 표 1개 추가(`event_verification_target`). **47항목 전부 통과** |
 | **(rev.2.3) ADR-020 상태 차원이 한 칸으로 합쳐져 있었다** | **이번에 복구**(11.4.2). 다섯 차원 + `verification_basis`. 의미 없는 `canonical_fact.confidence` 제거 |
 | **(rev.2.3 보강) 확인 사건의 대상 좌표가 강제되지 않았다** | 승인 전 최종 확인에서 발견. **11.2a 규칙 7·8 + I-26 으로 닫았다.** 새 표·새 컬럼 없음 |
+| **(rev.2.4) 파기가 불변 규칙과 부딪혔다** — 원문 행 삭제 금지 · 본문·인용·승인 사본 UPDATE 금지 | Q-45 결정 반영 중 확인. **기록과 내용을 나눠 닫았다**(29절). 새 표 없음, 논리 테이블 수 그대로 |
 | 범위 종류 사이의 **우선순위 규칙** | **확정하지 않았다.** 서로 다른 축이라 지금 박으면 틀린 답을 고정한다 → **L-14** 에 포함(22.2) |
 | 상대방 직접 입력의 Source 모델 | **닫지 않았다** → **Q-46 OPEN**(11.2c). 7값은 현재 ADR 기준의 정렬이지 영구 확정 enum 이 아니다 |
 
@@ -3185,6 +3289,43 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 > 22.5 의 적용 범위 전파 점검표에 **멱등 키 한 줄이 늘었다.** rev.2.1 이 세운 범위 구조는 **어느 것도 후퇴하지 않았다.**
 
+### 27.12 메일 시각 선택 (rev.2.4 · Q-44)
+
+| 경우 | `Date` | 채널 수신 | `source_recorded_at` | `payload` |
+| --- | --- | --- | --- | --- |
+| a. 정상 | 10:30 | 10:31 | **10:30** | `recorded_at_basis = DATE_HEADER` |
+| b. 늦게 도착 | 09:00 | 11:00 | **09:00** — 과거는 허용 | `DATE_HEADER`, 두 시각 모두 보존 |
+| c. 발신자 시계가 미래 | 12:00 | 11:00 | **11:00** | `CHANNEL_RECEIVED` · `date_header_rejected = true` · `AFTER_CHANNEL_RECEIVED` |
+| d. `Date` 없음 | — | 11:00 | **11:00** | `CHANNEL_RECEIVED` · `MISSING` |
+| e. 파싱 실패 | `"yesterday"` | 11:00 | **11:00** | `CHANNEL_RECEIVED` · `UNPARSEABLE` · 원래 문자열 보존 |
+
+- 어느 경우든 **같은 입력이면 같은 값**이다(결정론). 그리고 **근거 시각이 채널 수신 시각보다 늦어지는 경우가 없다** — c 에서 12:00 을 쓰면 11:00~12:00 사이의 진짜 최신 관측을 이길 수 있었다.
+- 원문을 나중에 파기해도(27.13) 표의 두 시각은 사건 `payload` 에 남으므로 **정책이 바뀌면 다시 판정할 수 있다.**
+
+### 27.13 내용 파기 한 건 (rev.2.4 · Q-45)
+
+27.1 의 메일("9/18 수용량 8 TEU")이 흐름을 다 마쳤고 보관 기간이 지났다.
+
+| # | 단계 | 무엇이 일어나나 | 기록 행 |
+| --- | --- | --- | --- |
+| a | 파기 가능 확인(29.7) | 사건 생성 완료 · 추출 `ACCEPTED` · 열린 확인 요청 없음 → **가능** | 변화 없음 |
+| b | 원문 제거 | `payload_ref` 가 가리키던 원문(첨부·HTML 포함)을 제거하고 **없어졌는지 확인** | **`raw_input` 행 그대로** — `payload_ref` · `payload_hash` · `attachment_manifest` · `source_record_key` · 시각 전부 남는다 |
+| c | 감사 (제거 확인 뒤) | `audit_log`(`CONTENT_PURGED` · `RAW_INPUT_PAYLOAD` · `raw_input_id` · 보관 정책 판 · `SUCCESS`) → 이제 **정상 파기** | **새 감사 행**. 제거에 실패했으면 `FAILED` + `system_error` |
+| d | (나중) 본문·인용 파기 | `message_content_ref` · `source_quote_ref` 가 가리키던 내용 → 파기됨. 각각 감사 행 | **`comm_message` · `extraction` 행 그대로** — 지문·외부 id·인용 위치·후보 값 남는다 |
+
+**파기 뒤 확인**
+
+| 확인 | 결과 |
+| --- | --- |
+| 사건이 고아가 되나 | **아니다** — `event.raw_input_id` 가 가리키는 **행은 있다** |
+| `canonical_fact` 를 전부 지우고 재계산 | **같다** — 재계산은 원문을 읽지 않는다(I-7) |
+| 이 계산을 쓴 과거 스냅샷 재현 | **된다** — 값·상태·판이 복사돼 있다(I-12 · I-27) |
+| 이 메일이 어떤 승인·발송과 이어져 있었나 | **보인다** — `message_approval` · `send_attempt` · `message_status_transition` 은 기록이다 |
+| "이 사건은 어떤 인용에서 나왔나" | 인용 **문장은 없지만** 인용 지문 · 인용 위치 · `extraction_id` → `raw_input_id` 는 남는다 |
+| 원문에서 다시 추출 | **안 된다** — 정상적인 보관 정책의 결과다(29.9) |
+| 누가 언제 무슨 정책으로 지웠나 | `audit_log` 에 있다. **본문은 없다** |
+| **다른 메일의 원문이 감사 기록 없이 사라져 있다면** | **정상 파기가 아니다** — 데이터 손실로 `system_error`(29.8.1) |
+
 ---
 
 ## 28. 다음 단계
@@ -3194,7 +3335,8 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 1. ~~**이 문서 rev.2.2 + 작업표 최종 검토** (사용자 + ChatGPT) → **T-079 DONE**~~ — **완료 (2026-09-18)**
 2. ~~**T-070 주변 문서 동기화**~~ — **완료 (2026-09-18, 커밋 `3b1bda3`)**. X-10~X-13 처리 결과는 24절
 3. ~~**이 문서 rev.2.3 + 작업표 검토** → **T-081 DONE**~~ — **완료 (2026-09-21, 사용자 최종 승인)**
-4. **T-069 외부 통신 구현 계획** ← **다음** — Q-44·Q-45 사용자 결정, **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
+3-1. ~~**Q-44 · Q-45 사용자 결정**~~ — **완료 (2026-09-21, rev.2.4)**. Q-44 CLOSED(11.2e) · Q-45 구조 CLOSED / 기간 OPEN(29절)
+4. **T-069 외부 통신 구현 계획** ← **다음** — ~~Q-44·Q-45 사용자 결정~~(완료), **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
 5. **Backend·DB 기술 최종 결정** — 현재 우선 후보와 판단 근거는 `docs/23` · ADR-031(Proposed)
 6. **T-080 물리 설계** — **논리 표 52개를 한 번에 물리 설계하지 않는다.** 5번에서 **결정된 기술**을 T-069 가 정한 첫 슬라이스에 필요한 표부터 반영한다: 결정된 DB 제품 위의 물리 설정 · `event_id` 형식 · **`idempotency_key` 직렬화·해시·주장 위치 형식**(11.2d) · **`schema_version` 문자열 형식** · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · `value_path` "전체" 표시 문자열 · 마이그레이션 · 실제 `CREATE TABLE`
 6. 구현(Antigravity) → 검토(Claude/Codex) → 사용자 승인 → commit
@@ -3202,3 +3344,212 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 8. 재현 테스트 설계: **`canonical_fact` 전체 삭제 → `event` 로부터 재계산 → 동일성 확인**(I-7) + **과거 스냅샷 완전 복원**(I-12)
 
 > **이 문서는 여전히 DB 제품·ORM·SQL·인덱스·솔버·LLM 공급자를 확정하지 않는다.**
+
+---
+
+## 29. 기록과 내용의 분리 — 메일 보관·파기 **(rev.2.4 · Q-45 사용자 결정)**
+
+**2026-09-21 사용자 결정 — Q-45 의 "보관 구조와 파기 방식"은 CLOSED, "실제 보관 기간 숫자"는 OPEN(Pilot 정책).**
+
+> **원칙 한 줄: 행 삭제 ≠ 내용 파기.** 보관 기간이 끝나도 **기록(record)은 남고, 민감한 내용(content)만 없어진다.**
+
+### 29.1 왜 단순히 지우거나 비울 수 없나
+
+이미 정한 규칙들이 **행 삭제도, 내용 컬럼 비우기도** 막는다.
+
+| 이미 정한 규칙 | 단순 파기를 하면 |
+| --- | --- |
+| `event` → `raw_input` **삭제 금지** — "원천 없는 사건은 존재할 수 없다"(17.3) | 원문 행을 지우면 사건이 **고아**가 된다 |
+| `comm_message` 제목·본문 **생성 후 수정 불가**(1.3) | `UPDATE body_text = NULL` 은 이 규칙을 깬다 |
+| `extraction` 추출 결과 **UPDATE 금지**(15.9.1 · I-18) | 인용을 비우면 이 규칙을 깬다 |
+| `message_approval` **어떤 행도 UPDATE 하지 않는다**(15.5.0 규칙 8) | 승인 사본을 비우면 이 규칙을 깬다 |
+| 승인된 `docs/21` 18절 — 원본 기록은 **삭제·수정 금지** | 기록을 지우면 개념 모델과 어긋난다 |
+
+**해법 — 내용을 기록 행 밖에 두고, 기록은 참조와 지문만 갖는다.** 이것은 새 패턴이 아니다. `raw_input.payload_ref` 가 rev.1 부터 "본문을 여기 직접 넣지 않는 선택지를 남긴다"고 적어 둔 방식을 **내용을 담는 다른 표에도 똑같이 적용**한 것이다.
+
+```
+기록 (record) — 행. 만든 뒤 고치지 않는다. 절대 지우지 않는다
+  ├─ id · 외부 id · 시각 · 구조화 값 · 결정
+  ├─ 내용 지문 (hash)       ← 파기 뒤에도 남는다 — "무엇이 있었는지"의 증거
+  └─ 내용 참조 (*_ref)      ← 파기 뒤에도 남는다 — 가리키던 곳이 "파기됨"이 될 뿐
+
+보관 관리 내용 (retention-managed content) — 기록 행 밖
+  └─ 원문 · 본문 · 첨부 · 인용 · 승인 사본 · 조건 원문
+       보관 중  →  (보관 기간 끝 · 조건 충족)  →  파기됨      한 방향, 되돌릴 수 없다
+```
+
+**보관 관리 내용의 성질**
+
+1. 기록이 가진 **참조로만** 찾는다. 기록 행의 컬럼에 민감한 내용을 직접 넣지 않는다(안티패턴 11). **참조(`*_ref`)는 부모 기록이 영구히 유지하는 안정적인 내용 식별자다** — 내용이 파기돼도, 손실돼도 참조 값은 바뀌지 않는다.
+2. 각 내용은 **자기 지문**을 가지며, 그 지문은 기록 쪽 지문과 같다. 꺼낸 내용이 바뀌지 않았는지 확인할 수 있다.
+3. **내용이 없다는 사실만으로 "파기됨"이라고 판단하지 않는다.** 판정은 **내용 존재 여부 × 성공한 `CONTENT_PURGED` 감사 기록** 두 가지로 한다(29.8.1). 감사 근거가 있는 부재만 정상 파기이고, **근거 없는 부재는 데이터 손실**이다.
+4. **물리 저장 위치(DB 안의 별도 공간인지, 파일·객체 저장소인지)는 정하지 않는다.** 물리 설계(T-080)의 몫이다.
+
+**새 표도 새 개념도 아니다.** 보관 관리 내용은 논리 테이블이 아니라 **기록이 가리키는 내용의 저장 위치**다(`payload_ref` 가 가리키던 곳과 같은 성격). 개념은 승인된 `docs/21` 13절의 RawInput(받은 원문 그대로)·Attachment(보관만)·필드별 원문 인용 그대로이고, `docs/21` 은 원문 보관 기간을 **Q-45 로 사용자에게 넘겨 두었다**(`docs/21` 23절 "아직 결정하면 안 되는 사항"의 Q-45 — "개념 모델은 원문을 보존한다까지만 쓴다"). 그래서 **논리 테이블 수는 바뀌지 않는다**(52).
+
+> **`docs/21` 18절("원본 기록은 삭제·수정 금지")과의 관계**: 이 설계에서 원본 **기록** 행은 한 번도 지워지거나 고쳐지지 않는다. 없어지는 것은 기록이 가리키던 **내용**이고, 그 보관 기간은 `docs/21` 이 스스로 Q-45 로 남겨 둔 사용자 결정이다. `docs/21` 을 고칠 필요가 없다.
+
+### 29.2 무엇이 기록이고 무엇이 내용인가 — 논리 모델 전수 조사
+
+`docs/22` 의 자유 입력 필드(`TEXT` · `JSON` · 긴 `STRING`)를 전부 확인해 네 부류로 나눴다. **모두 같은 보관 정책을 적용하지 않는다.**
+
+| 부류 | 뜻 | 파기 대상인가 |
+| --- | --- | --- |
+| **A** | 장기적으로 남겨야 하는 **구조화 기록** | 아니다 |
+| **B** | 일정 기간 뒤 파기할 수 있는 **민감 내용** | **예** — 보관 관리 내용 |
+| **C** | **감사·운영용 메타데이터**(본문·비밀 없음이 이미 보장됨) | 아니다 |
+| **D** | 메일 내용과 **다른 보안·개인정보 정책** 대상 | 이번 파기 정책 밖 — 29.10 |
+
+| 필드 | 무엇 | 부류 | rev.2.4 처리 |
+| --- | --- | --- | --- |
+| `raw_input` 원문 (RFC822 — 헤더·본문·**HTML**·**첨부** 전부) | 받은 원문 그대로 | **B** | 이미 참조(`payload_ref`) + 지문(`payload_hash`). **첨부 목록**(`attachment_manifest`, 지문·크기·형식만) 추가 |
+| `comm_message` 제목·본문 | 메일의 제목과 안전한 텍스트 본문 | **B** | `subject` · `body_text` → **`message_content_ref`**. 지문 `content_hash` 는 원래 있었다 |
+| `message_approval` 승인 시점 제목·본문 | 사람이 승인한 문장 사본 | **B** | `approved_subject` · `approved_body_text` → **`approved_content_ref`**. 지문 `approved_content_hash` 는 원래 있었다 |
+| `extraction.source_quote` | 원문 발췌 | **B** | → **`source_quote_ref`** + **`source_quote_hash`**(신규) |
+| `commercial_offer.conditions_text` | 상대가 적은 조건 원문 | **B** | → **`conditions_content_ref`** + **`conditions_hash`**(신규) |
+| `event` 전체 (`value_*` · `payload` 포함) | 사실 주장 | **A** | 그대로. `value_text` 에는 **값만** 넣고 인용·문장을 넣지 않는다(11.2) |
+| `event.payload` 의 메일 시각 키 | `Date` 원문 문자열 · 채널 수신 시각 | **A** | 그대로 — 시각일 뿐 내용이 아니다. Q-44 재판정의 근거(11.2e) |
+| `canonical_fact` · `conflict` · 스냅샷 표들 | 파생·동결 기록 | **A** | 그대로 |
+| `extraction.candidate_value_text` · `candidate_unit` | LLM 이 낸 **값** | **A** | 그대로 — 사건이 된 값과 같은 것이다 |
+| `comm_message_structured_field` · `message_approval_structured_field` | 메시지·승인의 **숫자** | **A** | 그대로 |
+| `commercial_offer_item` | 제안의 **구조화 금액·조건** | **A** | 그대로 |
+| `question_item.question_text` | **CERA 가 만든** 질문 문구 | **A** | 그대로 — 상대의 원문이 아니다 |
+| `plan_decision` · `operator_planning_constraint` 의 `reason` · `frozen_value_text` · `calc_explain` | CERA 안의 결정·계산 설명 | **A** | 그대로. 외부 원문을 복사해 넣지 않는다 |
+| `comm_message.external_message_id` · `comm_thread.external_thread_id` · `raw_input.source_record_key` · `send_attempt.provider_message_id` | 채널이 준 **식별자** | **A** | 그대로 — **중복 수신 차단(UNIQUE)과 발송 화해(`docs/18` H.2)에 필요**하다 |
+| `send_attempt` · `message_status_transition` | 발송 시도·상태 이력 | **A** | 그대로 |
+| `audit_log` · `send_attempt.error_message` · `system_error` 메시지 | 감사·오류 | **C** | 그대로. 본문·비밀 금지(NFR-13 · I-20)가 **파기 감사에도** 적용된다(29.8) |
+| `raw_input.request_ref` | 조회 파라미터(마스킹) | **C** | 그대로 |
+| `comm_message.from_address` · `contact_channel_address.normalized_address` · `counterparty_contact` 이름 | 사람·주소 | **D** | 29.10 |
+| `verification_request_handling.note` · `message_status_transition.note` · `container.cargo_description` | 운영자가 쓰는 **내부 메모** | **D** | 이번 파기 대상 아님. 외부 원문·개인정보를 넣지 않는 운영 규칙으로 관리 |
+
+### 29.3 불변 규칙과 파기가 충돌하지 않는 이유
+
+| 규칙 | 파기 뒤에도 지켜지나 | 이유 |
+| --- | --- | --- |
+| `event` → `raw_input` 삭제 금지 | **예** | `raw_input` **행은 남는다.** 없어지는 것은 `payload_ref` 가 가리키던 원문뿐 |
+| `comm_message` 내용 컬럼 불변 | **예** | 행의 컬럼은 `message_content_ref` 와 `content_hash` 다. **둘 다 바뀌지 않는다** |
+| `extraction` 16컬럼 UPDATE 금지 | **예** | `source_quote_ref` · `source_quote_hash` 는 바뀌지 않는다 |
+| `message_approval` UPDATE 금지 | **예** | `approved_content_ref` · `approved_content_hash` 는 바뀌지 않는다 |
+| 승인·발송 대조(I-3 · 15.5.1 여섯 조건) | **예** | 대조는 **지문**으로 한다. 파기는 발송이 끝난 뒤에만 가능하다(29.7) |
+
+**파기는 어떤 기록 행에도 `UPDATE` 나 `DELETE` 를 하지 않는다.** 기록 쪽에서 보면 파기는 "아무 일도 일어나지 않은 것"이고, 무슨 일이 있었는지는 **감사 기록**이 말한다(29.8).
+
+### 29.4 첨부와 HTML
+
+- **원본 HTML 은 따로 저장하지 않는다.** 원문(RFC822) 안에 들어 있을 뿐이고 원문과 함께 파기된다. 그대로 렌더링하지 않고, 스크립트를 실행하지 않고, 원격 자원을 불러오지 않는다(NFR-16 · NFR-17). **사람 화면에는 안전하게 만든 텍스트**(`comm_message` 의 본문)만 보인다.
+- **첨부도 원문 안에 있다.** MVP 에서는 **보관과 지문·메타데이터까지만** 다룬다(`attachment_manifest`). 첨부 내용 해석은 계속 범위 밖이다(`docs/21` 13절 · `docs/18` L절). 첨부는 원문과 같은 보관 정책을 탄다.
+- `attachment_manifest` 에 **파일명을 넣지 않는다.** 파일명도 원문의 일부이고 민감할 수 있다("계약서_OO상사.pdf"). 지문·크기·형식이면 "무엇이 붙어 있었는지"의 증거로 충분하다.
+
+### 29.5 추출 인용
+
+`source_quote` 는 **이 사건이 원문의 어디에서 왔는지**를 사람이 확인하는 근거라 원문보다 오래 둘 수 있다. 하지만 **원문의 일부**이므로:
+
+- **영구 감사 데이터가 아니다.** 보관 관리 내용(B)이다.
+- 인용이 파기돼도 **사건 · 사건의 출처(`extraction_id` → `raw_input_id`) · 인용 지문 · 인용 위치(`quote_location`) · 추출 기록 자체**는 남는다.
+
+### 29.6 보관 순서 (숫자는 정하지 않는다)
+
+| 순서 | 무엇 | 비고 |
+| --- | --- | --- |
+| **가장 짧게** | 원문(RFC822) · 첨부 · 원본 HTML | 모든 것이 들어 있어 가장 위험하다. 재추출에만 필요하다 |
+| **중간** | 안전한 텍스트 본문(`comm_message`) · 추출 인용 · 승인 문장 사본 · 제안 조건 원문 | 사람 확인·분쟁 대응의 근거 |
+| **길게 (파기 대상 아님)** | 지문 · 외부 id · 시각 · 사건 · 구조화 값 · 결정 기록 · 발송 시도 · 상태 이력 · 감사 | **기록이다.** 보관 기간 정책으로 지우지 않는다 |
+
+실제 일수는 **정책 파라미터**(보관 범주별)로 두고 지금 정하지 않는다. 파기를 실행할 때 **어느 판의 보관 정책**을 따랐는지는 감사 기록에 남는다(29.8).
+
+### 29.7 지금 파기할 수 없는 내용 — 진행 중인 흐름이 쓰는 것
+
+보관 기간이 지났더라도 **아직 흐름이 쓰고 있는 내용은 파기하지 않는다.** 파기하면 그 흐름이 근거를 잃는다.
+
+| 내용 | 파기할 수 없는 동안 |
+| --- | --- |
+| 원문(`raw_input`) | 아직 처리되지 않았을 때(사건 생성·격리 판정 전) · 그 원문에서 나온 `extraction` 이 `PENDING` 일 때 |
+| 메시지 제목·본문 | 업무 메시지가 **아직 발송되지 않았을 때**(유효한 승인이 있고 `SUCCESS` 발송 시도가 없음) |
+| 승인 문장 사본 | 그 승인이 **아직 유효할 때**(15.5.1 여섯 조건) |
+| 추출 인용 | `review_status = PENDING` 일 때 · 그 인용에서 나온 사실에 **열린 확인 요청**이 있을 때 |
+| 제안 조건 원문 | 제안이 **아직 유효할 때**(`offer_status = RECEIVED` 이고 유효 기간 안) |
+
+### 29.8 파기도 감사 대상이다
+
+파기는 되돌릴 수 없는 행위이므로 `audit_log` 에 남긴다. **새 컬럼 없이 기존 컬럼으로 표현한다.**
+
+| `audit_log` 컬럼 | 파기일 때 |
+| --- | --- |
+| `action` | `CONTENT_PURGED` |
+| `target_type` | 내용 범주 — `RAW_INPUT_PAYLOAD`(첨부 포함) · `COMM_MESSAGE_CONTENT` · `MESSAGE_APPROVAL_CONTENT` · `EXTRACTION_SOURCE_QUOTE` · `COMMERCIAL_OFFER_CONDITIONS` |
+| `target_id` | 기록 id (`raw_input_id` · `message_id` · `approval_id` · `extraction_id` · `offer_id`) |
+| `actor_id` | 실행 주체 — 보통 `SYSTEM`, 사람이 요청했으면 그 사람 |
+| `occurred_at` | 언제 |
+| `request_context` | **어느 보관 정책 판**에 의해 (`retention_policy_version`) |
+| `result` | `SUCCESS` · `FAILED` |
+| `before_ref` · `after_ref` | **참조만.** 내용은 절대 넣지 않는다 |
+
+- **파기된 내용을 감사 기록에 복사하지 않는다.** 감사에 본문이 있으면 파기가 무의미해진다(NFR-13 · `docs/23` 4.4).
+- 파기 작업이 기술적으로 실패하면 `audit_log`(`result = FAILED`)와 함께 `system_error` 에도 남는다(`docs/23` 4.1 — 세 기록을 섞지 않되, 같은 실패가 두 곳에 남을 수 있다).
+- **"이 내용은 파기됐나"는 저장하지 않고 조회로 만든다** — `audit_log` 의 `CONTENT_PURGED` · `SUCCESS` 행(21절).
+- **`result = SUCCESS` 는 내용이 실제로 제거된 것을 확인한 뒤에만 남긴다.** 감사 기록이 삭제보다 앞서면 "감사는 성공, 내용은 그대로"인 상태가 생긴다.
+
+#### 29.8.1 정상 파기와 데이터 손실을 구분한다 **(rev.2.4 보강)**
+
+내용이 없는 이유는 둘 중 하나다 — **보관 정책에 따른 파기**이거나, **저장소 장애·파일 손실·비정상 누락**이다. 둘은 겉보기("내용 없음")가 같으므로 **감사 기록으로만 가를 수 있다.** 새 표·새 컬럼 없이 `audit_log` 와 `system_error` 로 판정한다.
+
+| 내용이 있나 | 그 참조에 대한 **성공한** `CONTENT_PURGED` 감사가 있나 | 판정 | 처리 |
+| --- | --- | --- | --- |
+| 있다 | 없다 | **보관 중** | 정상 |
+| **없다** | **있다** | **정상 파기** | 정상. 화면에는 "보관 정책에 따라 파기됨" |
+| **없다** | **없다** | **데이터 손실** — 정상 파기로 간주하지 않는다 | **`system_error`**(저장소 오류·데이터 손실). 운영 대응 대상 |
+| 있다 | 있다 | **파기 불일치** — 감사는 성공인데 내용이 남아 있다 | **`system_error`**. 파기를 다시 실행하거나 감사 기록을 대조한다 |
+
+**파기할 때 바뀌는 것과 바뀌지 않는 것**
+
+| 바뀌지 않는다 | 바뀐다 |
+| --- | --- |
+| 부모 기록 행 · 참조(`*_ref`) · 지문(`*_hash` · `content_hash` · `payload_hash` · `approved_content_hash`) | 참조가 가리키던 **민감한 내용만** 제거된다 |
+| | `audit_log` 에 `CONTENT_PURGED` 행이 **추가**된다(덧붙이기) |
+
+- 파기 작업이 **내용 제거 뒤, 감사 기록 전에** 멈추면 그 참조는 "내용 없음 + 감사 없음"이 되어 **손실로 판정**된다. 조용히 넘어가는 대신 **시끄럽게 실패하는 쪽**이다 — 운영자가 확인하고 감사 기록을 보완한다.
+- 이 대조는 17.4 규칙 3(주기적 고아 참조 점검)과 같은 **운영 점검 작업**으로 돌린다. 내용을 읽으려다 부재를 만났을 때도 같은 판정을 한다.
+- `system_error` 에는 참조와 범주만 남기고 **내용은 남기지 않는다**(I-20 — 어차피 내용이 없다).
+
+### 29.9 파기 뒤에 되는 것과 안 되는 것
+
+**재현성과 재처리 능력은 다른 것이다.**
+
+| | 원문이 있는 동안 | 원문이 파기된 뒤 |
+| --- | --- | --- |
+| `event` → `canonical_fact` **재계산**(I-7) | 된다 | **된다** — 사건은 원문에 기대지 않는다 |
+| 과거 `planning_snapshot` **재현**(I-12 · I-27) | 된다 | **된다** — 스냅샷은 값을 복사해 뒀다 |
+| **감사**(누가 무엇을 했나) | 된다 | **된다** — 감사 기록에 본문이 없었으므로 잃는 것이 없다 |
+| **Q-44 시각 재판정** | 된다 | **된다** — 두 시각이 사건 `payload` 에 있다(11.2e) |
+| 승인·발송 **대조** | 된다 | **된다** — 지문으로 한다 |
+| "이 사건은 어디서 왔나" | 된다 | **된다** — 원문 기록 행·지문·외부 id·추출 기록이 남는다 |
+| 원문에서 **다시 추출·다시 파싱** | **된다**(`docs/20` A-05) | **안 될 수 있다** |
+
+**A-05 는 유지한다.** "원본을 다시 읽어 재실행할 수 있어야 한다"는 **원문이 보관되어 있는 동안** 보장된다. 원문이 파기된 뒤 재추출할 수 없는 것은 규칙 위반이 아니라 **사용자가 정한 보관 정책의 정상적인 결과**다.
+
+> **Reconciliation 재현성 ≠ 원문 재처리 능력.** 앞의 것은 사건이 있는 한 영원히 보장되고, 뒤의 것은 원문이 있는 동안만 보장된다.
+
+### 29.10 연락처는 다른 문제다
+
+`counterparty_contact` · `contact_channel_address`(그리고 받은 메일의 `from_address`)는 메시지 본문과 **다른 개인정보 문제**다. 발송 자격·권한 판정에 쓰이므로 본문과 같은 방식으로 파기할 수 없다.
+
+- 이번에 정하는 것: **관계가 끝나면 비활성화**(`is_active` · 주소의 통신 활성 상태)할 수 있다. **향후 익명화·삭제 정책이 필요하다.**
+- 정하지 않는 것: 실제 익명화 방식, 보관 의무 기간, 법적 요구사항 — **`[TO VERIFY]`**. Q-48(공용 메일함)·향후 개인정보 정책과 함께 본다.
+
+### 29.11 단계별
+
+| 단계 | 정한 것 | 정하지 않은 것 |
+| --- | --- | --- |
+| **Tech Validation** | **전용 테스트 계정만** 쓴다 · **개인·회사 실메일을 쓰지 않는다** · 테스트에 필요한 최소 데이터만 · **단계가 끝나면 원문·내용을 정리**한다(fixture 로 남길 것은 합성·마스킹본만 — `docs/01` 6절) | 자동 삭제 일수 |
+| **Pilot · Production** | 보관 구조와 파기 방식(이 절 전체) | **실제 보관 기간** — 고객사 IT · 계약 · 보안 요구 · 감사 요구 · 개인정보·관련 법률 검토가 필요하다. **Pilot 정책으로 OPEN** |
+
+### 29.12 여기서 닫은 것과 열어 둔 것
+
+| | 상태 |
+| --- | --- |
+| 기록과 내용의 분리 · 참조 + 지문 · 행 삭제 없음 | **CLOSED** |
+| 파기 가능 조건(29.7) · 파기 감사(29.8) | **CLOSED** |
+| 보관 순서(29.6) | **CLOSED** — 순서만 |
+| 보관 기간 **숫자** | **OPEN** — 정책 파라미터 · Pilot 결정 |
+| 물리 저장 위치 · 파기 작업의 실행 방식 · 자동 삭제 스케줄 | **물리 설계·구현**(T-080 이후) |
+| 연락처 익명화·법적 보관 의무 | **`[TO VERIFY]`** |

@@ -13,6 +13,8 @@
     - ② 검증기 `confidence` → `event.input_confidence_level`(+ `input_confidence_reasons`). `input_quality`(입력 형태)와 **다른 축**이고, 의미가 정의된 적 없던 `canonical_fact.confidence` 는 제거됐다. `22` 11.2b · 11.4.2
     - ③ 출처 종류 → **3.1절의 7값으로 통일**(2026-09-21 사용자 결정). `22` 의 `source_kind` 6값은 폐기되고 `event.source_type`·`raw_input.source_type` 이 같은 집합을 쓴다. `22` 11.2c. **Q-46 은 그대로 OPEN** — 7값은 현재 ADR-020 기준의 정렬이지 영구 확정이 아니다
     - ④ 나머지 필드 → `event_type`·`schema_version`·`idempotency_key`(UNIQUE)·`correlation_id`·`payload`·`source_id`·`extraction_method` 전부 `22` 에 있다. `22` 11.2d
+  - **2026-09-21 Q-44 결정**: 메일의 `source_recorded_at` 선택 규칙을 5.2절 어댑터 매핑 표의 `EMAIL` 행에 반영했다. 근거 시각은 **채널 수신 시각보다 늦을 수 없다** — 미래 `Date` 로 최신처럼 위장하는 것을 막는다(`22` 11.2e).
+  - **2026-09-21 Q-45 결정**: 원문(`raw_inputs`)은 **기록 행은 영구히 남고 원문 내용만 보관 정책에 따라 파기될 수 있다.** 1절 원칙의 "원문 보존"은 **원문이 보관된 동안** 재파싱·재추출을 보장한다는 뜻이다. 원문이 파기돼도 Event → Canonical 재계산과 스냅샷 재현은 그대로 된다(`22` 29절).
   - **덧붙여 6.2절의 상태 차원도 `22` 에 복구됐다**(rev.2.3). `canonical_fact` 가 `value_status`·`freshness_status`·`conflict_status`·`hold_status`·`decision_usability` + `verification_basis` 를 따로 갖는다(ADR-020). 한 enum 으로 합쳐져 있던 rev.2.2 는 **R10 보류와 계획 승인 차단을 표현하지 못했다**.
 - 이 문서가 답하는 질문: **서로 다른 출처가 서로 다른 현실을 말할 때, CERA는 어떤 근거로 현재 운영 상태를 정하는가?**
 
@@ -377,7 +379,7 @@ else:
 | --- | --- | --- | --- |
 | `HUMAN_UI` | 사용자가 적은 발생 시각, 없으면 **액션 시각**(사람은 "지금 이렇다"고 단언) | — | EVENT_TIME |
 | `PARTNER_SYSTEM` | 시스템이 붙인 사건·상태 시각 | 전송 시각(있으면) | EVENT_TIME |
-| `EMAIL` | 본문에 기준 시각이 명시되면 그 시각 | 메일 발신 시각(Date 헤더) | RECORDED_TIME |
+| `EMAIL` | 본문에 기준 시각이 명시되면 그 시각 | 메일 발신 시각(`Date` 헤더). **단 `Date` 가 없거나, 파싱되지 않거나, 채널 수신 시각(Gmail `internalDate`)보다 미래이면 채널 수신 시각**을 쓰고 `payload.date_header_rejected` 를 남긴다. `Date` 가 채널 수신 시각보다 **과거인 것은 허용**한다(늦게 도착한 메일은 발신 시각 그대로). 원래 두 시각은 `payload` 에 보존 — **Q-44 사용자 결정 2026-09-21**, `22` 11.2e | RECORDED_TIME |
 | `FILE_IMPORT` | 행에 적힌 시각 | 업로드 화면에서 입력한 기준 시각 | EVENT_TIME / RECORDED_TIME / RECEIVED_ONLY |
 | `PUBLIC_API` DS-01 | 처리이력의 반출입일시(마일스톤), 상태는 **처리일시**(그 상태가 원천에 기록된 가장 늦은 시각. 필드 의미는 `[TO VERIFY]` Q-19) | — | EVENT_TIME |
 | `PUBLIC_API` DS-02 | 컨테이너별 시각 없음 | — | RECEIVED_ONLY (IDENTITY 사실이라 영향 작음. STATE 사실이면 신선도 `UNKNOWN`) |
