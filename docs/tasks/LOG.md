@@ -21,6 +21,36 @@
 
 ---
 
+## 2026-09-21 · T-069 DONE — 첫 Vertical Slice 구현 계획 종료 · Claude Code (claude-opus-5)
+- 상태: **완료 — T-069 DONE (사용자 최종 승인).** 커밋은 이 기록과 같은 커밋(`git log` 이 정본). push 없음
+- 산출물: `docs/tasks/plans/T-069-external-communication-slice.md`
+- 결론
+  - **Slice 1 = Mock External Communication Loop**(`18` J.4 1·2단계 — 루프 REAL, 채널·AI·계획 MOCK). Slice 2 Tech Validation · Slice 3 실제 LLM
+  - **L-13 CLOSED = `recovery_run` 계보의 뿌리 실행 id**(`docs/22` I-35·I-36). 새 표·컬럼·개념 없음
+  - **P0 29개**(P1 14 · DEFERRED 9 = 52)
+  - 정상 회신: 검증 통과 값 → 사건 → PROVISIONAL/OBSERVED → 사람 확인 → CONFIRMED. **사건 생성 승인 게이트 없음**
+  - 지난 계획 기준 회신: 사건·후보는 되지만 **현재 계획에 자동 반영 안 됨**(계획 불변 · 자동 재최적화 없음 · 스레드 안 질문 매핑). 범위와 다른 축
+  - **Q-64 Backend 결정 필요 → T-083(NEEDS_HUMAN)** · **Q-68 DB 결정 필요 → T-084(NEEDS_HUMAN)** · **Q-65 솔버는 Slice 1 blocker 아님**
+  - **T-080 은 T-083·T-084 뒤** · 구현 단위 **U0~U11 = T-085~T-096**, T-080 DONE 전에는 실행 가능하지 않음 · T-003 은 T-085 에 흡수(DEPRECATED)
+- **제품 코드 구현 0건** · `docs/21` 변경 0건
+- 다음 한 걸음: 사용자 **T-083(Q-64)** → **T-084(Q-68)** → T-080
+
+## 2026-09-21 · T-069 구현 계획 (첫 Vertical Slice) · Claude Code (claude-opus-5)
+- 상태: **계획 초안 완료 — 사용자 + ChatGPT 검토 대기.** `IN_PROGRESS` 유지(완료 조건 마지막이 사용자 승인). **미커밋.** 기준 HEAD `3106772`
+- 산출물: **`docs/tasks/plans/T-069-external-communication-slice.md`**(`plans/` 첫 사용)
+- 결정·정리
+  - **첫 Vertical Slice = Slice 1 Mock 루프**(`18` J.4 1·2단계): 루프 전체 REAL, 채널·AI·계획만 MOCK. `19` 의 "첫 구현"(20절 34항목, 실제 Gmail 포함)을 **Slice 1(Mock 루프) → Slice 2(Tech Validation: 등록 명령·확인 메일·Gmail·요율) → Slice 3(실제 LLM)** 으로 나눠 34항목을 Slice 별로 매핑
+  - **L-13 CLOSED — `recovery_run` 계보의 뿌리 실행 id.** 근거는 `docs/03` 2.6.1(운영자 개입은 첫 계산 뒤) — 실행 전 범위가 필요 없다. 새 표·컬럼 없음, ExceptionCase 부활 없음. `docs/22` I-35(범위 참조 = 존재하는 뿌리 실행 id) · I-36(같은 사고 재계산은 계보를 잇는다). 지난 계획 기준 회신은 **사건은 정상 생성, 현재 계획에만 자동 반영하지 않는다**(현재 문의의 답으로 연결 안 함 · 재계산 계기 없음 · 표시) — 검토에서 정정, 아래 참고
+  - **P0 29 · P1 14 · DEFERRED 9 = 52.** 부족분(gap)은 논리 표가 없으므로 시드 fixture + `source_path` 로 가리킨다. `container`·`assignment` 는 P1
+  - REAL/MOCK/DEFERRED 표 · Backend 기능 단위(F·A·B·B2·C·D·E)와 의존 · AI 포트 2개(DraftWriter 템플릿 · ReplyExtractor 녹화 재생) · Mock 채널 두 선언(비정형/구조화) · Query 10 · Command 16 · 공통 오류 응답 · **Q-66 오류 코드 초안** · Phase 0~11(**T-003 은 Phase 0 으로 흡수**) · 트랜잭션 경계 12 · 멱등 경계 · 시험 41개 · **DoD 18항목** · Backend·DB 기술 조건과 Q-64/65 평가 기준 · T-080 인계 목록 · N.2 15가지 답 · 작업 단위 U0~U11
+  - 금지선 확인: **M-6 · Q-46 확정하지 않음**, Q-48 은 "지금 넣지 않는다"만, 기술 선택 없음, 새 Reconciliation 규칙 없음(`18` F.5 부분집합)
+- 정본 정정: **`docs/18` N.2 #13 "K.2 성공 판정 13개" → 12개**(목록 자체가 12개). 그 밖의 표기 불일치(절 순서 · C 표의 검증기 위치 · T-003 의 Python 표현 · 로드맵에 Tech Validation 없음)는 계획 19.3 에 보고만
+- 변경 파일: 계획 문서(신규) · `docs/22`(.md L-13 · I-35 · I-36 · 머리 / .xlsx OpenDecisions) · `docs/15`(L-13) · `docs/18`(N.2 #13) · `AGENTS.md` · `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 하지 않은 것: 제품 코드 · SQL/DDL · 물리 스키마 · 기술 선택 · 실제 Gmail · T-080 · T-082 · `docs/21` · staging·commit·push
+- **(같은 날 검토 반영)** ① 초안의 "지난 계획 기준 회신은 사건을 만들지 않고 사람이 채택"은 **정본에 없는 새 게이트**였다 — `19` FR-INB-09 · 10.1 표는 "**현재 계획에** 자동 반영 안 함"이지 사건 금지가 아니다. **B(사건·근거는 남기고 현재 계획에 자동 반영 안 함)** 로 정정, 계획 4.3 에 정상 흐름과 "사건이 없는 경우"를 정본 근거로 고정. `docs/22` L-13 문구도 정정 ② **DB 선택에 Open Question 번호가 없었다**(ADR-004 Proposed · `docs/23` 미결 표뿐, "Q-64·Q-65"로 잘못 묶임) → **Q-68 신규 등록**. 순서: T-069 승인 → Q-64 → Q-68 → T-080 ③ 가상 데이터 실발송 차단 시험 G-06 을 **인수 시험 + DoD 19번**으로 올림(시험용 "실채널 선언" 어댑터) ④ P0 29개 재검증 — 유지
+- **(같은 날 2차 검토 반영) 지난 계획 기준 회신 ↔ L-13** — 초안의 "원래 맥락에 속하고 현재 맥락 계산에는 보이지 않는다"는 **같은 사고 안에서 성립하지 않았다**(Run 1·Run 3 이 같은 뿌리). 정본 확인: R1 제외 목록에 "지난 문의"는 없고, 맥락 범위 기본값은 운영자 입력에만 해당하며(`22` 22.2), Slice 1 회신 사실은 `GLOBAL` 이다. **범위는 차단 장치가 아니다.** 실제 보장은 ① 계획·스냅샷 불변(`22` 13절 · I-12) ② 회신 자동 재최적화 없음(`18` L) — 이후 슬라이스에서도 지난 계획 기준 회신은 `REPLY_RECEIVED` 계기가 아님(FR-INB-09) ③ `ask_id` 가 자기 스레드 질문에만 매핑(`18` D.3). 계획 4.3 에 A~F 표로 고정, `docs/22` L-13 설명·시험 I-06 정정. **U0~U11 의존**(계획 20.1): Q-64 → Q-68 → T-080 → U0…, T-080 전에는 코드 단위를 실행 가능으로 보이지 않게 한다. 새 게이트·새 개념 없음
+- 다음 한 걸음: 사용자 + ChatGPT 검토 → T-069 DONE · 구현 태스크 등록 → 사용자 Backend 결정(Q-64) → DB 결정(Q-68) → T-080(P0 29개)
+
 ## 2026-09-21 · Q-44 · Q-45 Decision Closure (`docs/22` rev.2.4) · Claude Code (claude-opus-5)
 - 상태: **완료 — 사용자 최종 승인(2026-09-21).** 기준 커밋 `c16e1d7`(T-081). 제품 코드 0건. 커밋은 이 기록과 같은 커밋(`git log` 이 정본)
 - 지시: 사용자 결정 Q-44 = ②, Q-45 = ① 을 정본에 반영하고 Q-45 때문에 필요한 **최소 논리 구조 보완까지만**. T-069 본문 · T-080 · 기술 선택 · 제품 코드 금지. `docs/21` 수정 금지. 새 표·개념 변경이 반드시 필요하면 멈추고 보고

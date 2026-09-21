@@ -978,7 +978,7 @@ Planner(ChatGPT)가 `docs/tasks/plans/T-068-external-communication-slice.md`를 
 | 10 | **Event·Reconciliation 최소 subset** | F.5의 fact_key 5개·규칙 9개를 어떤 모듈 경계로 구현하나. `canonical_fact` 최소 컬럼(`22` 11.4). **사람 확인(VERIFICATION) 사건의 논리 표현은 T-081 에서 먼저 정한다.** 나중에 전체로 확장되는 구조인지 |
 | 11 | **OpenAPI 구성** | 명세 파일 위치, 생성 도구, `packages/`의 TypeScript 타입 생성 파이프라인, `cera.ts`와의 **혼재 기간** 표기 방법 |
 | 12 | **Frontend Mock → Real 교체 범위** | `CeraCommandClient` 도입이 기존 9단계 시나리오 재생을 깨지 않는 방법. 어느 화면까지 실제 API로 바꾸나 |
-| 13 | **테스트 전략** | 네트워크 없는 Gmail 어댑터 테스트(녹화 fixture), 크래시-재기동 중복 방지 테스트, K.2의 성공 판정 13개를 테스트로 매핑, `validate:scenario` 금지 표현 검사 수정 |
+| 13 | **테스트 전략** | 네트워크 없는 Gmail 어댑터 테스트(녹화 fixture), 크래시-재기동 중복 방지 테스트, K.2의 성공 판정 12개를 테스트로 매핑 (2026-09-21 정정 — 목록은 12개다), `validate:scenario` 금지 표현 검사 수정 |
 | 14 | **구현 순서** | J.4의 0~5단계를 커밋 단위로. **2단계(Mock 채널로 루프 완주)를 반드시 독립 단계로 둘 것** — 실제 발송은 마지막에 켠다 |
 | 15 | **Antigravity 작업 단위** | 각 단위의 Goal·Scope·Out of Scope·변경 가능/금지 영역·완료 조건·테스트 명령 (`17` 8절 표) |
 

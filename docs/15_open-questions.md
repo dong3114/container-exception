@@ -189,7 +189,7 @@
 
 | # | 질문 | 왜 열려 있나 | 언제 답하나 |
 | --- | --- | --- | --- |
-| **L-13** | **복구 맥락(Recovery Context)을 무엇으로 식별하나** | D-3 의 기본값이 "현재 복구 맥락"인데 그 식별자가 없다. `exception_case` 를 만들지 않기로 했으므로 대신 쓸 것을 정해야 한다. 후보: `recovery_run` 계보의 뿌리 · 최초 계기 사건 · 컨테이너 집합 지문 | **T-069 구현 계획** |
+| **L-13** | **복구 맥락(Recovery Context)을 무엇으로 식별하나** | **CLOSED (2026-09-21, T-069)** — **`recovery_run` 계보의 뿌리 실행 id.** 새 표·새 컬럼 없음, ExceptionCase 부활 없음. 근거: `docs/03` 2.6.1 이 운영자 개입을 첫 계산 **뒤**로 고정해 실행 전 범위가 필요 없다. 같은 사고의 재계산은 `previous_run_id` 를 이어받는다(`docs/22` L-13 · I-35 · I-36) | **CLOSED** |
 | **L-14** | `applicability_scope_type` 의 **값 목록** | 현업이 실제로 쓰는 범위가 확인되기 전에 닫으면 안 맞는 칸이 생긴다. 확정한 것은 **기본값이 `RECOVERY_CONTEXT`** 라는 것뿐 | 현업 검증 |
 | **L-15** | `message_kind` 의 **값 목록** | 지금은 `BUSINESS` · `CONTACT_VERIFICATION` 둘이면 충분하다. 알림·재촉이 생기면 늘어난다 | 필요해지면 |
 | **L-16** | `bl` 의 **업무 유일 제약** | 번호 + 연도가 조회 키인 것은 `[VERIFIED S-02]` 지만, **번호가 연도 안에서 유일한지는 확인된 적이 없다.** DS-02 `blNo` 가 MBL/HBL 중 무엇인지도 `[TO VERIFY]`(Q-04). 근거 없이 닫으면 정상 데이터를 거절한다 | **실데이터 확인**(T-005·T-006) 뒤 물리 설계 |
@@ -226,6 +226,7 @@
 | **Q-65** | **솔버를 어디서 어떤 언어로 돌리나** | ADR-029 는 솔버를 Backend 결정론 영역에 둔다. Backend 가 TypeScript 면 OR-Tools 공식 Node 바인딩이 없다 `[TO VERIFY]`. TS 내 솔버 / Python 결정론 워커(`back/` 영역, AI 아님) / 다른 Backend 언어 중 선택(`docs/23` 3.3) | T-036 재개 뒤. Q-64 결정 때 함께 본다. **첫 슬라이스(외부 통신)는 막지 않는다** |
 | **Q-66** | **`system_error` 의 오류 분류·코드 값 목록** | 예시(`GMAIL_TIMEOUT` · `GMAIL_RATE_LIMITED` · `GMAIL_AUTH_EXPIRED` · `EXTERNAL_RESPONSE_INVALID`)만 있다. 채널·연동이 정해져야 목록이 나온다(`docs/23` 6.2) | T-069 구현 계획 · 구현 |
 | **Q-67** | **로그 저장소·관측 제품** (OpenTelemetry 등) 과 오류 묶음·표본 규칙 | 전파 규칙(`request_id`·`trace_id`)만 정했다. 제품은 배포 환경이 정해져야 고를 수 있다(`docs/23` 4.3 · 5절) | 첫 배포 환경을 정할 때 |
+| **Q-68** | **DB 제품 · 접근 방식(ORM/쿼리 빌더) · 마이그레이션 도구** (2026-09-21 신규 — T-069 에서 등록) | 초안 기록은 ADR-004(SQLite → PostgreSQL, **Proposed**)와 `docs/23` 2절·13절의 "미결"뿐이었고 Open Question 번호가 없었다. 여러 곳에서 "Backend·DB 결정(Q-64·Q-65)"으로 묶여 적혔지만 **Q-65 는 솔버**다. 물리 타입(시각·JSON·해시) · 부분 유일 제약 · append-only 강제 방식이 제품마다 달라 **T-080 물리 설계를 막는다**. 평가 조건은 `docs/tasks/plans/T-069-external-communication-slice.md` 16.2·16.3절 | **사용자 결정.** T-069 승인 → Q-64(Backend) → **Q-68** → T-080 |
 
 > **개념 모델 확장은 필요 없다고 판단했다.** `system_error` 는 업무 개념이 아니라 기술 운영 표이고, 업무 흐름의 어느 개념도 이것에 의존하지 않는다(`docs/22` 23절). 오류 대응 자체가 업무 기능(담당 배정·종결·SLA)이 되면 그때 다시 본다.
 
