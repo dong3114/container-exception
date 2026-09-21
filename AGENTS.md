@@ -17,7 +17,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 현재 단계 | **Phase 0.5 → 데이터 모델 설계.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**, **외부 통신 요구사항 명세(T-071, `docs/19`)**, **DB 설계 전 요구사항 검토(T-072, `docs/20`)**, **개념 데이터 모델 승인(T-073 → rev.2 T-075 → rev.3 T-077 → T-078 정합성 정리 → **T-076 최종 승인**, `docs/21`)**, **논리 DB 설계(T-079 → rev.2 → rev.2.1 → **rev.2.2 최종**(정합성 5건 + 기술 운영 표 `system_error`, MVP 51 · Next 1 · 만들지 않음 2 = 54), `docs/22` + 논리 스키마 작업표, **T-079 DONE 2026-09-18**)**, **런타임·오류 처리·관측성 문서(`docs/23`, ADR-030·031 Proposed — Backend 현재 우선 후보 NestJS, 최종 결정 아님)**. 작업 순서는 `(논리 DB 설계 완료) → **T-070 주변 문서 동기화(다음 작업)** → T-069 구현 계획(첫 슬라이스 확정) → Backend·DB 기술 결정 → T-080 물리 설계(첫 슬라이스 표부터)`이다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
+| 현재 단계 | **Phase 0.5 → 데이터 모델 설계.** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**, **외부 통신 요구사항 명세(T-071, `docs/19`)**, **DB 설계 전 요구사항 검토(T-072, `docs/20`)**, **개념 데이터 모델 승인(T-073 → rev.2 T-075 → rev.3 T-077 → T-078 정합성 정리 → **T-076 최종 승인**, `docs/21`)**, **논리 DB 설계(T-079 → rev.2 → rev.2.1 → **rev.2.2 최종**(정합성 5건 + 기술 운영 표 `system_error`, MVP 51 · Next 1 · 만들지 않음 2 = 54), `docs/22` + 논리 스키마 작업표, **T-079 DONE 2026-09-18**)**, **런타임·오류 처리·관측성 문서(`docs/23`, ADR-030·031 Proposed — Backend 현재 우선 후보 NestJS, 최종 결정 아님)**. 작업 순서는 `(논리 DB 설계 완료) → (T-070 문서 동기화 완료) → **T-081 논리 모델 후속(다음 작업)** → T-069 구현 계획(첫 슬라이스 확정) → Backend·DB 기술 결정 → T-080 물리 설계(첫 슬라이스 표부터)`이다. Backend·DB·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
 | 기획 버전 | v0.2 (2026-09-11, 2026-09-15 개정). 변경 이력은 `docs/CHANGELOG.md` |
 | 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · 운영 시뮬레이터(Prototype은 2D) |
 | 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider)만 있음. `back/`·`ai/`·`packages/`·`infra/`는 README만 있는 빈 책임 영역 (T-003) |
@@ -29,8 +29,8 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 | 폴더 | 책임 | 현재 |
 | --- | --- | --- |
 | `front/` | 화면. `front/web/` = Control Tower (Next.js) | Prototype 동작 |
-| `back/` | 중앙 API, 인증, DB·Event 저장, Canonical State, 외부 연동(메일 등), 승인, 감사, 백그라운드 작업, push | 구현 전 |
-| `ai/` | LLM 해석(메일·계약서 파싱, 설명) **+ 결정론 엔진**(Tariff·Cost·Risk·Optimization·Solver). 결정론 엔진은 LLM 클라이언트를 import하지 않는다 | 구현 전 |
+| `back/` | 중앙 API, 인증, DB·Event 저장, Canonical State(Reconciliation), 외부 연동(Channel Adapter·OAuth·Outbox·수신 원문 보존·발신자 등록부), 승인, 감사, 오류 처리·관측성, 백그라운드 작업, push, **그리고 모든 결정론 엔진**(Tariff·Cost·Risk·Optimization·Solver — ADR-029). 결정론 엔진은 DB·네트워크·LLM 클라이언트를 import하지 않는다 | 구현 전 |
+| `ai/` | **LLM·비정형 처리만**: 메일 초안 문장, 회신·계약서 구조화 추출(값 후보 + 원문 인용), 설명 문장. 신원·권한·사실 확정·현재 상태·숫자·발송은 하지 않는다(ADR-029, `docs/18` O절) | 구현 전 |
 | `packages/` | 공유 계약(OpenAPI, 생성 타입) | 비어 있음 |
 | `data/` | 공통 시나리오·테스트 데이터 (front·back·ai가 같이 씀) | `data/scenarios/busan-wh-capacity-01/` |
 | `docs/` | 정본 문서 | — |

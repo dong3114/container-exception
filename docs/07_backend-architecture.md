@@ -1,15 +1,17 @@
 # 07. 백엔드 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-18 (**런타임·오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본**. 3절 머리와 6절 Desktop 문장에 참조만 달았다. Python 전제의 본문 정리는 T-070). 이전: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
-- 관련 ADR: ADR-002(스택), ADR-004(DB), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생)
+- 최종 수정: 2026-09-18 (**T-070 문서 동기화**: 1·2절 Python·FastAPI·SQLite 를 확정처럼 읽히던 표현을 "미결 — `docs/23`"으로, 2·2.1절에 오류 처리·관측성과 외부 통신 흐름(Outbox·발송 시도·채널 어댑터·검증) 반영, 3절 Backend 줄을 초안 기록으로 표시, **4절 저장 스키마를 `docs/22` 논리 설계 대응표로 교체**(X-10), 6·7·8절 정리. **구현은 아직 없다** — 이 문서는 설계다). 같은 날 앞서: 런타임·오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본이 됐다. 이전: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
+- 관련 ADR: ADR-002(스택 초안, Proposed), ADR-004(DB, Proposed), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생), ADR-026~029(외부 통신·책임 경계, Accepted), ADR-030·031(오류·관측성·런타임 방향, Proposed)
+- **구현 상태**: 지금 코드가 있는 것은 `front/web/` Prototype(시나리오 재생, MockProvider)뿐이다. 아래의 Backend·DB·Event Store·엔진·채널 연동·오류 기록은 **설계**이며 아직 구현되지 않았다
 
 ---
 
 ## 1. 원칙
 
-1. **모듈형 모놀리스**: 백엔드는 Python 프로세스 하나, DB는 SQLite 파일 하나로 시작한다. 마이크로서비스, 메시지 브로커, 쿠버네티스, 멀티테넌트 인증은 PoC에서 만들지 않는다.
-2. **순수 엔진 + 얇은 I/O**: 계산 모듈(`state`, `tariff`, `cost`, `risk`, `optimize`)은 DB·네트워크·LLM을 import하지 않는 순수 함수다. I/O는 `intake`, `extraction`, `comms`, `storage`, `api`에만 있다.
+1. **모듈형 모놀리스**: Backend 는 프로세스 하나, DB 는 하나로 시작한다. **언어·프레임워크·DB 제품은 미결**이다(현재 우선 후보는 `23_runtime-platform-and-observability.md` 3절, 결정은 T-069 뒤 사용자). 마이크로서비스, 메시지 브로커, 쿠버네티스, 멀티테넌트 인증은 PoC에서 만들지 않는다.
+2. **순수 엔진 + 얇은 I/O**: 결정론 계산 모듈(`state`, `tariff`, `cost`, `risk`, `optimize`)은 DB·네트워크·LLM을 import하지 않는 순수 함수이며 **`back/` 영역**에 있다(ADR-029). I/O는 `intake`, `extraction`, `comms`, `channels`, `storage`, `api`에만 있다.
+5. **오류는 세 경계에서 같은 방식으로 잡는다**: API 요청 · 외부 연동 · 백그라운드 작업이 공통 오류 처리와 구조화 로그를 쓰고, `request_id`·`trace_id` 를 남기며, 중요한 기술 오류만 `system_error` 로 기록한다. 현실 사실(`event`)·감사(`audit_log`)와 섞지 않는다. 상세는 `23` 4~6절.
 3. **시뮬레이션과 실제가 같은 경로**: 시나리오 재생 이벤트는 실제 입력과 같은 Intake → Event Store → Reconciliation 경로를 탄다(ADR-018).
 4. **프론트는 표시만**: 모든 숫자·상태·계획은 백엔드가 만든다.
 
@@ -22,8 +24,8 @@ flowchart TB
     SIM3D["Operations Map (현재 Prototype: 2D SVG, Three.js는 선택지) + Activity Timeline"]
   end
 
-  subgraph BE["back/ + ai/ (Python 후보, 단일 프로세스로 시작) — 구현 전"]
-    API["api<br/>FastAPI REST + SSE"]
+  subgraph BE["back/ + ai/ (언어 미결 — docs/23, 단일 프로세스로 시작) — 구현 전"]
+    API["api<br/>REST + 서버 푸시(SSE 등)"]
     ORC["orchestrator<br/>작업 큐 · 트리거 · Activity"]
     ING["intake<br/>어댑터: public_api · csv · actions · mailbox · documents · scenario"]
     EXT["extraction<br/>LLM 구조화 출력 + 검증기"]
@@ -31,16 +33,18 @@ flowchart TB
     TRF["tariff + cost"]
     RSK["risk"]
     OPT["optimize<br/>솔버(후보 CP-SAT) · baseline"]
-    COM["comms<br/>draft · approval · outbox/inbox · thread"]
+    COM["comms<br/>draft · approval · outbox · send_attempt · thread"]
+    CHN["channels<br/>Channel Adapter · OAuth · 수신 원문 보존"]
+    OBS["errors / observability<br/>공통 오류 처리 · 구조화 로그 · request_id/trace_id · system_error"]
     SIMS["sim<br/>scenario runner · SimClock"]
-    STO["storage<br/>SQLAlchemy · 마이그레이션"]
+    STO["storage<br/>DB 접근 · 마이그레이션 (도구 미정)"]
     AUD["audit<br/>activity · audit log"]
   end
 
-  DB[("SQLite<br/>(→ PostgreSQL)")]
-  LLM["Claude API"]
+  DB[("DB<br/>(제품 미결)")]
+  LLM["LLM API<br/>(공급자 미정)"]
   PUB["공공 API (읽기)"]
-  MBOX["가상 메일함<br/>(PoC)"]
+  MBOX["가상 메일함(PoC) /<br/>실채널(Tech Validation, 조건부)"]
 
   WEB <--> API
   API --> ORC
@@ -49,10 +53,13 @@ flowchart TB
   EXT --> LLM
   COM --> EXT
   ING --> PUB
-  COM <--> MBOX
+  COM --> CHN
+  CHN <--> MBOX
+  CHN --> ING
   SIMS --> ING
   STA & RSK & OPT & COM & ING --> STO --> DB
   ORC --> AUD --> STO
+  API & ORC & CHN & ING --> OBS --> STO
   TRF --> RSK
   TRF --> OPT
 ```
@@ -61,24 +68,37 @@ flowchart TB
 
 | 컴포넌트 | 모듈 | PoC 구현 | 이후 |
 | --- | --- | --- | --- |
-| API Gateway / Backend | `api` | FastAPI, REST + SSE(서버 푸시) | 인증·권한 (Pilot) |
+| API Gateway / Backend | `api` | REST + 서버 푸시(SSE 등). 프레임워크 미결(`23` 3절) | 인증·권한 (Pilot) |
 | Event Ingestion Layer | `intake` | 어댑터별 함수, 원문 보관 | 실제 메일함·파트너 API |
-| Event Store | `storage` + `events` 테이블 | append-only 테이블 (ADR-013) | PostgreSQL |
+| Event Store | `storage` + `raw_input` · `event` · `event_entity_link` (`22` 11절) | 덧붙이기만 (ADR-013) | — |
 | State Reconciliation Engine | `state.reconcile` | 순수 함수, subject 단위 재계산 | — |
-| Canonical State Store | `canonical_facts` 등 파생 테이블 | Reconciliation이 갱신 | — |
+| Canonical State Store | `canonical_fact` · `conflict` · `verification_request` 파생 (`22` 11.4~11.6) | Reconciliation 이 다시 만든다. 사람 처리 기록은 `verification_request_handling` 에 따로 남는다 | — |
 | Contract / Tariff Rule Engine | `tariff`, `cost` | 순수 함수, 휴일 캘린더 | — |
 | Risk Engine | `risk` | 순수 함수 | — |
-| Optimization Service | `optimize` | in-process 솔버 (후보 CP-SAT, T-036에서 결정) | 별도 워커(규모가 커지면) |
+| Optimization Service | `optimize` (`back/` 결정론 영역, ADR-029) | in-process 솔버 (후보 CP-SAT, T-036에서 결정. Backend 언어에 따른 실행 위치는 Q-65) | 별도 워커(규모가 커지면) |
 | Agent Orchestrator | `orchestrator` | in-process 큐 + 핸들러 표 | — |
-| Communication Service | `comms` | 초안·승인·가상 발송·스레드 | **Tech Validation 단계부터 조건부 실제 발송** (ADR-027 Accepted. 조건은 `01_project-rules.md` 6.1절이 정본이며 여기에 복사하지 않는다) |
-| Response Parser | `extraction` | 구조화 출력 + 검증기 | — |
+| Communication Service | `comms` + `channels` | 초안·구조화 값·발송 승인(`message_approval`)·Outbox·발송 시도(`send_attempt`)·Channel Adapter·수신 원문 보존·발신자 등록부 매핑. 흐름은 2.2절 | **Tech Validation 단계부터 조건부 실제 발송** (ADR-027 Accepted. 조건은 `01_project-rules.md` 6.1절이 정본이며 여기에 복사하지 않는다) |
+| Response Parser | `ai/` 추출 → `back/` 검증기 | LLM 은 값 후보 + 원문 인용만(`extraction`). 역할·권한·사실 키·확정은 Backend | — |
 | Notification Service | `api` SSE + `notifications` 테이블 | 앱 안 알림 | 메일·메신저 |
 | Audit Log | `audit` | activity + audit 테이블 (append-only) | — |
 | Simulation Service | `sim` | 시나리오 로더, SimClock, 스크립트 회신 | — |
+| Error Handling / Observability | `errors`(공통 오류 처리) · 구조화 로거 | 세 경계 공통 처리, `request_id`·`trace_id`, 중요한 오류만 `system_error`(`22` 16.2a) | 로그 저장소·관측 제품(Q-67) |
+
+### 2.2 외부 통신 흐름 (정본: `18` · `19` · `22` 15절)
+
+```text
+발송:  초안(숫자는 계획에서 주입, 문장은 AI) → 사람 발송 승인(업무 메시지) → Outbox
+       → 발송 시도(send_attempt, 외부 호출 전에 기록) → Channel Adapter → 결과 한 번 기록
+수신:  원문 보존(raw_input) → 발신자 등록부 매핑(역할·권한, Backend) → AI 추출 후보(extraction)
+       → Backend 검증(인용·스키마·단위) → Event → Reconciliation → 현재 사실(대개 PROVISIONAL)
+실패:  발송 시도 결과 + 필요하면 system_error. 현실 Event 로 기록하지 않는다
+```
+
+- **AI 는 신원·권한·사실 키·현재 상태·숫자·발송을 정하지 않는다**(`18` O절, ADR-026·029).
 
 ## 3. 기술 스택 (ADR-002, ADR-016 Proposed)
 
-> **2026-09-18 — 이 표의 Backend 줄(Python·FastAPI·Pydantic·SQLAlchemy·pytest 등)은 ADR-002 초안 기록이다.** Backend 언어는 **미결**이고 현재 우선 후보는 **NestJS + TypeScript**(ADR-031 Proposed, Spring Boot 후보 유지)다. 후보 비교·솔버 위험·결정 시점, 그리고 **오류 처리·관측성(`system_error`, `request_id`·`trace_id`)** 은 `23_runtime-platform-and-observability.md` 가 정본이다. 이 절과 1·2절의 Python 전제 표현은 T-070 에서 정리한다.
+> **2026-09-18 — 이 표의 Backend 줄(Python·FastAPI·Pydantic·SQLAlchemy·pytest 등)은 ADR-002 초안 기록이다. 각 줄에 "(초안)"을 붙였다(T-070).** Backend 언어는 **미결**이고 현재 우선 후보는 **NestJS + TypeScript**(ADR-031 Proposed, Spring Boot 후보 유지)다. 후보 비교·솔버 위험·결정 시점, 그리고 **오류 처리·관측성(`system_error`, `request_id`·`trace_id`)** 은 `23_runtime-platform-and-observability.md` 가 정본이다. 이 절과 1·2절의 Python 전제 표현은 T-070 에서 정리한다.
 
 > **읽는 법 (2026-09-16 갱신)**: 아래 표의 각 줄을 네 가지로 구분해 읽는다. **특정 제품·모델 이름이 적혀 있다고 해서 요구사항이 아니다.**
 >
@@ -95,43 +115,43 @@ flowchart TB
 
 | 영역 | 선택 | 이유 |
 | --- | --- | --- |
-| 언어·런타임 | Python 3.12, uv | OR-Tools·데이터 처리·LLM SDK 생태계, lockfile 재현성 |
-| 도메인 모델 | Pydantic v2 | 검증 + JSON Schema 생성(LLM 구조화 출력 스키마로도 사용) |
-| API | FastAPI + SSE | Pydantic과 궁합, 단방향 실시간 푸시로 충분 |
-| DB | SQLite → PostgreSQL, SQLAlchemy 2.x + Alembic | 파일 하나로 시작, JSON 컬럼은 두 DB에서 모두 동작하는 방식만 |
+| 언어·런타임 | **(초안 · 미결)** Python 3.12, uv — 현재 우선 후보는 NestJS + TypeScript(`23` 3절) | OR-Tools·데이터 처리·LLM SDK 생태계, lockfile 재현성 |
+| 도메인 모델 | **(초안)** Pydantic v2 | 검증 + JSON Schema 생성(LLM 구조화 출력 스키마로도 사용) |
+| API | **(초안)** FastAPI + SSE | Pydantic과 궁합, 단방향 실시간 푸시로 충분 |
+| DB | **(초안 · 미결)** SQLite → PostgreSQL, SQLAlchemy 2.x + Alembic | 파일 하나로 시작, JSON 컬럼은 두 DB에서 모두 동작하는 방식만 |
 | 최적화 | **미정** — 현재 후보 OR-Tools CP-SAT (ADR-007 Reopened, T-036에서 MILP·min-cost flow 등과 비교해 결정) | 정수 비용·논리 제약 |
-| HTTP·XML | httpx, lxml | 공공 API가 XML |
+| HTTP·XML | **(초안)** httpx, lxml | 공공 API가 XML |
 | LLM | **[D] 미정 — 구현 시점에 선택한다.** 아래는 2026-09-11 시점의 예시일 뿐 요구사항이 아니다: Anthropic Python SDK, `claude-opus-5`. **요구사항은 "무엇을 하는가"이지 "어느 제품인가"가 아니다** | 구조화 출력, 문서 입력, 원문 인용, 녹화 재생 (`01` 3절, `19` 11절) |
-| 스케줄 | APScheduler (공공 API 동기화), SimClock (시나리오) | 단일 프로세스 |
-| 휴일 | `holidays`(KR) + 수동 보정 파일 | 영업일 Free Time |
-| 테스트·린트 | pytest, hypothesis, ruff | 속성 테스트(순서 무관성, 비용 단조성) |
+| 스케줄 | **(초안)** APScheduler (공공 API 동기화), SimClock (시나리오) | 단일 프로세스 |
+| 휴일 | **(초안)** `holidays`(KR) + 수동 보정 파일 | 영업일 Free Time |
+| 테스트·린트 | **(초안)** pytest, hypothesis, ruff | 속성 테스트(순서 무관성, 비용 단조성) |
 | 프론트엔드 | TypeScript, React, **Next.js**(App Router), 운영 지도는 2D SVG. Three.js는 필요할 때만 | Control Tower Prototype으로 먼저 구현(ADR-022 Proposed, ADR-016 부분 개정). 화면은 Frontend Data Contract에만 의존(`16_frontend-prototype.md` 5절) |
 
 ## 4. 저장 스키마 (논리)
 
-| 테이블 | 핵심 컬럼 | 성격 |
+**정본은 `22_cera-logical-data-model.md`(rev.2.2, T-079 DONE)다.** 2026-09-18 T-070 에서 이 절의 옛 테이블 목록(개념 모델 이전 초안)을 지우고 대응표로 바꿨다(X-10). 컬럼·제약·변경 방식은 여기에 복사하지 않는다.
+
+| 옛 초안 이름 | 논리 설계의 표 (`22`) | 비고 |
 | --- | --- | --- |
-| `events` | event_id, schema_version, event_class, event_type, entity_type, entity_id, fact_key, value(json), payload(json), related_entity_ids(json), source_type, source_role, source_org, source_id, source_event_time, source_recorded_at, received_at, recorded_at, confidence(json), extraction(json), supersedes_event_id, target_event_ids(json), verification_action, verification_method, overruled_event_ids(json), correlation_id, raw_ref, idempotency_key(unique), is_simulated (`05_event-and-state.md` 4.2) | **append-only** |
-| `raw_inputs` | id, kind(PUBLIC_API/EMAIL/FILE/ACTION/SCENARIO), received_at, request_hash, http_status, body(blob), meta(json) | append-only |
-| `canonical_facts` | entity_type, entity_id, fact_key, fact_kind, family, value(json), effective_time, evidence_time, evidence_time_quality, temporal_confidence, value_status, verification_basis, freshness_status, conflict_status, conflict_id, hold_status, held_candidate_event_id, decision_usability, usability_reasons(json), winner_event_id, winner_strength, evidence(json), rule_trace(json), explanation, policy_version, as_of, fingerprint, revision, materialized_at (`05` 9.1) | 파생 (재생성 가능) |
-| `conflicts` | conflict_id, entity_type, entity_id, fact_keys(json), candidate_event_ids(json), rule, status(OPEN/RESOLVED), resolution_event_id | 파생 |
-| `verification_requests` | request_id, reason(V1~V8), entity_type, entity_id, fact_keys(json), candidate_event_ids(json), conflict_id, question, actions(json), blocking_scope, priority_score, status, created_by_rule | 파생 + 처리 이력 컬럼 |
-| `planning_snapshots` | snapshot_id, as_of, policy_version, events_watermark, snapshot_hash, body(json) (`05` 14절) | 불변 |
-| `plan_decisions` | decision_id, decision_type(PLAN_APPROVAL/PLAN_REJECTION), run_id, snapshot_hash, decided_by, decided_at, recorded_at, input_check(json), acknowledged_provisional_inputs(json), verified_in_same_action(json), reason (`05` 11.5) | **append-only**. Event Store와 분리(사실이 아니라 결정) |
-| `containers` | container_no, bl refs, carrier, destination_id, is_simulated | 식별 레지스트리 |
-| `resources` | resource_id, type(WAREHOUSE/TRUCK_POOL/ODCY/SLOT/TERMINAL), attrs(json) | 등록 정보 |
-| `contracts` | contract_id, party, file_ref, status | |
-| `tariff_rules` | rule_id, version, status(DRAFT/CONFIRMED/RETIRED), body(json), evidence(json), confirmed_by/at | 버전 관리 |
-| `rate_quotes` | quote_id, provider, item, equipment, amount_krw, valid_until, source_event_id, status | |
-| `risk_snapshots` | run_id, as_of, subject, type, grade, slack_minutes, exposure_krw, breakdown(json) | 산출물 |
-| `recovery_runs` | run_id, as_of, trigger, input_hash, policy/rule versions, seed, solver_status, baseline_krw, recovery_krw, provisional_inputs(json), status(PROPOSED/APPROVED/SUPERSEDED/REJECTED) | 산출물 |
-| `assignments` | run_id, container_no, route, slot, delivery_day, cost_krw, baseline_cost_krw, locked | 산출물 |
-| ~~`messages`~~ | **ADR-028(Accepted)로 대체됐다**: 통신 도메인을 스레드 / 메시지 / 상태 전이 이력으로 나누고, 상대방 등록부를 **거래처 → 담당 연락처 → 채널 주소**(발송 자격 3상태) 3단계로 둔다. 검증 기록·추출 기록이 더해진다. 옛 단일 테이블에는 채널·외부 ID·재시도·멱등키·승인 내용 해시가 없어 실제 발송을 감당하지 못한다. **구조는 확정이고 테이블·컬럼 이름은 후보다**(ADR-028 본문: "구체 컬럼·DDL은 확정이 아니다"). 후보 컬럼은 `18` D.1 | **구조 확정 · DDL 미정** |
-| `agent_activity` | id, at, agent, action, refs(json), text | append-only, 타임라인 |
-| `audit_log` | id, at, actor, action, target, detail(json) | append-only |
-| `scenarios` | scenario_id, seed, body(json) | SIMULATED |
+| `events` · `raw_inputs` | `event` · `event_entity_link` · `raw_input` | 사건마다 주체 1건, 근거 강도는 사건에 저장하지 않는다(11.2~11.3) |
+| `canonical_facts` · `conflicts` · `verification_requests` | `canonical_fact` · `conflict` · `verification_request` + `verification_request_handling` | 파생 표는 다시 만들 수 있고, 사람 처리 기록은 논리 연결 키로 남는다(11.4~11.7) |
+| `planning_snapshots` | `planning_snapshot` + `_fact` · `_constraint` · `_input` | 계산에 쓴 입력을 값으로 얼린다(13.1~13.2b) |
+| `plan_decisions` | `plan_decision` · `operator_planning_constraint` | 계획 결정과 계획 조건은 다른 기록이다(13.5~13.6) |
+| `containers` | `container` · `bl` · `container_bl` · `external_identifier` | B/L 은 독립, 연결 표(8절) |
+| `resources` | `facility` + `facility_warehouse` · `_terminal` · `_odcy` · `truck_pool` | 마스터는 평시 기준선만, 그날 값은 사실(9절) |
+| `contracts` · `tariff_rules` | `contract` · `tariff_rule` | 요율 규칙은 판 교체(12.1~12.2) |
+| `rate_quotes` | `commercial_offer` · `commercial_offer_item` + `TERM` 사건 | 제안은 근거, 현재 요율의 정본은 현재 사실(12.3~12.4) |
+| `risk_snapshots` · `recovery_runs` · `assignments` | `risk_assessment` · `recovery_run` · `assignment` · `cost_result` · `cost_line_item` · `cost_line_link` | 계산 산출 기록, 사실이 아니다(13·14절) |
+| `messages` | `comm_thread` · `question_item` · `comm_message` · `comm_message_structured_field` · `comm_message_question` · `message_approval` · `message_approval_structured_field` · `send_attempt` · `message_status_transition` · `extraction` · 등록부(`counterparty` → `counterparty_contact` → `contact_channel_address` · `contact_verification`) · `channel_connection` | ADR-028(15·10절) |
+| `agent_activity` | 저장하지 않음 — Activity Timeline 은 조회로 만든다 | `22` 21절 |
+| `audit_log` · `scenarios` | `audit_log` · `actor` · `scenario` | 16절 |
+| (없었음) | `system_error` | 기술 운영 기록. 업무 사실이 아니다(16.2a, `23` 4절) |
+
+- 논리 표 전체(MVP 51)는 **첫 마이그레이션이 아니다.** 물리 설계(T-080)는 T-069 가 정한 첫 슬라이스에 필요한 표부터 한다(`22` 26절).
 
 ## 5. 내부 API 초안
+
+> **경로는 초안이다.** 외부 통신 슬라이스부터 Backend OpenAPI 가 계약 정본이 되며(ADR-028) 실제 endpoint 는 T-069 구현 계획에서 정한다. 오류 응답 모양(코드 · 사람이 읽을 문장 · `request_id`)도 계약에 들어간다(`23` 12절).
 
 | 메서드 | 경로 | 설명 |
 | --- | --- | --- |
@@ -190,9 +210,9 @@ container_exception/            ← 저장소 루트 = CERA 루트
 
 | 영역 | 들어갈 모듈 (옛 `src/cera/` 이름) | 비고 |
 | --- | --- | --- |
-| `back/` | **I/O 계층**: `api`(REST + push), `storage`(DB·마이그레이션), `intake`(어댑터: public_api·csv·actions·mailbox·documents·scenario), `channels`(Gmail 등 통신 채널 어댑터·OAuth), `comms`(초안·승인·Outbox·스레드·상대방 등록부), `orchestrator`, `sim`(시나리오 재생·SimClock), `config`(policy.yaml)<br>**결정론 엔진**(ADR-029): `state`(reconcile·canonical·verification), `tariff`, `cost`, `risk`, `optimize` | Event 저장·Canonical State·연동·승인·감사·**모든 결정론 계산**이 여기. 엔진 패키지는 순수 함수이고 `storage`·네트워크·LLM 클라이언트를 import하지 않는다(`07` 1.2, `01` 3절) |
+| `back/` | **I/O 계층**: `api`(REST + push), `errors`(공통 오류 처리·구조화 로그·`system_error` 기록, `23` 4~6절), `storage`(DB·마이그레이션), `intake`(어댑터: public_api·csv·actions·mailbox·documents·scenario), `channels`(Gmail 등 통신 채널 어댑터·OAuth), `comms`(초안·승인·Outbox·스레드·상대방 등록부), `orchestrator`, `sim`(시나리오 재생·SimClock), `config`(policy.yaml)<br>**결정론 엔진**(ADR-029): `state`(reconcile·canonical·verification), `tariff`, `cost`, `risk`, `optimize` | Event 저장·Canonical State·연동·승인·감사·**모든 결정론 계산**이 여기. 엔진 패키지는 순수 함수이고 `storage`·네트워크·LLM 클라이언트를 import하지 않는다(`07` 1.2, `01` 3절) |
 | `ai/` | **LLM·비정형 처리만** (ADR-029 Accepted): LLM Provider, Email Extraction, Contract Extraction, Draft 자연어 문장, Explanation | 검증기·매핑은 Backend 쪽이다(`18` D.3). `ai/`는 DB 커넥션·ORM·외부 API 클라이언트를 갖지 않는다 |
-| back·ai 공통 | `domain`(Event, CanonicalFact, TariffRule, Plan … 모델) | 둘이 함께 쓰는 Python 패키지 위치는 T-003에서 정한다 |
+| back·ai 공통 | `domain`(Event, CanonicalFact, TariffRule, Plan … 모델) | 둘이 함께 쓰는 공유 패키지 위치는 T-003에서 정한다(언어는 Backend 결정을 따른다) |
 | `packages/` | 화면·백엔드 공유 계약 | Backend의 **OpenAPI를 정본**으로 두고 TypeScript 타입을 자동 생성하는 방향. 지금은 `front/web/src/contracts/cera.ts`(손 작성) |
 | `data/` | `scenarios/`(현재 JSON), `fixtures/`(마스킹·합성, 녹화 응답), `contracts/`(합성 계약서), `raw/`(실제 원본, `.gitignore`) | 현재는 `scenarios/`만 있음 |
 | `infra/` | Dockerfile, compose, 클라우드 배포 | 서비스별 이미지(front / back / ai) |
@@ -222,10 +242,10 @@ container_exception/            ← 저장소 루트 = CERA 루트
 | --- | --- |
 | `UNIPASS_API_KEY` | UNI-PASS 인증키(`crkyCn`) |
 | `DATA_GO_KR_SERVICE_KEY` | 공공데이터포털 `serviceKey` |
-| `ANTHROPIC_API_KEY` | LLM (녹화 재생 모드에서는 불필요) |
+| LLM 공급자 키 (예: `ANTHROPIC_API_KEY`) | LLM (녹화 재생 모드에서는 불필요). **공급자는 미정**이라 키 이름은 구현 때 정한다 |
 | `CERA_LLM_MODEL` | 쓸 모델 식별자. **기본값을 문서에 고정하지 않는다** — 구현 시점에 고른다(3절 D) |
 | `CERA_LLM_MODE` | `live` / `replay` |
-| `CERA_DB_URL` | 기본 `sqlite:///data/cera.db` |
+| `CERA_DB_URL` | DB 연결. 기본값은 DB 제품 결정(T-069 뒤) 다음에 정한다 |
 | `CERA_TZ` | `Asia/Seoul` 고정 |
 
 정책값(권한 매트릭스, 근거 강도표, τ·δ_m, 신선도 기준, 보류 기준, 버퍼, 등급 기준 — `05_event-and-state.md` 15절)은 `back/`의 config 모듈 아래 `policy.yaml`(옛 계획 `src/cera/config/policy.yaml`, 정확한 경로는 T-003)에 두고 값마다 `tag`와 `rationale`을 적는다. 정책 파일의 해시가 `policy_version`이 된다.
@@ -234,6 +254,6 @@ container_exception/            ← 저장소 루트 = CERA 루트
 
 - 풀 Event Sourcing 프레임워크, CQRS 분리 배포 (ADR-013)
 - 메시지 브로커, 분산 작업 큐
-- 실제 메일 발송, 외부 시스템 Write (`01_project-rules.md` 6절)
+- PoC 단계의 실제 메일 발송(**Tech Validation 단계부터 조건부 허용** — `01_project-rules.md` 6.1절), 외부 시스템 Write (`01` 6절)
 - 사용자 인증·권한·멀티테넌시 (로컬 단일 사용자 가정)
 - 모바일 앱 (짧은 액션은 웹 반응형으로)

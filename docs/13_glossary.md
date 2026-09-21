@@ -1,7 +1,7 @@
 # 13. 용어집
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-18 (**T-079 최종 정리: 오류·관측성·런타임 용어 5개만 추가**(System Error · Request ID · Trace ID · Structured Log · DesktopBridge). 전체 동기화는 여전히 T-070). 이전: 2026-09-17 (**T-077: 운영자 계획 조건 · 예상 비용 · 실제 비용 3개만 최소 추가.** 용어집 전체 동기화는 T-070 계획을 그대로 둔다). 이전: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
+- 최종 수정: 2026-09-18 (**T-070 문서 동기화**: 개념 모델(`docs/21`)·논리 설계(`docs/22`) 결정으로 닫힌 항목(Facility · Destination · Actor · MBL/HBL · RateQuote · Resource · 저장 이름)을 갱신하고, 문서에서 쓰는데 없던 통신·상업·계획 용어를 **4.1절**에 추가했다(X-11). 같은 날 앞서 **T-079 최종 정리: 오류·관측성·런타임 용어 5개만 추가**(System Error · Request ID · Trace ID · Structured Log · DesktopBridge). 전체 동기화는 여전히 T-070). 이전: 2026-09-17 (**T-077: 운영자 계획 조건 · 예상 비용 · 실제 비용 3개만 최소 추가.** 용어집 전체 동기화는 T-070 계획을 그대로 둔다). 이전: 2026-09-16 (T-072 데이터 모델 사전 결정: **Facility · Destination · Operational Plan · Recovery Plan · Actor · PLAN(fact_kind)** 추가·구분). 이전: 2026-09-15 (T-060 시각 품질·신선도 UNKNOWN, Prototype 용어). 이전: 2026-09-11 (T-032: 출처 3축·근거 강도·상태 차원·fact_kind·단계 용어 반영. v0.2: 이벤트·상태·에이전트 용어 추가, `08_glossary.md`에서 이름 변경)
 - 코드 식별자는 `코드 표기` 열을 따른다.
 
 ## 1. 물류·통관
@@ -19,7 +19,7 @@
 | Tariff | `tariff` | 선사·터미널이 공시한 요율표 |
 | 특약 | `special_terms` | 화주와 선사 간 별도 합의 조건(Free Time 연장 등) |
 | B/L | `bl` | Bill of Lading, 선하증권 |
-| MBL / HBL | `mbl_no` / `hbl_no` | Master B/L(선사 발행) / House B/L(포워더 발행) |
+| MBL / HBL | `bl_type` (+ `bl_no`, 부모 참조) | Master B/L(선사 발행) / House B/L(포워더 발행). **B/L 은 컨테이너의 속성이 아니라 독립 개념**이고 컨테이너와는 `container_bl` 로 잇는다(MVP 주 B/L 1건). 옛 표기 `mbl_no`/`hbl_no` 두 칸은 쓰지 않는다(`22` 8.2) |
 | 화물관리번호 | `cargo_mgmt_no` | 관세청이 화물에 부여하는 관리번호 (UNI-PASS `cargMtNo`) |
 | 적하목록 | `manifest` | 선박에 실린 화물 목록. 적하목록관리번호 + MSN으로 식별 |
 | 적하목록관리번호 | `manifest_no` | 적하목록을 식별하는 번호 (해수부 `mrNum`) |
@@ -35,8 +35,8 @@
 | 수입신고수리 | `customs_cleared` | 세관이 수입신고를 수리함 → 반출 가능 조건 중 하나 |
 | D/O | `delivery_order` | Delivery Order, 화물인도지시서. 선사가 발행하며 반출 조건 중 하나 |
 | ODCY | `odcy` | Off-Dock Container Yard. 부두 밖 컨테이너 장치장 |
-| **Facility** | — | **컨테이너가 머무르거나 거쳐 가는 물리적 장소의 공통 상위 개념** (창고·터미널·ODCY). 식별·위치·운영 시간이 공통이고 용량·요율·규격 제한은 종류마다 다르다. **개념적 부모일 뿐이며 "테이블 하나에 전부 넣는다"는 뜻이 아니다** — 저장 구조는 논리 설계에서 결정 (2026-09-16 T-072) |
-| **Destination** | `destination_id` | **특정 컨테이너·운영 계획에서 도착해야 하는 곳이라는 역할.** Facility의 한 종류로 바로 확정하지 않았다 — 같은 창고가 어떤 컨테이너에는 목적지이고 다른 컨테이너에는 경유지일 수 있다. Facility와의 관계는 개념 모델에서 검토 (2026-09-16 T-072) |
+| **Facility** | — | **컨테이너가 머무르거나 거쳐 가는 물리적 장소의 공통 상위 개념** (창고·터미널·ODCY). 식별·위치·운영 시간이 공통이고 용량·요율·규격 제한은 종류마다 다르다. **개념적 부모일 뿐이며 "테이블 하나에 전부 넣는다"는 뜻이 아니다** — 논리 설계는 **공통 `facility` + 종류별 1:1 상세**로 정했다(Q-55, `22` 9절). 마스터에는 평시 기준선(`default_…`)만 두고 그날 값은 사실이다 (2026-09-16 T-072, 2026-09-18 T-070 갱신) |
+| **Destination** | `destination_id` | **특정 컨테이너·운영 계획에서 도착해야 하는 곳이라는 역할.** **독립 엔티티가 아니라 관계에 붙은 역할이다**(`21` 5.3, Q-56) — 같은 창고가 어떤 컨테이너에는 목적지이고 다른 컨테이너에는 경유지일 수 있다. 저장은 시설 참조(`container.destination_facility_id`, `assignment.to_facility_id`) (2026-09-16 T-072, 2026-09-18 T-070 갱신) |
 | VBS | `vbs` | Vehicle Booking System. 터미널 반출입 차량 예약 시스템 |
 | Gate | `gate` | 터미널 출입구. Gate 처리 시간·버퍼 |
 | 공컨 반납 | `empty_return` | 적출 뒤 빈 컨테이너를 선사 지정 장소에 반납 |
@@ -55,17 +55,17 @@
 | --- | --- | --- |
 | System of Record / Decision / Action | — | 사실을 기록·보관하는 시스템(FMS, UNI-PASS) / 그 사실로 판단하고 실행을 돕는 층(CERA) |
 | Event | `Event` | 출처가 "무엇이 언제 일어났다"고 주장한 기록. append-only. 현실 그 자체가 아니다 |
-| Event Store | `events` | Event를 추가만 하는 저장소 |
+| Event Store | `event` (+ `raw_input`, `event_entity_link`) | Event를 추가만 하는 저장소. 정정도 새 행이다(`22` 11절) |
 | source_type | `source_type` | 출처 **채널**: HUMAN_UI, FILE_IMPORT, EMAIL, DOCUMENT, PUBLIC_API, PARTNER_SYSTEM, INFERENCE (ADR-020). 옛 HUMAN_CONFIRMED 등은 폐기 |
 | source_role / source_org | `source_role`, `source_org` | 현실에서 누가 말했나(OPERATOR, WAREHOUSE, TRUCKING …)와 그 조직. 권한 판정 기준 |
 | Source Authority | `authority_matrix` | 사실 계열 × 역할별 권한 등급 A / S / W / – (`05` 3.2) |
-| 근거 강도 | `strength` | Event가 그 사실에 대해 얼마나 강한 근거인가(0~3). 채널 × 권한 × 확인 × 추출 신뢰도 (`05` 3.3). 전역 우선순위를 대체 |
+| 근거 강도 | `strength` / `evidence_strength` | Event가 그 사실에 대해 얼마나 강한 근거인가(0~3). 채널 × 권한 × 확인 × 추출 신뢰도 (`05` 3.3). 전역 우선순위를 대체. **계산되는 값이라 사건에 저장하지 않고** 현재 사실에 정책 판과 함께 둔다(`22` 11.2·11.4) |
 | Source Priority (폐기) | — | 옛 전역 출처 순위. ADR-019로 대체 |
 | Confidence | `confidence` | Event 입력 품질(HIGH / MEDIUM / LOW). 결정론적 검증기가 정한다(`05` 4.6) |
 | fact_kind | `fact_kind` | 사실 종류: MILESTONE / STATE / OFFER / TERM / IDENTITY / PLAN / FORECAST. 종류마다 선택 규칙이 다르다 |
 | FORECAST | `forecast.*` | 외부 예정·예상 또는 CERA 예측(ETA 등). 관측 사실과 다른 키이며, 실제 사건이 생기면 판단에서 빠진다 |
 | **PLAN (fact_kind)** | `plan.*` | **CERA 사용자가 세운 예정**(픽업 예정 시각, 입고 예정일). 3절의 **Operational Plan**에 해당한다. **최적화가 만든 Recovery Plan이 아니다** — 이름이 같아 혼동하기 쉬우므로 주의 (2026-09-16 T-072) |
-| **Actor** | — | **CERA 안에서 행동한 주체.** 승인·결정·확인 기록이 가리키는 대상(운영자, CERA 시스템, 향후 서비스 계정). **개념만 두고 사용자·조직·권한 모델은 만들지 않는다.** 실제 저장 구조는 논리 설계에서 결정 (2026-09-16 T-072) |
+| **Actor** | — | **CERA 안에서 행동한 주체.** 승인·결정·확인 기록이 가리키는 대상(운영자, CERA 시스템, 향후 서비스 계정). **개념만 두고 사용자·조직·권한 모델은 만들지 않는다.** 논리 설계는 최소 4컬럼(`actor_id`·`actor_type`·`display_name`·`is_active`)으로 정했다(Q-62, `22` 16.1) (2026-09-16 T-072, 2026-09-18 T-070 갱신) |
 | 사실 계열 | `family` | 권한·신선도 기준을 묶는 단위(customs, warehouse_capacity, truck_availability …) |
 | event_class | `event_class` | OBSERVATION(주장) / CORRECTION(정정) / VERIFICATION(사람 확인) |
 | source_event_time / source_recorded_at / received_at / recorded_at | — | 현실 발생 시각 / 출처 기록·발신 시각 / CERA 수신 운영 시각 / DB 기록 벽시계 시각 |
@@ -77,7 +77,7 @@
 | τ / δ_m | `clock_tolerance_tau`, `milestone_tolerance` | 동시로 보는 근거 시각 차이 / 같은 마일스톤으로 보는 시각 차이 (`[TO VERIFY]`) |
 | fact_key | `fact_key` | 사실의 키(예: `milestone.gate_out_at`, `capacity.day(D)`). 카탈로그 `05` 4.3 |
 | Reconciliation | `reconcile` | 같은 사실에 대한 여러 Event를 R1~R12로 정리해 이긴 값을 정하고 충돌을 찾는 과정 |
-| Canonical Operational State | `canonical_facts` | Reconciliation 결과. 사실마다 값·차원별 상태·근거 Event·규칙 추적·설명 |
+| Canonical Operational State / **CanonicalFact** | `canonical_fact` | Reconciliation 결과 — **사실 하나의 현재 결론**. 사실마다 값·차원별 상태·근거 Event·규칙 추적·설명. **Event 가 아니며**, 전부 지워도 Event 로 다시 만들 수 있다. 적용 범위가 다르면 다른 현재 사실이다(`22` 11.4) |
 | value_status | `value_status` | 값을 누가 보증하나: CONFIRMED / OBSERVED / PROVISIONAL / INFERRED / UNKNOWN |
 | conflict_status / hold_status | — | 충돌 NONE / DISSENT / OPEN, 보류 NONE / HELD |
 | decision_usability | `decision_usability` | 엔진이 보는 종합 판단: USABLE / USABLE_WITH_WARNING / APPROVAL_BLOCKED / UNUSABLE (`05` 8.4) |
@@ -85,14 +85,14 @@
 | Provisional | `PROVISIONAL` | 상대방이 제안·보고한 자원·견적 값(강도 1). 정책이 허용하면 계획에 쓸 수 있다. **계획 승인으로는 확인되지 않는다** |
 | verification_basis | `verification_basis` | CONFIRMED의 근거: HUMAN_VERIFICATION / AUTHORITATIVE_SYSTEM / POLICY_EVIDENCE |
 | Fact Verification | `VERIFICATION` Event | "이 사실이 현실인가"에 대한 사람의 확인. 사실 상태를 바꾼다 |
-| Plan Approval | `PLAN_APPROVAL` 결정 기록 | "이 스냅샷 기준으로 이 계획을 실행해도 되는가"에 대한 승인. Event Store 밖(`plan_decisions`)에 기록하며 사실 상태를 바꾸지 않는다 |
+| Plan Approval / **PlanDecision** | `plan_decision` | "이 스냅샷 기준으로 이 계획을 실행해도 되는가"에 대한 사람의 결정(채택 · 거부 · 기존 계획 유지 — 값 목록 미확정). Event Store 밖에 덧붙이기로 기록하며 사실 상태를 바꾸지 않는다(`22` 13.5) |
 | Held | `HELD` | 약한 근거가 주장한 불리한 큰 변경. 확인 전까지 기존 값 유지 (R10) |
 | Conflict | `Conflict` | 자동으로 정할 근거가 없는 출처 간 차이(동률 동시 충돌, 약한 새 근거 vs 강한 신선 근거, 단계 역행) |
 | Dissent | `DISSENT` | 강도에서 져 자동 기각된 다른 값. 기록만 하고 판단은 막지 않음 |
 | 기각 | `overruled_event_ids` | 확인 요청 처리 때 사람이 고르지 않은 후보. 같은 충돌이 다시 열리지 않게 함 |
 | Verification Request | `VerificationRequest` | 사람에게 보내는 확인 요청(V1~V8). [확인] [수정] [거절] |
 | Human Confirmation | `HUMAN_UI` / `VERIFICATION` | 사람의 직접 입력(그 자체로 확인) 또는 다른 Event에 대한 확인. 정식 입력 채널 |
-| Planning Snapshot | `planning_snapshots` | 엔진 입력용으로 고정한 Canonical State (`05` 14절) |
+| Planning Snapshot | `planning_snapshot` (+ `_fact` · `_constraint` · `_input`) | **한 번의 계산이 실제로 쓴 입력을 얼린 것** — 현재 사실 값(적용 범위 포함) · 운영자 계획 조건 · 마스터 기본값 · 요율·정책 판 (`05` 14절, `22` 13.1~13.2b) |
 | fingerprint | `fingerprint` | Canonical Fact 결정론 필드의 해시. 재현성 검증용 |
 | 짧은 액션 | `action` | 긴 폼 대신 버튼 하나로 사실을 보고·확인하는 UI 동작 |
 | 일일 집계 보고 | `WAREHOUSE_DAILY_REPORT` | 목적지 단위 예정·도착·입고·대기·잔여 수용 대수 보고 |
@@ -101,8 +101,8 @@
 | Exception | `exception.<CODE>` | 컨테이너 자체의 예외 사실(CUSTOMS_HOLD, RECEIVER_REJECT …) |
 | 자원 조건 / 영향 | `condition`, `impacts` | 자원 상태에서 나온 조건(WAREHOUSE_CAPACITY_REDUCED 등)과, Risk가 계산한 컨테이너별 영향(사실 아님) |
 | ready_at | `ready_at` | 반출 가능 시각 = max(양하, 통관 수리, D/O). 하나라도 없거나 CUSTOMS_HOLD면 null |
-| Resource | `Resource` | 창고 수용량, 트럭 풀, ODCY, 반출 슬롯 |
-| RateQuote | `RateQuote` | 메일·문서로 받은 견적(보관료, 운임 등). 유효기간을 가진다 |
+| Resource (자원) | — | 창고 수용량, 트럭 풀, ODCY, 반출 슬롯을 묶어 부르는 말. **단일 엔티티가 아니다** — 저장은 `facility`(+ 종류별 상세) · `truck_pool` 이고, 가용량·수용량은 사실이다(`04` 1·3절) |
+| RateQuote → **CommercialOffer** | `commercial_offer` (+ `_item`) | 상대가 한 번에 제시한 견적·제안 묶음(보관료, 운임 등, 유효기간·조건 포함). **근거(Evidence)이지 현재 요율의 정본이 아니다** — 계산에 쓰는 값은 요율 사실(`TERM`) → 현재 사실. 옛 이름 RateQuote (`04` 4.3, `22` 12.3) |
 | Provenance | `provenance` | 값의 출처 메타데이터. v0.2에서는 Event의 source 필드와 Canonical Fact의 `winning_event_id`로 표현 |
 | is_simulated | `is_simulated` | 시나리오에서 나온 값 표시 |
 
@@ -117,7 +117,7 @@
 | **Recovery Plan** | `recovery_plan` | **예외가 생긴 뒤 CERA가 만든 대체·복구 계획.** 최적화 산출물이며 사실이 아니다 |
 | **운영자 계획 조건** | `operator_planning_constraint` | **운영자가 복구 최적화에 명시적으로 준 사용·제외·선호·한도 조건** (예: "이번 건에서는 ODCY A 제외", "창고 B 우선", "추가 비용 50만원까지"). **현실 사실이 아니다** — 자원의 가용 사실로 기록하면 이번 계획에서만 제외한 시설이 현실에서 못 쓰는 자원처럼 오염된다. 강제 조건과 선호 조건을 표현할 수 있어야 하지만 **표현 방식·값 목록은 미정**이다 (2026-09-17 T-077, `docs/21` 12.5절, L-12) |
 | **예상 비용** | `estimated_cost` / `expected_cost` | **현재 입력으로 CERA가 계산한 비용.** 실제 청구액이 아니다. **계획 비용**(특정 복구 계획을 실행한다고 가정한 값)과도 구분한다 (2026-09-17 T-077, `docs/03` FR-OPR-10) |
-| **실제 비용** | `actual_cost` | **실제로 청구·지불된 금액.** **현재 범위 밖(Future)** 이다. CERA는 결제·정산 시스템이 아니다 (2026-09-17 T-077) |
+| **실제 비용** (Actual Incurred Cost) | `actual_cost` | **실제로 청구·지불된 금액.** **현재 범위 밖(Future)** 이다. CERA는 결제·정산 시스템이 아니다 (2026-09-17 T-077) |
 | Baseline | `baseline` | 비교 기준. Operational Plan을 새 제약 아래에서 그대로 밀고 갈 때 |
 | Potential Saving | `potential_saving_krw` | Baseline 비용 − Recovery 비용 (시뮬레이션 기준). 옛 "Recoverable Exposure" |
 | Current Exposure (KPI) | `current_exposure_krw` | 조치하지 않을 때 추가비용 = Baseline TotalCost − 정상 직송 운임 `[PROPOSED]` Q-02 (Prototype, `16` 11절 G-3) |
@@ -125,7 +125,8 @@
 | Simulated Recovery Plan | — | 엔진이 아니라 시나리오에 명시한 계획(`result_kind = SCENARIO_RESULT`). "Solver가 계산했다"고 쓰지 않는다 |
 | Realized Saving | `realized_saving_krw` | 실제 실행된 계획 기준 절감액 (Pilot) |
 | Re-optimization | — | 입력 사실이 바뀌어 계획을 다시 계산하는 것. 승인된 배정은 잠근다 |
-| Recovery Run | `RecoveryRun` | 최적화 실행 한 번의 기록(입력 해시, 정책·규칙 버전, seed, 결과) |
+| Recovery Run | `recovery_run` | 최적화 실행 한 번의 기록(입력 스냅샷, 정책·규칙 버전, seed, 결과) |
+| **계획 비용** (Plan Cost) | `cost_result.cost_nature = PLAN` | 특정 복구 계획을 실행한다고 가정한 계산 비용. Baseline 비용도 이 종류다. 예상 비용·실제 비용과 구분한다(`04` 5절) |
 | CP-SAT | — | OR-Tools의 제약 프로그래밍 + SAT 솔버. CERA의 현재 솔버 **후보**(ADR-007 Reopened, T-036에서 결정) |
 | MILP | — | 혼합정수선형계획 |
 | VRP | — | 차량경로문제 |
@@ -159,6 +160,30 @@
 | Trace ID | `trace_id` | 서버 안 여러 계층과 외부 호출을 한 흐름으로 잇는 기술 식별자. 업무 상관 id `correlation_id`(`05` 4.2)와 다르다 |
 | Structured Log | — | 레벨·경계·구성요소·작업·오류 코드·`request_id`·`trace_id` 를 필드로 가진 로그. 대량 로그는 DB 가 아니라 로그 저장소에 둔다(`23` 4.3) |
 | DesktopBridge | `DesktopBridge` | 화면이 데스크톱 런타임(Electron·Tauri) API 를 직접 부르지 않도록 감싸는 인터페이스. Web 구현도 있다. 업무 로직을 갖지 않는다(`23` 10절) |
+
+### 4.1 통신 · 상업 · 설계 용어 (2026-09-18 T-070 추가)
+
+| 용어 | 코드 표기 | 설명 |
+| --- | --- | --- |
+| Counterparty (거래처) | `counterparty` | 업무로 연락하는 조직. 선사·운송사·창고·ODCY·터미널은 **거래처의 역할**이다(선사를 별도 엔티티로 두지 않는다). 권한 판정의 입력 |
+| Contact (담당 연락처) | `counterparty_contact` | 거래처의 담당자. 주소와 분리해 교체·퇴사를 다룬다 |
+| ChannelAddress (채널 주소) | `contact_channel_address` | 담당자의 메일 주소 등. **발송 자격의 정본** — 주소 확인 · 업무 관계 승인 · 통신 활성 세 상태의 AND (ADR-028) |
+| ContactVerification (주소 소유 확인) | `contact_verification` | 1회용 토큰으로 "그 주소를 통제하는 사람이 응답했다"를 확인한 기록. 법적 대표권을 증명하지 않는다 |
+| CommThread · CommMessage | `comm_thread` · `comm_message` | 대화 · 메시지 한 통. 메시지는 **승인할 내용**(제목·본문·구조화 값·수신자)이며 만든 뒤 내용이 바뀌지 않는다. 종류는 업무(`BUSINESS`) / 주소 확인(`CONTACT_VERIFICATION`) |
+| QuestionItem (질문 항목) | `question_item` | 메시지에 실린 질문 하나. 대상 개체·사실 키·적용 범위를 **질문을 만들 때 Backend 가 확정**해 회신을 결정론적으로 되붙인다(`ask_id`) |
+| MessageApproval (발송 승인) | `message_approval` | 업무 메시지 발송에 대한 사람의 승인 기록(덧붙이기). 승인 시점 내용 지문과 사본을 얼린다. 내용·수신자·구조화 값이 바뀌면 새 승인 |
+| SendAttempt (발송 시도) | `send_attempt` | **실제 전송 시도 한 번.** 한 메시지에 재시도 시도가 여러 개 생길 수 있다. 메시지의 업무 상태와 다른 것이다 |
+| MessageStatusTransition | `message_status_transition` | 메시지 업무 상태가 바뀐 이력. 상태의 정본(메시지의 현재 상태는 캐시) |
+| Extraction (추출 후보) | `extraction` | LLM 이 회신·문서에서 뽑은 **값 후보 + 원문 인용**. 신원·권한·사실 키·확정은 담지 않는다. Backend 검증을 통과하면 Event 가 된다 |
+| Channel Adapter | `ChannelAdapter` | 외부 채널(가상 메일함, Gmail 등) 뒤의 공통 인터페이스. 채널이 바뀌어도 승인·검증·Event 경로는 같다(ADR-026) |
+| Outbox | — | 승인된 발송을 모아 두었다가 보내는 발송 대기열. 중복 발송 방지(외부 조회 화해)와 함께 쓴다(`18` H.2) |
+| Tech Validation | — | PoC 와 Pilot 사이 단계. 등록·검증·승인된 연락처에만, 건별 승인 뒤 실제 발송을 허용한다(ADR-027, `01` 6.1) |
+| CeraCommandClient | `CeraCommandClient` | 화면의 **쓰기** 계약(승인 등). 읽기 계약 `CeraDataProvider` 와 분리한다(ADR-028) |
+| correlation_id | `correlation_id` | **업무 상관** 식별자 — 메일 스레드 · Recovery Run · 확인 요청 · 시나리오 단계를 잇는다(`05` 4.2). 기술 추적 id(`trace_id`)와 다르다 |
+| TariffRule (요율 규칙) | `tariff_rule` | 계약에서 확정한 계산 규칙. 고치지 않고 새 판으로 바꾼다. `DRAFT` 규칙은 계산에 쓰지 않는다(`04` 4.2) |
+| Applied Rate (적용 요율) | — | 한 계산에서 실제로 고른 규칙 판·단가. 비용 줄에 남는 계산 결과의 일부(`21` 5.7) |
+| 적용 범위 (Applicability Scope) | `applicability_scope_type` / `_ref` | 사실·요율이 **무엇에 적용되나**(예: 전체 / 현재 복구 맥락). 유효 기간(`valid_from`/`valid_until`)과 다른 축이다. 운영자 입력의 기본값은 현재 복구 맥락(`22` 22절, D-3) |
+| 분류 / 변경 방식 | Classification / Mutation Policy | 논리 설계에서 표마다 붙는 두 축 — "이 데이터가 무엇인가"와 "만든 뒤 어떻게 다루나"(`APPEND_ONLY` · `CONTROLLED_UPDATE` 등, `22` 1절) |
 
 ## 5. 폐기된 용어
 

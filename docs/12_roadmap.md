@@ -70,7 +70,7 @@ LLM 없이, 시나리오를 CLI로 재생해 숫자가 나오게 한다. 회신�
 
 | 태스크 | 내용 | 의존 |
 | --- | --- | --- |
-| T-041 | Event Store + 저장 계층 (SQLite, 마이그레이션, append-only 보장) | T-003, T-032 |
+| T-041 | Event Store + 저장 계층 (DB 제품 미결 — T-069 뒤 결정, 마이그레이션, append-only 보장) | T-003, T-032 |
 | T-042 | Reconciliation + Canonical State + Verification 큐 (순수 함수, 속성 테스트) | T-041 |
 | T-043 | Tariff·Cost 엔진 (LFD, 비용 항목, 손 검산 골든 테스트) | T-033 |
 | T-044 | Risk 엔진 (SlackTime, 자원 부족, 영향 컨테이너) | T-042, T-043, T-035 |

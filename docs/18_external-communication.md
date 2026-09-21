@@ -4,6 +4,7 @@
 - 관련 ADR: ADR-008(LLM 경계, Accepted), ADR-017(사람 확인 게이트), ADR-018(시나리오 재생), ADR-019·020(Reconciliation·출처), ADR-024(Monorepo, Accepted), **ADR-026·027·028·029(이 문서에서 제안)**
 - **2차 개정 요지 (2026-09-16)**: ① 수신 흐름에 **구조화 채널 분기** 추가 — LLM은 "값이 자주 바뀌어서"가 아니라 "입력이 비정형이라서" 부른다(J.6) ② LLM 출력에서 `entity_id`·`fact_key`를 걷어내고 Backend 매핑으로 옮김(D.3) ③ `send_allowlist`를 **제품 Contact Gate + 개발 안전장치** 두 겹으로 분리(D.5·D.6·G.5) ④ 회신 결과를 세 가지로 구분하고 `OBSERVATION_REFRESH`는 미결로 둠(F.4) ⑤ **O절 CERA 전체 책임 경계표** 신설
 - 관련 문서: `01_project-rules.md` 3·6절, `03_requirements.md` 2.1·2.7·5절, `05_event-and-state.md` 3·4·8·11·14절, `06_agent-architecture.md` 2·4·7절, `07_backend-architecture.md` 4·5·6절, `11_data-sources.md` 5절, `16_frontend-prototype.md` 5·11절
+- **2026-09-18 T-070 동기화 — 저장 구조의 정본은 `22_cera-logical-data-model.md`(rev.2.2)다.** D.1 · E.1 · E.4 · H.2~H.4 · K.1 · N.2 를 논리 설계 기준으로 고쳤다. 역할 구분: **`comm_message`** = 업무 메시지·승인할 내용(만든 뒤 내용 불변) · **`message_status_transition`** = 메시지 생애주기 상태 변경 · **`send_attempt`** = 실제 외부 채널 전송 시도 한 번(재시도는 같은 메시지 아래 새 시도) · **`message_approval`** = 발송 승인(덧붙이기, 취소·무효화도 새 행) · **`audit_log`** = 사람·시스템의 감사 대상 행위 · **`system_error`** = 기술 오류(`23` 4절). 이 RFC 의 설계 근거와 흐름은 그대로 유효하다
 - 이 문서가 답하는 질문: **CERA가 밖으로 연락해서 받은 답을, 어떤 경로로 "믿을 수 있는 사실 후보"로 되돌리는가. 그리고 채널이 메일이 아니어도 그 구조가 버티는가.**
 
 > **범위 경고.** 이 문서는 설계(RFC)다. 코드는 없다. 여기 적힌 것을 구현하려면 M절의 사용자 결정 7건이 먼저 필요하고, 특히 `01_project-rules.md` 6절(“PoC의 메일 발송은 가상 메일함으로만”)을 고치지 않으면 실제 발송을 만들 수 없다.
@@ -135,26 +136,28 @@ ADR-024의 영역 분리를 이 루프에 적용한 것이다.
 
 ## D. 주요 데이터 모델
 
-`07_backend-architecture.md` 4절의 `messages` 한 테이블로는 실제 발송을 감당할 수 없다. 아래로 나눈다. (컬럼명은 `[PROPOSED]`)
+`07_backend-architecture.md` 4절의 옛 `messages` 한 테이블로는 실제 발송을 감당할 수 없어 나눴다. **표·컬럼·제약의 정본은 `22` 10·15절이다**(2026-09-18 T-070 — 이 절의 RFC 당시 후보 표를 논리 설계 대응으로 바꿨다).
 
 ### D.1 테이블
 
-| 테이블 | 핵심 컬럼 | 성격 |
+| 논리 설계의 표 (`22`) | 무엇을 담나 | RFC 당시 후보 이름 |
 | --- | --- | --- |
-| `counterparties` | `counterparty_id`, `display_name`, `org_id`, `source_role`(TRUCKING/ODCY/WAREHOUSE/SHIPPING_LINE/TERMINAL), `active` | 거래처(법인·조직). **역할 판정의 정본** |
-| `counterparty_contacts` | `contact_id`, `counterparty_id`, `person_name`, `team`, `note`, `active` | 거래처의 **담당자**. 한 거래처에 여럿 |
-| `contact_channel_addresses` | `address_id`, `contact_id`, `channel`(GMAIL/MOCK/PORTAL/…), `address`(정규화), **`email_verification_status`**, **`relationship_status`**, **`communication_status`**, `verified_at`, `approved_by`, `approved_at`, `deactivated_at` | 주소 → 담당자 → 거래처 → 역할의 결정론 매핑. **발송 자격의 정본**(D.5) |
-| `contact_verifications` | `verification_id`, `address_id`, `token_hash`, `issued_at`, `expires_at`, `used_at`, `result`, `requested_by` | 이메일 소유 확인. 1회용 토큰 |
-| `comm_threads` | `thread_id`, `purpose`(TRUCK_REQUEST/YARD_CAPACITY/WAREHOUSE_EXTRA/…), `counterparty_id`, `channel`, `external_thread_id`, `run_id`, `gap_ref`, `state`, `opened_at`, `closed_at`, `is_simulated` | CERA가 만든 스레드만 존재 |
-| `comm_messages` | `message_id`, `thread_id`, `direction`(OUT/IN), `status`, `subject`, `body_text`, `structured(json)`, `content_hash`, `approved_content_hash`, `approved_by`, `approved_at`, `channel`, `external_message_id`, `external_in_reply_to`, `sent_at`, `received_at`, `idempotency_key`, `attempt_count`, `last_error(json)`, `raw_ref`, `is_simulated` | append 위주. 상태 전이는 기록으로 남긴다 |
-| `comm_message_events` | `id`, `message_id`, `at`, `from_status`, `to_status`, `actor`, `reason(json)` | 상태 전이 이력(감사) |
-| `raw_inputs` | 기존 테이블 재사용. `kind = EMAIL`, `body` = **RFC822 원문 그대로**, `meta` = 헤더 요약 | append-only, 원본 보존(`01` 5.7) |
-| `extractions` | `extraction_id`, `message_id`, `model`, `prompt_version`, `schema_version`, `input_hash`, `output(json)`, `validator_results(json)`, `confidence`, `outcome`(VALUES/NO_CHANGE/REFUSAL/UNPARSEABLE), `created_event_ids(json)`, `at` | 추출 1회 = 1행. 재실행하면 새 행 |
-| `channel_credentials` | `channel`, `account_ref`, `scopes(json)`, `granted_at`, `expires_at`, `status` | **토큰 값은 여기에 넣지 않는다.** 값은 `.env`/OS 보안 저장소, 이 표에는 참조와 메타만 |
-| ~~`send_allowlist`~~ | **폐기.** 제품 게이트는 `contact_channel_addresses`의 3개 상태가 대신한다(D.5). 개발 환경 안전장치는 DB가 아니라 환경변수 `CERA_TEST_RECIPIENT_ALLOWLIST`로 분리한다(G.5) | — |
-| `audit_log` | 기존 테이블 재사용 | append-only |
+| `counterparty` → `counterparty_contact` → `contact_channel_address` | 거래처(**역할 판정의 정본**) → 담당자 → 주소. 주소의 세 상태(주소 확인 · 업무 관계 승인 · 통신 활성) AND 가 **발송 자격의 정본**(D.5) | `counterparties` · `counterparty_contacts` · `contact_channel_addresses` |
+| `contact_verification` | 이메일 소유 확인. 1회용 토큰(해시만), 사용 결과는 한 번만 기록 | `contact_verifications` |
+| `comm_thread` | CERA 가 만든 대화만 존재 | `comm_threads` |
+| `question_item` | 한 문의가 묻는 것 하나. 대상 개체·사실 키·적용 범위를 질문 생성 때 확정 | (없었음) |
+| `comm_message` (+ `comm_message_structured_field` · `comm_message_question`) | 업무 메시지 / 주소 확인 메일 한 통 — **승인할 내용**(제목·본문·받는 사람·구조화 값). 만든 뒤 내용 불변, 바꾸면 새 메시지 | `comm_messages` |
+| `message_approval` (+ `message_approval_structured_field`) | 발송 승인 결정(덧붙이기). 승인 시점 내용 지문·사본·만료. 취소·무효화도 새 행 | `comm_messages` 의 승인 필드 |
+| `message_status_transition` | 메시지 생애주기 상태 변경 이력. 상태의 정본 | `comm_message_events` |
+| `send_attempt` | **실제 외부 채널 전송 시도 한 번.** 멱등 키 · 보낸 내용 지문 · 결과 · 채널 응답 id. 재시도는 새 행 | `comm_messages` 의 `attempt_count` · `last_error` |
+| `raw_input` | 수신 원문(RFC822 그대로). append-only | `raw_inputs` |
+| `extraction` | LLM 추출 후보(값 후보 + 원문 인용). 추출 결과 불변, 검토 결과만 한 번 기록 | `extractions` |
+| `channel_connection` | 채널 연결 상태·권한 범위·만료. **토큰 값은 넣지 않는다** — 값은 `.env`/OS 보안 저장소, 여기는 참조만 | `channel_credentials` |
+| ~~`send_allowlist`~~ | **폐기.** 제품 게이트는 주소의 세 상태가 대신한다(D.5). 개발 환경 안전장치는 DB가 아니라 환경변수 `CERA_TEST_RECIPIENT_ALLOWLIST`로 분리한다(G.5) | — |
+| `audit_log` | 사람·시스템의 감사 대상 행위. append-only | 같음 |
+| `system_error` | 기술 오류(외부 호출 실패 등). 업무 사실도 감사 기록도 아니다 | (없었음) |
 
-기존 `messages` 테이블(`07` 4절)은 `comm_threads` + `comm_messages` + `comm_message_events`로 **대체**한다.
+기존 `messages` 테이블(`07` 4절)은 위 표들로 **대체**됐다.
 
 ### D.2 초안의 구조화 값 — G-13 해결
 
@@ -312,32 +315,32 @@ Model B가 생기면 회신이 **구조화 채널**로 들어오므로 LLM 추�
 
 ### E.1 Outbound Message
 
+**2026-09-18 T-070 동기화.** 발송 중·재시도 대기는 **메시지 상태가 아니라 발송 시도(`send_attempt`)** 로 표현한다. 메시지 상태 값 목록의 정본은 `22` 15.8 이다.
+
 ```mermaid
 stateDiagram-v2
-  [*] --> DRAFT
-  DRAFT --> BLOCKED_NUMBER_CHECK: 숫자 검사 실패
-  BLOCKED_NUMBER_CHECK --> DRAFT: 재생성
-  DRAFT --> PENDING_APPROVAL: 검사 통과
-  PENDING_APPROVAL --> DRAFT: 사람이 본문 수정
+  [*] --> DRAFTED
+  DRAFTED --> DRAFTED: 숫자 검사 실패 → 재생성
+  DRAFTED --> PENDING_APPROVAL: 검사 통과
   PENDING_APPROVAL --> REJECTED: 사람 거절
-  PENDING_APPROVAL --> APPROVED: 사람 승인 (G4)
-  APPROVED --> CANCELLED_PLAN_SUPERSEDED: 계획 교체
-  APPROVED --> CANCELLED_BY_USER: 사람 취소
-  APPROVED --> QUEUED: Outbox 집음
-  QUEUED --> SENDING: 어댑터 호출 직전 (멱등키 확정)
-  SENDING --> SENT: 채널이 외부 ID 반환
-  SENDING --> RETRY_WAIT: 일시 실패
-  RETRY_WAIT --> QUEUED: 백오프 뒤
-  SENDING --> DELIVERY_FAILED: 영구 실패 또는 재시도 소진
-  SENT --> BOUNCED: 반송 수신
-  SENT --> [*]
+  PENDING_APPROVAL --> APPROVED: 사람 승인 (G4, message_approval)
+  APPROVED --> QUEUED: Outbox 집음 (유효한 승인이 있을 때만)
+  QUEUED --> SENT: 발송 시도 성공
+  QUEUED --> DELIVERY_FAILED: 영구 실패 또는 재시도 소진
+  SENT --> REPLIED: 회신 연결
+  SENT --> CLOSED
+  REPLIED --> CLOSED
 ```
+
+**발송 시도 (메시지마다 0개 이상)**: 시도 행을 외부 호출 **전에** 만든다(`result` 비어 있음) → 호출 → 결과를 **한 번** 기록(`SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` · `UNKNOWN`). 재시도는 같은 메시지 아래 **새 시도**다(`22` 15.7.3).
 
 불변식:
 
-- `APPROVED → QUEUED`는 `content_hash == approved_content_hash`일 때만. 승인 뒤 본문이 바뀌면 `PENDING_APPROVAL`로 되돌아간다. **승인한 그 내용만 나간다.**
-- `SENDING` 상태의 행은 멱등키를 이미 확정했다. 크래시 후 재기동은 이 상태를 보고 **재전송 대신 외부 조회부터** 한다(H.2).
+- `QUEUED` 로 가려면 **유효한 승인**이 있어야 한다 — 같은 메시지 · `APPROVED` · 만료 전 · 무효화되지 않음 · 승인 지문 = 지금 보낼 내용 지문 · 승인 수신자 = 실제 수신자(`22` 15.5.1). **승인한 그 내용만 나간다.**
+- 승인 뒤 본문·받는 사람·주입 값이 바뀌면 **새 메시지 + 새 승인**이고 옛 승인에는 무효화 행(`CONTENT_CHANGED`)이 남는다. 계획 교체·사용자 취소도 무효화 행이다(H.4).
+- 결과가 비어 있는 시도(호출 중 중단)는 재기동 때 **재전송 대신 외부 조회부터** 한다(H.2).
 - `is_simulated = true`인 메시지는 실채널로 갈 수 없고, 실채널의 수신 메시지는 `is_simulated = true`가 될 수 없다(J.3).
+- 반송 수신·숫자 검사 실패·취소가 화면에 어떤 이름으로 보이는지는 `19` 15.1 이 정한다.
 
 ### E.2 Thread
 
@@ -358,8 +361,8 @@ stateDiagram-v2
 | 게이트 | 묻는 것 | 남는 기록 | 사실 상태에 주는 영향 |
 | --- | --- | --- | --- |
 | G2 Fact Verification | "이 사실이 현실인가?" | `VERIFICATION` Event | CONFIRMED로 올림 |
-| G3 Plan Approval | "이 계획을 실행해도 되는가?" | `plan_decisions` | **없음** (ADR-017 개정) |
-| **G4 Send Approval** | "이 문장을 이 상대에게 보내도 되는가?" | `comm_messages.approved_by/at` + `audit_log` | **없음** |
+| G3 Plan Approval | "이 계획을 실행해도 되는가?" | `plan_decision` | **없음** (ADR-017 개정) |
+| **G4 Send Approval** | "이 문장을 이 상대에게 보내도 되는가?" | `message_approval`(덧붙이기) + `audit_log` | **없음** |
 | G1 계약 확인 | "이 계약 조건이 맞는가?" | `VERIFICATION` Event | DRAFT → CONFIRMED |
 
 **G4는 Event Store에 들어가지 않는다.** 현실 사실에 대한 주장이 아니라 CERA 안에서 내린 결정이기 때문이다(`05` 4.1의 PLAN_APPROVAL과 같은 논리). UI에서 "확인하고 승인" 묶음을 제공하더라도 세 종류 기록은 따로 남는다.
@@ -441,7 +444,7 @@ stateDiagram-v2
 - 대상 사실 계열: `truck_availability`, `yard_capacity`, `warehouse_capacity`, `rate` (D.4의 5개 fact_key)
 - 필요한 규칙: **R1, R2, R3, R4-a, R4-b, R4-d, R6, R10, R11**
 - 필요 없는 규칙(이번 범위): R5(마일스톤), R7(교차 사실), R8(추정), R9(정정 — 있으면 좋지만 후순위)
-- 필요한 산출: `canonical_facts` 행 + `verification_requests`(V3·V4·V9)
+- 필요한 산출: `canonical_fact` 행 + `verification_request`(V3·V4·V9)
 
 이것이 T-041·T-042의 **부분집합**이다. 전체를 먼저 할지 이 부분집합으로 갈지는 사용자 결정(M-4).
 
@@ -551,16 +554,19 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 ### H.2 중복 방지 — Outbox + 외부 조회 화해
 
 ```text
-1. 승인: content_hash 고정 → approved_content_hash 저장
-2. Outbox가 집음: status=QUEUED
-3. 전송 직전: idempotency_key = hash(message_id, approved_content_hash) 확정, status=SENDING (커밋)
+1. 승인: message_approval(APPROVED) 에 승인 내용 지문 고정
+2. Outbox가 집음: 메시지 상태 QUEUED (message_status_transition)
+3. 전송 직전: send_attempt 행 생성·커밋 — attempt_no, idempotency_key(채널 + 메시지 + 내용 지문 + 승인),
+   sent_content_hash(= 유효한 승인의 지문), started_at, result = 비어 있음
 4. 어댑터 호출 (헤더에 X-CERA-Message: <message_id> 포함)
-5. 성공: external_message_id 저장, status=SENT (커밋)
-6. 실패·무응답: status는 SENDING인 채로 남음
-7. 재기동/재시도: SENDING 행을 보면 **재전송하지 않고 먼저 조회**한다
+5. 성공: 그 시도에 result = SUCCESS · provider_message_id 를 한 번 기록, 메시지 상태 SENT
+6. 실패·무응답: 그 시도의 result 가 비어 있거나(중단) RETRYABLE_FAILURE / UNKNOWN
+7. 재기동/재시도: 결과가 비었거나 UNKNOWN 인 시도를 보면 **재전송하지 않고 먼저 조회**한다
    → 채널에서 X-CERA-Message=<message_id>인 발신 메시지를 검색
-   → 있으면 SENT로 화해(reconcile). 없으면 그때만 재전송
+   → 있으면 그 시도를 SUCCESS 로 화해(결과 한 번 기록). 없으면 그때만 **새 시도**(attempt_no + 1)로 재전송
 ```
+
+(2026-09-18 T-070 — 옛 판은 메시지 상태 `SENDING` 과 `hash(message_id, approved_content_hash)` 로 설명했다. 논리 설계는 이것을 발송 시도 행으로 옮겼다, `22` 15.7.)
 
 이 "조회 후 재전송"이 중복 방지의 핵심이다. 멱등키만으로는 안 된다. Gmail API에 멱등 키 개념이 없기 때문이다.
 
@@ -572,10 +578,10 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 | 인증 (auth) | 토큰 만료·취소, scope 부족 | **재시도 금지.** 연동 상태 DISCONNECTED, 사람이 재동의 |
 | 영구 (permanent) | 잘못된 수신자 형식, 정책 거부 | 재시도 금지. `DELIVERY_FAILED` + 사람 알림 |
 | 정책 (policy) | Contact Gate 불통과, 개발 안전장치 밖, 승인 해시 불일치, 계획 교체됨 | 재시도 금지. 상태를 명시적으로 남기고 사람에게 이유를 보여준다 |
-| 반송 (bounce) | 발송 후 수신 거부 알림 | `SENT` → `BOUNCED`. 스레드 상태 FAILED. **자동 재발송하지 않는다** |
+| 반송 (bounce) | 발송 후 수신 거부 알림 | 반송 수신을 기록하고 스레드를 실패로 표시한다(`19` FR-SND-10). **자동 재발송하지 않는다** |
 
 - 재시도 사이에도 **Contact Gate·개발 안전장치·승인 해시·계획 유효성을 매번 다시 검사**한다. 3분 전에 유효했다고 지금 유효한 것이 아니다.
-- 모든 시도는 `comm_message_events`에 남는다. "몇 번 시도했고 왜 실패했나"를 화면에서 볼 수 있어야 한다.
+- 모든 시도는 **발송 시도 기록(`send_attempt`, `22` 15.7)** 에 남고, 메시지 상태 변화는 `message_status_transition` 에 남는다(2026-09-18 T-070 정정 — 옛 표기 `comm_message_events`). 기술 원인은 필요하면 `system_error`(`23` 4절). "몇 번 시도했고 왜 실패했나"를 화면에서 볼 수 있어야 한다.
 
 ### H.4 승인의 유효기간 — 계획이 바뀌면 옛 문의를 보내지 않는다
 
@@ -584,9 +590,9 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 | 규칙 | 내용 |
 | --- | --- |
 | 연결 | 모든 초안은 `run_id` + `gap_id`를 가진다(D.2) |
-| 자동 취소 | `run_id`가 SUPERSEDED/REJECTED가 되면 미발송 승인 초안은 `CANCELLED_PLAN_SUPERSEDED` |
+| 자동 취소 | `run_id`가 SUPERSEDED/REJECTED가 되면 미발송 메시지의 승인에 **무효화 행**(`INVALIDATED`, 사유 `PLAN_SUPERSEDED`)이 남고 발송되지 않는다(`22` 15.5.1) |
 | 이미 보낸 것 | 취소할 수 없다. 스레드에 "이 문의는 옛 계획 기준입니다" 표시 + 필요하면 정정 메일을 **새 초안으로 다시 승인** |
-| 시간 만료 | `approval_valid_until` (기본 30분 `[ASSUMPTION]`). 지나면 재승인 필요 |
+| 시간 만료 | 승인의 `expires_at`(승인할 때 정하고 고치지 않는다. 기본 30분 `[ASSUMPTION]`). 지나면 재승인 필요 |
 
 ### H.5 수신 쪽 실패
 
@@ -770,7 +776,7 @@ CeraCommandClient  (쓰기, 신규)
 
 | # | 항목 | 영역 |
 | --- | --- | --- |
-| 1 | `comm_threads` / `comm_messages` / `comm_message_events` / `counterparties` / `counterparty_contacts` / `contact_channel_addresses` / `contact_verifications` / `extractions` 스키마 | back |
+| 1 | 통신·등록부 스키마 — `comm_thread` · `question_item` · `comm_message`(+ 구조화 값·질문 연결) · `message_approval`(+ 구조화 값 사본) · `message_status_transition` · `send_attempt` · `counterparty` · `counterparty_contact` · `contact_channel_address` · `contact_verification` · `extraction` · `channel_connection` (`22` 10·15절) | back |
 | 1b | **Contact Verification Flow**: 토큰 발급·확인 링크·상태 전이(VERIFIED → APPROVED → ACTIVE) (D.6) | back |
 | 1c | **수신자 자격 판정**(Contact Gate) + 개발 안전장치 2겹 (D.5, G.5) | back |
 | 2 | 계획 `resource_gaps` → 초안 생성 + 구조화 값 주입 + `origin` 포인터 | back |
@@ -785,7 +791,7 @@ CeraCommandClient  (쓰기, 신규)
 | 10b | **구조화 채널 분기**: `structured_reply = true`면 추출을 호출하지 않음 (J.6) | back |
 | 11 | 회신 구조화 추출 — **LLM은 `ask_id` + 값 + 원문 인용만 반환**(D.3) | ai |
 | 11b | 결정론 검증기 + `ask_id` → `entity_id`·`fact_key`·강도 매핑 | back |
-| 12 | Event 생성 + Reconciliation 부분집합(F.5) + `canonical_facts` | back |
+| 12 | Event 생성 + Reconciliation 부분집합(F.5) + `canonical_fact` | back |
 | 13 | V3·V4·V9 확인 요청 생성 | back |
 | 14 | `CeraCommandClient` + Communications 화면 실동작(승인·수정·거절·실패 표시) | front |
 | 15 | Activity `kind = COMMS` 실제 기록, SSE push | back/front |
@@ -945,16 +951,16 @@ Planner(ChatGPT)가 `docs/tasks/plans/T-068-external-communication-slice.md`를 
 
 | # | 영역 | 답해야 할 것 |
 | --- | --- | --- |
-| 1 | **Backend 기술 뼈대** | T-003(uv·pyproject·패키지·ruff·pytest)을 이 계획에 넣나, 선행 태스크로 빼나. ADR-002(Python/FastAPI)는 아직 Proposed임에 유의 |
-| 2 | **최소 DB 스키마** | `comm_threads`·`comm_messages`·`comm_message_events`·`extractions`의 실제 DDL, 인덱스(`external_message_id` unique, `thread_id`, `status`), 마이그레이션 도구. **D.1의 컬럼 목록은 후보이지 확정이 아니다** |
+| 1 | **Backend 기술 뼈대** | T-003(뼈대)을 이 계획에 넣나, 선행 태스크로 빼나. **Backend 언어·프레임워크는 미결**이다 — 이 계획의 요구를 보고 사용자가 정한다(`23` 3·13절, ADR-031 Proposed) |
+| 2 | **최소 DB 스키마** | 첫 슬라이스에 필요한 `22` 표 목록(D.1)을 정한다 → T-080 물리 설계의 입력. DDL·인덱스·마이그레이션 도구는 T-080 |
 | 3 | **거래처·연락처·검증 모델** | `counterparties`→`counterparty_contacts`→`contact_channel_addresses` DDL, 3상태 전이, `contact_verifications` 토큰. **Q-48(개인 vs 공용 메일함) 구분을 지금 넣을지 결정** (M.5) |
 | 4 | **Gmail OAuth·어댑터** | 설치형 앱 루프백 흐름, 토큰 저장 위치·갱신·해제, `label:CERA` 조회, `format=raw` 원문 확보, 전용 계정 준비 절차 |
-| 5 | **Outbox·멱등** | `SENDING` 잠금 방식, 단일 워커 여부, `lookup_sent` 화해 구현, 백오프 파라미터, 스케줄러 주기 |
+| 5 | **Outbox·멱등** | 결과가 빈 발송 시도의 화해 방식(H.2), 단일 워커 여부, `lookup_sent` 화해 구현, 백오프 파라미터, 스케줄러 주기 |
 | 6 | **확인 메일 흐름** | 토큰 발급·해시 저장·만료(72h 후보)·1회용 보장, 확인 링크 엔드포인트(공개), 재발송 시 이전 토큰 무효화. **확인 메일은 G4 승인 밖이지만 개발 안전장치는 적용된다** |
 | 7 | **초안·승인·발송 API** | `content_hash` 계산 방식, 승인 멱등성, `409` 계열 실패 코드, 계획 교체 시 자동 취소 연결 |
 | 8 | **회신 수신 폴링** | `history_id` 워터마크 관리, 워터마크 만료 시 복구, 중복 제거, Quarantine 처리 UI 연결 |
 | 9 | **AI 추출 인터페이스** | `ask_id` 기반 요청·응답 스키마(D.3), 녹화 재생 모드, 프롬프트 버전 관리, 실패·거절 처리. **`ai/`는 DB·네트워크 클라이언트를 갖지 않는다** |
-| 10 | **Event·Reconciliation 최소 subset** | F.5의 fact_key 5개·규칙 9개를 어떤 모듈 경계로 구현하나. `canonical_facts` 최소 컬럼. 나중에 전체로 확장되는 구조인지 |
+| 10 | **Event·Reconciliation 최소 subset** | F.5의 fact_key 5개·규칙 9개를 어떤 모듈 경계로 구현하나. `canonical_fact` 최소 컬럼(`22` 11.4). **사람 확인(VERIFICATION) 사건의 논리 표현은 T-081 에서 먼저 정한다.** 나중에 전체로 확장되는 구조인지 |
 | 11 | **OpenAPI 구성** | 명세 파일 위치, 생성 도구, `packages/`의 TypeScript 타입 생성 파이프라인, `cera.ts`와의 **혼재 기간** 표기 방법 |
 | 12 | **Frontend Mock → Real 교체 범위** | `CeraCommandClient` 도입이 기존 9단계 시나리오 재생을 깨지 않는 방법. 어느 화면까지 실제 API로 바꾸나 |
 | 13 | **테스트 전략** | 네트워크 없는 Gmail 어댑터 테스트(녹화 fixture), 크래시-재기동 중복 방지 테스트, K.2의 성공 판정 13개를 테스트로 매핑, `validate:scenario` 금지 표현 검사 수정 |

@@ -20,7 +20,7 @@
 | 한다 | 하지 않는다 |
 | --- | --- |
 | 30대 합성 시나리오 데이터 팩(의도 설계, Faker 없음) | Solver·Risk·Cost 엔진, T-036 상세 모델, CP-SAT·MILP·OR-Tools |
-| Frontend Data Contract + Mock Data Provider | FastAPI 본 구현, PostgreSQL, 마이그레이션, Redis |
+| Frontend Data Contract + Mock Data Provider | Backend 본 구현(언어·프레임워크 미결 — `23` 3절), DB, 마이그레이션, 캐시 |
 | Control Tower 한 화면 + 시나리오 재생(Reset·이전·다음·Play) | 실제 메일·공공 API·VBS/TMS 연동, LLM 연결 |
 | 결과값은 fixture에 명시하고 `SCENARIO_RESULT`로 표시 | 인증, Microservice, Kafka, Event Sourcing 프레임워크 |
 | 추상 2D 운영 지도(SVG) | 부산항 지형 재현, 게임형 3D, Digital Twin |
@@ -45,7 +45,7 @@ npm run dev                 # 개발 서버
 ```mermaid
 flowchart LR
   PACK["data/scenarios/busan-wh-capacity-01/*.json<br/>(시나리오 데이터 팩, SCENARIO_RESULT)"] --> MOCK["MockProvider<br/>front/web/src/data/mock/"]
-  API["FastAPI (Phase 1~2)<br/>Canonical State · Risk · Cost · Solver"] -.-> APIP["ApiProvider (미구현)"]
+  API["Backend API (기술 미결, 구현 전)<br/>Canonical State · Risk · Cost · Solver"] -.-> APIP["ApiProvider (미구현)"]
   MOCK --> IF["CeraDataProvider<br/>front/web/src/data/provider.ts"]
   APIP -.-> IF
   IF --> VM["View Model 계약<br/>front/web/src/contracts/cera.ts"]

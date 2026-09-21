@@ -21,6 +21,23 @@
 
 ---
 
+## 2026-09-18 · T-070 주변 문서 동기화 · Claude Code (claude-opus-5)
+- 상태: **완료 — T-070 DONE** (사용자 검토 → 판정 B → `docs/05`·`docs/18` 정리 후 종료). **미커밋 — commit 은 사용자 지시 대기**
+- 목적: 확정된 설계(`21` 승인 · `22` rev.2.2 · `23` · ADR-026~031)를 주변 문서에 맞춰, 다음 에이전트가 오래된 문서를 읽고 잘못 구현하지 않게 한다. 새 설계 없음
+- 한 일
+  - `docs/04`: 1절 엔티티를 `21`·`22` 요약으로(B/L 독립 + `container_bl`, Destination·Carrier 는 역할, Facility·TruckPool, 통신 개념) · 3절 마스터 기준선 vs 사실 · 4절 견적 3층(CommercialOffer 근거 → 요율 사실 → 현재 요율) · 5절 비용 3종 · 7절 운영자 입력 4갈래 신설
+  - `docs/07`: Python·FastAPI·SQLite 확정 표현 → "미결 — `23`", 모듈 그림에 오류 처리·채널, 2.2절 외부 통신 흐름, 3절 "(초안)", **4절을 `22` 대응표로 교체(X-10)**, 구현 상태 명시
+  - `docs/13`: 닫힌 결정 반영(Facility · Destination · Actor · MBL/HBL · Resource · RateQuote → CommercialOffer · 저장 이름) + 4.1절 통신·상업 용어 19개(X-11)
+  - `docs/19`: 문의 메시지 vs 발송 시도(X-12) · 확인 메일에 업무 질문·숫자 금지 · 승인 기록 방식 · 기술 실패는 사건이 아님 · 절 참조 정정
+  - `AGENTS.md` 1.1: `ai/` = LLM·비정형 처리만, 결정론 엔진 = `back/`(ADR-029) · `back/`·`ai/`·`packages/`·`infra/`·루트 README 정리
+  - `docs/18`: 머리 주석 + **본문** D.1(논리 설계 대응표) · E.1(발송 중·재시도는 `send_attempt`) · E.4 · H.2(발송 시도 행 기반 화해) · H.3 · H.4(무효화 행·`expires_at`) · K.1 · N.2
+  - `docs/05`: 정본 관계 주석(개념 규칙 = `05`+`21`, 표·필드 = `22`)과 **결정 대기 네 곳** 표시 · `docs/06` G4 · `docs/12` T-041 · `docs/16` 라벨 · `docs/15` X-10~X-13 표시
+- **새로 발견 → T-081 로 분리**: `docs/22` 의 `event` 가 `docs/05` 4.2 와 대조되지 않았다 — 사람 확인(VERIFICATION)·정정 사건 표현 없음, 검증기 `confidence` 자리 없음, 출처 종류 값 목록 두 벌(ADR-020 vs `22`), `idempotency_key`·`event_type`·`schema_version`·`extraction.method` 미표현. T-079 검증이 `22` 내부 정합성과 Markdown↔작업표 대조에만 집중해 놓쳤다
+- 검증: `git diff --check` 통과 · staged 0건 · `docs/21`·`docs/22`·`docs/23` 변경 0건 · 제품 코드 변경 0건(`front/web` 기존 diff 그대로) · `docs/18` 에 `comm_message_events` 가 발송 시도 정본으로 남은 곳 0건(대응표의 옛 이름 칸만)
+- 큐 변경: T-070 DONE → 완료 섹션 · **T-081 신설(P0, T-069 의존)** · 순서 T-081 → T-069 → Backend·DB 기술 결정 → T-080
+- 다음 한 걸음: 사용자 지시 시 commit → T-081
+- 주의사항: T-081 결정 전까지 사람 확인 사건·검증기 confidence·출처 종류 값은 **`docs/05`·`docs/22` 어느 쪽으로도 구현하지 않는다**
+
 ## 2026-09-18 · T-079 DONE — Minor Cleanup 4건 + 종료 처리 · Claude Code (claude-opus-5)
 - 상태: **완료 — T-079 DONE** (사용자 + ChatGPT rev.2.2 최종 승인). **미커밋 — commit 은 사용자 지시 대기**
 - 경과: 읽기 전용 최종 검증 판정 **B(READY AFTER MINOR CLEANUP)** — 구조 문제·blocker 없음, 표현 4건만 → 사용자가 4건 정리 + 종료를 지시

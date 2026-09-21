@@ -8,5 +8,6 @@ front·back·ai가 함께 쓰는 계약을 둘 자리다: API 스키마, OpenAPI
 
 향후 방향 (Backend를 실제로 만들 때 확정):
 - Backend의 **OpenAPI 명세를 계약의 정본**으로 삼는다.
-- Frontend TypeScript 타입은 OpenAPI에서 **자동 생성**해 여기에 두고, `cera.ts`의 손 작성 타입을 대체한다. Python과 TypeScript에 같은 계약이 두 벌 생기지 않게 하기 위해서다.
-- Desktop 앱(검토 중)이 생기면 같은 계약·클라이언트를 공유한다.
+- Frontend TypeScript 타입은 OpenAPI에서 **자동 생성**해 여기에 두고, `cera.ts`의 손 작성 타입을 대체한다. Backend 언어가 무엇이 되든(미결 — `docs/23` 3절) 같은 계약이 두 벌 생기지 않게 하기 위해서다.
+- Desktop 앱(검토 중 — Web First, 첫 후보 Electron, `docs/23` 8~9절)이 생기면 같은 계약·클라이언트를 공유한다.
+- 외부 통신 슬라이스부터 OpenAPI 정본 전환을 시작한다(ADR-028). 오류 응답 모양(코드 · 문장 · `request_id`)도 계약에 들어간다(`docs/23` 12절).

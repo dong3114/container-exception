@@ -148,5 +148,5 @@ LLM이 하지 않는 것: D&D 금액 계산, 비용 합산, State 임의 확정,
 | G1 계약 확인 | 계약 조건 최초 추출 | TariffRule DRAFT → CONFIRMED |
 | G2 사실 확인 | LLM이 추출한 컨테이너 사실, Conflict, STALE | Event → CONFIRMED / REJECTED |
 | G3 계획 승인 | Recovery Plan 표시 | 계획 실행 허가만(`PLAN_APPROVAL` 결정 기록). 입력 사실은 확정되지 않는다. G2 차단이 남아 있으면 통과 불가(`05_event-and-state.md` 11.5) |
-| G4 발송 승인 | 메일 초안 | 발송 (PoC: 가상 / Tech Validation 이후: 실제). **Event가 아니라 `comm_messages` 승인 필드 + `audit_log`에 남는다**(사실에 대한 주장이 아니므로). 승인한 내용 해시와 다른 내용은 나가지 않고, 수신자는 Backend가 판정한 **검증·승인·활성 Contact**여야 한다(`18` D.5·E.4, ADR-027·028) |
+| G4 발송 승인 | 메일 초안 | 발송 (PoC: 가상 / Tech Validation 이후: 실제). **Event가 아니라 발송 승인 기록 `message_approval`(덧붙이기, `22` 15.5) + `audit_log`에 남는다**(사실에 대한 주장이 아니므로. 2026-09-18 T-070 정정 — 옛 표기 "`comm_messages` 승인 필드"). 승인한 내용 해시와 다른 내용은 나가지 않고, 수신자는 Backend가 판정한 **검증·승인·활성 Contact**여야 한다(`18` D.5·E.4, ADR-027·028) |
 | G5 실행 결과 | 실제 반출·입고 결과 (Pilot) | 마일스톤 Event |

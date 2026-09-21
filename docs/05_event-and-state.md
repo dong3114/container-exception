@@ -5,6 +5,10 @@
 - 이전 수정: 2026-09-11 (T-032)
 - **완료 상태**: T-060 수정으로 Event/State 설계는 완료 상태다(사람 검토 T-001은 별도로 남음). 다음 개발 순서는 `12_roadmap.md` 2.5절(Prototype-led Discovery)
 - 관련 ADR: ADR-013(저장 방식, Proposed), ADR-014(Freshness, Proposed), ADR-017(사람 확인 게이트, Proposed), **ADR-019(Reconciliation Policy, Accepted 구조 한정)**, **ADR-020(상태 차원 분리·출처 모델, Accepted 구조 한정)**, **ADR-021(컨테이너 상태 모델, Accepted 구조 한정**, `04_domain-model.md` 2절). ADR-012의 전역 우선순위 규칙은 ADR-019로 대체
+- **2026-09-18 T-070 — 정본 관계 (이 문서를 구현 명세로 읽기 전에).**
+  - **Event·State 의 개념적 행동 규칙**(Reconciliation R1~R12, 출처 3축의 구조, 상태 차원 분리, 신선도, 확인·보류, 사건 부류 OBSERVATION·CORRECTION·VERIFICATION)의 정본은 **이 문서 + 승인된 `21_cera-conceptual-data-model.md`** 다.
+  - **논리 DB 의 표·필드·제약**의 정본은 **`22_cera-logical-data-model.md`(rev.2.2)** 다. 이 문서의 `events`·`raw_inputs`·`canonical_facts`·`conflicts`·`verification_requests`·`planning_snapshots`·`plan_decisions` 와 **4.2절 Event 필드표는 저장 명세가 아니다** — 표 이름은 `event`·`raw_input`·`canonical_fact`·`conflict`·`verification_request`(+ `_handling`)·`planning_snapshot`(+ 자식 표)·`plan_decision` 이고, 필드는 `22` 를 따른다.
+  - **아직 두 문서가 맞지 않는 곳 — 후속 논리 모델 Task(T-081)에서 결정 대기, 지금은 어느 쪽으로도 구현하지 않는다**: ① 사람 확인(VERIFICATION)·정정 사건을 `22` 의 `event` 에서 어떻게 표현하나(`event_class`·`target_event_ids`·`verification_action` 등이 `22` 에 없다) ② 결정론 검증기 결과 `confidence`(4.2·4.6)를 어디에 두나 — `22` 의 `input_quality`·`canonical_fact.confidence` 와의 관계 ③ 출처 종류 값 목록(3.1 `source_type` vs `22` 의 `raw_input.source_type`·`event.source_kind`) ④ 그 밖에 4.2절 필드(`idempotency_key`·`event_type`·`schema_version`·`extraction.method`)의 논리 표현
 - 이 문서가 답하는 질문: **서로 다른 출처가 서로 다른 현실을 말할 때, CERA는 어떤 근거로 현재 운영 상태를 정하는가?**
 
 ## 0. 결정 수준 표기

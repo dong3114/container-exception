@@ -2,9 +2,9 @@
 
 부산항 수입 컨테이너 운영에서 여러 곳(공공 API, 메일, 계약서, 현장 담당자)에 흩어진 사실을 모아 **지금 무엇을 믿을 수 있는지** 정리하고, 예외(창고 수용량 급감, D&D 마감 임박 등)가 생기면 트럭·ODCY·창고 제약 안에서 **총비용이 가장 적은 복구 계획**과 연락 초안을 사람 승인 아래 돕는 시스템이다.
 
-> 현재 상태 (2026-09-16): **웹 Control Tower Prototype만 실제로 동작한다.** 30대 가상 시나리오를 재생해 보여 주며, 화면의 위험·비용·계획·메일은 모두 시나리오에 적어 둔 값(SIMULATED)이다. Backend·DB·LLM·Solver·Gmail 연동은 아직 코드가 없다.
+> 현재 상태 (2026-09-18): **웹 Control Tower Prototype만 실제로 동작한다.** 30대 가상 시나리오를 재생해 보여 주며, 화면의 위험·비용·계획·메일은 모두 시나리오에 적어 둔 값(SIMULATED)이다. Backend·DB·LLM·Solver·Gmail 연동은 아직 코드가 없다.
 >
-> 다음 단계는 **외부 연락 루프**(문의 초안 → 사람 승인 → 실제 발송 → 회신 → 구조화 → 상태 반영)다. 설계와 책임 경계는 확정했고(`docs/18_external-communication.md`), 지금은 **구현 계획을 쓰는 단계**다.
+> 다음 단계는 **외부 연락 루프**(문의 초안 → 사람 승인 → 실제 발송 → 회신 → 구조화 → 상태 반영)다. 설계와 책임 경계(`docs/18_external-communication.md`), 개념·논리 데이터 모델(`docs/21`·`docs/22`)은 확정했고, 주변 문서를 맞춘 뒤 **구현 계획(T-069)** 을 쓴다. Backend 언어·DB 제품은 아직 정하지 않았다(`docs/23`).
 
 ## 저장소 구조
 
@@ -21,7 +21,7 @@ CERA는 **하나의 Private Monorepo**로 관리한다. Git 저장소는 하나�
 | `infra/` | 배포 구성(Docker, 클라우드) | 구현 전 (README만) |
 
 - AI 개발 도구(Claude Code, Codex 등)는 루트의 `AGENTS.md`부터 읽는다. `CLAUDE.md`는 `AGENTS.md`를 가져온다.
-- **`ai/`와 `back/`의 경계 (ADR-029)**: AI를 쓰는 기준은 *"값이 자주 바뀌는가"*가 아니라 **"입력이 비정형이고 해석이 필요한가"**다. 메일 본문·계약서처럼 사람이 자유롭게 쓴 글만 AI가 읽고, 응답 폼·포털·TMS·CSV처럼 이미 구조화된 입력은 Backend가 검증만 한다. 위험·비용·최적화는 규칙과 계수로 답이 정해지므로 결정론 계산이며 AI가 아니다. 전체 책임 경계표는 `docs/18_external-communication.md` O절. **폴더 배치 적용은 Backend 뼈대를 만들 때(T-003)이고, `ai/README.md`·`back/README.md`는 아직 옛 설명이다.**
+- **`ai/`와 `back/`의 경계 (ADR-029)**: AI를 쓰는 기준은 *"값이 자주 바뀌는가"*가 아니라 **"입력이 비정형이고 해석이 필요한가"**다. 메일 본문·계약서처럼 사람이 자유롭게 쓴 글만 AI가 읽고, 응답 폼·포털·TMS·CSV처럼 이미 구조화된 입력은 Backend가 검증만 한다. 위험·비용·최적화는 규칙과 계수로 답이 정해지므로 결정론 계산이며 AI가 아니다. 전체 책임 경계표는 `docs/18_external-communication.md` O절. **폴더 배치 적용은 Backend 뼈대를 만들 때(T-003)다.** `ai/README.md`·`back/README.md` 는 2026-09-18 T-070 에서 이 경계에 맞췄다.
 - 향후 방향(미확정): Frontend는 **Web 우선**. 현업 담당자용 Desktop 앱은 필요성이 검증되면 기존 React 화면을 재사용하는 **중앙 Backend 의 Client**로 검토한다 — 첫 후보 Electron, Tauri 는 나중 재평가(확정 기술 아님, `docs/23_runtime-platform-and-observability.md`).
 
 ## 실행 (Frontend Prototype)
