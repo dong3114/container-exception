@@ -1,12 +1,30 @@
 # 22. CERA 논리 데이터 모델 (Logical Data Model)
 
-- 상태: **rev.2.2 최종 — T-079 DONE (2026-09-18, 사용자 + ChatGPT 최종 승인).** rev.1 검토 지적 **13건**(rev.2) + rev.2 검토 지적 **9건**(rev.2.1) + 최종 검증에서 나온 **정합성 5건(A~E)과 표현 잔재**(rev.2.2)를 반영했다. rev.2.2 에서 **기술 운영 표 `system_error` 1개**를 더했다(16.2a). 논리 설계를 갈아엎지 않았다
-- 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
-- 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다
-- 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **52개**(MVP 51 + Next 1), 컬럼 **557개**. 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
-- 다음 단계: ~~T-079 최종 승인~~(완료) → T-070 주변 문서 동기화 → **T-069 구현 계획(첫 슬라이스 확정)** → Backend·DB 기술 결정 → **T-080 물리 설계(첫 슬라이스에 필요한 표부터)** — 28절
+- 상태: **rev.2.3 — T-081 DONE (2026-09-21, 사용자 최종 승인).** 흐름 검증 **47개 전부 PASS**. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
+- 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. rev.2.2 저장 커밋: `8d47a99`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
+- 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다. **rev.2.3 에서도 `docs/21` 변경 0건**
+- 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **53개**(MVP 52 + Next 1), 컬럼 **586개**(rev.2.2 는 52블록·557컬럼). 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
+- 다음 단계: ~~T-079~~ → ~~T-070 주변 문서 동기화~~ → ~~T-081 논리 모델 후속~~ → **T-069 구현 계획(첫 슬라이스 확정)** ← 다음 → Backend·DB 기술 결정 → **T-080 물리 설계(첫 슬라이스에 필요한 표부터)** — 28절
 - 런타임·오류 처리·관측성의 행동 규칙은 **`docs/23_runtime-platform-and-observability.md`** 가 정본이다. 이 문서는 그중 **DB 에 남는 `system_error` 표**만 다룬다
-- **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절)
+- **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절). **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다** — 11.2c
+
+> **rev.2.3 (T-081) 에서 고친 것** — **승인된 규칙의 누락 복구**다. 새 제품 설계 없음. 표 **+1**(`event_verification_target`), 표 삭제 0.
+>
+> | # | 고친 것 | 근거 | 어디 |
+> | --- | --- | --- | --- |
+> | **A** | **사람 확인(`VERIFICATION`)·정정 사건**을 표현할 수 있게 했다. `event_class` · `verification_action` · `verification_method` + **새 표 `event_verification_target`** | 승인된 `docs/21` 9절 · `docs/20` **A-17**(ADR-028 `Accepted`) · `docs/03` FR-OPT-06 | 11.2 · **11.2a** |
+> | **B** | **검증기 신뢰도**를 사건에 복구. `input_confidence_level` · `input_confidence_reasons`. `input_quality`(형태)와 **다른 축**임을 명시 | `docs/20` **A-02** · `docs/05` 4.6 · ADR-019(`Accepted`) 강도표 | 11.2 · **11.2b** |
+> | **C** | **출처 3축 통일**(사용자 결정). `source_kind` 6값 → **`source_type` 7값**(ADR-020) · `source_role` · **`extraction_method`** 신설 · `source_id` 추가 | ADR-020 **`Accepted (구조 한정)`** | 11.1 · 11.2 · **11.2c** |
+> | **D** | `docs/05` 4.2 의 나머지 누락 복구: `event_type` · `schema_version` · `correlation_id` · `payload` · **`idempotency_key` UNIQUE**(재료에 **적용 범위·주장 위치** 포함) | `docs/05` 4.2(승인된 `docs/21` 7절이 정본으로 위임) | 11.2 · **11.2d** |
+> | **E** | **현재 사실의 상태 차원 복구.** 한 칸에 합쳐져 있던 것을 `value_status` · `freshness_status` · `conflict_status` · `hold_status` · `decision_usability` + `verification_basis` 로. **의미 불명이던 `canonical_fact.confidence` 제거** | ADR-020 **`Accepted`** `docs/14:252` · `docs/21` 10.2 | 11.4 · **11.4.2** |
+> | **F** | **스냅샷에 상태 6차원 + 판(version) 동결** → **I-12 확장** | `docs/05` 11.5 승인 규칙 · FR-OPT-06 | **13.2.1** |
+> | **G** | `extraction` 에 `schema_version` · `input_hash` · **`validator_result`**(모델 자기 점수와 구분) | 승인된 `docs/21` 13절 | 15.9 · **15.9.2** |
+> | **H** | 반송·승인 취소·숫자 검사 실패 등을 **기존 구조 어디에 매핑하는지** 문서화. **새 상태 값·새 표 없음** | `docs/23` 4.1 · L-15 | **15.8.1** |
+> | **+** | 무결성 규칙 **I-21 ~ I-27** · 흐름 검증 **17항목 추가(총 47)** · walkthrough **27.9 정정 · 27.10 재처리 멱등 · 27.11 범위별 멱등** | | 17.5 · 27 |
+>
+> **`docs/05` 4.2 의 29개 필드 전체 대응표는 23.1 절에 있다 — 누락 0건.**
+>
+> **주의**: `ADR-017` 은 현재 **`Proposed`** 다(`docs/14:205`). 위 A 의 근거는 ADR-017 이 아니라 **승인된 개념 모델과 Accepted ADR-028·020** 이다.
 
 > **rev.2.2 (최종 정리) 에서 고친 것** — 최종 검증에서 나온 정합성 5건 + 기술 운영 표 1개 + 표현 잔재.
 >
@@ -108,7 +126,8 @@
 
 | 표 | 분류 | 변경 방식 | 무엇이 고쳐지나 |
 | --- | --- | --- | --- |
-| `event` | `SOURCE_OF_TRUTH` | `APPEND_ONLY` | 아무것도. 정정은 새 행 |
+| `event` | `SOURCE_OF_TRUTH` | `APPEND_ONLY` | 아무것도. 정정은 새 행, 확인도 새 행 (rev.2.3) |
+| `event_verification_target` | `SOURCE_OF_TRUTH` | `APPEND_ONLY` (rev.2.3 신규) | 아무것도. 확인 취소는 `REVOKE` 사건이다 (11.2a) |
 | `message_approval` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 무효화는 새 행 |
 | `operator_planning_constraint` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 해제는 새 행 |
 | `plan_decision` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 결정이 바뀌면 새 결정 행이다 (13.5) |
@@ -131,10 +150,12 @@
 
 | 구분 | 개수 | 바뀐 과정 |
 | --- | --- | --- |
-| **MVP 논리 테이블** | **51** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) |
+| **MVP 논리 테이블** | **52** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) |
 | Next (구조만 두고 MVP 에서 쓰지 않음) | **1** (`vessel_call`) | 변화 없음 |
 | **MVP 에서 만들지 않음** (요구가 생기면 다시 연다) | **2** (`exception_case` · `operational_plan_batch`) | rev.2 에서 **OPEN → 결정 완료**(D-4 · D-5) |
-| 표에 적은 것 전체 | **54** | 49 → 53 → 54 |
+| 표에 적은 것 전체 | **55** | 49 → 53 → 54 → 55 |
+
+**rev.2.3 에서 늘어난 표 1개** — `event_verification_target`(11.2a). 새 업무 개념이 아니라 **승인된 `docs/21` 9절의 확인 부류(`VERIFICATION`)가 무엇을 가리키는지**를 담는 관계 표다. 개념 모델을 다시 열지 않는다. 같은 rev 에서 **표가 줄어든 곳은 없다.**
 
 **rev.2.2 에서 늘어난 표 1개** — `system_error`. **업무 도메인 개념이 아니라 기술 운영(관측성) 표**다. 승인된 개념 모델(`docs/21`)의 저장 개념이 아니므로 개념 모델을 다시 열지 않고, 23절 추적표에 "개념 모델 밖 기술 운영 표"로 따로 적었다. 행동 규칙(무엇을 기록하나·어떻게 기록하나)의 정본은 `docs/23` 이다.
 
@@ -154,7 +175,7 @@
 | A. 물류 핵심 (4 + Next 1) | `container` · `bl` · `container_bl` · `external_identifier` · `vessel_call`(Next) |
 | B. 시설·자원 (5) | `facility` · `facility_warehouse` · `facility_terminal` · `facility_odcy` · `truck_pool` |
 | C. 거래처·연락처 (5) | `counterparty` · `counterparty_contact` · `contact_channel_address` · `contact_verification` · `channel_connection` |
-| D. 사건·현재 상태 (7) | `raw_input` · `event` · `event_entity_link` · `canonical_fact` · `conflict` · `verification_request` · `verification_request_handling` |
+| D. 사건·현재 상태 (8) | `raw_input` · `event` · `event_entity_link` · **`event_verification_target`**(rev.2.3) · `canonical_fact` · `conflict` · `verification_request` · `verification_request_handling` |
 | E. 계약·요율 (4) | `contract` · `tariff_rule` · `commercial_offer` · `commercial_offer_item` |
 | F. 계획·최적화 (8) | `planning_snapshot` · `planning_snapshot_fact` · **`planning_snapshot_constraint`** · **`planning_snapshot_input`** · `recovery_run` · `assignment` · `plan_decision` · `operator_planning_constraint` |
 | G. 위험·비용 (4) | `risk_assessment` · `cost_result` · `cost_line_item` · `cost_line_link` |
@@ -718,7 +739,7 @@
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
 | --- | --- | --- | --- | --- | --- |
 | 입력 id | `raw_input_id` | `STRING(40)` | 예 | **PK** | |
-| 출처 종류 | `source_type` | `CODE` | 예 | | `PUBLIC_API`·`EMAIL`·`DOCUMENT`·`HUMAN_INPUT`·`PLAN_UPLOAD`·`INTERNAL` |
+| 출처 종류(채널) | `source_type` | `CODE` | 예 | | **rev.2.3 값 변경.** `HUMAN_UI`·`FILE_IMPORT`·`EMAIL`·`DOCUMENT`·`PUBLIC_API`·`PARTNER_SYSTEM`·`INFERENCE` (ADR-020). `event.source_type` 과 **같은 값 집합**이다 — 11.2c |
 | 출처 이름 | `source_name` | `STRING(60)` | 예 | | `S-01` 같은 카탈로그 키 또는 채널명 |
 | 요청 내용 | `request_ref` | `STRING(300)` | 아니오 | | 조회 파라미터(민감값 마스킹) |
 | 원문 위치 | `payload_ref` | `STRING(300)` | 아니오 | | **본문을 여기 직접 넣지 않는 선택지를 남긴다** |
@@ -757,12 +778,17 @@
 
 - 분류 **`SOURCE_OF_TRUTH`** · 변경 **`APPEND_ONLY`** (절대 UPDATE 하지 않는다) · MVP
 
+> **rev.2.3 에서 `docs/05` 4.2 와 한 줄씩 대조했다.** 빠져 있던 13개 개념(사건 부류 · 확인 2필드 · 업무 사건 유형 · 스키마 판 · 멱등 키 · 업무 상관 id · 부가 속성 · 출처 주체 · 추출 방식 · 검증기 신뢰도 2필드 · 출처 종류 값 목록)을 복구했다. 전체 대응표는 **23.1절**.
+
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
 | --- | --- | --- | --- | --- | --- |
 | 사건 id | `event_id` | `STRING(40)` | 예 | **PK** | **정렬 가능해야 한다**(R 규칙 최종 tie-break) |
+| **스키마 판** | `schema_version` | `STRING(20)` | 예 | | **rev.2.3 신규.** 이 행을 어느 계약 판으로 읽어야 하나 — 11.2d |
 | 원천 입력 | `raw_input_id` | `REF(raw_input)` | 예 | FK | 모든 사건은 원천이 있다 |
-| 사실 종류 | `fact_kind` | `CODE` | 예 | | `MILESTONE`·`STATE`·`OFFER`·`TERM`·`IDENTITY`·`PLAN`·`FORECAST` |
-| **사실 키** | `fact_key` | `STRING(120)` | 예 | | `discharge.actual` · `warehouse.capacity@2026-09-18` 같은 **불변 문자열**. 여기서는 쪼개지 않는다(Q-63) |
+| **사건 부류** | `event_class` | `CODE` | 예 | | **rev.2.3 신규.** `OBSERVATION` · `CORRECTION` · `VERIFICATION` (`docs/05` 4.1) — 11.2a |
+| **업무 사건 유형** | `event_type` | `CODE` | 예 | | **rev.2.3 신규.** `WAREHOUSE_CAPACITY_CHANGED` 같은 **업무 의미**. `fact_key` 와 다른 축이다 — 11.2d |
+| 사실 종류 | `fact_kind` | `CODE` | **조건부** | | `MILESTONE`·`STATE`·`OFFER`·`TERM`·`IDENTITY`·`PLAN`·`FORECAST`. **`VERIFICATION` 이면 비어 있다** |
+| **사실 키** | `fact_key` | `STRING(120)` | **조건부** | | `discharge.actual` · `warehouse.capacity@2026-09-18` 같은 **불변 문자열**. 여기서는 쪼개지 않는다(Q-63). **`VERIFICATION` 이면 비어 있다** |
 | 값 | `value_text` | `TEXT` | 아니오 | | 원형 그대로 |
 | 값(수치) | `value_number` | `DECIMAL(18,4)` | 아니오 | | 수치형일 때만 |
 | 값(시각) | `value_timestamp` | `TIMESTAMP_TZ` | 아니오 | | 시각형일 때만 |
@@ -774,14 +800,23 @@
 | 관측 시각 | `source_event_time` | `TIMESTAMP_TZ` | 아니오 | | |
 | 출처 기록 시각 | `source_recorded_at` | `TIMESTAMP_TZ` | 아니오 | | |
 | 수신 시각 | `received_at` | `TIMESTAMP_TZ` | 예 | | |
-| **출처 종류** | `source_kind` | `CODE` | 예 | | `PUBLIC_API`·`EMAIL`·`DOCUMENT`·`HUMAN_INPUT`·`PLAN_UPLOAD`·`INTERNAL`. `raw_input` 에서 물려받은 **관측 사실** |
+| **출처 종류(채널)** | `source_type` | `CODE` | 예 | | **rev.2.3 — 이름·값 변경**(옛 `source_kind`). `HUMAN_UI`·`FILE_IMPORT`·`EMAIL`·`DOCUMENT`·`PUBLIC_API`·`PARTNER_SYSTEM`·`INFERENCE` (ADR-020) — 11.2c |
 | **수집 시점 역할** | `source_role_at_ingestion` | `CODE` | 아니오 | | 주장한 거래처가 **그때** 가졌던 역할. 나중에 역할이 바뀌어도 당시 값이 남는다 |
-| **입력 품질** | `input_quality` | `CODE` | 예 | | `STRUCTURED`(폼·API·CSV) · `SEMI_STRUCTURED` · `UNSTRUCTURED`(자유 문장) |
+| **출처 주체** | `source_id` | `STRING(60)` | 아니오 | | **rev.2.3 신규.** 채널 안의 **안정적인 주체 식별자**(`DS-01` · 발신자 등록 id · 파트너 시스템 id). 사람·거래처 참조와 다른 축 — 11.2c |
+| **추출 방식** | `extraction_method` | `CODE` | 예 | | **rev.2.3 신규.** `DIRECT` · `RULE_PARSED` · `LLM_EXTRACTED` · `CALCULATED` (ADR-020 3축의 셋째) — 11.2c |
+| **입력 품질** | `input_quality` | `CODE` | 예 | | `STRUCTURED`(폼·API·CSV) · `SEMI_STRUCTURED` · `UNSTRUCTURED`(자유 문장). **입력의 형태**이지 판정 결과가 아니다 — 11.2b |
+| **검증기 신뢰도** | `input_confidence_level` | `CODE` | 예 | | **rev.2.3 신규.** `HIGH`·`MEDIUM`·`LOW`. **결정론 검증기가 정한다**(`docs/05` 4.6) — 11.2b |
+| **신뢰도 사유** | `input_confidence_reasons` | `JSON` | 아니오 | | **rev.2.3 신규.** 어느 검사에서 깎였나. 표를 따로 만들지 않는다 — 11.2b |
 | 신뢰 주체 | `asserted_by_counterparty_id` | `REF(counterparty)` | 아니오 | FK | 누가 주장했나 |
 | 입력 주체 | `entered_by_actor_id` | `REF(actor)` | 아니오 | FK | 사람이 입력했으면 |
-| **정정 대상** | `supersedes_event_id` | `REF(event)` | 아니오 | FK(자기참조) | **정정은 새 행 + 이 참조**다. 원래 행을 고치지 않는다 |
+| **정정 대상** | `supersedes_event_id` | `REF(event)` | 아니오 | FK(자기참조) | **정정은 새 행 + 이 참조**다. 원래 행을 고치지 않는다. `CORRECTION` 필수 |
 | 정정 사유 | `supersede_reason` | `STRING(200)` | 아니오 | | |
+| **확인 행위** | `verification_action` | `CODE` | **조건부** | | **rev.2.3 신규.** `CONFIRM`·`REJECT`·`REVOKE`. **`VERIFICATION` 필수** — 11.2a |
+| **확인 방법** | `verification_method` | `CODE` | **조건부** | | **rev.2.3 신규.** `DIRECT_REVIEW`·`REQUEST_RESOLUTION`. **`VERIFICATION` 필수** — 11.2a |
 | 추출 근거 | `extraction_id` | `REF(extraction)` | 아니오 | FK | LLM 후보에서 왔으면 |
+| **업무 상관 id** | `correlation_id` | `STRING(60)` | 아니오 | | **rev.2.3 신규.** 메일 스레드 · 복구 실행 · 확인 흐름 · 시나리오 단계. **기술 추적 `trace_id` 와 다른 것**(`docs/23` 5절) |
+| **멱등 키** | `idempotency_key` | `HASH` | 예 | **UNIQUE** | **rev.2.3 신규.** 같은 주장을 두 번 사건으로 만들지 않는다. 논리 재료는 **11.2d** |
+| **부가 속성** | `payload` | `JSON` | 아니오 | | **rev.2.3 신규.** `change_reason` · `forecast_kind` · `tz_assumed` 같은 **종류별 부가 정보만**. 핵심 구조를 여기 밀어 넣지 않는다 — 11.2d |
 | 기록 시각 | `recorded_at` | `TIMESTAMP_TZ` | 예 | | |
 | 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | | |
 | 시나리오 | `scenario_id` | `REF(scenario)` | 아니오 | FK | `is_simulated = true` 일 때만 |
@@ -791,9 +826,18 @@
 2. `supersedes_event_id` 는 **자기 자신을 가리킬 수 없고 순환할 수 없다**.
 3. 정정 사건의 `fact_kind` 와 대상 개체는 원래 사건과 같아야 한다.
 4. `is_simulated = false` 인 사건은 `scenario_id` 가 비어 있어야 한다.
-5. 네 값 컬럼(`value_text`·`value_number`·`value_timestamp`·`value_code`) 중 **최소 하나**는 있어야 한다.
-6. **사건마다 `link_role = SUBJECT` 인 `event_entity_link` 가 정확히 1건**이다(11.3절).
+5. **`event_class` 별 필수 조합** (rev.2.3 — 옛 규칙 5 를 부류별로 나눴다)
+
+   | `event_class` | `fact_kind`·`fact_key` | 네 값 컬럼 중 최소 하나 | `supersedes_event_id` | 확인 2필드 | `event_verification_target` |
+   | --- | --- | --- | --- | --- | --- |
+   | `OBSERVATION` | **필수** | **필수** | 비어 있다 | 비어 있다 | 0건 |
+   | `CORRECTION` | **필수** | 값 없음 = 철회이므로 **선택** | **필수** | 비어 있다 | 0건 |
+   | `VERIFICATION` | **비어 있다** | 비어 있다 | 비어 있다 | **필수** | **`TARGET` 1건 이상** |
+
+6. **사건마다 `link_role = SUBJECT` 인 `event_entity_link` 가 정확히 1건**이다(11.3절). `VERIFICATION` 도 예외가 아니다 — 확인 대상 사실의 주체를 그대로 가리킨다.
 7. **근거 강도(Evidence Strength)는 `event` 에 저장하지 않는다.** 여기에는 당시 입력에서 알 수 있었던 원천 축만 둔다.
+8. **확인 상태·대체 상태·역할을 `event` 에 저장하지 않는다**(rev.2.3). `docs/05` 6.1 이 "기준 시각마다 계산"이라고 정했다. 저장하면 불변성과 재현성이 깨진다.
+9. `idempotency_key` 는 **모든 부류에 필수**다. 확인·정정도 두 번 들어오면 한 건이어야 한다.
 
 **`source_tier` 를 없앤 이유** (rev.2 수정)
 
@@ -802,7 +846,224 @@
 1. **정책이 바뀌면 과거 사건의 등급이 틀린 값이 된다.** 그런데 `event` 는 UPDATE 할 수 없으므로 고칠 방법이 없다.
 2. 같은 사건 집합으로 근거 강도를 **다시 계산할 수 없게 된다.** 재현성이 이 설계의 전제다.
 
-그래서 `event` 에는 **원천 축**(`source_kind` · `source_role_at_ingestion` · `input_quality` · `asserted_by_counterparty_id` · `entered_by_actor_id` · `extraction_id`)만 두고, **계산 결과인 근거 강도는 파생인 `canonical_fact` 에 `evidence_strength` + `evidence_policy_version` 으로 둔다**(11.4절). 정책 판이 바뀌면 재계산하면 된다.
+그래서 `event` 에는 **원천 축**(`source_type` · `source_role_at_ingestion` · `source_id` · `extraction_method` · `input_quality` · `input_confidence_level` · `asserted_by_counterparty_id` · `entered_by_actor_id` · `extraction_id`)만 두고, **계산 결과인 근거 강도는 파생인 `canonical_fact` 에 `evidence_strength` + `evidence_policy_version` 으로 둔다**(11.4절). 정책 판이 바뀌면 재계산하면 된다.
+
+> **rev.2.3 주의**: 위 목록에 `input_confidence_level` 이 들어간 것은 **강도를 저장한다는 뜻이 아니다.** 검증기 신뢰도는 *수신 때 한 번 결정론적으로 판정되는 입력 사실*이고, 근거 강도는 *그것을 포함한 여러 축을 정책으로 합친 계산 결과*다(11.2b).
+
+### 11.2a `event_verification_target` — 확인이 무엇을 가리키나 **(rev.2.3 신규)**
+
+- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`APPEND_ONLY`** (덧붙이기 전용) · MVP
+
+**왜 필요한가.** rev.2.2 까지 `docs/22` 에는 **사람이 사실을 확인했다는 기록이 없었다.** `canonical_fact.verification_status` 에 `VERIFIED` 값은 있는데 그 값을 만들 경로가 논리 모델 안에 없었다 — 도달할 수 없는 값이었다.
+
+| 근거 | 내용 |
+| --- | --- |
+| 승인된 `docs/21` 9절 | "사람이 사실을 확인했다 → Operational Event **인가: 예(확인 부류)** → **사실 상태를 바꾼다**" |
+| 승인된 `docs/21` 12.2 · `docs/20` **A-17** | "사실 확인 · 계획 승인 · 발송 승인은 **서로를 대신하지 않는다.** 각각 따로 기록된다" (ADR-028 `Accepted`) |
+| ADR-020 **`Accepted (구조 한정)`** | `value_status` 의 `CONFIRMED` 와 `verification_basis` 를 전제한다 |
+| `docs/03` FR-OPT-06 (`Must`) | 계획 승인은 입력 사실을 `CONFIRMED` 로 올리지 않는다 — 둘이 **다른 기록**이어야 성립한다 |
+
+> **`ADR-017` 은 현재 `Proposed`** 다(`docs/14:205`). 위 근거는 ADR-017 이 아니라 **승인된 개념 모델과 Accepted ADR-028·020** 에서 나온다. ADR-017 을 Accepted 로 인용하지 않는다.
+
+| 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
+| --- | --- | --- | --- | --- | --- |
+| 확인 사건 | `verification_event_id` | `REF(event)` | 예 | **PK 일부**, FK | `event_class = VERIFICATION` 인 행만 |
+| 대상 사건 | `target_event_id` | `REF(event)` | 예 | **PK 일부**, FK | 확인·거절·기각된 사건 |
+| 대상 역할 | `target_role` | `CODE` | 예 | **PK 일부** | `TARGET`(확인·거절 대상) · `OVERRULED`(요청 처리에서 **고르지 않은** 후보) |
+
+**Integrity Rules**
+
+1. `verification_event_id` 가 가리키는 행은 **반드시 `event_class = VERIFICATION`** 이다.
+2. `target_event_id` 가 가리키는 행은 **`VERIFICATION` 이 아니다.** 확인을 확인하지 않는다. 확인의 취소는 `verification_action = REVOKE` 이고, 그 행의 `TARGET` 은 **원래의 사실 주장**이다.
+3. 확인 사건마다 `target_role = TARGET` 인 행이 **1건 이상**이다.
+4. `target_role = OVERRULED` 는 0건 이상이며 `verification_method = REQUEST_RESOLUTION` 일 때만 생긴다.
+5. **이 표는 UPDATE·DELETE 하지 않는다.** 확인을 되돌리려면 `REVOKE` 사건을 새로 넣는다.
+6. `is_simulated` 컬럼을 두지 않는다. 부모 `event` 가 `SOURCE_OF_TRUTH` · `APPEND_ONLY` 라 **재생성으로 사라지지 않기 때문**이다(`verification_request_handling` 이 스스로 가져야 했던 이유와 반대다 — 11.7).
+7. **한 확인 사건의 모든 대상은 같은 현재 사실 좌표 안에 있어야 한다** (rev.2.3 보강 — 11.2a.1). 좌표 = **SUBJECT 개체**(`entity_type` + `entity_id`) + **`fact_key`** + **적용 범위**(`applicability_scope_type` + `applicability_scope_ref`). `TARGET` 과 `OVERRULED` 를 가리지 않고 **전부** 같아야 한다.
+8. **확인 사건 자신의 SUBJECT 와 적용 범위도 그 좌표와 같아야 한다.** 확인 사건은 `fact_key` 를 갖지 않으므로(규칙 5), 그 확인이 **어느 현재 사실을 움직이는지는 대상들의 좌표에서 나온다**.
+
+#### 11.2a.1 왜 좌표를 하나로 묶는가 **(rev.2.3 보강)**
+
+이것은 새 설계가 아니라 **이미 정해진 것들이 동시에 성립하려면 반드시 필요한 제약**이다. 셋이 맞물린다.
+
+| 이미 정해진 것 | 어디 |
+| --- | --- |
+| 사건마다 `link_role = SUBJECT` 인 링크가 **정확히 1건** | 11.3 · I-8 |
+| `canonical_fact` 의 키 = 개체 + `fact_key` + **적용 범위** | 11.4 · 11.4.1 |
+| 확인 요청 하나 = **한 좌표**(범위가 다르면 다른 확인 문제) | 11.6.1 · `request_key` 재료 11.7.2 |
+
+**묶지 않으면 무엇이 깨지나**
+
+```
+확인 사건 V  →  TARGET   = 창고A 수용량(GLOBAL)
+             →  OVERRULED = 창고B 보관료(RECOVERY_CONTEXT)   ← 다른 좌표
+```
+
+1. **SUBJECT 가 정해지지 않는다.** 규칙 6 은 확인 사건도 SUBJECT 를 정확히 1건 가지라고 하는데, 대상이 창고 A 와 창고 B 에 걸쳐 있으면 **둘 중 무엇을 가리켜야 하는지 결정되지 않는다.** I-8 이 성립하지 않는다.
+2. **`OVERRULED` 의 의미가 무너진다.** `OVERRULED` 는 "**같은 질문**에 대해 사람이 고르지 않은 후보"이고 R1 이 그것을 기각한다. 다른 좌표의 주장은 애초에 경쟁자가 아니었으므로, 기각하면 **다툰 적 없는 사실을 조용히 죽인다.**
+3. **11.6.1 과 어긋난다.** 확인 요청은 이미 좌표 단위다. 그 요청을 처리해 만든 확인 사건이 좌표를 넘나들면 `request_key` 로 다시 붙일 수 없다.
+
+**여러 사실을 한 번에 확인하고 싶다면 확인 사건도 여러 건이다.** 화면에서 버튼 하나로 묶어 보여 주는 것은 UI 의 일이고, 기록은 좌표마다 하나씩 남는다 — `docs/05` 11.5 의 "UI 묶음 동작"이 **체크한 사실마다 `VERIFICATION` 을 하나씩 만든다**고 적은 것과 같은 규칙이다.
+
+> **범위(scope)만 같고 `fact_key` 가 다른 경우도 막는다.** "창고 A 의 9/18 수용량"과 "창고 A 의 9/19 수용량"은 `fact_key` 가 다르므로 **다른 현재 사실**이고, 따라서 다른 확인이다.
+
+**왜 JSON 배열이 아니라 연결 표인가**
+
+`docs/05` 4.2 는 `target_event_ids` · `overruled_event_ids` 를 목록으로 적었지만, 이 둘은 **표시용이 아니라 Reconciliation 의 입력**이다.
+
+```
+R1 기각:  이 사건이 어느 확인 처리에서 OVERRULED 로 찍혔나?
+          → target_event_id 로 역방향 조회가 필요하다
+6.1 계산: 이 사건의 verification_status 는?
+          → target_event_id = e 인 확인 사건 중 as_of 이전 가장 늦은 것
+```
+
+JSON 배열이면 **매 계산마다 모든 확인 사건의 배열을 풀어야** 한다. `conflict.event_ids` 가 JSON 인 것과 다르다 — 그쪽은 화면에 함께 보여 주기 위한 목록이고 역방향 조회 대상이 아니다.
+
+**확인 요청 처리 기록으로 대신하지 않는다**
+
+| | `verification_request_handling` (11.7) | `event`(VERIFICATION) + 이 표 |
+| --- | --- | --- |
+| 답하는 질문 | 사람이 **이 요청을 어떻게 처리했나** | 사람이 **이 사실이 맞다고 했나** |
+| 분류 | `DECISION_RECORD` | `SOURCE_OF_TRUTH` (사실 주장) |
+| 요청 없이 생길 수 있나 | 아니오 | **예** — `verification_method = DIRECT_REVIEW` |
+| 현재 사실을 바꾸나 | 아니오 | **예** — 강도 상향 · `value_status` |
+
+`REQUEST_RESOLUTION` 으로 확인하면 **두 기록이 같이 남는다**: 처리 기록 1건(`handling_type = RESOLVED`, `resolving_event_id` = 그 확인 사건)과 확인 사건 1건. 둘 중 하나로 다른 하나를 대신하지 않는다.
+
+### 11.2b 입력 품질과 검증기 신뢰도는 다른 축이다 **(rev.2.3 신규)**
+
+rev.2.2 의 `event` 에는 `input_quality` 만 있었고 `docs/05` 4.2 가 **필수**로 정한 `confidence` 가 없었다. 둘은 다른 질문이다.
+
+| | `input_quality` | `input_confidence_level` |
+| --- | --- | --- |
+| 묻는 것 | 입력이 **어떤 형태**로 왔나 | 이 입력을 **얼마나 믿을 수 있다고 판정**했나 |
+| 값 | `STRUCTURED` · `SEMI_STRUCTURED` · `UNSTRUCTURED` | `HIGH` · `MEDIUM` · `LOW` |
+| 정하는 것 | 채널·형식 | **결정론 검증기**(`docs/05` 4.6) |
+| 같은 값이 나올 수 있나 | 폼 입력도 자유 문장도 형태는 고정 | 같은 폼 입력이어도 단위가 없으면 `LOW` 로 떨어진다 |
+
+**왜 없으면 안 되는가.** `docs/05` 3.3 근거 강도표의 행이 신뢰도로 갈린다.
+
+```
+EMAIL (LLM, 신뢰도 MEDIUM)  →  권한 A 1 · S 1 · W 0
+EMAIL · DOCUMENT (신뢰도 LOW) →  전부 0   ← 후보 자격 없음
+```
+
+신뢰도가 없으면 **이 표를 색인할 수 없고 근거 강도를 계산할 수 없다.** 근거 강도는 Reconciliation 전체의 입력이므로 R1~R12 가 통째로 돌지 않는다. `docs/20` **A-02**(확정 규칙)도 "모든 사건에 … **신뢰도** … 가 있어야 한다"고 요구한다.
+
+**모든 경로에 있어야 한다.** `extraction` 행이 없는 경로(사람 입력 · 공공 API · 파일 가져오기)도 신뢰도를 갖는다. 그래서 `extraction` 에 두지 않고 `event` 컬럼으로 둔다.
+
+| 경로 | 신뢰도를 정하는 검사 |
+| --- | --- |
+| `HUMAN_UI` · 구조화 파일·API | 스키마·단위 검사 통과 → `HIGH`(사람·파트너) 또는 `MEDIUM`(공공 API·파일) |
+| `EMAIL` · `DOCUMENT` + LLM | 4.6 의 7가지 검사. 모두 통과해도 **`HIGH` 가 되지 않는다** |
+| 어느 경로든 모호 표현·단위 없음·인용 불일치 | `LOW` + 확인 요청 |
+
+**사유는 표를 만들지 않는다.** `input_confidence_reasons` 는 구조화 값 목록(`JSON`)이다. 사유는 조회·조인 대상이 아니라 화면 설명과 감사용이고, 검사 목록은 정책(`docs/05` 4.6)이 바뀌면 같이 바뀐다. 표로 고정하면 정책 판마다 스키마를 바꿔야 한다.
+
+> **`model_confidence` 와 다르다.** `extraction.model_confidence` 는 LLM 이 스스로 매긴 점수이고 `docs/05` 4.6 이 "쓰지 않는다"고 못박았다. `input_confidence_level` 은 **결정론 검증기의 판정**이다.
+
+### 11.2c 출처는 세 축이다 **(rev.2.3 — 사용자 결정 C)**
+
+**2026-09-21 사용자 결정**: 출처 어휘를 ADR-020 의 3축으로 통일한다.
+
+| 축 | 컬럼 | 묻는 것 | 값 |
+| --- | --- | --- | --- |
+| **채널** | `source_type` | 어떤 **경로**로 들어왔나 | `HUMAN_UI` · `FILE_IMPORT` · `EMAIL` · `DOCUMENT` · `PUBLIC_API` · `PARTNER_SYSTEM` · `INFERENCE` |
+| **역할** | `source_role_at_ingestion` | 현실에서 **누구의 역할**로 말했나 | 등록부가 결정론적으로 정한다(`docs/05` 3.2) |
+| **추출 방식** | `extraction_method` | 원문에서 값을 **어떻게 뽑았나** | `DIRECT` · `RULE_PARSED` · `LLM_EXTRACTED` · `CALCULATED` |
+
+**무엇이 바뀌었나.** rev.2.2 는 `source_kind` 6값(`PUBLIC_API`·`EMAIL`·`DOCUMENT`·`HUMAN_INPUT`·`PLAN_UPLOAD`·`INTERNAL`)을 썼는데, 이것은 ADR-020 이 고정한 목록과 다르고 **채널과 입력 형태가 섞여 있었다.**
+
+| 옛 값 | 새 표현 | 왜 |
+| --- | --- | --- |
+| `HUMAN_INPUT` | `source_type = HUMAN_UI` | 같은 개념. ADR-020 의 이름을 쓴다 |
+| `PLAN_UPLOAD` | `source_type = FILE_IMPORT` + `fact_kind = PLAN` | **업로드는 채널이고 계획은 사실 종류다.** 한 값에 섞으면 "메일로 온 계획"을 표현할 수 없다 |
+| `INTERNAL` | **의미를 보고 나눈다** | 아래 |
+
+**`INTERNAL` 을 문자열 치환하지 않는 이유.** 이 값은 두 가지를 한 칸에 담고 있었다.
+
+| 실제로 무엇이었나 | 새 표현 |
+| --- | --- |
+| CERA 엔진이 만든 추정값(R8 빈칸 채움) | `source_type = INFERENCE` + `extraction_method = CALCULATED` + `source_role = CERA_ENGINE` |
+| CERA 안의 다른 모듈이 옮긴 값 | **사건이 아닐 가능성이 높다.** 계산 결과는 `risk_assessment`·`cost_result` 로 가고 `event` 로 오지 않는다(안티패턴 8 · I-13). 사건으로 만들어야 한다면 원래 출처의 축을 그대로 쓴다 |
+
+**두 축을 섞지 않는다.** `source_type` 은 경로, `extraction_method` 는 방법이다.
+
+| 상황 | `source_type` | `extraction_method` |
+| --- | --- | --- |
+| 운영자가 화면에서 직접 입력 | `HUMAN_UI` | `DIRECT` |
+| 공공 API 구조화 응답을 어댑터가 파싱 | `PUBLIC_API` | `RULE_PARSED` |
+| 파트너 TMS 가 구조화 필드로 보냄 | `PARTNER_SYSTEM` | `DIRECT` |
+| 메일 자유 문장에서 LLM 추출 | `EMAIL` | `LLM_EXTRACTED` |
+| 계약서 PDF 에서 LLM 추출 | `DOCUMENT` | `LLM_EXTRACTED` |
+| CSV 업로드 | `FILE_IMPORT` | `RULE_PARSED` |
+| 엔진 추정 | `INFERENCE` | `CALCULATED` |
+
+- **`extraction_method = LLM_EXTRACTED` 이면 `extraction_id` 가 있어야 한다**(I-23). 반대로 `extraction_id` 가 없다고 해서 값이 저절로 믿을 만해지지는 않는다 — 신뢰도는 11.2b 가 따로 정한다.
+- **AI 사용 여부와 채널을 혼동하지 않는다.** `EMAIL` 이어도 구조화 회신이면 `DIRECT`·`RULE_PARSED` 다(ADR-026 의 `capabilities().structured_reply`).
+
+> **`raw_input.source_type` 도 같은 7값으로 맞췄다**(11.1). 같은 이름이 두 표에서 다른 값 집합을 가리키던 상태를 없앴다.
+
+> **Q-46 은 닫지 않는다.** 이 7값은 **현재 ADR 기준으로 논리 모델을 정렬한 것**이지 영구 확정 enum 이 아니다. ADR-020 본문도 "각 축의 **값 목록이 현장에 충분한지**는 아직 승인되지 않았다"고 적어 두었다(`docs/14:256`). 상대방이 직접 입력한 구조화 값(모바일 응답 링크·거래처 포털)을 `HUMAN_UI` 로 넣으면 **CERA 사용자 입력과 같은 강도가 되어 권한 모델이 무너진다**(`docs/18` M.4). 그 해법(`actor_type` 신설 여부 포함)은 **권한 모델과 함께 Q-46 에서 정한다.** 그래서 18절 코드값 정책은 `source_type` 과 `source_role_at_ingestion` 을 **"업무가 늘릴 수 있는 값"**(코드 테이블)으로 다룬다. `extraction_method` 는 4값이 안정적이고 로직이 직접 의존하므로(I-23) 고정 목록 쪽이다.
+
+### 11.2d 멱등 키 · 업무 사건 유형 · 스키마 판 · 부가 속성 **(rev.2.3 신규)**
+
+#### 멱등 키 (`idempotency_key`)
+
+**왜 `raw_input` 의 유일 제약으로 부족한가.** 11.1 의 `UNIQUE(source_name, source_record_key)` 는 **같은 전달 건을 두 번 수집하는 것**을 막는다. 그런데 이 설계는 **한 원문 → 여러 사건**이다(11.1 · `docs/05` 4.4). 그래서 같은 `raw_input` 을 **다시 처리**하면(파서 수정 · 재시도 · 장애 복구) 같은 주장이 사건으로 중복 생성되고, 수집 쪽 제약은 이것을 전혀 막지 못한다.
+
+**논리 재료** — `docs/05` 4.2 의 `hash(raw_ref, entity, fact_key)` 를 **그대로 쓰지 않는다.** rev.2 에서 적용 범위가 사실의 식별자에 들어왔기 때문이다(11.4.1).
+
+| 재료 | 왜 필요한가 |
+| --- | --- |
+| `raw_input_id` (또는 사람 액션의 주장 위치) | 어느 원천에서 온 주장인가 |
+| **SUBJECT 개체** (`entity_type` · `entity_id`) | 어느 개체의 사실인가 |
+| `fact_key` | 어느 사실인가 |
+| **`applicability_scope_type` · `applicability_scope_ref`** | **범위가 다르면 다른 사실이다.** 빼면 `GLOBAL` 15,000원과 `RECOVERY_CONTEXT` 0원이 같은 키가 되어 **둘째 입력이 조용히 사라진다** |
+| `event_class` | 같은 사실에 대한 관측·정정·확인은 서로 다른 사건이다 |
+| **주장 위치(claim locator)** | 한 원문 안에 **같은 개체·같은 사실 키가 여러 번** 나올 수 있다(일일 보고의 날짜별 줄). 구분자가 없으면 두 번째 줄이 중복으로 버려진다 |
+
+- `VERIFICATION` 은 `fact_key` 가 없으므로 **대상 사건 id 들의 정렬된 집합**이 그 자리를 대신한다.
+- **직렬화 방식 · 해시 알고리즘 · 주장 위치의 형식은 물리 설계(T-080)** 에서 정한다. 여기서 정하는 것은 "무엇을 넣고 무엇을 빼는가"다.
+- 중복이 들어오면 **거부가 아니라 무시**다(`docs/05` 4.5 "무시(로그만)"). 기술 오류가 아니므로 `system_error` 로 가지 않는다.
+
+#### 업무 사건 유형 (`event_type`)
+
+`fact_key` 와 **역할이 다르다.**
+
+| | `event_type` | `fact_key` |
+| --- | --- | --- |
+| 묻는 것 | 업무적으로 **무슨 일**이 있었나 | **어느 사실**을 주장하나 |
+| 예 | `WAREHOUSE_CAPACITY_CHANGED` | `warehouse.capacity@2026-09-18` |
+| 쓰는 곳 | 어댑터 매핑 · Activity Timeline · 사건 카탈로그 | Reconciliation · `canonical_fact` 키 |
+| 카탈로그 | `docs/05` 4.4 | `docs/05` 4.3 |
+
+한 `event_type` 이 여러 사건을 만들 수 있다(`WAREHOUSE_DAILY_REPORT` 하나 → `intake.*` 여러 건). 반대로 같은 `fact_key` 를 **다른 업무 의미**로 주장할 수도 있다. 둘 중 하나로 다른 하나를 유도하지 않는다.
+
+> `data/scenarios/busan-wh-capacity-01/events.json` 이 이미 이 값을 **17건** 담고 있다. 시나리오가 쓰는 값이 논리 모델에 없던 상태였다.
+
+#### 스키마 판 (`schema_version`)
+
+`event` 는 append-only 다. 스키마가 진화해도 **과거 행을 고칠 수 없다.** 그래서 "이 행을 어느 계약 판으로 읽어야 하는가"를 행 자신이 들고 있어야 한다. **나중에는 넣을 수 없다** — 이미 쌓인 행에는 값이 없기 때문이다. 판 문자열의 형식은 물리 설계에서 정한다.
+
+#### 부가 속성 (`payload`)
+
+**잡동사니 저장소로 만들지 않는다.** 아래는 계속 **정식 컬럼·관계**로 유지한다.
+
+```
+SUBJECT · fact_key · 적용 범위 · 출처 3축 · 시각들 · 값 · 신뢰도 · 확인 · 멱등 키
+```
+
+`payload` 에 들어가는 것은 **사건 종류별 부가 정보**뿐이다.
+
+| 키 | 무엇 | 쓰는 곳 |
+| --- | --- | --- |
+| `change_reason` | 수용량이 왜 줄었나 | R6 의 "변화 선언" 예외 판정(값 목록은 **Q-34 OPEN**) |
+| `forecast_kind` | `SCHEDULED` · `ESTIMATED` · `PREDICTED` | `forecast.eta` 의 해석 |
+| `tz_assumed` | 원천에 타임존이 없어 어댑터가 붙였다 | `docs/20` **A-03** 이 "그 사실을 기록한다"고 요구 |
+
+**판단 기준**: 조회·조인·제약의 대상이면 컬럼이고, 설명·감사용이면 `payload` 다. 새 키를 넣기 전에 이 기준을 먼저 적용한다.
 
 ### 11.3 `event_entity_link` — 사건이 가리키는 개체
 
@@ -855,15 +1116,17 @@
 | **채택 사건** | `winning_event_id` | `REF(event)` | 예 | FK | **어떤 사건이 이겼는지 반드시 남긴다** |
 | 적용 규칙 | `applied_rule` | `CODE` | 예 | | `R1`~`R12` 중 승부를 가른 규칙 |
 | 규칙 판 | `rule_version` | `STRING(20)` | 예 | | 재계산 재현용 |
-| 검증 상태 | `verification_status` | `CODE` | 예 | | `VERIFIED`·`INFERRED`·`ASSUMED`·`UNKNOWN`·`CONFLICTED` |
+| **① 값 보증** | `value_status` | `CODE` | 예 | | **rev.2.3 — 옛 `verification_status` 교체.** `CONFIRMED`·`OBSERVED`·`PROVISIONAL`·`INFERRED`·`UNKNOWN` — 11.4.2 |
+| **확인 근거** | `verification_basis` | `CODE` | 아니오 | | **rev.2.3 신규.** `CONFIRMED` 일 때만: `HUMAN_VERIFICATION`·`AUTHORITATIVE_SYSTEM`·`POLICY_EVIDENCE` |
+| **② 신선도** | `freshness_status` | `CODE` | 예 | | `FRESH`·`AGING`·`STALE`·`EXPIRED`·`UNKNOWN`·`N_A` |
+| **③ 충돌** | `conflict_status` | `CODE` | 예 | | **rev.2.3 — 옛 `has_conflict BOOLEAN` 교체.** `NONE`·`DISSENT`(진 후보 기록, 판단 차단 없음)·`OPEN`(해결 전 판단 차단) |
+| **④ 보류** | `hold_status` | `CODE` | 예 | | **rev.2.3 신규.** `NONE`·`HELD`(불리한 큰 변경이 확인을 기다림, R10) |
+| **⑤ 결정 가능성** | `decision_usability` | `CODE` | 예 | | **rev.2.3 신규.** `USABLE`·`USABLE_WITH_WARNING`·`APPROVAL_BLOCKED`·`UNUSABLE` (R11). **엔진은 이것 하나만 본다** |
 | **근거 강도** | `evidence_strength` | `CODE` | 예 | | **계산 결과**. 원천 축 + 정책으로 판정한다. `event` 에는 없다 |
 | **근거 강도 정책 판** | `evidence_policy_version` | `STRING(20)` | 예 | | 어느 정책으로 판정했나. 정책이 바뀌면 재계산한다 |
-| 신뢰도 | `confidence` | `DECIMAL(5,4)` | 아니오 | | |
 | 근거 시각 | `evidence_time` | `TIMESTAMP_TZ` | 아니오 | | 3단계 폴백 결과 |
-| 근거 시각 품질 | `evidence_time_quality` | `CODE` | 예 | | 어느 단계에서 왔는지 |
-| 시간 신뢰도 | `temporal_confidence` | `CODE` | 예 | | |
-| 신선도 상태 | `freshness_status` | `CODE` | 예 | | |
-| 충돌 있음 | `has_conflict` | `BOOLEAN` | 예 | | `conflict` 존재 여부 캐시 |
+| 근거 시각 품질 | `evidence_time_quality` | `CODE` | 예 | | `EVENT_TIME`·`RECORDED_TIME`·`RECEIVED_ONLY` — 어느 단계에서 왔는지 |
+| 시간 신뢰도 | `temporal_confidence` | `CODE` | 예 | | 근거 시각을 얼마나 믿을 수 있나(ADR-014 T-060 주석) |
 | 기여 사건 수 | `contributing_event_count` | `INTEGER` | 예 | | |
 | 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | **PK 일부** | 실제와 시뮬레이션이 같은 키를 공유하지 않게 한다 |
 | 시나리오 | `scenario_id` | `REF(scenario)` | 아니오 | FK | |
@@ -929,6 +1192,81 @@ RECOVERY_CONTEXT (<RECOVERY_CONTEXT_REF>)  ┘
 
 > `planning_snapshot_fact` 의 PK 에도 같은 이유로 범위 두 컬럼이 들어간다(13.2).
 
+#### 11.4.2 현재 사실의 상태는 한 칸이 아니라 다섯 차원이다 **(rev.2.3 — ADR-020 복구)**
+
+**무엇이 잘못돼 있었나.** rev.2.2 의 `canonical_fact` 는 서로 다른 질문을 한 enum 에 넣고 있었다. 이것은 ADR-020 이 **기각한 대안 바로 그것**이다(`docs/14:253`).
+
+```
+rev.2.2:  verification_status = VERIFIED · INFERRED · ASSUMED · UNKNOWN · CONFLICTED
+                                                                          ↑
+                                          "누가 보증하나" 칸에 "다툼이 있나"가 들어가 있었다
+          has_conflict BOOLEAN            ← DISSENT 와 OPEN 을 구분할 수 없다
+          hold_status  없음                ← R10 보류를 표현할 수 없다
+          decision_usability 없음          ← 엔진이 볼 값이 없다
+```
+
+ADR-020 **`Accepted (구조 한정)`**, `docs/14:252`:
+
+> "Canonical Fact는 `value_status`, `freshness_status`, `conflict_status`, `hold_status`를 따로 두고, 엔진은 이를 합친 `decision_usability` 하나를 본다."
+
+승인된 `docs/21` 10.2 도 같은 말을 한다 — "**한 값으로 합치지 않는다**", "**엔진은 결정 가능성 하나만 보면 된다**".
+
+**무엇이 깨져 있었나.** 표현의 문제가 아니라 기능이 세 개 막혀 있었다.
+
+| # | 막힌 것 | 근거 |
+| --- | --- | --- |
+| 1 | **계획 승인 게이트**. `APPROVAL_BLOCKED` 를 판정할 차원이 없다 | `docs/03` FR-OPT-06 (`Must`) · `docs/05` 11.5 규칙 1 |
+| 2 | **R10 보류**. "불리한 큰 변경은 확인 전까지 보류"의 상태를 저장할 곳이 없다 | ADR-019 `Accepted`(`docs/14:235`) |
+| 3 | **"사람이 확인했지만 오래됐다"**(CONFIRMED + STALE) 같은 조합 | ADR-020 맥락(`docs/14:248`)이 기각 사유로 든 바로 그 예 |
+
+**복구한 다섯 차원 + 근거 한 개**
+
+| 차원 | 묻는 것 | 무엇이 바꾸나 |
+| --- | --- | --- |
+| `value_status` | 이 값을 **누가 보증하나** | 새 사건, **사람 확인** |
+| `freshness_status` | **얼마나 오래됐나** (모름도 한 값) | 시계(`as_of`), 근거 시각 품질 |
+| `conflict_status` | **다툼이 있나** | 새 사건, 사람 확인 |
+| `hold_status` | 불리한 큰 변경이 **확인을 기다리나** | R10, 사람 확인 |
+| `decision_usability` | **엔진이 이 값으로 판단해도 되나** | 위 네 차원 + 사실의 중요도(R11) |
+| `verification_basis` | `CONFIRMED` 가 **무슨 근거로** 됐나 | `docs/05` 6.2 의 세 가지뿐 |
+
+**값 목록은 `docs/05` 6.2 에 정의된 것만 쓴다.** rev.2.2 에만 있던 `VERIFIED` · `ASSUMED` 는 정본에 없는 값이라 쓰지 않는다.
+
+| 옛 값 | 새 표현 | 비고 |
+| --- | --- | --- |
+| `VERIFIED` | `value_status = CONFIRMED` | `docs/05` 6.2 의 이름 |
+| `INFERRED` | `value_status = INFERRED` | 같음 |
+| `ASSUMED` | **없앤다** | 정본에 없다. 해당 상황은 `PROVISIONAL`(강도 1) 또는 `INFERRED` 다 |
+| `CONFLICTED` | `conflict_status = OPEN` | **다른 축이다.** 값 보증 칸에서 뺀다 |
+| (없음) | `value_status = OBSERVED` · `PROVISIONAL` · `UNKNOWN` | 정본에 있는데 빠져 있었다 |
+
+**`confidence` 를 제거했다.** rev.2.2 의 `canonical_fact.confidence DECIMAL(5,4)` 는 **설명 칸이 비어 있었고**, 승인된 문서·ADR·`docs/05` 어디에도 이 숫자의 계산 의미가 정의돼 있지 않다. 정의가 없는 숫자에 새 의미를 만들어 붙이지 않는다.
+
+| 이 설계에서 "얼마나 믿을 수 있나"를 답하는 것 | 어디 | 무엇 |
+| --- | --- | --- |
+| `event.input_confidence_level` | 사건 | 결정론 **검증기**의 입력 품질 판정 (11.2b) |
+| `canonical_fact.evidence_strength` | 현재 사실 | 채널 × 권한 × 확인 × 신뢰도의 **계산 결과** |
+| `canonical_fact.value_status` | 현재 사실 | 누가 **보증**하나 |
+| `canonical_fact.temporal_confidence` | 현재 사실 | **근거 시각**을 얼마나 믿나 |
+| `extraction.model_confidence` | 추출 | LLM **자기 점수**. 쓰지 않는다 |
+
+**같은 이름 `confidence` 를 여러 의미로 두지 않는다.** 그래서 이름이 겹치던 무의미 컬럼 하나를 없애고, 나머지는 각자 다른 이름을 갖는다.
+
+**Integrity Rules** (rev.2.3 추가)
+
+1. `value_status = CONFIRMED` 이면 `verification_basis` 가 **NOT NULL** 이다. 그 밖에는 비어 있다.
+2. `verification_basis = HUMAN_VERIFICATION` 은 **`VERIFICATION(CONFIRM)` 사건이 있거나** 이긴 값이 `HUMAN_UI` 직접 입력(강도 ≥ 2)일 때만 선다.
+3. **계획 승인은 `verification_basis` 가 아니다.** `plan_decision` 은 `canonical_fact` 의 어느 차원도 바꾸지 않는다(`docs/21` 12.2 A-17 · FR-OPT-06).
+4. `conflict_status = OPEN` 이면 같은 범위의 `conflict` 행이 존재한다(11.5.1).
+5. `decision_usability` 는 **저장하지만 원천이 아니다.** 독립적으로 쓰거나 사람이 고치는 경로가 없고, 아래 입력에서 **결정론적으로 유도**된다(R11). 같은 입력이면 항상 같은 값이다(I-24).
+
+   | 입력 | 어디서 오나 |
+   | --- | --- |
+   | `value_status` · `freshness_status` · `conflict_status` · `hold_status` | 같은 행의 네 차원 |
+   | **사실의 중요도** | 정책 — 어느 판인지는 **`rule_version`**(R11 규칙 판)과 부모 계산의 `policy_version` 이 정한다 |
+
+   그래서 **판이 바뀌면 같은 네 차원에서 다른 `decision_usability` 가 나올 수 있다.** 이것이 판을 함께 저장·복사하는 이유다(11.4 `rule_version` · 13.2.1).
+
 ### 11.5 `conflict` — 충돌
 
 - 분류 **`DERIVED_MATERIALIZED`** · 변경 **`REBUILDABLE`** (재계산으로 덮어쓴다) · MVP
@@ -952,7 +1290,7 @@ RECOVERY_CONTEXT (<RECOVERY_CONTEXT_REF>)  ┘
 
 1. 충돌은 (`entity_type`, `entity_id`, `fact_key`, `applicability_scope_type`, `applicability_scope_ref`) 가 **모두 같은** 사건들 사이에서만 만든다.
 2. 범위가 다른 두 사건은 **어떤 경우에도 같은 충돌 행에 들어가지 않는다.**
-3. `canonical_fact.has_conflict` 는 **같은 범위의 충돌**만 반영한다.
+3. `canonical_fact.conflict_status` 는 **같은 범위의 충돌**만 반영한다(rev.2.3 — 옛 `has_conflict`).
 
 > 충돌의 **해소**는 여기에 쓰지 않는다. 해소는 새 사건이거나 확인 요청 처리 기록이다.
 
@@ -1142,11 +1480,44 @@ rev.1 은 이 컬럼을 **FK → `verification_request.request_key`** 라고 적
 
 - 분류 **`PERSISTED_OUTPUT`** · 변경 **`APPEND_ONLY`** (덧붙이기 전용) · MVP
 
-`snapshot_id` FK + (`entity_type`, `entity_id`, `fact_key`, `applicability_scope_type`, `applicability_scope_ref`) + **`event_id`** FK + `value_*` 사본 + `valid_from`·`valid_until` 사본 + `verification_status` + `evidence_strength` + `confidence`.
+`snapshot_id` FK + (`entity_type`, `entity_id`, `fact_key`, `applicability_scope_type`, `applicability_scope_ref`) + **`event_id`** FK + `value_*` 사본 + `valid_from`·`valid_until` 사본 + **상태 6차원 사본** + **판(version) 사본**.
 
 **PK** = (`snapshot_id`, `entity_type`, `entity_id`, `fact_key`, `applicability_scope_type`, `applicability_scope_ref`) — `canonical_fact` 와 같은 이유로 **범위가 키에 들어간다**(11.4.1).
 
 > `canonical_fact` 를 참조만 하면 안 된다. 그 행은 재계산으로 **덮어써진다**. 스냅샷은 **당시 값과 채택 사건을 복사해** 얼려 둔다. 이것이 "재현 가능한 계산"의 전부다.
+
+#### 13.2.1 상태 차원도 함께 얼린다 **(rev.2.3)**
+
+rev.2.2 는 `verification_status` · `evidence_strength` · `confidence` 셋만 복사했다. 그래서 **"그때 왜 이 사실을 계산에 쓸 수 있었나"** 와 **"그때 왜 승인할 수 있었나(없었나)"** 를 나중에 설명할 수 없었다.
+
+| 복사하는 것 | 왜 |
+| --- | --- |
+| `value_status` | 그때 누가 보증했나 |
+| **`verification_basis`** | `CONFIRMED` 였다면 무슨 근거였나 |
+| `freshness_status` | 그때 얼마나 오래됐나 — `as_of` 가 바뀌면 지금은 다른 값이 나온다 |
+| `conflict_status` | 그때 다툼이 있었나 |
+| **`hold_status`** | 그때 보류 중이었나(R10) |
+| **`decision_usability`** | **그때 엔진이 써도 되는 값이었나** — 승인 가능 여부의 정본 |
+| `evidence_strength` | 그때의 근거 강도 |
+| **`evidence_policy_version`** | 어느 강도 정책으로 판정했나 |
+| **`rule_version`** | 어느 Reconciliation 규칙 판이었나 |
+| `evidence_time` · `evidence_time_quality` · `temporal_confidence` | 신선도 판정의 입력 |
+
+**왜 판(version)까지 복사하나.** `planning_snapshot` 에 이미 `rule_version`·`policy_version` 이 있지만, 그것은 **스냅샷 전체의 판**이다. 사실 한 줄이 어느 판으로 판정됐는지는 그 줄이 들고 있어야 재계산 없이 설명할 수 있다.
+
+**무엇을 복사하지 않나.** `contributing_event_count` 와 `computed_at` 은 복사하지 않는다. 전자는 표시용 집계이고 후자는 스냅샷의 `created_at` 으로 갈음된다.
+
+**그때의 판정을 재현할 수 있나** (rev.2.3 확인). `decision_usability` 는 파생이므로 **값만 복사해서는 "그때 왜 그 값이었나"를 설명하지 못한다.** 판정에 들어간 것이 전부 얼려져 있는지 따졌다.
+
+| R11 판정의 입력 | 스냅샷 어디에 있나 |
+| --- | --- |
+| `value_status` · `freshness_status` · `conflict_status` · `hold_status` | **`planning_snapshot_fact` 에 네 컬럼 사본** |
+| 사실의 중요도 정책 · R11 규칙 판 | **`planning_snapshot_fact.rule_version` 사본** + 부모 `planning_snapshot.policy_version` |
+| 판정 결과 자체 | `planning_snapshot_fact.decision_usability` |
+
+**네 입력 + 판 + 결과가 모두 한 스냅샷 안에 있으므로, 지금 규칙이 바뀌었어도 과거 판정을 그대로 설명하고 다시 계산해 대조할 수 있다**(I-27). 계획 승인이 왜 막혔는지(`APPROVAL_BLOCKED`) 또는 왜 통과했는지도 같은 방법으로 설명된다.
+
+> 이 확장으로 **I-12**(스냅샷 하나로 과거를 복원)가 "사실 + 계획 조건 + 마스터 기본값 + 요율·정책 판"에서 **"+ 당시 상태 차원 + 그 판정의 근거"** 까지 넓어진다(17.5 I-12 · I-27).
 
 ### 13.2a `planning_snapshot_constraint` — 스냅샷에 담긴 계획 조건 **(rev.2 신규)**
 
@@ -1729,6 +2100,36 @@ rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었다. 그런데 중복 발송�
 
 > `comm_message.current_status` 는 이 표의 마지막 행을 접어 둔 **캐시**다. 상태의 정본은 여기다(안티패턴 3).
 
+#### 15.8.1 세 축을 섞지 않는다 — 메시지 상태 · 발송 시도 결과 · 승인 상태 **(rev.2.3 신규)**
+
+**새 표도 새 상태 값도 만들지 않는다.** 헷갈리기 쉬운 사건들이 **이미 있는 구조의 어디**로 가는지만 정한다.
+
+| 축 | 어디 | 묻는 것 |
+| --- | --- | --- |
+| **메시지 상태** | `message_status_transition.status` | 이 **업무 메시지**가 지금 어디까지 갔나 |
+| **발송 시도 결과** | `send_attempt.result` (+ `error_code`) | 이 **한 번의 외부 호출**이 어떻게 끝났나 |
+| **승인 상태** | `message_approval` 행들 | 사람이 **무엇을 승인·취소했나** |
+| (기술 실패) | `system_error` | 프로그램이 **어떻게 실패했나** (`docs/23` 4.1) |
+
+한 사건이 **여러 축에 동시에** 남을 수 있다. 같은 실패가 `send_attempt` 와 `system_error` 두 곳에 남는 것은 중복이 아니다 — 운영자는 앞을 보고 개발자는 뒤를 본다(`docs/23:114`).
+
+| 실제 사건 | 메시지 상태 | 발송 시도 결과 | 승인 | 기술 오류 |
+| --- | --- | --- | --- | --- |
+| **반송(bounce)** — 보냈는데 되돌아옴 | `DELIVERY_FAILED` | 이미 `SUCCESS` 로 끝난 시도는 **고치지 않는다**(15.7.3). 반송은 그 **뒤에 온 사실** | — | 아니다. 상대 메일함의 업무 사실이다 |
+| **영구 실패** — 주소 없음·수신 거부 | `DELIVERY_FAILED` | `PERMANENT_FAILURE` + `error_code` | — | 채널 오류면 함께 기록 |
+| **재시도 가능 실패** — 시간 초과·429 | 바뀌지 않는다 (`QUEUED` 유지) | `RETRYABLE_FAILURE` | — | 기록(`GMAIL_TIMEOUT` 등) |
+| **보냈는지 모름** | 바뀌지 않는다 | **`UNKNOWN`** — `NULL`(결과 미기록)과 다르다 | — | 기록 가능 |
+| **승인 취소·무효화** | `PENDING_APPROVAL` 로 돌아가지 않는다. **새 메시지가 필요하면 새 메시지다** | — | `REVOKED` · `INVALIDATED` **새 행**(15.5.1) | 아니다 |
+| **숫자 검사 실패** — 초안의 구조화 값이 계획과 다름 | 발송으로 가지 않는다 | **시도 자체가 생기지 않는다** | 유효한 승인이 없으므로 I-9 가 막는다 | **아니다. 정책 거부다**(`docs/23:232`) |
+
+**규칙 세 가지**
+
+1. **`send_attempt` 결과 5컬럼은 한 번만 채워진다**(15.7.3). 나중에 온 반송·회신은 **새 사실**이지 옛 시도의 정정이 아니다.
+2. **정책 거부는 기술 오류가 아니다.** Contact Gate 불통과 · 승인 지문 불일치 · 숫자 검사 실패는 `system_error` 가 아니라 업무 상태와 `audit_log` 에 남는다.
+3. `message_kind = CONTACT_VERIFICATION` 은 승인 축이 **비어 있다**(I-10). 주소 확인 메일은 업무 승인 게이트 밖이다(15.3.1).
+
+> **`message_kind` 값은 늘리지 않는다**(L-15 OPEN). 위 사건들은 전부 기존 9개 상태와 4개 결과 안에서 표현된다.
+
 ### 15.9 `extraction` — LLM 추출 후보
 
 - 분류 **`EVIDENCE`** · 변경 **`IMMUTABLE_AFTER_CREATE`**(추출 결과) **+ `CONTROLLED_UPDATE`**(검토 4컬럼) · MVP — rev.2.2 정정, 15.9.1
@@ -1746,6 +2147,9 @@ rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었다. 그런데 중복 발송�
 | 인용 위치 | `quote_location` | `STRING(100)` | 아니오 | | |
 | 모델 판 | `model_version` | `STRING(60)` | 예 | | |
 | 프롬프트 판 | `prompt_version` | `STRING(20)` | 예 | | |
+| **추출 스키마 판** | `schema_version` | `STRING(20)` | 예 | | **rev.2.3 신규.** 어느 추출 계약(구조화 출력 스키마)으로 뽑았나 |
+| **입력 지문** | `input_hash` | `HASH` | 예 | | **rev.2.3 신규.** 무엇을 넣고 뽑았나. 같은 입력·같은 판이면 재실행을 설명할 수 있다 |
+| **검증기 결과** | `validator_result` | `JSON` | 예 | | **rev.2.3 신규.** `docs/05` 4.6 검사별 통과/실패. **`model_confidence` 와 다른 것** — 15.9.2 |
 | 모델 자기 점수 | `model_confidence` | `DECIMAL(5,4)` | 아니오 | | **근거 강도가 아니다** |
 | 처리 상태 | `review_status` | `CODE` | 예 | | `PENDING`·`ACCEPTED`·`REJECTED`·`SUPERSEDED` |
 | 채택 주체·시각 | `reviewed_by_actor_id` · `reviewed_at` | — | 아니오 | FK | |
@@ -1760,16 +2164,39 @@ rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었지만, 사람이 후보를 �
 
 | 부분 | 컬럼 | 변경 |
 | --- | --- | --- |
-| **추출 결과 (불변)** | `extraction_id` · `message_id` · `raw_input_id` · `ask_id` · `candidate_value_text` · `candidate_unit` · `source_quote` · `quote_location` · `model_version` · `prompt_version` · `model_confidence` · `is_simulated` | **만든 뒤 절대 고치지 않는다.** LLM 이 낸 것은 그대로 남는다 |
+| **추출 결과 (불변)** | `extraction_id` · `message_id` · `raw_input_id` · `ask_id` · `candidate_value_text` · `candidate_unit` · `source_quote` · `quote_location` · `model_version` · `prompt_version` · **`schema_version`** · **`input_hash`** · **`validator_result`** · `model_confidence` · `is_simulated` | **만든 뒤 절대 고치지 않는다.** LLM 이 낸 것과 검증기가 판정한 것은 그대로 남는다 (rev.2.3 — 12 → **15컬럼**) |
 | **검토 (정해진 생애주기)** | `review_status` · `reviewed_by_actor_id` · `reviewed_at` · `created_event_id` | `PENDING` → `ACCEPTED` / `REJECTED` / `SUPERSEDED` **한 방향으로 한 번만** |
 
 **Integrity Rules**
 
-1. 추출 결과 12컬럼은 **어떤 경우에도 UPDATE 하지 않는다.** 다시 추출하면 새 행이고, 이전 행은 `SUPERSEDED` 로 닫는다.
+1. 추출 결과 **15컬럼**(rev.2.3)은 **어떤 경우에도 UPDATE 하지 않는다.** 다시 추출하면 새 행이고, 이전 행은 `SUPERSEDED` 로 닫는다.
 2. `review_status` 는 `PENDING` 에서 출발해 종료 상태로 **한 번만** 간다.
 3. `review_status = ACCEPTED` 이면 `created_event_id` 가 NOT NULL 이다(채택 = 사건 생성). `REJECTED` · `SUPERSEDED` 면 비어 있다.
 4. `ACCEPTED` · `REJECTED` 는 `reviewed_at` 이 NOT NULL 이다. 사람이 판정했으면 `reviewed_by_actor_id` 도 있다(결정론 규칙이 채택하면 `SYSTEM` 주체).
 5. 검토 결과가 사실이 되는 길은 **새 `event` 한 행**뿐이다. 추출 행의 값을 고쳐 사실로 쓰지 않는다.
+6. `validator_result` 는 **추출 결과의 일부**다. 나중에 정책이 바뀌어 다시 판정하면 **새 추출 행**이고 이전 행은 `SUPERSEDED` 다 (rev.2.3).
+
+#### 15.9.2 검증기 결과와 모델 자기 점수는 다른 것이다 **(rev.2.3 신규)**
+
+승인된 `docs/21` 13절이 Extraction 의 내용을 이렇게 정의한다:
+
+> "추출 1회의 기록 (모델·프롬프트 버전·**스키마 버전**·**입력 해시**·출력·**검증기 결과**·결과 종류)"
+
+rev.2.2 의 표에는 밑줄 친 셋이 없었다. 이번에 채웠다.
+
+| | `model_confidence` | `validator_result` |
+| --- | --- | --- |
+| 누가 만드나 | **LLM 자신** | **결정론 검증기**(Backend) |
+| 쓰나 | **쓰지 않는다** — `docs/05` 4.6 "LLM이 스스로 매긴 확신도는 쓰지 않는다" | **쓴다** — `event.input_confidence_level` 의 재료 |
+| 분류 | 참고 기록 | 판정 근거 |
+
+**구조는 `docs/05` 4.6 의 검사 목록 안에서만 만든다.** 새 평가 체계를 만들지 않는다. 4.6 이 정한 검사는 일곱 가지다 — JSON 스키마 적합 · 인용이 원문에 그대로 있음 · 수량·시각·금액 파싱과 단위 · 스레드 문맥 일치 · 발신자 등록부 조회 · 모호 표현 탐지 · 모델 거절·호출 실패.
+
+`validator_result` 는 **검사별 결과와 그 결과가 신뢰도에 준 영향**을 담는다. `JSON` 인 이유는 `input_confidence_reasons` 와 같다(11.2b) — 검사 목록이 정책과 함께 바뀌므로 표로 고정하면 판마다 스키마를 바꿔야 한다.
+
+**두 곳에 남는 이유.** `extraction.validator_result` 는 *이 추출에 대해 검증기가 무엇을 봤나*이고, `event.input_confidence_reasons` 는 *그래서 이 사건의 입력 신뢰도가 왜 그 등급인가*다. LLM 경로가 아닌 사건(사람 입력·공공 API)은 `extraction` 행이 없으므로 후자만 갖는다.
+
+> **추출 실패는 여기 남지 않는다.** 호출 실패·파싱 실패 같은 기술 실패는 `system_error` 다(`docs/23` 4.3). `validator_result` 는 **추출은 됐는데 검사에서 깎인 것**을 담는다.
 
 ### 15.10 `comm_message_question` — 메시지와 질문 연결
 
@@ -1896,7 +2323,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | 방식 | 쓰는 곳 | 이유 |
 | --- | --- | --- |
 | **단일 대리키** | 대부분의 테이블 | 업무 번호가 바뀌어도 참조가 깨지지 않는다 |
-| **복합 자연키** | `canonical_fact`(**6열**) · `planning_snapshot_fact`(**6열**) · `planning_snapshot_input`(5열) · `cost_line_link`(4열) · `event_entity_link`(3열) · `planning_snapshot_constraint`(2열) · `container_bl`(2열) · `comm_message_question`(2열) · `comm_message_structured_field`(2열) · `message_approval_structured_field`(2열) | 그 조합 자체가 "하나만 존재해야 하는 것"이다. **PK 구성 컬럼은 전부 NOT NULL 이다**(rev.2.2 — 13.2b `value_path`) |
+| **복합 자연키** | `canonical_fact`(**6열**) · `planning_snapshot_fact`(**6열**) · `planning_snapshot_input`(5열) · `cost_line_link`(4열) · `event_entity_link`(3열) · **`event_verification_target`(3열, rev.2.3)** · `planning_snapshot_constraint`(2열) · `container_bl`(2열) · `comm_message_question`(2열) · `comm_message_structured_field`(2열) · `message_approval_structured_field`(2열) | 그 조합 자체가 "하나만 존재해야 하는 것"이다. **PK 구성 컬럼은 전부 NOT NULL 이다**(rev.2.2 — 13.2b `value_path`) |
 | **위임 PK(1:1)** | `facility_warehouse` · `facility_terminal` · `facility_odcy` | `facility_id` 가 PK 이자 FK. 상세가 공통보다 먼저 생길 수 없다 |
 
 > **`canonical_fact` 와 `planning_snapshot_fact` 가 6열인 이유**: 개체 2열 + 사실 키 + **적용 범위 2열** + (`canonical_fact` 는 `is_simulated`, `planning_snapshot_fact` 는 `snapshot_id`). rev.2 에서 범위가 키에 들어가면서 4열 → 6열이 됐다(11.4.1).
@@ -1914,7 +2341,9 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | `raw_input` | (`source_name`, `source_record_key`) — **값이 있을 때만** | **같은 전달 건의 중복 처리**. 내용이 같은 재수집은 막지 않는다(11.1) |
 | `contact_channel_address` | (`channel_type`, `normalized_address`) | 같은 주소 중복 등록 |
 | `verification_request` | `request_key` | 같은 확인 요청이 재계산마다 새로 생기는 것 |
+| **`event`** | **`idempotency_key`** (rev.2.3) | **같은 주장을 두 번 사건으로 만드는 것.** 같은 `raw_input` 을 다시 처리해도 사건은 하나다(11.2d) |
 | `event_entity_link` | (`event_id`) 중 `link_role = SUBJECT` **1건** | **사건 하나에 주체가 둘이 되는 상태**(11.3) |
+| **`event_verification_target`** | PK (`verification_event_id`, `target_event_id`, `target_role`) (rev.2.3) | 같은 확인이 같은 대상을 같은 역할로 두 번 가리키는 것 |
 | `message_approval` | (`invalidates_approval_id`) **1건** — 값이 있을 때 | 같은 승인을 두 번 무효화하는 것(15.5.1) |
 | `operator_planning_constraint` | (`releases_constraint_id`) **1건** — 값이 있을 때 | 같은 조건을 두 번 해제하는 것(13.6) |
 | `question_item` | (`thread_id`, `ask_id`) | 회신 매핑의 모호함 |
@@ -1933,6 +2362,8 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | `event` → `raw_input` | N:1 | 필수 | **삭제 금지**. 원천 없는 사건은 존재할 수 없다 |
 | `event` → `event`(정정) | N:0..1 | 선택 | 삭제 금지 (정정 사슬이 끊긴다) |
 | `event_entity_link` → `event` | N:1 | 필수 | 사건과 함께만 존재 |
+| **`event_verification_target` → `event`(확인)** | N:1 | 필수 | **삭제 금지.** 확인 기록이 끊긴다 (rev.2.3) |
+| **`event_verification_target` → `event`(대상)** | N:1 | 필수 | **삭제 금지.** 무엇을 확인했는지 잃는다 (rev.2.3) |
 | `canonical_fact` → `event`(채택) | N:1 | 필수 | `canonical_fact` 는 재생성 대상이므로 전체 삭제 후 재계산은 허용 |
 | `verification_request_handling` → `verification_request.request_key` | N:1 | **DB FK 아님** | **논리 연결 키.** 요청이 재생성으로 사라져도 처리 기록은 남는다(11.7.1) |
 | `question_item.verification_request_key` → `verification_request.request_key` | N:0..1 | **DB FK 아님** | **논리 연결 키.** 사람이 실제로 보낸 질문이 파생 행의 생존에 의존하지 않는다(15.2.2) — rev.2.2 표기 보강 |
@@ -1984,12 +2415,19 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **I-15** | 충돌은 **같은 적용 범위** 안의 사건들 사이에서만 만든다(11.5.1) |
 | **I-16** | `verification_request` · `question_item` 은 **대상 적용 범위**를 갖는다. `request_key` 재료에도 범위가 들어간다(11.6.1 · 11.7.2 · 15.2.1) |
 | **I-17** | 무효화 행(`REVOKED`·`INVALIDATED`)은 **같은 메시지의 `APPROVED` 행**을 가리키고, 한 승인당 최대 1건이다(15.5.0) |
-| **I-12** | 과거 `planning_snapshot` 하나로 **사실 + 계획 조건 + 마스터 기본값 + 요율·정책 판**을 모두 복원할 수 있어야 한다 |
+| **I-12** | 과거 `planning_snapshot` 하나로 **사실 + 계획 조건 + 마스터 기본값 + 요율·정책 판 + 당시 상태 6차원**을 모두 복원할 수 있어야 한다. 특히 **"그때 왜 승인 가능했나(없었나)"** 를 `decision_usability` 사본으로 설명할 수 있어야 한다 (rev.2.3 확장, 13.2.1) |
 | **I-13** | `event` 에 근거 강도(Evidence Strength) 컬럼이 없다. 정책 판이 바뀌어도 같은 사건 집합으로 재계산된다 |
 | **I-14** | `operator_planning_constraint` 와 `message_approval` 에 UPDATE 경로가 없다. 해제·무효화는 새 행이다 |
 | **I-18** | `send_attempt` · `extraction` 의 **불변 부분**은 UPDATE 되지 않고, 결과·검토 컬럼은 **한 방향으로 한 번만** 채워진다(15.7.3 · 15.9.1) — rev.2.2 |
 | **I-19** | `system_error` 는 **현재 사실·계산 결과·승인·발송 판정의 입력이 아니다.** 오류 기록이 `event`·`canonical_fact`·Activity Timeline 으로 흘러가지 않는다(16.2a) — rev.2.2 |
 | **I-20** | `system_error` 에 **비밀값·토큰·원문 본문·전체 스택 트레이스를 넣지 않는다.** 필요하면 `raw_log_ref` 참조만 둔다(`docs/23` 4.4) — rev.2.2 |
+| **I-21** | **`event_class` 별 필수 조합**이 지켜진다(11.2 규칙 5). `VERIFICATION` 은 사실 키·값을 갖지 않고 `TARGET` 1건 이상을 갖는다 — rev.2.3 |
+| **I-22** | **`value_status = CONFIRMED` 는 `verification_basis` 없이 설 수 없다.** 계획 승인(`plan_decision`)은 어떤 경우에도 `verification_basis` 가 되지 않는다(A-17) — rev.2.3 |
+| **I-23** | `extraction_method = LLM_EXTRACTED` 이면 `extraction_id` 가 **NOT NULL** 이다. 반대로 `extraction_id` 가 있으면 `extraction_method` 는 `LLM_EXTRACTED` 다 — rev.2.3 |
+| **I-24** | `decision_usability` 는 **네 차원 + 사실 중요도 정책에서 유도된다.** `(네 차원, `rule_version`, 중요도 정책 판)` 이 같으면 **항상 같은 값**이 나와야 한다(R11, 결정론). 저장하지만 원천이 아니다 — rev.2.3 |
+| **I-25** | **같은 논리 주장은 사건이 하나다.** `event.idempotency_key` 는 적용 범위와 주장 위치를 재료에 포함한다(11.2d) — rev.2.3 |
+| **I-26** | **한 확인 사건의 모든 대상은 같은 현재 사실 좌표**(SUBJECT + `fact_key` + 적용 범위) 안에 있고, **확인 사건 자신의 SUBJECT·적용 범위도 그 좌표와 같다**(11.2a 규칙 7·8 · 11.2a.1) — rev.2.3 |
+| **I-27** | 과거 `planning_snapshot` 만으로 **그때의 `decision_usability` 판정을 재현**할 수 있다. 네 차원 사본 + `rule_version` 사본 + 스냅샷의 `policy_version` 이 모두 얼려져 있다(13.2.1) — rev.2.3 |
 
 ---
 
@@ -1999,9 +2437,9 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 | 성격 | 처리 | 예 |
 | --- | --- | --- |
-| **거의 바뀌지 않고 로직이 의존** | 문자열 컬럼 + 애플리케이션 상수 + 체크 제약(선택) | `direction` · `fact_kind` · `link_role` · `enforcement` |
-| **업무가 늘리는 값** | **코드 테이블**(`code_group`, `code_value`, 표시명, 정렬, 활성) | `cost_type` · `facility_type` · `risk_type` · `question_type` |
-| **아직 값 목록이 없는 것** | 문자열 컬럼 + **`OPEN` 표시**. 임의로 확정하지 않는다 | **`plan_decision.decision_type`** |
+| **거의 바뀌지 않고 로직이 의존** | 문자열 컬럼 + 애플리케이션 상수 + 체크 제약(선택) | `direction` · `fact_kind` · `link_role` · `enforcement` · **`event_class`** · **`verification_action`** · **`verification_method`** · **`target_role`** · **`extraction_method`** · **`value_status`** · **`conflict_status`** · **`hold_status`** · **`decision_usability`** · **`verification_basis`** · **`input_confidence_level`** (rev.2.3) |
+| **업무가 늘리는 값** | **코드 테이블**(`code_group`, `code_value`, 표시명, 정렬, 활성) | `cost_type` · `facility_type` · `risk_type` · `question_type` · **`event_type`**(사건 카탈로그가 늘어난다) · **`source_type`** · **`source_role_at_ingestion`** (rev.2.3) |
+| **아직 값 목록이 없는 것** | 문자열 컬럼 + **`OPEN` 표시**. 임의로 확정하지 않는다 | **`plan_decision.decision_type`** · **`payload.change_reason`**(Q-34) |
 | **규칙 식별자** | 문자열. 규칙 문서가 정본 | `applied_rule`(R1~R12) · `trigger_rule` |
 
 > 코드 테이블 자체는 **논리 테이블 수에 넣지 않았다**. 물리 설계에서 한 벌(`code_group`/`code_value`)로 만들지, 값별 테이블로 만들지 정한다.
@@ -2012,9 +2450,10 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 ```
 [raw_input] 1──N [event] ──N [event_entity_link] N── (container / bl / facility / counterparty / truck_pool)
-                   │  └─ supersedes ──┐
+                   │  └─ supersedes ──┐          (CORRECTION)
                    │                  ▼
                    │              [event]
+                   │  └─ [event_verification_target] ──> [event]   (VERIFICATION: TARGET / OVERRULED)
                    ├──N──> [canonical_fact]  (파생·물질화, PK = 개체 + 사실키 + 적용범위 + 시뮬)
                    │            │
                    │            ├──> [conflict]
@@ -2078,7 +2517,9 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 `is_simulated` 를 갖는 테이블: `container` · `bl` · `raw_input` · `event` · `canonical_fact` · `conflict` · `verification_request` · `verification_request_handling` · `commercial_offer` · `commercial_offer_item` · `comm_thread` · `question_item` · `comm_message` · `send_attempt` · `message_status_transition` · `extraction` · `audit_log` · **`system_error`**(rev.2.2).
 `contains_simulated` 를 갖는 테이블: `planning_snapshot` · `recovery_run` · `assignment` · `risk_assessment` · `cost_result`.
-스냅샷의 자식 표(`planning_snapshot_fact` · `planning_snapshot_constraint` · `planning_snapshot_input`)와 승인·메시지의 자식 표(`comm_message_structured_field` · `message_approval_structured_field`)는 **부모에서 판정이 정해지므로 플래그를 따로 두지 않는다.**
+스냅샷의 자식 표(`planning_snapshot_fact` · `planning_snapshot_constraint` · `planning_snapshot_input`)와 승인·메시지의 자식 표(`comm_message_structured_field` · `message_approval_structured_field`), 그리고 사건의 자식 표(`event_entity_link` · **`event_verification_target`**, rev.2.3)는 **부모에서 판정이 정해지므로 플래그를 따로 두지 않는다.**
+
+> **`verification_request_handling` 이 스스로 `is_simulated` 를 갖는 것과 왜 다른가**(11.7): 그쪽 부모(`verification_request`)는 `DERIVED_MATERIALIZED` 라 **재생성으로 사라질 수 있다.** `event` 는 `SOURCE_OF_TRUTH` · `APPEND_ONLY` 라 사라지지 않으므로 자식이 스스로 들 필요가 없다.
 
 ---
 
@@ -2161,15 +2602,16 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 > enum 을 지금 과하게 확정하지 않는다. 현업이 실제로 쓰는 범위가 확인되기 전에 닫으면 안 맞는 칸이 생긴다.
 
 
-### 22.5 적용 범위 전파 점검표 **(rev.2.1)**
+### 22.5 적용 범위 전파 점검표 **(rev.2.1 · rev.2.3 에서 한 줄 추가)**
 
 **원칙**: 현재 사실의 식별자에 적용 범위가 들어갔으므로, **그 사실을 만들고·확인하고·충돌 판정하고·질문하고·얼리는 경로 어디에서도 범위가 조용히 사라지면 안 된다.** 반대로 필요 없는 곳에 컬럼을 복제하지도 않는다.
 
-**범위를 갖는 것 (8곳)**
+**범위를 갖는 것 (9곳 — rev.2.3 에서 8 → 9)**
 
 | 어디 | 컬럼 | 왜 필요한가 |
 | --- | --- | --- |
 | `event` | `applicability_scope_type` · `applicability_scope_ref` | **범위가 처음 정해지는 곳.** 사실 주장과 함께 들어온다 |
+| **`event.idempotency_key`** | **재료에 포함** (rev.2.3) | 안 넣으면 `GLOBAL` 주장과 `RECOVERY_CONTEXT` 주장이 **같은 키**가 되어 나중 것이 조용히 버려진다(11.2d · 27.11) |
 | `canonical_fact` | 같은 2컬럼, **PK 에 포함** | 범위가 다르면 서로 다른 사실이고 공존해야 한다(11.4.1) |
 | `conflict` | 같은 2컬럼 | 범위가 다른 사건은 **다투는 것이 아니다**(11.5.1) |
 | `verification_request` | 같은 2컬럼 | "평소 얼마" 와 "이번 건 얼마" 는 **다른 확인 문제**다(11.6.1) |
@@ -2224,7 +2666,7 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | E-08 TruckPool | `truck_pool` | MASTER |
 | E-09 Contract | `contract` | MASTER |
 | E-10 TariffRule | `tariff_rule` | MASTER (판 교체) |
-| E-11 Event | `event` (+ `event_entity_link`) | SOURCE_OF_TRUTH |
+| E-11 Event | `event` (+ `event_entity_link` + **`event_verification_target`**) | SOURCE_OF_TRUTH |
 | E-12 RawInput | `raw_input` | SOURCE_OF_TRUTH |
 | E-13 CanonicalFact | `canonical_fact` | DERIVED_MATERIALIZED |
 | E-14 Conflict | `conflict` | DERIVED_MATERIALIZED |
@@ -2254,11 +2696,12 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | E-38 VesselCall | `vessel_call` (구조만, Next) | MASTER |
 | E-39 Truck | **만들지 않음** (Q-57) | — |
 
-**개념에 1:1 로 대응하지 않는 테이블 14개** — 13개는 새 개념이 아니라 **관계·시도·속성 묶음·값 고정의 구현**이고, 1개(`system_error`)는 **개념 모델 밖의 기술 운영 표**다.
+**개념에 1:1 로 대응하지 않는 테이블 15개** (rev.2.3) — 14개는 새 개념이 아니라 **관계·시도·속성 묶음·값 고정의 구현**이고, 1개(`system_error`)는 **개념 모델 밖의 기술 운영 표**다.
 
 | 테이블 | 무엇의 구현인가 |
 | --- | --- |
 | `container_bl` | Container ↔ BL 관계 (L-2) |
+| **`event_verification_target`** | **확인 사건(`docs/21` 9절의 VERIFICATION 부류)이 어느 사건을 가리키나** (rev.2.3). 새 개념이 아니라 이미 승인된 사건 부류의 관계다 |
 | `comm_message_question` | CommMessage ↔ QuestionItem N:M 관계 |
 | `send_attempt` | CommMessage 의 발송 **시도** (L-7) |
 | `external_identifier` | `EXTERNAL_REFERENCE` 속성 묶음 (Q-54) |
@@ -2275,6 +2718,73 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 
 ---
 
+### 23.1 `docs/05` 4.2 Event 필드 → 논리 모델 대응표 **(rev.2.3 신규 · 누락 0건)**
+
+**왜 이 표가 정본 대조인가.** 승인된 `docs/21` 7절이 Event 의 속성을 스스로 정의하지 않고 이렇게 위임한다:
+
+> `| Event | (필드 24개) | `docs/05` 4.2가 정본 | — | **불변** | — | 어댑터·출처 |`
+
+따라서 4.2 에 있는데 여기에 대응이 없으면 그것은 "옛 문서와의 차이"가 아니라 **승인된 개념의 누락**이다. rev.2.2 까지 그런 칸이 13개 있었다.
+
+판정: **SAME**(같은 이름) · **RENAMED**(이름만 다름) · **SPLIT**(여러 컬럼·표로 나뉨) · **MOVED**(다른 표로) · **NOT STORED**(저장하지 않는 것이 정본의 결정)
+
+| # | `docs/05` 4.2 필드 | `docs/22` 대응 | 판정 | 근거 |
+| --- | --- | --- | --- | --- |
+| 1 | `event_id` | `event.event_id` | SAME | 정렬 가능 요구도 같다 |
+| 2 | `schema_version` | `event.schema_version` | SAME | **rev.2.3 복구** — 11.2d |
+| 3 | `event_class` | `event.event_class` | SAME | **rev.2.3 복구** — 11.2a |
+| 4 | `event_type` | `event.event_type` | SAME | **rev.2.3 복구** — 11.2d |
+| 5 | `entity_type` | `event_entity_link.entity_type` (`SUBJECT`) | MOVED | 11.3. 주체는 정확히 1건(I-8) |
+| 6 | `entity_id` | `event_entity_link.entity_id` (`SUBJECT`) | MOVED | 같음 |
+| 7 | `fact_key` | `event.fact_key` | SAME | 문자열 그대로 보존(Q-63) |
+| 8 | `value` | `value_text` · `value_number` · `value_timestamp` · `value_code` + `value_unit` | SPLIT | 타입별 컬럼. 11.2 규칙 5 |
+| 9 | `payload` | `event.payload` | SAME | **rev.2.3 복구** — 부가 속성만(11.2d) |
+| 10 | `related_entity_ids` | `event_entity_link` 의 `link_role = CONTEXT` 행들 | MOVED | 11.3 |
+| 11 | `source_type` | `event.source_type` | SAME | **rev.2.3 이름·값 복구**(옛 `source_kind`) — 11.2c |
+| 12 | `source_role` | `event.source_role_at_ingestion` | RENAMED | **수집 시점 값**임을 이름에 남겼다 |
+| 13 | `source_org` | `event.asserted_by_counterparty_id` | RENAMED | 조직을 문자열이 아니라 거래처 참조로 |
+| 14 | `source_id` | `event.source_id` (+ `entered_by_actor_id`) | SPLIT | **rev.2.3 복구.** 채널 안의 주체 식별자와 CERA 사용자 참조를 나눴다 — 11.2c |
+| 15 | `source_event_time` | `event.source_event_time` | SAME | |
+| 16 | `source_recorded_at` | `event.source_recorded_at` | SAME | Q-44 는 "무엇을 넣나"이고 자리는 있다 |
+| 17 | `received_at` | `event.received_at` | SAME | |
+| 18 | `recorded_at` | `event.recorded_at` | SAME | |
+| 19 | `confidence` | `event.input_confidence_level` + `input_confidence_reasons` | SPLIT · RENAMED | **rev.2.3 복구.** 이름을 바꾼 이유는 11.2b |
+| 20 | `extraction` | `event.extraction_method` + `event.extraction_id` → `extraction` 표 | SPLIT | **rev.2.3 복구.** 방식은 모든 경로에, 상세는 LLM 경로에만 — 11.2c · 15.9 |
+| 21 | `supersedes_event_id` | `event.supersedes_event_id` | SAME | `CORRECTION` 필수 |
+| 22 | `target_event_ids` | `event_verification_target` (`target_role = TARGET`) | MOVED | **rev.2.3 복구** — 11.2a |
+| 23 | `verification_action` | `event.verification_action` | SAME | **rev.2.3 복구** |
+| 24 | `verification_method` | `event.verification_method` | SAME | **rev.2.3 복구** |
+| 25 | `overruled_event_ids` | `event_verification_target` (`target_role = OVERRULED`) | MOVED | **rev.2.3 복구** |
+| 26 | `correlation_id` | `event.correlation_id` | SAME | **rev.2.3 복구.** `trace_id` 와 다름(`docs/23` 5절) |
+| 27 | `raw_ref` | `event.raw_input_id` | RENAMED | FK 로 표현 |
+| 28 | `idempotency_key` | `event.idempotency_key` (UNIQUE) | SAME (**재료 확장**) | **rev.2.3 복구.** 적용 범위·주장 위치를 더했다 — 11.2d |
+| 29 | `is_simulated` | `event.is_simulated` (+ `scenario_id`) | SAME | S-2 |
+
+**`docs/05` 4.2 가 "저장하지 않는다"고 정한 것** — 여기에도 없는 것이 맞다.
+
+| 필드 | 왜 저장하지 않나 | 대신 어디에 |
+| --- | --- | --- |
+| `freshness` | `as_of` 마다 달라진다. 저장하면 불변·재현성이 깨진다 | `canonical_fact.freshness_status`(파생) |
+| `verification_status`(사건 수준) | 확인은 나중에 일어난다 | `event_verification_target` 에서 **계산**(`docs/05` 6.1) |
+| `verified_by` | VERIFICATION 사건의 주체가 곧 확인자다 | `event.entered_by_actor_id` |
+| `container_id` | `entity_id` 와 중복 | `event_entity_link` |
+| 근거 강도 | 정책 × `as_of` 의 계산 결과 | `canonical_fact.evidence_strength`(I-13) |
+
+**`docs/22` 가 더 가진 것** — `docs/05` 4.2 이후에 승인된 결정에서 왔다. 개념 확장이 아니다.
+
+| 컬럼 | 어디서 왔나 |
+| --- | --- |
+| `applicability_scope_type` · `applicability_scope_ref` | rev.2 D-3 사용자 결정 (22절) |
+| `valid_from` · `valid_until` | L-3b (적용 기간과 범위는 다른 축) |
+| `fact_kind` | `docs/05` 2.1 의 사실 종류를 컬럼으로 |
+| `input_quality` | rev.2 (11.2b — `confidence` 와 다른 축) |
+| `supersede_reason` | 정정 사유를 `payload` 가 아니라 컬럼으로 |
+| `scenario_id` | S-2 |
+
+> **누락 0건.** 29개 필드 전부 대응이 있고, 저장하지 않기로 한 5개는 그 결정이 `docs/05` 자신의 것이다.
+
+---
+
 ## 24. 문서 간 불일치 (Conceptual Model Issue 아님 — 후속 문서 정리)
 
 승인된 `docs/21` 은 **고치지 않았다**. 아래는 다른 문서와의 표현 차이이며 **T-070 문서 정합성 정리**로 넘긴다.
@@ -2287,6 +2797,17 @@ fact_key = storage.rate   ← 네 해석 모두 같다
 | **X-13** | `docs/04_domain-model.md` | 시설 하위 종류(Warehouse/Terminal/ODCY)의 속성이 마스터 값인지 사실인지 구분이 약하다 | `default_` 접두 규칙 반영 → T-070 |
 
 > **개념 모델 자체의 문제는 발견되지 않았다.** 위 4건은 전부 `docs/21` 이 아니라 **주변 문서**의 표현 차이다.
+
+**X-10 ~ X-13 은 모두 처리됐다 — T-070 DONE (2026-09-18, 커밋 `3b1bda3`).** rev.2.3 에서 확인만 하고 표는 기록으로 남긴다.
+
+| # | 처리 결과 |
+| --- | --- |
+| X-10 | `docs/07` 4절을 이 문서의 대응표로 교체. 3절의 "Python·FastAPI·SQLite 확정" 표현은 "미결 — `docs/23`" 으로 |
+| X-11 | `docs/13` 4.1절에 통신·상업 용어 19개 추가 |
+| X-12 | `docs/19` 에서 **문의 메시지**와 **발송 시도**를 용어로 분리 |
+| X-13 | `docs/04` 3절에 마스터 기준선 vs 사실 구분, `default_` 접두 규칙 반영 |
+
+> **rev.2.3 에서 새로 발견한 문서 차이는 없다.** 이번에 고친 13개 누락은 주변 문서의 표현 차이가 아니라 **이 문서 자신의 누락**이었고, 전부 이 rev 에서 닫았다(23.1).
 
 ---
 
@@ -2357,19 +2878,23 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **L-16** | `bl` 의 업무 유일 제약 | 실데이터 확인(T-005·T-006) |
 | — | `plan_decision.decision_type` 값 목록 | 물리 설계 |
 | **Q-66** | `system_error.error_category` · `error_code` 값 목록 (rev.2.2) | T-069 구현 계획 · 구현 |
+| **Q-46** | 상대방이 직접 입력한 구조화 값의 Source 모델 — `source_type` 에 값을 더할지, `actor_type` 축을 신설할지 (rev.2.3) | **권한 모델과 함께.** 11.2c 의 7값은 현재 ADR 기준 정렬이지 영구 확정이 아니다 |
+| **Q-34** | `payload.change_reason` 값 목록 (rev.2.3) | T-037 · 인터뷰 |
+
+> **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다.** 7값 채택은 **ADR-020 을 따른 것**이고, 값 목록 자체의 현장 적합성은 ADR-020 본문이 "아직 승인되지 않았다"고 적어 둔 그대로 Q-46 에서 계속 본다.
 
 ---
 
 ## 26. 논리 모델 전체 ≠ 첫 마이그레이션 전체 **(rev.2 신규)**
 
-**MVP 논리 테이블이 51개라고 해서 첫 구현에서 51개를 한꺼번에 만든다는 뜻이 아니다.**
+**MVP 논리 테이블이 52개라고 해서 첫 구현에서 52개를 한꺼번에 만든다는 뜻이 아니다.**
 
 논리 모델은 **전체 지도**다. "이 제품이 다 자랐을 때 데이터가 어떤 모양이어야 하는가"를 그린 것이고, 지금 당장 무엇을 만드는지와는 다른 질문이다.
 
 | 이것은 | 이것이 아니다 |
 | --- | --- |
 | 전체 구조의 정합성 검증 | 첫 마이그레이션 명세 |
-| 나중에 되돌리기 비싼 결정을 지금 피하기 | 지금 51개 표를 만들라는 지시 |
+| 나중에 되돌리기 비싼 결정을 지금 피하기 | 지금 52개 표를 만들라는 지시 |
 | 어느 표가 무엇의 정본인지 합의 | 구현 순서 |
 
 **첫 구현은 T-069 External Communication Vertical Slice 에 필요한 최소 묶음부터 시작한다.** 그 슬라이스가 실제로 무엇을 건드리는지 보면 대략 이 범위다.
@@ -2394,12 +2919,16 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | # | 단계 | INSERT | UPDATE | 정본 |
 | --- | --- | --- | --- | --- |
 | 1 | 창고 A 가 메일로 "9/18 수용량 8 TEU" 통보 | `raw_input`(`source_record_key` = 메일 id) · `comm_message`(INBOUND · BUSINESS) | 없음 | `raw_input` |
-| 2 | 회신에서 값 추출 | `extraction`(후보 + 원문 인용) | 없음 | `extraction`(근거) |
-| 3 | 사실로 채택 | `event`(STATE · `warehouse.capacity@2026-09-18` = 8) · `event_entity_link`(**SUBJECT = 창고 A, 1건**) | `extraction` **검토 4컬럼**(`ACCEPTED` · `created_event_id`) — 한 번, 15.9.1 | **`event`** |
-| 4 | 현재 사실 갱신 | — | `canonical_fact` **재계산 덮어쓰기**(파생이므로 허용) | `event` |
-| 5 | 이전 API 값 12 와 충돌 (**같은 범위 `GLOBAL`**) | `conflict`(범위 포함) · `verification_request`(범위 포함, `request_key` = 규칙+주체+사실키+**범위**+**사건 id 집합**) | 없음 | 파생 |
+| 2 | 회신에서 값 추출 | `extraction`(후보 + 원문 인용 + **`schema_version`·`input_hash`·`validator_result`**) | 없음 | `extraction`(근거) |
+| 3 | 결정론 검증 → 사실로 채택 | `event`(**`event_class = OBSERVATION`** · `event_type = WAREHOUSE_CAPACITY_CHANGED` · STATE · `warehouse.capacity@2026-09-18` = 8 · **`source_type = EMAIL`** · **`extraction_method = LLM_EXTRACTED`** · `input_quality = UNSTRUCTURED` · **`input_confidence_level = MEDIUM`** · `idempotency_key` · `correlation_id` = 스레드) · `event_entity_link`(**SUBJECT = 창고 A, 1건**) | `extraction` **검토 4컬럼**(`ACCEPTED` · `created_event_id`) — 한 번, 15.9.1 | **`event`** |
+| 4 | 현재 사실 갱신 | — | `canonical_fact` **재계산 덮어쓰기**. **`value_status = PROVISIONAL`**(메일 LLM · 강도 1) · `freshness_status = FRESH` · `hold_status = NONE` | `event` |
+| 5 | 이전 API 값 12 와 충돌 (**같은 범위 `GLOBAL`**) | `conflict`(범위 포함) · `verification_request`(범위 포함, `request_key` = 규칙+주체+사실키+**범위**+**사건 id 집합**) | `canonical_fact.conflict_status = OPEN` → **`decision_usability = APPROVAL_BLOCKED`** | 파생 |
 | 6 | 운영자가 확인 요청을 열람 | `verification_request_handling`(ACKNOWLEDGED) | 없음 | **결정 기록** |
-| 7 | 계산 입력 얼리기 | `planning_snapshot` · `planning_snapshot_fact`(값 사본) · `planning_snapshot_input`(마스터 기본값·요율 규칙 id·정책 판) | 없음 | 스냅샷 |
+| **6a** | **운영자가 창고에 전화해 8 이 맞다고 확인** | **`event`(`event_class = VERIFICATION` · `verification_action = CONFIRM` · `verification_method = REQUEST_RESOLUTION` · `source_type = HUMAN_UI` · `extraction_method = DIRECT` · **사실 키·값 없음**)** · `event_entity_link`(SUBJECT = 창고 A) · **`event_verification_target`**(`TARGET` = 3번 사건, **`OVERRULED`** = API 12 사건) | 없음 | **`event`** |
+| **6b** | 확인 요청 처리도 함께 남는다 | `verification_request_handling`(`RESOLVED` · `resolving_event_id` = 6a) | 없음 | **결정 기록** (둘은 서로를 대신하지 않는다 — 11.2a) |
+| **6c** | 재계산 | — | `canonical_fact`: **`value_status = CONFIRMED`** · **`verification_basis = HUMAN_VERIFICATION`** · `evidence_strength` 1 → 2(운영자 권한 S) · `conflict_status = NONE`(OVERRULED 는 R1 기각) · **`decision_usability = USABLE`** | `event` |
+| **6d** | 확인 요청은 사라진다 | — | `verification_request` 재생성 시 조건이 풀려 **행이 안 생긴다.** 6b 의 처리 기록은 `request_key` 로 그대로 남는다(11.7.1) | 파생 |
+| 7 | 계산 입력 얼리기 | `planning_snapshot` · `planning_snapshot_fact`(값 사본 + **상태 6차원 사본** + 판 사본 — 13.2.1) · `planning_snapshot_input`(마스터 기본값·요율 규칙 id·정책 판) | 없음 | 스냅샷 |
 | 8 | 위험 평가 | `risk_assessment`(등급 · 여유 · 근거 사실 키) | 없음 | 산출 기록 |
 | 9 | 아무것도 안 할 때 비용 | `cost_result`(**ESTIMATED**) · `cost_line_item` · `cost_line_link` | 없음 | 산출 기록 |
 | 10 | 복구 계산 v1 | `recovery_run`(RUN-1) · `assignment` · `cost_result`(**PLAN**) | 없음 | 산출 기록 |
@@ -2429,7 +2958,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 | # | 단계 | INSERT | 비고 |
 | --- | --- | --- | --- |
-| a | 운영자 입력 | `event`(TERM · `source_kind = HUMAN_INPUT` · `input_quality = STRUCTURED` · **`applicability_scope_type = RECOVERY_CONTEXT`**) | **상대의 견적과 같은 경로**를 탄다(FR-CON-05) |
+| a | 운영자 입력 | `event`(`OBSERVATION` · TERM · **`source_type = HUMAN_UI`** · `extraction_method = DIRECT` · `input_quality = STRUCTURED` · `input_confidence_level = HIGH` · **`applicability_scope_type = RECOVERY_CONTEXT`**) | **상대의 견적과 같은 경로**를 탄다(FR-CON-05) |
 | b | 주체 연결 | `event_entity_link`(SUBJECT = 창고 B, 1건) | |
 | c | 현재 사실 | `canonical_fact` 에 **범위가 `RECOVERY_CONTEXT` 인 행이 새로 생긴다** | **기존 `GLOBAL` 15,000원 행은 그대로 남는다**(11.4.1) |
 | d | 계산 | 이번 건은 좁은 범위 행(0원), 다른 건은 `GLOBAL` 행(15,000원) | 스냅샷에 **어느 범위를 썼는지 복사**된다 |
@@ -2470,7 +2999,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 
 **UPDATE 가 한 번도 필요하지 않다.** 승인 #1 이 왜 죽었는지, #2 가 왜 못 쓰이는지, #4 로 무엇을 보냈는지 전부 남는다(15.5.1).
 
-### 27.6 검증 결과 (rev.2.1 재검증 26항목 + rev.2.2 추가 4항목 = 30항목)
+### 27.6 검증 결과 (rev.2.1 재검증 26항목 + rev.2.2 추가 4항목 + **rev.2.3 추가 17항목 = 47항목**)
 
 **A. 사건 · 적용 범위**
 
@@ -2542,6 +3071,45 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | 29 | PK 구성 컬럼 중 NULL 허용이 없다 | **통과 (rev.2.2)** — `planning_snapshot_input.value_path` NOT NULL(13.2b). 복합 PK 10개 표 전부 재확인 |
 | 30 | 기술 오류가 사실·감사·발송 기록과 섞이지 않는다 | **통과 (rev.2.2)** — `system_error` 는 `event` 를 만들지 않고 계산 입력이 아니다(I-19 · 27.8) |
 
+**I. rev.2.3 논리 모델 후속(T-081)에서 추가한 확인 — 17항목**
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 31 | 사람 확인이 **`VERIFICATION` 사건으로 저장**된다 | **통과** — `event_class` + `verification_action`·`verification_method`(11.2a · 27.1 6a) |
+| 32 | 어느 사건을 **확인·기각했는지 재현**된다 | **통과** — `event_verification_target`(`TARGET`/`OVERRULED`), 역방향 조회 가능 |
+| 33 | 확인 요청 처리 기록과 확인 사건이 **서로를 대신하지 않는다** | **통과** — 27.1 의 6a·6b 가 **둘 다** 남는다. `DIRECT_REVIEW` 는 요청 없이도 성립(11.2a) |
+| 34 | `input_quality` 와 `input_confidence_level` 이 **다른 축**이다 | **통과** — 11.2b 비교표. 형태 vs 판정 |
+| 35 | **모든 경로**에서 검증기 신뢰도를 표현할 수 있다 | **통과** — `event` 컬럼이므로 `extraction` 행이 없는 사람 입력·공공 API·파일도 갖는다 |
+| 36 | `canonical_fact` 에 **의미 불명 `confidence` 가 남지 않았다** | **통과** — 제거(11.4.2). 남은 네 가지는 각자 다른 이름·다른 질문 |
+| 37 | `source_type` · `source_role` · `extraction_method` 가 **서로 다른 축**이다 | **통과** — 11.2c 조합표 7행 |
+| 38 | `source_type` 7값이 **현재 ADR-020 과 일치**한다 | **통과** — `docs/14:250` 과 글자까지 같다. `raw_input` 도 같은 집합 |
+| 39 | **Q-46 이 열려 있다** | **통과** — 11.2c 말미에 명시. 7값은 영구 확정이 아니다 |
+| 40 | `event_type` · `schema_version` · `correlation_id` · `source_id` · 멱등 키가 **전부 있다** | **통과** — 23.1 대응표 누락 0건 |
+| 41 | `payload` 가 **부가 속성만** 담는다 | **통과** — 11.2d 의 판단 기준 + 핵심 구조 목록 |
+| 42 | 상태 **6차원을 독립적으로** 표현한다. R10 `HELD` 와 `APPROVAL_BLOCKED` 가 표현된다 | **통과** — 11.4.2. `decision_usability` 는 넷에서 결정론적으로 유도(I-24) |
+| 43 | **I-12**: 과거 스냅샷으로 "그때 왜 승인 가능했나"를 설명할 수 있다 | **통과** — 13.2.1 에서 상태 6차원 + 판 동결 |
+| 44 | **I-7**: `canonical_fact` 를 전부 지우고 `event` 로 재계산해도 같다 | **통과** — 아래 근거 |
+
+**44번(I-7)을 다시 따진 이유.** 이번에 `canonical_fact` 에 차원 다섯 개가 늘었다. **늘어난 칸이 전부 `event` 에서 다시 계산되는지**를 확인해야 재현성이 유지된다.
+
+| 늘어난 칸 | 무엇으로 재계산되나 | `event` 만으로 되나 |
+| --- | --- | --- |
+| `value_status` | 이긴 사건의 강도 + 확인 사건 유무 | **예** — 강도는 원천 축(`source_type`·`source_role`·`input_confidence_level`) + 정책, 확인은 `event_verification_target` |
+| `verification_basis` | 확인 사건의 종류 · 권한 A 파트너 여부 | **예** |
+| `conflict_status` | 같은 범위 후보들의 값 비교 (R4-b · R6) | **예** |
+| `hold_status` | R10 판정(감소율 + 강도) | **예** — 사건들과 정책만 있으면 된다 |
+| `decision_usability` | 위 네 차원 + 사실 중요도 (R11) | **예** — I-24 가 결정론을 요구한다 |
+
+**어느 칸도 `canonical_fact` 에만 있는 정보를 쓰지 않는다.** I-7 은 유지된다.
+
+**J. 승인 전 최종 확인 3항목 (rev.2.3 보강)**
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 45 | 확인 사건의 여러 대상이 **같은 현재 사실 좌표**(SUBJECT + `fact_key` + 적용 범위) 안에 있도록 강제되나 | **통과 (rev.2.3 보강)** — 11.2a 규칙 7·8 로 명시하고 I-26 에 올렸다. **보강 전에는 강제되지 않았다** — 좌표를 넘나들면 I-8(SUBJECT 1건)이 결정되지 않고 `OVERRULED` 가 다툰 적 없는 사실을 기각한다(11.2a.1) |
+| 46 | `fact_key` 필수 · 값 최소 1개 규칙이 **`event_class` 별 조건부**로 실제 고쳐졌나 (Markdown ↔ 작업표 둘 다) | **통과** — Markdown 11.2 무결성 규칙 5 의 부류별 표 + 작업표 `event` 블록 제약 칸(`fact_kind`·`fact_key` = "조건부 - VERIFICATION 이면 비움", `value_text` = "OBSERVATION 이면 4종 중 최소 1개 / VERIFICATION 은 비움") |
+| 47 | `decision_usability` 가 **네 차원 + 판에서 유도되는 파생**이고, 과거 스냅샷에서 그 판정까지 재현되나 | **통과 (rev.2.3 보강)** — 11.4.2 규칙 5 에 입력표를 넣고 I-24 를 "(네 차원, `rule_version`, 중요도 정책 판)" 으로 고쳤다. 재현은 13.2.1 의 입력표 + **I-27** |
+
 ### 27.7 이 검증에서 새로 나온 것
 
 | 무엇 | 처리 |
@@ -2550,9 +3118,15 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **(rev.2.1) 정합성 9건** — 범위가 충돌·확인 요청·질문까지 전파되지 않음, 지문 규칙·승인 행 종류·분류 축의 모순 | **이번에 전부 수정.** 새 테이블 0개 |
 | **rev.2.1 에서 새로 발견된 구조 문제** | **없다.** 흐름을 다시 걸었을 때 26항목 전부 통과했다 |
 | **(rev.2.2) 정합성 5건 A~E + 표현 잔재** — 최종 검증에서 발견 | **이번에 전부 수정.** 기술 운영 표 `system_error` 1개 추가. 30항목 전부 통과 |
+| **(rev.2.3) 누락 13건** — `docs/05` 4.2 와 대조한 적이 없었다 | **이번에 전부 복구**(23.1). 표 1개 추가(`event_verification_target`). **47항목 전부 통과** |
+| **(rev.2.3) ADR-020 상태 차원이 한 칸으로 합쳐져 있었다** | **이번에 복구**(11.4.2). 다섯 차원 + `verification_basis`. 의미 없는 `canonical_fact.confidence` 제거 |
+| **(rev.2.3 보강) 확인 사건의 대상 좌표가 강제되지 않았다** | 승인 전 최종 확인에서 발견. **11.2a 규칙 7·8 + I-26 으로 닫았다.** 새 표·새 컬럼 없음 |
 | 범위 종류 사이의 **우선순위 규칙** | **확정하지 않았다.** 서로 다른 축이라 지금 박으면 틀린 답을 고정한다 → **L-14** 에 포함(22.2) |
+| 상대방 직접 입력의 Source 모델 | **닫지 않았다** → **Q-46 OPEN**(11.2c). 7값은 현재 ADR 기준의 정렬이지 영구 확정 enum 이 아니다 |
 
-> **개념 모델(`docs/21`)의 문제는 이번에도 발견되지 않았다.** 위 수정은 전부 **논리 설계 단계에서 생긴 것**이고 이 문서 안에서 닫혔다.
+> **개념 모델(`docs/21`)의 문제는 이번에도 발견되지 않았다.** 위 수정은 전부 **논리 설계 단계에서 생긴 것**이고 이 문서 안에서 닫혔다. rev.2.3 의 13건은 **주변 문서와의 차이가 아니라 이 문서 자신이 정본(`docs/05` 4.2)과 대조되지 않은 채 승인됐던 것**이다.
+
+**왜 rev.2.2 까지 발견되지 않았나.** rev.1~rev.2.2 의 검증은 **이 문서 내부 정합성**과 **Markdown ↔ 작업표 대조**에 집중했고, `docs/05` 4.2 필드표와 한 줄씩 대조한 적이 없었다. 23.1 의 대응표가 그 대조를 처음으로 고정한다 — 다음 검토부터는 이 표가 점검 목록이다.
 
 ### 27.8 기술 오류 한 건 (rev.2.2 신규) — Gmail 503
 
@@ -2566,6 +3140,51 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 - 운영자는 통신 화면에서 **"1번 실패, 2번 성공"**(`send_attempt`)을 보고, 개발자는 `trace_id` 로 **Backend → Gmail Adapter → Gmail 503** 한 흐름(`system_error` + 구조화 로그)을 찾는다.
 - 현재 사실·계산·승인 판정은 이 오류 때문에 바뀌지 않는다.
 
+### 27.9 정정 한 건 (rev.2.3 신규) — "10 이 아니라 8 이었다"
+
+**현실이 바뀐 것과 입력이 틀린 것은 다르다**(`docs/05` 4.1).
+
+| # | 단계 | INSERT | UPDATE | 비고 |
+| --- | --- | --- | --- | --- |
+| a | 운영자가 수용량을 10 으로 잘못 입력 | `event` E1(`OBSERVATION` · `HUMAN_UI` · `DIRECT` · `input_confidence_level = HIGH` · 값 10) · `event_entity_link`(SUBJECT) | — | |
+| b | 현재 사실 | — | `canonical_fact` 값 10 · `value_status = CONFIRMED`(사람 직접 입력) | |
+| c | 잘못 넣은 것을 알아챔 | `event` E2(**`event_class = CORRECTION`** · **`supersedes_event_id` = E1** · `supersede_reason` · 값 8 · 같은 `fact_kind`·개체) | **없음 — E1 을 고치지 않는다** | I-1 · 규칙 3 |
+| d | 재계산 | — | `canonical_fact` 값 8. E1 은 `supersession_status = SUPERSEDED` 로 **계산될 뿐 저장되지 않는다**(`docs/05` 6.1 · 규칙 8) | |
+| e | 철회하고 싶다면 | `event` E3(`CORRECTION` · `supersedes` = E2 · **네 값 컬럼 전부 비움**) | — | 규칙 5 의 `CORRECTION` 행 — 값 없음 = 철회 |
+
+- **확인(`VERIFICATION`)과 섞이지 않는다.** 정정은 `supersedes_event_id`, 확인은 `event_verification_target`. 두 경로가 서로를 건드리지 않는다.
+- 과거 어느 시점으로 되감아도 **그때 보였던 값**이 재현된다 — E1 도 E2 도 지워지지 않았기 때문이다.
+
+### 27.10 같은 원문 재처리 (rev.2.3 신규) — 사건이 두 번 생기지 않는다
+
+| # | 단계 | 무슨 일 | 결과 |
+| --- | --- | --- | --- |
+| a | 메일 1통 수신 | `raw_input` R1 (`source_record_key` = 메일 id) | |
+| b | 처리 → 사건 2건 | 같은 메일에 **9/18 8 TEU** 와 **9/19 6 TEU** 가 함께 있었다 → `event` 2건 | 두 건의 `idempotency_key` 가 다르다 — **주장 위치(claim locator)가 다르기 때문**(11.2d) |
+| c | 파서를 고쳐 **R1 을 다시 처리** | `raw_input` 은 새로 만들지 않는다(UNIQUE 로 막힌다) | |
+| d | 사건 생성 시도 | 같은 재료 → **같은 `idempotency_key`** | **UNIQUE 에 걸려 무시된다**(`docs/05` 4.5 "무시(로그만)"). 기술 오류가 아니므로 `system_error` 로 가지 않는다 |
+| e | 결과 | 사건은 여전히 2건 | `canonical_fact` 도 그대로 |
+
+> **rev.2.2 였다면**: `raw_input` 의 UNIQUE 는 **수집**만 막고 **처리**는 막지 않으므로, d 에서 **사건 2건이 더 생겨** 같은 사실이 네 번 주장된 것처럼 보였다. 그러면 `contributing_event_count` 와 동률 판정(R4-a 의 `event_id` tie-break)이 전부 틀어진다.
+
+### 27.11 범위가 다른 두 요율 (rev.2.3 재확인) — 멱등 키도 범위를 구분한다
+
+27.3 의 사례를 **멱등 키 관점**으로 다시 본다.
+
+```
+운영자 입력 ①  창고 B 보관료 = 0원     범위 RECOVERY_CONTEXT / <RECOVERY_CONTEXT_REF>
+기존 사실  ②  창고 B 보관료 = 15,000원 범위 GLOBAL
+```
+
+| 확인 | 결과 |
+| --- | --- |
+| 서로 다른 현재 사실인가 | **예** — PK 에 범위 2컬럼(11.4.1) |
+| 충돌인가 | **아니다** — I-15 · 11.5.1 |
+| 멱등 키가 다른가 | **예 (rev.2.3)** — 재료에 `applicability_scope_type`·`applicability_scope_ref` 가 들어간다(11.2d) |
+| 범위를 빼면 어떻게 되나 | 두 주장이 **같은 키**가 되어 **나중에 들어온 "이번 건 0원"이 조용히 버려진다.** 운영자는 입력했는데 아무 일도 일어나지 않는 것처럼 보인다 |
+
+> 22.5 의 적용 범위 전파 점검표에 **멱등 키 한 줄이 늘었다.** rev.2.1 이 세운 범위 구조는 **어느 것도 후퇴하지 않았다.**
+
 ---
 
 ## 28. 다음 단계
@@ -2573,10 +3192,11 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 > **rev.2.2 순서 정정** — rev.2.1 까지는 "물리 설계(T-080) → 구현 계획(T-069)" 순서로 적혀 있었다. **바뀌었다.** 첫 구현 슬라이스가 정해져야 그 슬라이스에 필요한 표만 물리 설계할 수 있다(26절).
 
 1. ~~**이 문서 rev.2.2 + 작업표 최종 검토** (사용자 + ChatGPT) → **T-079 DONE**~~ — **완료 (2026-09-18)**
-2. **T-070 주변 문서 동기화** — `docs/04`·`07`·`13`·`19` 등을 이 논리 설계와 맞춘다(X-10~X-13)
-3. **T-069 외부 통신 구현 계획** — Q-44·Q-45 사용자 결정, **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
-4. **Backend·DB 기술 최종 결정** — 현재 우선 후보와 판단 근거는 `docs/23` · ADR-031(Proposed)
-5. **T-080 물리 설계** — **논리 표 51개를 한 번에 물리 설계하지 않는다.** 4번에서 **결정된 기술**을 T-069 가 정한 첫 슬라이스에 필요한 표부터 반영한다: 결정된 DB 제품 위의 물리 설정 · `event_id` 형식 · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · `value_path` "전체" 표시 문자열 · 마이그레이션 · 실제 `CREATE TABLE`
+2. ~~**T-070 주변 문서 동기화**~~ — **완료 (2026-09-18, 커밋 `3b1bda3`)**. X-10~X-13 처리 결과는 24절
+3. ~~**이 문서 rev.2.3 + 작업표 검토** → **T-081 DONE**~~ — **완료 (2026-09-21, 사용자 최종 승인)**
+4. **T-069 외부 통신 구현 계획** ← **다음** — Q-44·Q-45 사용자 결정, **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
+5. **Backend·DB 기술 최종 결정** — 현재 우선 후보와 판단 근거는 `docs/23` · ADR-031(Proposed)
+6. **T-080 물리 설계** — **논리 표 52개를 한 번에 물리 설계하지 않는다.** 5번에서 **결정된 기술**을 T-069 가 정한 첫 슬라이스에 필요한 표부터 반영한다: 결정된 DB 제품 위의 물리 설정 · `event_id` 형식 · **`idempotency_key` 직렬화·해시·주장 위치 형식**(11.2d) · **`schema_version` 문자열 형식** · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · `value_path` "전체" 표시 문자열 · 마이그레이션 · 실제 `CREATE TABLE`
 6. 구현(Antigravity) → 검토(Claude/Codex) → 사용자 승인 → commit
 7. 실데이터 확인 뒤 **L-16 `bl` 유일 제약** 확정 (T-005·T-006)
 8. 재현 테스트 설계: **`canonical_fact` 전체 삭제 → `event` 로부터 재계산 → 동일성 확인**(I-7) + **과거 스냅샷 완전 복원**(I-12)

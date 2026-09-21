@@ -229,6 +229,32 @@
 
 > **개념 모델 확장은 필요 없다고 판단했다.** `system_error` 는 업무 개념이 아니라 기술 운영 표이고, 업무 흐름의 어느 개념도 이것에 의존하지 않는다(`docs/22` 23절). 오류 대응 자체가 업무 기능(담당 배정·종결·SLA)이 되면 그때 다시 본다.
 
+### 2026-09-21 T-081 논리 모델 후속(rev.2.3, DONE) — 닫힌 것과 그대로 연 것
+
+**`docs/22` rev.2.3**: rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. 누락 **13건**을 복구하고 **ADR-020 의 상태 차원**을 되살렸다. 표는 **+1**(`event_verification_target`) — MVP 52 · Next 1 · 만들지 않음 2 = **55**. **`docs/21` 변경 0건.**
+
+**닫힌 것**
+
+| # | 무엇 | 결론 |
+| --- | --- | --- |
+| **C** | 출처 어휘(`docs/05` 3.1 7값 vs rev.2.2 `source_kind` 6값) | **CLOSED — 2026-09-21 사용자 결정.** ADR-020 의 3축(`source_type` 7값 · `source_role` · `extraction_method`)으로 통일. 6값으로는 `docs/05` 3.3 근거 강도표를 색인할 수 없어 Reconciliation 이 돌지 않았다 |
+| T-081 A | 사람 확인·정정 사건의 논리 표현 | **CLOSED** — `event_class` + 확인 2필드 + `event_verification_target`(`docs/22` 11.2a) |
+| T-081 B | 검증기 `confidence` 의 자리 | **CLOSED** — `event.input_confidence_level`·`input_confidence_reasons`. `input_quality` 와 다른 축(11.2b) |
+| T-081 D | `idempotency_key`·`event_type`·`schema_version`·`extraction.method` 등 | **CLOSED** — 전부 `event` 에 있다. 대응표 `docs/22` 23.1, 누락 0건 |
+| — | `canonical_fact.confidence` 의 의미 | **제거했다.** 승인 문서·ADR·`docs/05` 어디에도 계산 의미가 정의된 적이 없어 새 의미를 만들지 않았다(11.4.2) |
+
+**그대로 열어 둔 것**
+
+| # | 무엇 | 왜 닫지 않았나 |
+| --- | --- | --- |
+| **Q-46** | 상대방이 직접 입력한 구조화 값의 Source 모델 | **7값 채택은 "ADR-020 을 따른 것"이지 값 목록의 현장 적합성을 승인한 것이 아니다.** ADR-020 본문도 "각 축의 값 목록이 충분한지는 아직 승인되지 않았다"고 적어 두었다. `HUMAN_UI` 로 넣으면 거래처 입력이 CERA 사용자 입력과 같은 강도가 되어 권한 모델이 무너진다. `actor_type` 축 신설 여부는 **권한 모델과 함께** 정한다 |
+| **Q-34** | `event.payload.change_reason` 값 목록 | R6 "변화 선언" 예외 판정의 입력. 자리는 생겼고 값은 T-037·인터뷰 |
+| **L-13 · L-14 · L-15 · L-16** | 복구 맥락 식별자 · 범위 값/선택 정책 · `message_kind` 값 · `bl` 유일 제약 | **변화 없음.** rev.2.3 은 이들을 건드리지 않았다 |
+
+> **물리 설계로 넘긴 것**: `idempotency_key` 의 직렬화·해시 알고리즘·**주장 위치(claim locator) 형식**, `schema_version` 문자열 형식, `input_confidence_reasons`·`validator_result` 의 JSON 구조 세부. 여기서 정한 것은 **"무엇을 넣고 무엇을 빼는가"** 까지다(`docs/22` 11.2d).
+
+> **`ADR-017` 은 여전히 `Proposed`** 다. 사람 확인 사건의 근거는 ADR-017 이 아니라 **승인된 `docs/21` 9절·12.2 와 `docs/20` A-17(근거 ADR-028 `Accepted`) · ADR-020 `Accepted`** 다. ADR-017 을 Accepted 로 인용하지 않는다.
+
 ## 4. 폐기된 항목
 
 - **원본 기획서 부록 A 적대적 교차검증** (옛 T-028 후보): v0.1 원본 기획서를 대상으로 한 작업이라 v0.2에서는 의미가 없어 폐기했다(2026-09-11).

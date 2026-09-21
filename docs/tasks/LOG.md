@@ -21,6 +21,37 @@
 
 ---
 
+## 2026-09-21 · T-081 논리 모델 후속 (rev.2.3) · Claude Code (claude-opus-5)
+- 상태: **완료 — T-081 DONE (2026-09-21, 사용자 최종 승인).** 승인 전 최종 확인 3항목 통과 후 닫았다. 최종: **MVP 52 · Next 1 · MVP 에서 만들지 않음 2 = 55** · 작업표 블록 53 · 컬럼 586 · 흐름 검증 **47개 PASS** · `docs/21` 변경 0건 · 제품 코드 0건. 커밋은 이 기록과 같은 커밋(`git log` 이 정본). push 없음
+- (아래는 작성 당시 기록. append-only 라 고치지 않는다 — "검토 대기" 표현은 당시 상태)
+- 기준 커밋: `3b1bda3`(T-070). 이 커밋 위의 문서 변경만. 제품 코드 0건
+- 지시: 승인된 Event/State 규칙이 `docs/22` 에서 빠진 부분을 복구한다. 새 제품 설계를 벌리지 않는다. `docs/21` 수정 금지. 구현 코드·SQL·물리 설계 금지. **C(출처 어휘)는 사용자가 선택지 ① 로 결정**
+- **착수 전 확인에서 이전 보고의 오류를 잡았다**: 분석 단계에서 **ADR-017 을 `Accepted` 라고 보고했는데 HEAD 기준 `Proposed`** 다(`docs/14:205`). 사람 확인 사건의 근거를 **승인된 `docs/21` 9절·12.2 + `docs/20` A-17(근거 ADR-028 `Accepted`) + ADR-020 `Accepted`** 로 다시 세웠다. ADR-019·020 은 `Accepted (구조 한정)` 로 확인됨
+- 한 일 (`docs/22` rev.2.3)
+  - **A 사람 확인·정정**: `event.event_class`(OBSERVATION/CORRECTION/VERIFICATION) · `verification_action` · `verification_method` + **새 표 `event_verification_target`**(`TARGET`/`OVERRULED`, 3열 PK). JSON 배열이 아니라 연결 표인 이유는 R1 기각·6.1 계산이 **역방향 조회**를 하기 때문(11.2a)
+  - **B 검증기 신뢰도**: `input_confidence_level`(HIGH/MEDIUM/LOW) + `input_confidence_reasons`(JSON). `input_quality`(입력 형태)와 **다른 축**임을 표로 고정. 없으면 `docs/05` 3.3 강도표를 색인할 수 없어 **Reconciliation 전체가 돌지 않는다**(11.2b)
+  - **C 출처 3축**(사용자 결정): `source_kind` 6값 → **`source_type` 7값**(ADR-020) · `source_role_at_ingestion` · **`extraction_method` 신설** · `source_id` 추가. `PLAN_UPLOAD` → `FILE_IMPORT` + `fact_kind = PLAN`, **`INTERNAL` 은 문자열 치환하지 않고 의미로 나눴다**(엔진 추정 = `INFERENCE`+`CALCULATED`). `raw_input.source_type` 도 같은 집합으로(11.2c)
+  - **D 나머지 4.2 필드**: `event_type` · `schema_version` · **`idempotency_key` UNIQUE** · `correlation_id` · `payload` · `source_id` · `extraction_method`. 멱등 키 재료에 **적용 범위 2컬럼 + 주장 위치(claim locator)** 를 넣었다 — 옛 `hash(raw_ref, entity, fact_key)` 를 그대로 쓰면 범위가 다른 두 주장이 같은 키가 되어 **운영자 입력이 조용히 버려진다**(11.2d)
+  - **E 상태 차원 복구**(재대조에서 나온 것, 가장 무거움): `canonical_fact` 가 한 enum 에 합쳐 두던 것을 **`value_status`·`freshness_status`·`conflict_status`·`hold_status`·`decision_usability` + `verification_basis`** 로. ADR-020 `docs/14:252` 가 명시한 구조이고 `docs/14:253` 이 단일 enum 을 **기각된 대안**으로 적어 둔 것이다. rev.2.2 상태로는 **R10 보류와 `APPROVAL_BLOCKED`(FR-OPT-06 Must)를 표현할 수 없었다**. 정본에 없는 값 `VERIFIED`·`ASSUMED` 제거(11.4.2)
+  - **`canonical_fact.confidence` 제거**: 승인 문서·ADR·`docs/05` 어디에도 계산 의미가 정의된 적이 없다. 새 의미를 만들지 않고 없앴다. 남은 "신뢰" 이름 4개는 각자 다른 질문에 답한다
+  - **F 스냅샷 동결**: `planning_snapshot_fact` 에 상태 6차원 + `evidence_policy_version`·`rule_version`·근거 시각 3종 복사. **I-12 가 "그때 왜 승인 가능했나"까지 넓어졌다**(13.2.1)
+  - **G `extraction` 보강**: `schema_version`·`input_hash`·**`validator_result`**(승인된 `docs/21` 13절 요구). `model_confidence`(LLM 자기 점수, 쓰지 않음)와 구분(15.9.2)
+  - **H 메시지 상태 매핑**: 반송·영구 실패·재시도 가능·보냈는지 모름·승인 취소·숫자 검사 실패를 **기존 구조 어디로 보내는지** 표로. **새 표·새 상태 값 0개**(15.8.1)
+  - 무결성 규칙 **I-21~I-25** 추가, I-12 확장 · 흐름 검증 **14항목 추가(30 → 44, 전부 통과)** · walkthrough **27.9 정정 · 27.10 재처리 멱등 · 27.11 범위별 멱등** 추가 · 27.1 에 확인 단계 4줄(6a~6d) 추가
+  - **23.1절 신설**: `docs/05` 4.2 **29개 필드 전체 대응표**(SAME/RENAMED/SPLIT/MOVED/NOT STORED + 근거). **누락 0건**
+- 수: **MVP 52 · Next 1 · MVP 에서 만들지 않음 2 = 55**. 작업표 블록 **53** · 컬럼 **586**(rev.2.2 는 52 · 557). 실제로 스크립트로 다시 셈
+- 검증: I-7 재확인(늘어난 다섯 차원이 전부 `event` 에서 재계산되는지 표로 따짐 — `canonical_fact` 에만 있는 정보 0) · I-12 확장 · Markdown ↔ 작업표 대조 스크립트(필수 컬럼 존재 / 옛 컬럼 잔재 0 / 블록 이름 일치) **PASS** · `git diff --check` 통과 · staged 0건 · `docs/21` 변경 0건 · 제품 코드 0건
+- 변경 파일: `docs/22_cera-logical-data-model.md`·`.xlsx` · `docs/05`(머리 주석 4건 해소) · `docs/15`(T-081 절 신설 — 닫힌 것/연 것) · `docs/README.md` · `AGENTS.md` · `docs/tasks/CURRENT.md`·`QUEUE.md`·`LOG.md`
+- 하지 않은 것: `docs/21` 수정 · **Q-46 닫기**(열어 둠) · L-13·L-14·L-15·L-16 · 물리 설계(해시 알고리즘·주장 위치 형식·JSON 구조 세부) · 기술 선택 · 제품 코드 · `front/web/`·`data/Proposal/`·`scripts/` · staging·commit·push
+- 큐 변경: T-081 → **DONE**(완료 섹션으로 이동) · **T-082 신설(P2)** · 다음 작업 **T-069**
+- 다음 한 걸음: **T-069**(착수 전 Q-44·Q-45 를 사용자에게 먼저 묻는다) → Backend·DB 기술 선택(사용자) → T-080(첫 범위의 표만)
+- **(같은 날 추가) 승인 전 최종 확인 3항목** — 사용자가 방향을 승인한 뒤 요청. **새 표·새 컬럼 0개, 규칙·문구만**
+  1. 확인 사건의 대상 좌표 일치 — **강제되지 않았다.** 11.2a 규칙 7·8 + 11.2a.1 + **I-26** 추가. 좌표를 넘나들면 I-8(SUBJECT 1건)이 결정되지 않고 `OVERRULED` 가 다툰 적 없는 사실을 기각한다
+  2. `event_class` 별 조건부 무결성 — **이미 반영돼 있었다**(Markdown 규칙 5 + 작업표 제약 칸). 변경 없음
+  3. `decision_usability` 파생·재현 — **판을 입력으로 명시하지 않았다.** 11.4.2 규칙 5 입력표 · I-24 수정 · 13.2.1 재현표 · **I-27** 추가
+  - 검증 항목 44 → **47**(J 그룹). 작업표 제약·주의 칸 동기화, 블록 53 · 컬럼 586 **변동 없음** 재확인
+- 주의사항: **`ADR-017` 은 여전히 `Proposed`** 다. Accepted 로 인용하지 않는다. **Q-46 은 열려 있다** — `source_type` 7값은 현재 ADR 기준의 정렬이고, 거래처가 직접 입력한 구조화 값을 `HUMAN_UI` 로 넣으면 권한 모델이 무너진다
+
 ## 2026-09-18 · T-070 주변 문서 동기화 · Claude Code (claude-opus-5)
 - 상태: **완료 — T-070 DONE** (사용자 검토 → 판정 B → `docs/05`·`docs/18` 정리 후 종료). **미커밋 — commit 은 사용자 지시 대기**
 - 목적: 확정된 설계(`21` 승인 · `22` rev.2.2 · `23` · ADR-026~031)를 주변 문서에 맞춰, 다음 에이전트가 오래된 문서를 읽고 잘못 구현하지 않게 한다. 새 설계 없음

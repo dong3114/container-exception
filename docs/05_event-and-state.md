@@ -8,7 +8,12 @@
 - **2026-09-18 T-070 — 정본 관계 (이 문서를 구현 명세로 읽기 전에).**
   - **Event·State 의 개념적 행동 규칙**(Reconciliation R1~R12, 출처 3축의 구조, 상태 차원 분리, 신선도, 확인·보류, 사건 부류 OBSERVATION·CORRECTION·VERIFICATION)의 정본은 **이 문서 + 승인된 `21_cera-conceptual-data-model.md`** 다.
   - **논리 DB 의 표·필드·제약**의 정본은 **`22_cera-logical-data-model.md`(rev.2.2)** 다. 이 문서의 `events`·`raw_inputs`·`canonical_facts`·`conflicts`·`verification_requests`·`planning_snapshots`·`plan_decisions` 와 **4.2절 Event 필드표는 저장 명세가 아니다** — 표 이름은 `event`·`raw_input`·`canonical_fact`·`conflict`·`verification_request`(+ `_handling`)·`planning_snapshot`(+ 자식 표)·`plan_decision` 이고, 필드는 `22` 를 따른다.
-  - **아직 두 문서가 맞지 않는 곳 — 후속 논리 모델 Task(T-081)에서 결정 대기, 지금은 어느 쪽으로도 구현하지 않는다**: ① 사람 확인(VERIFICATION)·정정 사건을 `22` 의 `event` 에서 어떻게 표현하나(`event_class`·`target_event_ids`·`verification_action` 등이 `22` 에 없다) ② 결정론 검증기 결과 `confidence`(4.2·4.6)를 어디에 두나 — `22` 의 `input_quality`·`canonical_fact.confidence` 와의 관계 ③ 출처 종류 값 목록(3.1 `source_type` vs `22` 의 `raw_input.source_type`·`event.source_kind`) ④ 그 밖에 4.2절 필드(`idempotency_key`·`event_type`·`schema_version`·`extraction.method`)의 논리 표현
+  - **2026-09-21 T-081 에서 네 곳이 모두 닫혔다.** `docs/22` **rev.2.3** 이 4.2절 필드표와 한 줄씩 대조됐고(대응표는 `22` **23.1절**, **누락 0건**), 이제 이 문서와 `22` 는 같은 것을 말한다.
+    - ① 사람 확인·정정 → `event.event_class`·`verification_action`·`verification_method` + 새 표 **`event_verification_target`**(`TARGET`/`OVERRULED`). `22` 11.2a
+    - ② 검증기 `confidence` → `event.input_confidence_level`(+ `input_confidence_reasons`). `input_quality`(입력 형태)와 **다른 축**이고, 의미가 정의된 적 없던 `canonical_fact.confidence` 는 제거됐다. `22` 11.2b · 11.4.2
+    - ③ 출처 종류 → **3.1절의 7값으로 통일**(2026-09-21 사용자 결정). `22` 의 `source_kind` 6값은 폐기되고 `event.source_type`·`raw_input.source_type` 이 같은 집합을 쓴다. `22` 11.2c. **Q-46 은 그대로 OPEN** — 7값은 현재 ADR-020 기준의 정렬이지 영구 확정이 아니다
+    - ④ 나머지 필드 → `event_type`·`schema_version`·`idempotency_key`(UNIQUE)·`correlation_id`·`payload`·`source_id`·`extraction_method` 전부 `22` 에 있다. `22` 11.2d
+  - **덧붙여 6.2절의 상태 차원도 `22` 에 복구됐다**(rev.2.3). `canonical_fact` 가 `value_status`·`freshness_status`·`conflict_status`·`hold_status`·`decision_usability` + `verification_basis` 를 따로 갖는다(ADR-020). 한 enum 으로 합쳐져 있던 rev.2.2 는 **R10 보류와 계획 승인 차단을 표현하지 못했다**.
 - 이 문서가 답하는 질문: **서로 다른 출처가 서로 다른 현실을 말할 때, CERA는 어떤 근거로 현재 운영 상태를 정하는가?**
 
 ## 0. 결정 수준 표기
