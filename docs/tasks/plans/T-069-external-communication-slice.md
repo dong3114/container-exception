@@ -807,10 +807,10 @@ T-069 승인
 | 결정 | T-080 을 막나 | 왜 |
 | --- | --- | --- |
 | **Q-64** Backend | ~~막는다~~ **해소 (2026-09-21, ADR-033 — NestJS + TypeScript)** | 접근 방식·마이그레이션 도구·트랜잭션 표현이 언어에 따라 갈린다 — 이제 TypeScript 위에서 Q-68 을 고른다 |
-| **Q-68** DB | **막는다** | 물리 타입(시각·JSON·해시) · 부분 유일 제약 · append-only 강제 방식이 **제품마다 다르다**. 물리 설계는 제품 없이 쓸 수 없다 |
+| **Q-68** DB | ~~막는다~~ **해소 (2026-09-22, ADR-034 — PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, SQLite 미사용)** | 물리 타입(시각·JSON·해시) · 부분 유일 제약 · append-only 강제 방식이 **제품마다 다르다** — 이제 PostgreSQL 위에서 T-080 을 쓴다(부분 유일은 partial unique index 등으로 구현 — index SQL 은 T-080) |
 | Q-65 솔버 | 막지 않는다 | Slice 1 은 솔버가 없다. `recovery_run` 은 시드다(`docs/23` 3.3) |
 
-> **DB 선택은 지금까지 Open Question 번호가 없었다.** ADR-004(SQLite → PostgreSQL, **Proposed**)와 `docs/23` 2절·13절의 "미결 — T-069 뒤 사용자가 Backend 와 함께 결정"에만 있었고, 여러 곳에서 "Backend·DB 결정(Q-64·Q-65)"으로 묶여 적혔는데 **Q-65 는 솔버**다. 그래서 **Q-68 을 새로 등록**했다(`docs/15`). 특정 DB 제품은 고르지 않았다.
+> **DB 선택은 지금까지 Open Question 번호가 없었다.** ADR-004(SQLite → PostgreSQL, **Proposed**)와 `docs/23` 2절·13절의 "미결 — T-069 뒤 사용자가 Backend 와 함께 결정"에만 있었고, 여러 곳에서 "Backend·DB 결정(Q-64·Q-65)"으로 묶여 적혔는데 **Q-65 는 솔버**다. 그래서 **Q-68 을 새로 등록**했다(`docs/15`). 특정 DB 제품은 고르지 않았다. **(사후 주석 2026-09-22: Q-68 CLOSED — PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, ADR-034 Accepted, ADR-004 Superseded)**
 
 ## 17. T-080 으로 넘기는 것
 
@@ -832,7 +832,7 @@ T-069 승인
 
 | # | 질문 | 답 |
 | --- | --- | --- |
-| 1 | Backend 기술 뼈대 · T-003 | **T-003 을 Phase 0 으로 흡수**한다. 언어(Q-64)는 **결정 — NestJS + TypeScript(ADR-033, 2026-09-21)**. DB(Q-68)는 사용자 결정(16.3 기준 · 16.4 순서) |
+| 1 | Backend 기술 뼈대 · T-003 | **T-003 을 Phase 0 으로 흡수**한다. 언어(Q-64)는 **결정 — NestJS + TypeScript(ADR-033, 2026-09-21)**. DB(Q-68)는 **결정 — PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration(ADR-034, 2026-09-22)** |
 | 2 | 최소 DB 스키마 | **P0 29개**(5.1) → T-080 |
 | 3 | 거래처·연락처·검증 모델 · Q-48 | 표는 `22` 10절 그대로. **Q-48(개인/공용 메일함)은 지금 넣지 않는다** — `19` 4.3 이 "첫 구현은 구분 없이"로 정했다. 확인 토큰은 Slice 2 |
 | 4 | Gmail OAuth·어댑터 | **Slice 2**(11.13). Slice 1 은 같은 포트의 Mock |
@@ -869,7 +869,7 @@ T-069 승인
 | # | 무엇 | 언제 |
 | --- | --- | --- |
 | ~~**Q-64**~~ | Backend 언어·프레임워크 | **CLOSED (2026-09-21, T-083)** — Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임(ADR-033) |
-| **Q-68** | **DB 제품 · 접근 방식(ORM/쿼리) · 마이그레이션 도구** — 2026-09-21 신규 등록. 초안 기록은 ADR-004(SQLite → PostgreSQL, Proposed) | **Q-64 뒤 사용자** — **T-080 선행** |
+| ~~**Q-68**~~ | DB 제품 · 접근 방식(ORM/쿼리) · 마이그레이션 도구 | **CLOSED (2026-09-22, T-084)** — PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, SQLite 미사용(ADR-034, ADR-004 Superseded) |
 | Q-65 | 솔버 위치·언어 | T-036 재개 뒤. **Slice 1 · T-080(P0) 을 막지 않는다** |
 | Q-66 | 오류 코드 목록 — 10.3 에 초안 | 구현 |
 | Q-67 | 로그 저장소·관측 제품 | 첫 배포 |

@@ -21,6 +21,20 @@
 
 ---
 
+## 2026-09-22 · T-084 DONE — Q-68 DB 결정 반영 · Claude Code (claude-opus-5)
+- 상태: **완료 — T-084 DONE (사용자 결정 · 최종 승인).** 기준 HEAD `12a849a`. push 없음
+- 결정(사용자, Option A): **PostgreSQL**(로컬·시험·운영 모두 — **SQLite 미사용**, 개발/운영 DB 이원화 금지) + **Drizzle ORM**(SQL-aware Hybrid — 핵심 경로는 PostgreSQL 의미를 드러내 쓴다, DB 불변식을 앱 코드로 흉내 내지 않는다) + **drizzle-kit 생성 SQL migration → 사람 검토 → 저장소 기록 → 명시 적용**(운영 자동 동기화 · `push` 정본 사용 · 검토 없는 파괴적 migration 금지). DB 권한·스키마·migration 은 Main Backend 만. Prisma · Kysely · TypeORM · MikroORM 후보 제외
+- 재확인한 방향(구현 방식은 T-080): 외부 I/O 는 트랜잭션 밖(시도 선커밋 → send → 결과 트랜잭션) · DB Outbox + 단일 워커 폴링, 큐 제품 없음 · append-only 는 PostgreSQL 제약으로 먼저 강제 · BIGINT 를 무조건 JS number 로 바꾸지 않음 · 시각 규칙(ADR-006 · ADR-032) 유지
+- 한 일
+  - `docs/14`: **ADR-034 Accepted** 추가(마지막 번호 ADR-033 확인 뒤 배정) · ADR-004 **Superseded by ADR-034**(2026-09-22 주석)
+  - `docs/15`: **Q-68 CLOSED**. Q-65 는 OPEN 유지
+  - `docs/07` 3절 DB 줄(옛 SQLite·SQLAlchemy·Alembic 폐기 표시) · `docs/23` 머리·2·13절 · `docs/22` 포인터 3곳(논리 모델·rev 변경 0건) · `docs/01` 7절 · `back/README` · T-069 계획 16.4·17·19절 · `plans/T-084-db-decision-options.md` 결정 완료로 전환(**4절 방향 제안은 확정 아님** 명시) · `AGENTS.md` · QUEUE · CURRENT
+- T-080 / U0 로 넘긴 것: 물리 타입 · PK/ID · FK · UNIQUE · 부분 유일 인덱스 · append-only 차단 수단 · JSON 물리 구조 · 멱등 직렬화/해시 · 주장 위치 · `schema_version` 형식 · BIGINT ↔ TS 경계 · 시각 물리 매핑 · 워커 잠금 SQL · 내용 저장소 물리 참조 · migration 순서·명령 · 로컬 PostgreSQL 실행 방식 · 버전 · 연결 풀
+- 정하지 않은 것: PostgreSQL · Drizzle · Node/Nest 버전 · 호스팅 · HA · 백업 · Docker 여부 · 배포 · Redis/큐 제품 · 내용 저장소 제품
+- **제품 코드 0건 · 패키지 설치 0건 · SQL/migration/설정 파일 0건 · `docs/21` 변경 0건.** `front/web/` · `data/Proposal/` · `scripts/` 는 건드리지 않음
+- 최종 승인 때 표현 정정: "부분 유일 제약"을 PostgreSQL 물리 기능명처럼 쓴 곳(ADR-034 결정 1 · `docs/07` 3절 · T-084 비교 표 · T-069 계획 16.4 · QUEUE T-080)을 **"partial unique index 등으로 부분/조건부 유일을 구현할 수 있다"** 로 고쳤다. `docs/22` 의 "부분 유일 제약"은 vendor 중립 논리 규칙이라 그대로 둔다. index SQL 은 T-080
+- 다음 한 걸음: **T-080(P0 29개 물리 설계)** → T-085~T-096
+
 ## 2026-09-21 · T-083 DONE — Q-64 Main Backend 결정 반영 · Claude Code (claude-opus-5)
 - 상태: **완료 — T-083 DONE (사용자 결정).** **미커밋**(staging·commit·push 는 사용자 승인 뒤). 기준 HEAD `cad92ed`
 - 결정(사용자): **Main Backend = TypeScript + NestJS**, 모듈형 모놀리스(같은 코드베이스의 API + Worker 프로세스). **AI Server = 별도 Python 런타임**(FastAPI 또는 동등) — 권한 없음(DB·발송·사건·사실·승인 X), LLM 공급자 클라이언트만, 출력은 후보. Main Backend → AI Server 는 HTTP/JSON(timeout · 제한 재시도 · `correlation_id`/`trace_id` · 장애 격리)

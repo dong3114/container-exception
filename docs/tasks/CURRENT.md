@@ -10,9 +10,9 @@
 
 ## Status
 
-**IDLE** — **T-083 DONE (2026-09-21, 사용자 결정 Q-64): Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임(ADR-033 Accepted).** 진행 중인 Task 는 없다. **다음은 사람 결정 T-084(Q-68 DB)** 이고, 그 뒤 T-080(P0 29개 물리 설계) → T-085~T-096(U0~U11 구현)이다. 에이전트가 바로 집을 주 흐름 작업은 없다.
+**IDLE** — **T-084 DONE (2026-09-22, 사용자 결정 Q-68): DB = PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 검토 SQL migration, SQLite 미사용(ADR-034 Accepted, ADR-004 Superseded).** 진행 중인 Task 는 없다. **다음은 T-080(P0 29개 물리 설계)** — 의존이 모두 풀려 실행 가능하지만 아직 시작하지 않았다. 그 뒤 T-085~T-096(U0~U11 구현).
 
-T-083 경과는 `LOG.md` 맨 위 항목, T-069 경과는 그 아래 항목, 계획 본문은 `docs/tasks/plans/T-069-external-communication-slice.md` 에 있다.
+T-084 경과는 `LOG.md` 맨 위 항목, T-083 은 그 아래 항목에 있다. 선택지 비교 기록은 `docs/tasks/plans/T-084-db-decision-options.md`.
 
 ## 지금 확정된 상태
 
@@ -24,29 +24,32 @@ T-083 경과는 `LOG.md` 맨 위 항목, T-069 경과는 그 아래 항목, 계�
 | 출처 어휘 | **`source_type` 7값 · `source_role` · `extraction_method` 3축**(사용자 결정 C). **Q-46 은 OPEN** |
 | 런타임·오류 처리·관측성 `docs/23` | 정본. ADR-030 **Proposed** · ADR-031 은 Desktop·Web First 부분만 Proposed(결정 1·2·8 은 ADR-033 이 대체) |
 | Backend 언어 | **결정 — Main Backend = TypeScript + NestJS**(모듈형 모놀리스, API + Worker) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON). **ADR-033 Accepted**, ADR-002 Superseded, Q-64 CLOSED |
-| DB · ORM · 마이그레이션 | **미결 — Q-68 (T-084, 다음)** |
+| DB · ORM · 마이그레이션 | **결정 — PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 검토 SQL migration**, SQLite 미사용. **ADR-034 Accepted**, ADR-004 Superseded, Q-68 CLOSED (2026-09-22). 비교 기록 `plans/T-084-db-decision-options.md` |
 
 ## Baseline
 
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-083 커밋 (`git log -1` 이 정본). 그 전: `cad92ed` (T-069) |
+| 최신 커밋 | T-084 커밋 (`git log -1` 이 정본). 그 전: `12a849a` (T-083) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | `front/web/` 12개 파일(Antigravity 디자인 작업) · untracked `data/Proposal/` · `scripts/` — **이 흐름의 작업이 아니다. 수정·스테이징·커밋하지 않는다** |
-| last updated | 2026-09-21 |
-| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-083 문서 반영 |
+| last updated | 2026-09-22 |
+| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-084 결정 반영 |
 
 ## 다음 한 걸음
 
 1. ~~T-083 — Q-64~~ **DONE (NestJS + TypeScript, ADR-033)**
-2. **T-084 — Q-68 DB 제품·접근 방식·마이그레이션 도구 결정**(사용자, `NEEDS_HUMAN`) ← **다음**. 기준: 계획 16.2 · 이제 TypeScript 위에서 고른다
-3. **T-080 — P0 29개 물리 설계**(T-084 뒤에만 실행 가능)
+2. ~~T-084 — Q-68~~ **DONE (PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, ADR-034)**
+3. **T-080 — P0 29개 물리 설계** ← **다음**(실행 가능, 아직 시작 안 함). 입력: ADR-034 결과 절의 "정하지 않는 것" · `plans/T-084-db-decision-options.md` 7절 · T-069 계획 5.1 · 17절
 4. **T-085 ~ T-096 — U0 ~ U11 구현**(T-080 DONE 뒤에만). Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 
 - **Main Backend(NestJS)가 모든 권한을 갖고, Python AI Server 는 권한이 없다**(ADR-033). AI Server 는 DB·발송·사건·사실·승인을 하지 않고, 가진 외부 클라이언트는 LLM 공급자뿐이며, 출력은 후보다. `back/` 와 `ai/` 는 코드를 공유하지 않고 HTTP 계약으로만 만난다
+- **DB 는 PostgreSQL 하나다(ADR-034).** SQLite 로 개발하지 않는다. Drizzle 을 쓰지만 Full ORM 이 아니다 — Outbox · 멱등 · 부분 유일 · 잠금 · append-only · 핵심 트랜잭션은 PostgreSQL 의미를 드러내 쓰고, DB 가 지킬 수 있는 불변식을 앱 코드로만 흉내 내지 않는다. migration 은 drizzle-kit 생성 SQL 을 사람이 검토·커밋한 뒤에만 적용한다
+- **부분 유일은 PostgreSQL 의 UNIQUE 제약 자체가 아니라 partial unique index 등으로 구현한다** — 실제 index SQL 은 T-080
+- **T-084 비교 문서 4절(BIGINT = number, advisory lock + SKIP LOCKED 등)은 확정이 아니다.** T-080 에서 비교해 정한다
 - **솔버(Q-65)는 NestJS 결정과 별개다.** TypeScript 로 강제하지 않고, PlanningSnapshot 계약 뒤에 나중에 붙인다
 - **`docs/21` 7절이 Event 속성의 정본을 `docs/05` 4.2 로 위임**해 두었다. Event 필드를 바꿀 때는 `docs/22` 23.1 대응표를 함께 고친다
 - **`ADR-017` 은 `Proposed`** 다. 사람 확인 사건의 근거는 승인된 `docs/21` 9절·12.2 와 `docs/20` A-17(근거 ADR-028 Accepted) · ADR-020 Accepted 다
@@ -68,7 +71,6 @@ T-083 경과는 `LOG.md` 맨 위 항목, T-069 경과는 그 아래 항목, 계�
 | Q-44 후속 | Gmail `internalDate` 의 정확한 의미 `[TO VERIFY]` | Tech Validation |
 | Q-46 | 상대방 직접 입력의 Source 모델(`actor_type` 신설 여부 포함) | 권한 모델과 함께 |
 | Q-34 | `payload.change_reason` 값 목록 | T-037 · 인터뷰 |
-| **Q-68** | **DB 제품 · 접근 방식 · 마이그레이션 도구**(2026-09-21 신규) | **다음 — T-084 사용자 결정**(Q-64 CLOSED) — **T-080 선행** |
 | Q-65 | 솔버 실행 위치·언어 | T-036 재개 뒤. PlanningSnapshot 계약으로 붙인다 — Slice 1 blocker 아님 |
 | Q-66 | `system_error` 오류 분류·코드 목록 | T-069 · 구현 |
 | Q-67 | 로그 저장소·관측 제품 | 첫 배포 환경을 정할 때 |

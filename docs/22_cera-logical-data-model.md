@@ -84,7 +84,7 @@
 
 > **이 문서가 답하는 질문**: "CERA에 무엇이 존재하는가"가 아니라 **"승인된 개념을 DB에서 어떤 테이블·컬럼·관계·제약으로 표현할 것인가"**.
 >
-> **여전히 정하지 않는 것**: DB 제품(PostgreSQL·MySQL·SQLite) · ORM · Backend 언어 · 실제 `CREATE TABLE` · vendor 전용 타입 · 인덱스 세부 · 파티션 · 복제 · 큐 · 배포 · 마이그레이션 도구 · API endpoint · LLM 공급자·모델 · 솔버와 그 내부 표현 · 위험·신선도·근거 강도의 실제 임계값.
+> **여전히 정하지 않는 것**(이 문서 안에서): DB 제품(PostgreSQL·MySQL·SQLite) · ORM · Backend 언어 · 실제 `CREATE TABLE` · vendor 전용 타입 · 인덱스 세부 · 파티션 · 복제 · 큐 · 배포 · 마이그레이션 도구 · API endpoint · LLM 공급자·모델 · 솔버와 그 내부 표현 · 위험·신선도·근거 강도의 실제 임계값.
 
 ## 0. 논리 타입 표기 (vendor 중립)
 
@@ -3343,13 +3343,13 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 3. ~~**이 문서 rev.2.3 + 작업표 검토** → **T-081 DONE**~~ — **완료 (2026-09-21, 사용자 최종 승인)**
 3-1. ~~**Q-44 · Q-45 사용자 결정**~~ — **완료 (2026-09-21, rev.2.4)**. Q-44 CLOSED(11.2e) · Q-45 구조 CLOSED / 기간 OPEN(29절)
 4. **T-069 외부 통신 구현 계획** ← **다음** — ~~Q-44·Q-45 사용자 결정~~(완료), **L-13 복구 맥락 식별자** 결정, **첫 구현 슬라이스 확정**(어느 표를 먼저 만드나)
-5. **Backend·DB 기술 최종 결정** — **Backend 는 결정(2026-09-21, ADR-033 Accepted — Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임).** DB 제품·ORM·마이그레이션은 **Q-68(T-084)** 로 남는다
+5. **Backend·DB 기술 최종 결정** — **Backend 는 결정(2026-09-21, ADR-033 Accepted — Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임).** ~~DB 제품·ORM·마이그레이션은 Q-68(T-084) 로 남는다~~ **DB 도 결정(2026-09-22, ADR-034 Accepted — PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, SQLite 미사용, Q-68 CLOSED)**
 6. **T-080 물리 설계** — **논리 표 52개를 한 번에 물리 설계하지 않는다.** 5번에서 **결정된 기술**을 T-069 가 정한 첫 슬라이스에 필요한 표부터 반영한다: 결정된 DB 제품 위의 물리 설정 · `event_id` 형식 · **`idempotency_key` 직렬화·해시·주장 위치 형식**(11.2d) · **`schema_version` 문자열 형식** · 코드값 물리 표현 · 인덱스 · 부분 유일 제약 표현 · `value_path` "전체" 표시 문자열 · 마이그레이션 · 실제 `CREATE TABLE`
 6. 구현(Antigravity) → 검토(Claude/Codex) → 사용자 승인 → commit
 7. 실데이터 확인 뒤 **L-16 `bl` 유일 제약** 확정 (T-005·T-006)
 8. 재현 테스트 설계: **`canonical_fact` 전체 삭제 → `event` 로부터 재계산 → 동일성 확인**(I-7) + **과거 스냅샷 완전 복원**(I-12)
 
-> **이 문서는 여전히 DB 제품·ORM·SQL·인덱스·솔버·LLM 공급자를 확정하지 않는다.**
+> **이 문서는 여전히 DB 제품·ORM·SQL·인덱스·솔버·LLM 공급자를 확정하지 않는다.** 기술 결정은 이 문서 밖 ADR 에 있다 — Backend = ADR-033, DB·ORM·migration = **ADR-034**(2026-09-22: PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, SQLite 미사용). 이 논리 모델은 vendor 중립으로 남고, PostgreSQL 위의 물리 표현은 T-080 이 정한다.
 
 ---
 

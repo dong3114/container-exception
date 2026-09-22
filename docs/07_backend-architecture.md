@@ -1,15 +1,15 @@
 # 07. 백엔드 아키텍처
 
 - 상태: Draft (기획 v0.2)
-- 최종 수정: 2026-09-21 (**Q-64 결정 반영 — ADR-033**: Main Backend = **TypeScript + NestJS** 모듈형 모놀리스(API + Worker), **AI Server = 별도 Python 런타임**. 1·2·3·6절 갱신, 3절의 Python Backend 줄은 폐기 표시). 이전: 2026-09-18 (**T-070 문서 동기화**: 1·2절 Python·FastAPI·SQLite 를 확정처럼 읽히던 표현을 "미결 — `docs/23`"으로, 2·2.1절에 오류 처리·관측성과 외부 통신 흐름(Outbox·발송 시도·채널 어댑터·검증) 반영, 3절 Backend 줄을 초안 기록으로 표시, **4절 저장 스키마를 `docs/22` 논리 설계 대응표로 교체**(X-10), 6·7·8절 정리. **구현은 아직 없다** — 이 문서는 설계다). 같은 날 앞서: 런타임·오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본이 됐다. 이전: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
-- 관련 ADR: ADR-002(스택 초안, Proposed), ADR-004(DB, Proposed), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생), ADR-026~029(외부 통신·책임 경계, Accepted), ADR-030·031(오류·관측성·런타임 방향, Proposed)
+- 최종 수정: 2026-09-22 (**Q-68 결정 반영 — ADR-034**: DB = **PostgreSQL**(SQLite 미사용) · 접근 = **Drizzle ORM**(SQL-aware Hybrid) · migration = **drizzle-kit 생성 SQL 을 사람이 검토·커밋 뒤 명시 적용**. 3절 DB 줄 갱신). 이전: 2026-09-21 (**Q-64 결정 반영 — ADR-033**: Main Backend = **TypeScript + NestJS** 모듈형 모놀리스(API + Worker), **AI Server = 별도 Python 런타임**. 1·2·3·6절 갱신, 3절의 Python Backend 줄은 폐기 표시). 이전: 2026-09-18 (**T-070 문서 동기화**: 1·2절 Python·FastAPI·SQLite 를 확정처럼 읽히던 표현을 "미결 — `docs/23`"으로, 2·2.1절에 오류 처리·관측성과 외부 통신 흐름(Outbox·발송 시도·채널 어댑터·검증) 반영, 3절 Backend 줄을 초안 기록으로 표시, **4절 저장 스키마를 `docs/22` 논리 설계 대응표로 교체**(X-10), 6·7·8절 정리. **구현은 아직 없다** — 이 문서는 설계다). 같은 날 앞서: 런타임·오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본이 됐다. 이전: 2026-09-16 (**T-072: 3절 기술 표를 A~D 4분류로 읽도록 정리**(특정 LLM 공급자·모델은 요구사항이 아니라 "구현 시점 선택"), 4절 `messages` 대체 표기를 ADR-028 **Accepted**로 정정, 2.1절 실제 발송을 **Tech Validation**으로 정정). 같은 날 T-068: 6.1절 신설 — 결정론 엔진을 `ai/`에서 분리(ADR-029 Accepted), 6절 배치표 갱신, 4절 `messages` → `comm_*` 대체(ADR-028 Accepted). 이전: 2026-09-15 (6절 Monorepo 레이아웃 재정렬 ADR-024: `web/` → `front/web/`, `back/`·`ai/`·`packages/`·`infra/` 영역. 같은 날: 프론트엔드 스택 Next.js·화면용 조회 API, `canonical_facts`의 `evidence_time_quality`·`temporal_confidence`). 이전: 2026-09-11 T-032 저장 스키마 갱신
+- 관련 ADR: ADR-002(스택 초안, Proposed), ADR-004(DB 초안, **Superseded by ADR-034**), ADR-034(PostgreSQL + Drizzle, Accepted), ADR-013(저장 방식), ADR-015(오케스트레이터), ADR-016(프론트엔드), ADR-018(시나리오 재생), ADR-026~029(외부 통신·책임 경계, Accepted), ADR-030·031(오류·관측성·런타임 방향, Proposed)
 - **구현 상태**: 지금 코드가 있는 것은 `front/web/` Prototype(시나리오 재생, MockProvider)뿐이다. 아래의 Backend·DB·Event Store·엔진·채널 연동·오류 기록은 **설계**이며 아직 구현되지 않았다
 
 ---
 
 ## 1. 원칙
 
-1. **모듈형 모놀리스**: Main Backend 는 **TypeScript + NestJS**(ADR-033 Accepted) 코드베이스 하나이고, 같은 코드베이스에서 **API 프로세스와 Worker 프로세스**를 따로 실행할 수 있다. DB 는 하나로 시작한다(**제품은 미결 — Q-68**). **AI Server 는 별도 Python 런타임**이며 권한이 없다(HTTP/JSON). 마이크로서비스, 메시지 브로커, 쿠버네티스, 멀티테넌트 인증은 PoC에서 만들지 않는다.
+1. **모듈형 모놀리스**: Main Backend 는 **TypeScript + NestJS**(ADR-033 Accepted) 코드베이스 하나이고, 같은 코드베이스에서 **API 프로세스와 Worker 프로세스**를 따로 실행할 수 있다. DB 는 하나로 시작한다(**PostgreSQL — ADR-034**. DB 권한은 Main Backend 만). **AI Server 는 별도 Python 런타임**이며 권한이 없다(HTTP/JSON). 마이크로서비스, 메시지 브로커, 쿠버네티스, 멀티테넌트 인증은 PoC에서 만들지 않는다.
 2. **순수 엔진 + 얇은 I/O**: 결정론 계산 모듈(`state`, `tariff`, `cost`, `risk`, `optimize`)은 DB·네트워크·LLM을 import하지 않는 순수 함수이며 **`back/` 영역**에 있다(ADR-029). I/O는 `intake`, `extraction`, `comms`, `channels`, `storage`, `api`에만 있다.
 5. **오류는 세 경계에서 같은 방식으로 잡는다**: API 요청 · 외부 연동 · 백그라운드 작업이 공통 오류 처리와 구조화 로그를 쓰고, `request_id`·`trace_id` 를 남기며, 중요한 기술 오류만 `system_error` 로 기록한다. 현실 사실(`event`)·감사(`audit_log`)와 섞지 않는다. 상세는 `23` 4~6절.
 3. **시뮬레이션과 실제가 같은 경로**: 시나리오 재생 이벤트는 실제 입력과 같은 Intake → Event Store → Reconciliation 경로를 탄다(ADR-018).
@@ -98,16 +98,16 @@ flowchart TB
 
 ## 3. 기술 스택 (ADR-033 Accepted · ADR-016 Proposed)
 
-> **2026-09-21 — ADR-033(Accepted): Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임.** 아래 표에서 **"(폐기)"** 로 표시한 줄은 옛 ADR-002(Python Backend, 이제 Superseded) 초안이다 — Main Backend 기술로 쓰지 않는다. 그 자리의 NestJS 쪽 구체 라이브러리(스키마·HTTP·스케줄·테스트·로깅)는 **U0(T-085)** 에서, DB·ORM·마이그레이션은 **Q-68** 에서 정한다. 오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본이다.
+> **2026-09-21 — ADR-033(Accepted): Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임.** 아래 표에서 **"(폐기)"** 로 표시한 줄은 옛 ADR-002(Python Backend, 이제 Superseded) 초안이다 — Main Backend 기술로 쓰지 않는다. 그 자리의 NestJS 쪽 구체 라이브러리(스키마·HTTP·스케줄·테스트·로깅)는 **U0(T-085)** 에서, DB·ORM·마이그레이션은 **ADR-034(Accepted, 2026-09-22 — Q-68 CLOSED)** 로 정했다: PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration. 오류 처리·관측성은 `23_runtime-platform-and-observability.md` 가 정본이다.
 
 > **읽는 법 (2026-09-16 갱신)**: 아래 표의 각 줄을 네 가지로 구분해 읽는다. **특정 제품·모델 이름이 적혀 있다고 해서 요구사항이 아니다.**
 >
 > | 구분 | 뜻 | 해당 |
 > | --- | --- | --- |
 > | **A. 현재 구현된 기술** | 실제로 코드가 있다 | **프론트엔드 줄뿐** (Next.js + 2D SVG) |
-> | **B. Accepted 결정** | 뒤집으려면 새 ADR이 필요하다 | 이 표에는 없다 |
-> | **C. 판정 전 후보** | ADR이 Proposed다 | 언어·API·DB·HTTP·스케줄·휴일·테스트 줄 |
-> | **D. 구현 시점으로 미룬 선택** | **지금 고르지 않기로 한 것** | **LLM 공급자·모델·SDK**, 최적화 방식·솔버, DB 제품, ORM·마이그레이션 도구, 큐·워커, 클라우드 |
+> | **B. Accepted 결정** | 뒤집으려면 새 ADR이 필요하다 | 언어·API 줄(ADR-033, 2026-09-21) · **DB 줄(ADR-034, 2026-09-22)** |
+> | **C. 판정 전 후보** | ADR이 Proposed다 | HTTP·스케줄·휴일·테스트 줄 (언어·API·DB 는 2026-09-21~22 에 B 로 옮겨졌다) |
+> | **D. 구현 시점으로 미룬 선택** | **지금 고르지 않기로 한 것** | **LLM 공급자·모델·SDK**, 최적화 방식·솔버, ~~DB 제품, ORM·마이그레이션 도구~~(ADR-034 로 결정), 큐·워커, 클라우드 |
 >
 > **D는 특히 주의한다.** 사용자 방향은 *"구체적인 기술은 실제 구현 시점에 품질·비용·보안·유지보수성·최신 상황을 비교해 고른다"*이다. 아래 표에 적힌 특정 LLM 공급자·모델명은 **2026-09-11 시점의 예시**이지 CERA의 요구사항이 아니다.
 >
@@ -118,7 +118,7 @@ flowchart TB
 | 언어·런타임 | **Main Backend: TypeScript + NestJS**(ADR-033 Accepted, 버전은 U0) · **AI Server: Python**(FastAPI 또는 동등 — 구체 패키지는 구현 시점) | Frontend 와 같은 언어 · 모듈·DI·예외 필터가 `23` 의 오류 경계와 대응 · AI 는 Python 생태계 |
 | 도메인 모델·스키마 | **스키마 단일 원천**(ADR-033 결정 7) — 라이브러리는 U0. ~~Pydantic v2~~ **(폐기 — ADR-002)** | 검증 · OpenAPI · 생성 타입이 한 정본에서 나온다 |
 | API | **NestJS**(REST + 서버 푸시 — 방식은 구현). ~~FastAPI + SSE~~ **(폐기 — ADR-002)** | OpenAPI 를 계약 정본으로(ADR-028) |
-| DB | **(초안 · 미결)** SQLite → PostgreSQL, SQLAlchemy 2.x + Alembic | 파일 하나로 시작, JSON 컬럼은 두 DB에서 모두 동작하는 방식만 |
+| DB | **PostgreSQL**(ADR-034 Accepted — 로컬·시험·운영 모두. 버전·호스팅·로컬 실행 방식은 T-080/U0) · **Drizzle ORM**, SQL-aware Hybrid(핵심 경로는 PostgreSQL 의미를 드러내 쓴다) · **migration = drizzle-kit 생성 SQL → 사람 검토 → 저장소 기록 → 명시 적용**(운영 자동 동기화·`push` 금지). DB 권한은 Main Backend 만. ~~SQLite → PostgreSQL, SQLAlchemy 2.x + Alembic~~ **(폐기 — ADR-004 Superseded)** | FK · 복합 UNIQUE · 부분/조건부 유일(partial unique index 등으로 구현, 세부는 T-080) · 명시 트랜잭션 · 행 잠금(Outbox) · JSON · BIGINT · 타임존 시각 · append-only 를 DB 에서 강제. 개발·운영 DB 를 나누면 잠금·제약·시각 의미가 달라 시험이 왜곡된다 |
 | 최적화 | **미정** — 현재 후보 OR-Tools CP-SAT (ADR-007 Reopened, T-036에서 MILP·min-cost flow 등과 비교해 결정) | 정수 비용·논리 제약 |
 | HTTP·XML | **(초안)** httpx, lxml | 공공 API가 XML |
 | LLM | **[D] 미정 — 구현 시점에 선택한다.** 아래는 2026-09-11 시점의 예시일 뿐 요구사항이 아니다: Anthropic Python SDK, `claude-opus-5`. **요구사항은 "무엇을 하는가"이지 "어느 제품인가"가 아니다** | 구조화 출력, 문서 입력, 원문 인용, 녹화 재생 (`01` 3절, `19` 11절) |

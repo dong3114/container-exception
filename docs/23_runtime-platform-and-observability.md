@@ -1,6 +1,6 @@
 # 23. 런타임 플랫폼 · 오류 처리 · 관측성 (Runtime Platform & Observability)
 
-- 상태: **Draft — T-079 최종 승인과 함께 검토 통과** (2026-09-18). **2026-09-21: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임으로 결정됐다(ADR-033 Accepted, Q-64 CLOSED).** ADR-030 과 ADR-031 의 나머지(Desktop·Web First)는 여전히 Proposed
+- 상태: **Draft — T-079 최종 승인과 함께 검토 통과** (2026-09-18). **2026-09-21: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임으로 결정됐다(ADR-033 Accepted, Q-64 CLOSED).** **2026-09-22: DB = PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration 으로 결정됐다(ADR-034 Accepted, Q-68 CLOSED, SQLite 미사용).** ADR-030 과 ADR-031 의 나머지(Desktop·Web First)는 여전히 Proposed
 - 관련 ADR: **ADR-030**(오류·관측성 원칙, Proposed) · **ADR-031**(런타임 방향: Backend 우선 후보·Web First·Desktop Client·AI 분리 조건, Proposed) · ADR-002(백엔드 스택 Python, Proposed) · ADR-024(Monorepo, Accepted) · ADR-026~028(외부 통신, Accepted) · ADR-029(결정론 엔진 분리, Accepted)
 - 이 문서가 답하는 질문: **"CERA 프로그램이 어디서 돌고, 실패했을 때 무엇을 어디에 남기며, 어떤 기술을 언제 고르는가"**
 
@@ -39,7 +39,7 @@
 | 결정론 엔진 위치 | **Accepted** | Tariff·Cost·Risk·Reconciliation·Optimize·Solver 는 `back/`, `ai/` 는 LLM·비정형 처리만 | ADR-029 |
 | API 계약 | **Accepted (외부 통신 슬라이스부터)** | Backend OpenAPI 를 계약 정본으로, TypeScript 타입 생성 | ADR-028 |
 | Backend 언어 | **결정 — ADR-033 Accepted (2026-09-21)** | **Main Backend = TypeScript + NestJS** 모듈형 모놀리스(API + Worker). **AI Server = 별도 Python 런타임**(권한 없음). ADR-002(Python Backend) Superseded | 이 문서 3·11절 |
-| DB 제품 · ORM | **미결** | 초안 SQLite → PostgreSQL(ADR-004 Proposed). T-069 뒤 사용자가 Backend 와 함께 결정 → T-080 에 반영 | `docs/22` 28절 |
+| DB 제품 · ORM | **결정 — ADR-034 Accepted (2026-09-22)** | **PostgreSQL**(로컬·시험·운영 모두, SQLite 미사용 — ADR-004 Superseded) · **Drizzle ORM**(SQL-aware Hybrid) · **drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용**(운영 자동 동기화 금지). DB 권한은 Main Backend 만. 물리 설계는 T-080 | ADR-034, `docs/22` 28절 |
 | 솔버 | **미결 (DEFERRED)** | 후보 CP-SAT 등. T-036 | ADR-007 |
 | LLM 공급자·모델 | **미결 — 구현 시점 선택** | 요구사항은 "무엇을 하나"이지 "어느 제품인가"가 아니다 | `docs/07` 3절 D |
 | Desktop | **미결 — MVP 에 없음** | Web First. 첫 후보 Electron, Tauri 는 나중 재평가(8~9절) | ADR-031 |
@@ -344,7 +344,7 @@ TauriDesktopBridge     Tauri API
 | --- | --- | --- |
 | Backend 언어·프레임워크 | **결정 — ADR-033**: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임 (Q-64 CLOSED) | 2026-09-21 사용자 결정. 구체 버전·라이브러리는 U0(T-085) |
 | 솔버 실행 위치·언어 | 미결 (Q-65) | T-036 재개 뒤. Backend 결정 때 3.3 표를 함께 본다 |
-| DB 제품 · ORM · 마이그레이션 도구 | 미결 (**Q-68**, T-084) | Q-64 뒤 사용자 결정 → T-080 에 반영. 마이그레이션 도구 세부는 T-080 |
+| DB 제품 · ORM · 마이그레이션 도구 | **결정 — ADR-034**: PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration (Q-68 CLOSED) | 2026-09-22 사용자 결정. 버전 · 연결 풀 · 로컬 실행 방식 · 잠금·트리거·인덱스 SQL · BIGINT·시각 물리 매핑 · migration 명령·절차는 T-080 / U0 |
 | `system_error` 분류·코드 값 목록 | 예시만 (Q-66) | T-069 · 구현 |
 | 로그 저장소·관측 제품(OpenTelemetry 등) | 미결 (Q-67) | 첫 배포 환경을 정할 때 |
 | `request_id`·`trace_id` 헤더 이름·형식 | 미결 | 구현 |

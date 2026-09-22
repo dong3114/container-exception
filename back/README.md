@@ -14,6 +14,6 @@
 - **결정론 엔진**: Reconciliation·Tariff·LFD·비용·위험·복구 최적화·Solver (ADR-029). 순수 함수로 두고 DB·네트워크·LLM 을 import하지 않는다
 - 백그라운드 작업, 화면으로 변경 알림(push)
 
-**Main Backend = TypeScript + NestJS**(ADR-033 Accepted, 2026-09-21) — 모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스. 미확정 사항: DB 제품·ORM·마이그레이션(Q-68, T-084 → T-080), 솔버 실행 위치(Q-65, Slice 1 을 막지 않음), 메일 연동 방식(Q-33). 구현은 T-080 뒤 T-085(U0 뼈대)부터 시작한다.
+**Main Backend = TypeScript + NestJS**(ADR-033 Accepted, 2026-09-21) — 모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스. DB = **PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration**(ADR-034 Accepted, 2026-09-22 — SQLite 미사용, 스키마·migration 소유자는 이 영역). 미확정 사항: 물리 설계(T-080), 솔버 실행 위치(Q-65, Slice 1 을 막지 않음), 메일 연동 방식(Q-33). 구현은 T-080 뒤 T-085(U0 뼈대)부터 시작한다.
 
 위험·비용·Tariff·최적화 같은 결정론 엔진은 **이 영역(`back/`)에 둔다**(ADR-029). `ai/`는 LLM·비정형 처리만 맡는다(`ai/README.md`). 화면과 주고받는 계약은 이 영역의 API 명세(OpenAPI)를 정본으로 삼는다(ADR-028, `packages/README.md`).

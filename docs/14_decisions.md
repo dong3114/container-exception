@@ -1,7 +1,7 @@
 # 14. 설계 결정 기록 (ADR)
 
 - 상태: Living (기획 v0.2)
-- 최종 수정: 2026-09-21 (**ADR-033 Main Backend = NestJS + TypeScript, AI Server = 별도 Python 런타임 — Q-64 사용자 결정, Accepted. ADR-002 Superseded, ADR-031 결정 1·2·8 Superseded.** 같은 날 앞서: **ADR-032 메일 근거 시각 + 기록·내용 분리 보관 — Q-44 · Q-45 사용자 결정, Accepted.** 보관 기간 숫자는 미결). 이전: 2026-09-18 (**T-079 최종 정리: ADR-030 오류·관측성 원칙, ADR-031 런타임 방향(Backend 우선 후보 NestJS · Web First · Desktop = Client · Electron 첫 후보 · AI 분리 조건) 추가 — 둘 다 Proposed.** ADR-002·024 에 2026-09-18 주석). 이전: 2026-09-16 (**T-072: ADR-019·020·021을 `Accepted (구조 한정)`으로 판정** — 구조는 승인, 정책 파라미터는 계속 검증. 상태 값에 `Accepted (구조 한정)` 도입). 같은 날 T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가 + 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가. 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
+- 최종 수정: 2026-09-22 (**ADR-034 영속 계층 = PostgreSQL + Drizzle ORM + drizzle-kit 생성·검토 SQL migration — Q-68 사용자 결정, Accepted. ADR-004 Superseded(SQLite 미사용).**) 이전: 2026-09-21 (**ADR-033 Main Backend = NestJS + TypeScript, AI Server = 별도 Python 런타임 — Q-64 사용자 결정, Accepted. ADR-002 Superseded, ADR-031 결정 1·2·8 Superseded.** 같은 날 앞서: **ADR-032 메일 근거 시각 + 기록·내용 분리 보관 — Q-44 · Q-45 사용자 결정, Accepted.** 보관 기간 숫자는 미결). 이전: 2026-09-18 (**T-079 최종 정리: ADR-030 오류·관측성 원칙, ADR-031 런타임 방향(Backend 우선 후보 NestJS · Web First · Desktop = Client · Electron 첫 후보 · AI 분리 조건) 추가 — 둘 다 Proposed.** ADR-002·024 에 2026-09-18 주석). 이전: 2026-09-16 (**T-072: ADR-019·020·021을 `Accepted (구조 한정)`으로 판정** — 구조는 승인, 정책 파라미터는 계속 검증. 상태 값에 `Accepted (구조 한정)` 도입). 같은 날 T-068: ADR-026 Channel Adapter·Gmail 첫 검증 채널, ADR-027 Tech Validation 단계, ADR-028 통신 도메인 저장·OpenAPI 전환 추가 + 책임 경계 Audit으로 ADR-026·027·028 개정 + **ADR-029 결정론 엔진 분리** 추가. 이전: 2026-09-15 (ADR-025 AI 협업 Workflow 추가. 같은 날 ADR-024 Monorepo 추가. 같은 날 ADR-022·023 추가, ADR-014·016 주석. 이전: 2026-09-11 v0.2 ADR-011~018 추가, `09_decisions.md`에서 이름 변경)
 
 상태 값: `Proposed`(제안, 사람 승인 전) · `Accepted`(확정) · **`Accepted (구조 한정)`**(구조·형태는 확정, 그 안의 파라미터 값은 계속 검증. 2026-09-16 도입) · `Superseded by ADR-NNN`(대체됨) · `Rejected`(기각).
 `Accepted` ADR은 에이전트가 혼자 뒤집지 않는다. 바꾸려면 새 ADR을 `Proposed`로 올린다.
@@ -26,7 +26,7 @@
 | 001 | 문서 체계 | Proposed (v0.2 구조로 갱신) |
 | 002 | 백엔드 스택 Python | **Superseded by ADR-033** (2026-09-21 사용자 결정 — Main Backend 는 NestJS + TypeScript. Python 은 **별도 AI Server 런타임**으로만 쓴다) |
 | 003 | PoC UI Streamlit | **Superseded by ADR-016** |
-| 004 | SQLite → PostgreSQL | Proposed |
+| 004 | SQLite → PostgreSQL | **Superseded by ADR-034** (2026-09-22 사용자 결정 — SQLite 는 쓰지 않는다. 로컬·시험·운영 모두 PostgreSQL) |
 | 005 | 마일스톤 유도 + 예외 오버레이 | Proposed (ADR-012 아래의 뷰로 유지) |
 | 006 | 금액·시각 규칙 | Proposed |
 | 007 | 최적화 솔버 후보 CP-SAT | **Reopened → Proposed** (v0.2, 2026-09-11. 선택은 T-036) |
@@ -56,6 +56,7 @@
 | 031 | **런타임 방향**: Web First, Desktop = 중앙 Backend 의 Client(Electron 첫 후보), `DesktopBridge`, 같은 OpenAPI 계약. **결정 1·2(Backend 후보)와 8(AI 분리 조건)은 ADR-033 이 대체**(2026-09-21) | Proposed (Desktop·Web First 부분) · **결정 1·2·8 Superseded by ADR-033** |
 | 032 | **메일 근거 시각 + 기록·내용 분리 보관**: 메일 `source_recorded_at` 은 `Date` 헤더가 정상이고 채널 수신 시각보다 **미래가 아니면** `Date`, 아니면 채널 수신 시각(원래 두 시각 보존, Q-44). 실제 메일은 **기록과 내용을 분리** — 행 삭제 ≠ 내용 파기. 원문·본문·인용·승인 문장은 참조 + 지문으로 기록에 붙고 보관 정책에 따라 내용만 파기, 파기는 감사(Q-45). **보관 기간 숫자는 미결(Pilot 정책)** | **Accepted** (2026-09-21 사용자 결정 — 구조·규칙 확정, 기간 숫자 제외) |
 | 033 | **Main Backend = TypeScript + NestJS**(모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON) · 큐 제품 없이 DB Outbox · OpenAPI → 생성 TS 타입 · 스키마 단일 원천 · 정확성 규칙 5가지 | **Accepted** (2026-09-21 사용자 결정 — Q-64 CLOSED) |
+| 034 | **영속 계층 = PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용** · SQLite 미사용 · DB 권한은 Main Backend 만 · 운영 자동 동기화 금지 | **Accepted** (2026-09-22 사용자 결정 — Q-68 CLOSED) |
 
 ---
 
@@ -89,11 +90,12 @@
 - **대체 이유**: v0.2는 Three.js 2.5D 시뮬레이터, 실시간 Agent Activity Timeline, 짧은 액션 UI가 필요하다. Streamlit으로는 이 상호작용을 만들기 어렵다.
 
 ## ADR-004: 저장소 — SQLite(PoC) → PostgreSQL
-- 상태: Proposed
+- 상태: **Superseded by ADR-034** (2026-09-22 사용자 결정 — Q-68). 원래 상태는 Proposed. 본문은 결정 당시 기록으로 남긴다
 - 날짜: 2026-09-10
 - 결정: SQLAlchemy 2.x + Alembic으로 추상화하고 PoC는 SQLite 파일 하나를 쓴다. JSON 컬럼은 두 DB에서 모두 동작하는 방식만 쓴다.
 - 결과: 동시 쓰기가 많아지는 V1 전에 PostgreSQL로 옮긴다.
 - **v0.2 주석**: 유지. "V1 전"은 "Pilot 전"으로 읽는다. 저장 구조는 ADR-013.
+- **2026-09-22 주석**: ADR-034 가 대체한다. SQLite 단계를 두지 않고 처음부터 PostgreSQL 을 쓴다. SQLAlchemy·Alembic 은 Python Backend(ADR-002, Superseded) 전제였으므로 함께 폐기한다.
 
 ## ADR-005: 상태 = 마일스톤 유도 + 예외 오버레이
 - 상태: Proposed
@@ -447,3 +449,22 @@
   10. 저장소 영역은 ADR-024 · ADR-029 그대로다: `back/` = Main Backend(결정론 엔진 포함), `ai/` = AI Server 런타임 코드. **`back/` 와 `ai/` 는 코드·도메인 패키지를 공유하지 않고 HTTP 계약으로만 만난다.**
 - 대안: (a) **Spring Boot + Java** — 트랜잭션·시각·금액·실행 시 타입 검증·OpenAPI 일치가 기본으로 더 강하다. 그러나 Frontend(TS) · Backend(Java) · AI(Python) 로 1인 개발 언어가 셋이 된다. (b) **Python/FastAPI 를 Main Backend 로**(ADR-002) — 사용자 전제에서 제외. Python 은 AI Server 로 쓴다.
 - 결과: ADR-002 **Superseded by ADR-033**. ADR-031 결정 1·2·8 **Superseded**(나머지는 Proposed 유지). `docs/07` 1·2·3·6절 · `docs/23` 2·3·11·13절 · `docs/01` 7절 · `docs/15` Q-64 CLOSED · `back/`·`ai/` README · T-069 계획 · `AGENTS.md` 동기화. **미결로 남는 것**: Q-68(DB 제품 · ORM/쿼리 · 마이그레이션 · 트랜잭션 구현 · append-only 강제 · 부분 유일 · JSON · 타임존 시각 타입 · BIGINT 매핑 · 워커 잠금 · 내용 저장소 위치) · Q-65(솔버) · U0 선택(스키마 라이브러리 · Node/Nest 버전 · HTTP 클라이언트 · 로깅 · 스케줄러) · AI Server 구체 패키지 · LLM 공급자·모델 · 폴더 세부 구조.
+
+## ADR-034: 영속 계층 = PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration (Q-68)
+- 상태: **Accepted** (2026-09-22, 사용자 결정 — Q-68 CLOSED)
+- 날짜: 2026-09-22 (T-084)
+- 맥락: ADR-033 으로 Main Backend 가 TypeScript + NestJS 로 정해졌다. T-080(P0 29개 물리 설계)은 DB 제품 없이 쓸 수 없다 — 시각·JSON·해시 물리 타입, 부분 유일 제약, append-only 강제 방식이 제품마다 다르다(T-069 계획 16.4). 선택지 비교는 `docs/tasks/plans/T-084-db-decision-options.md`.
+- 결정:
+  1. **DB = PostgreSQL.** CERA 의 유일한 DB 다. 이유: 관계형 FK · 복합 UNIQUE · partial unique index 등을 이용해 부분/조건부 유일(partial/conditional uniqueness)을 구현할 수 있음(실제 index SQL·구현 방식은 T-080) · 명시적 트랜잭션 · Outbox 폴링과 행 잠금(나중에 다중 워커 잠금으로 확장 가능) · JSON · BIGINT(원 정수) · 타임존이 붙은 시각 타입 · append-only / 불변 제약을 DB 에서 구현할 수 있음 · 사건·상태 재현성 · 운영 확장성.
+  2. **SQLite 는 쓰지 않는다** — 운영에도, 개발·시험에도. "개발 SQLite → 운영 PostgreSQL" 이원화를 하지 않는다. 잠금 · 트랜잭션 · 부분 제약/인덱스 · 시각 처리 · JSON · migration 동작이 달라 CERA 의 정확성 중심 시험을 왜곡하기 때문이다. 개발·통합 시험도 PostgreSQL 의미를 그대로 쓴다. 로컬에서 어떻게 띄울지(Docker · 직접 설치 · test container 등)는 U0 / T-080 에서 정한다.
+  3. **NestJS DB 접근 = Drizzle ORM.** 이유: TypeScript·NestJS 와 자연스럽게 결합 · SQL 구조에 가까움 · 쿼리와 트랜잭션을 명시적으로 씀 · PostgreSQL 고유 기능으로 내려갈 수 있음(`sql` 등) · 스키마를 코드로 관리 · 생성된 migration SQL 을 사람이 검토할 수 있음 · 트랜잭션·제약이 많은 CERA 구조를 ORM 추상화 뒤에 숨기지 않아도 됨.
+  4. **방식 = SQL-aware ORM / Hybrid** (Full ORM 아님). 등록부 조회 · 단순 insert · 읽기 모델은 Drizzle 추상화를 써도 된다. **Outbox · 멱등 · 부분 유일 · 잠금 · append-only 강제 · 핵심 트랜잭션 · Reconciliation 원자적 갱신**은 PostgreSQL 의미가 드러나게 쓰고, 필요하면 Drizzle SQL 탈출구나 PostgreSQL 기능을 직접 쓴다. **DB 가 지킬 수 있는 불변식을 애플리케이션 코드만으로 흉내 내지 않는다.**
+  5. **Migration = Drizzle 스키마 → drizzle-kit 이 SQL migration 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용.** 금지: 운영 자동 스키마 동기화 · 실행 시 자동 스키마 변경 · 검토 없는 파괴적 migration · ORM 상태만 믿고 migration 이력을 버리는 것. `drizzle-kit push` 같은 직접 반영 기능을 운영 migration 의 정본으로 쓰지 않는다. 실제 명령과 운영 절차는 U0 / T-080.
+  6. **DB 권한은 Main Backend 만.** 스키마와 migration 의 소유자는 NestJS Main Backend 다. Python AI Server 는 PostgreSQL 클라이언트 · ORM · migration · DB 자격증명을 갖지 않고, Main Backend 와 HTTP/JSON 으로만 통신한다(ADR-033 결정 3·4 재확인).
+  7. **트랜잭션**: 핵심 흐름은 명시적 트랜잭션 경계를 유지하고, 외부 I/O 를 긴 DB 트랜잭션 안에 넣지 않는다 — 예: 트랜잭션 A(`send_attempt` 생성 → 커밋) → 트랜잭션 밖 `ChannelAdapter.send()` → 트랜잭션 B(결과 · 메시지 상태 · 감사 → 커밋). ADR-033 결정 8② · T-069 계획 12절 T5 그대로. Drizzle 트랜잭션 작성 방식은 U0 / T-080.
+  8. **Outbox / Worker**: Slice 1 방향 유지 — PostgreSQL → DB Outbox → 단일 워커 폴링 → 외부 발송 → 화해. 큐 제품은 도입하지 않는다. 워커가 늘면 PostgreSQL 잠금 기능을 쓸 수 있게 설계한다.
+  9. **Append-only / 불변 기록**(Event · Audit · MessageApproval 이력 · PlanDecision · 확인 사건 등)은 애플리케이션 관례만으로 보호하지 않는다. 가능한 불변식은 PostgreSQL 제약으로 먼저 강제한다. UPDATE·DELETE 차단 수단(trigger · 권한 · 저장소 제한 · 조합)은 T-080 에서 비교해 정한다.
+  10. **금액 = 원 정수, DB BIGINT.** BIGINT 값을 무조건 JS `number` 로 바꾸지 않는다. TypeScript 쪽 경계(`bigint` · 문자열 경계 · serializer 등)는 T-080 / U0 에서 명시적으로 정한다.
+  11. **시각**: PostgreSQL 을 골랐다고 시각 정책이 풀리지 않는다. `received_at` · `source_recorded_at` · `source_event_time` · Gmail `Date` · `internalDate` · Asia/Seoul 표시 규칙(ADR-006 · ADR-032)은 그대로다. 물리 시각 타입 · UTC 저장 방식 · 타임존 정보 보존 방식은 T-080.
+- 대안: Prisma · Kysely · TypeORM · MikroORM 은 **현재 구현 후보에서 제외**한다. Drizzle 을 고른 이유는 결정 3·4 와 같다(스키마·타입·migration SQL 을 한 곳에서, 쿼리·트랜잭션은 명시적으로, PostgreSQL 기능으로 바로 내려갈 수 있음). 자세한 비교는 `docs/tasks/plans/T-084-db-decision-options.md` 2·3절에만 둔다. MySQL 은 CERA 요구에서 PostgreSQL 보다 나은 점이 없다.
+- 결과: ADR-004 **Superseded by ADR-034**. `docs/07` 3절 · `docs/15` Q-68 CLOSED · `docs/22` · `docs/23` 2·13절 · `back/` README · T-069 계획 16절 · `AGENTS.md` 동기화. **이 ADR 이 정하지 않는 것**: PostgreSQL · Drizzle · Node/Nest 버전 · 연결 풀 패키지 · DB 호스팅(클라우드 · 관리형 제품 · HA/복제 · 백업) · Docker 사용 여부 · 트랜잭션 API 세부 · 잠금 SQL(`SKIP LOCKED` · advisory lock 여부 · 폴링 주기) · 인덱스·트리거 SQL · 내용 저장소 제품 · 운영 구성·배포 · Redis/큐 제품 → T-080 / U0. 솔버(Q-65)는 여전히 OPEN.
