@@ -1,6 +1,6 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-09-22 (**T-084 DONE — Q-68 사용자 결정·최종 승인: PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration(ADR-034 Accepted), SQLite 미사용. 다음: T-080 → T-085~T-096.**) 이전: 2026-09-21 (**T-083 DONE — Q-64 사용자 결정: Main Backend = TypeScript + NestJS, AI Server = 별도 Python 런타임(ADR-033 Accepted). 다음: T-084(Q-68) → T-080 → T-085~T-096.** 같은 날 앞서: **T-069 DONE — 사용자 최종 승인. 다음: T-083(Q-64) → T-084(Q-68) → T-080 → T-085~T-096(U0~U11).** 같은 날 앞서: **T-069 계획 초안 완료 — 첫 Slice = Mock 루프 · L-13 CLOSED · P0 29 · 검토 대기.** 같은 날 앞서: **Q-44 · Q-45 Decision Closure — Q-44 CLOSED, Q-45 구조 CLOSED / 기간 OPEN. `docs/22` rev.2.4 + ADR-032 Accepted. 새 표 0, 검증 64개 PASS. 사용자 최종 승인·커밋. 다음 T-069.** 같은 날 앞서: **T-081 DONE — 사용자 최종 승인. 승인 전 최종 확인 3항목(I-26·I-27 보강) 포함, 흐름 검증 47개 PASS. 다음 작업 T-069.** 같은 날 앞서: **T-081 논리 모델 후속 작성 완료 — `docs/22` rev.2.3 + 작업표. `docs/05` 4.2 대조로 누락 13건 복구, ADR-020 상태 차원 복구, 표 +1(`event_verification_target`) → MVP 52 · Next 1 · 만들지 않음 2 = 55. **C(출처 어휘)는 사용자 결정으로 CLOSED, Q-46 은 OPEN 유지.** 사용자 + ChatGPT 검토 대기, 미커밋**). 이전: 2026-09-18 (**T-070 DONE — 주변 문서 동기화 + `docs/05`·`docs/18` 정리. 새 Task T-081(논리 모델 후속 — Event·확인·출처·검증 신뢰도의 `21`→`05`→`22` 정합성)을 T-069 앞에 추가. 순서: T-081 → T-069 → Backend·DB 기술 결정 → T-080.** 같은 날 앞서: **T-079 DONE — rev.2.2 최종 승인(사용자 + ChatGPT) + Minor Cleanup 4건. 다음 작업 T-070. 순서: T-070 → T-069 → Backend·DB 기술 결정 → T-080(첫 슬라이스).** 같은 날 앞서: T-079 최종 정리(rev.2.2) 완료 — 정합성 5건(A~E) + 표현 잔재 + 기술 운영 표 `system_error`. MVP 51 · Next 1 · 만들지 않음 2 = 54. `docs/23` 런타임·오류 처리·관측성 신설(ADR-030·031 Proposed — Backend 현재 우선 후보 NestJS, 최종 결정 아님). 순서 변경: T-070 → T-069 → 기술 결정 → T-080(첫 슬라이스부터). rev.2.1 은 `687d458` 에 이미 저장돼 있다 — 아래 옛 기록의 "미커밋"은 당시 표현.** 사용자 + ChatGPT 최종 검토 대기, rev.2.2 는 미커밋). 이전: 2026-09-17 (**T-079 rev.2.1 최종 정합성 패치 완료 — 적용 범위 전파 · 지문 규칙 분리 · 승인 행 종류 · 분류와 변경 방식 분리. **새 테이블 0개.** T-079 최종 승인 대기, 미커밋.** MVP 50 · Next 1 · 만들지 않음 2 = 53). 이전: 2026-09-17 (**T-079 rev.2 완료 — 구조 정합성 13건 + 흐름 검증 모순 1건 수정, 사용자 결정 D-1~D-5 전부 CLOSED. 최종 검토 대기, 미커밋.** MVP 50 · Next 1 · 만들지 않음 2 = 53 테이블). 이전: 2026-09-17 (**T-076 개념 모델 최종 승인 + T-079 논리 DB 설계 Draft 완료 — 사용자 + ChatGPT 검토 대기, 미커밋.** `docs/22_cera-logical-data-model.md` + 논리 스키마 작업표. MVP 46 · Next 1 · OPEN 2 = 49 테이블. **사용자 결정 5건(D-1~D-5)**). 이전: 2026-09-17 (**T-078 최종 정합성 정리 완료 — 최종 승인 대기, 미커밋.** 새 개념 추가 없이 표현 불일치·개수·구현 기술 선결 표현만 정리). 이전: 2026-09-17 (**T-077 운영자 개입·재계산 요구사항 반영(rev.3) 완료 — 최종 검토 대기, 미커밋.** `docs/03` 2.6.1절 신설 + `docs/21` 12.5절 + 운영자 계획 조건 E-37). 이전: 2026-09-17 (**T-075 개념 모델 검토 반영(rev.2) 완료 — 재검토 대기, 미커밋.** 너무 일찍 닫은 개념 5건을 다시 열고 용어를 정렬했으며 RPG 스타일 DB Preview 를 추가했다). 이전: 2026-09-17 (**작업 관리 문서 동기화 + T-073 개념 데이터 모델 완료(사람 검토 대기, 미커밋).** T-071·T-072는 2026-09-16에 `1b97905`로 **커밋됐는데** 이 큐·CURRENT·LOG가 그 사실을 반영하지 못하고 있었다. 작업 순서를 **데이터 모델 먼저**로 정리했다). 이전: 2026-09-16 (**T-071 DONE** — 외부 통신 요구사항 명세 `docs/19`. 같은 날 **T-072 DONE** — 데이터 모델 사전 검토 `docs/20`. 같은 날 **T-068 DONE** — Architecture RFC + 책임 경계 Audit, ADR-026~029 Accepted, 커밋 `2c37c28`. 다음은 T-069 Implementation Plan). 이전: 2026-09-15 (T-067 AI 협업 Workflow 완료. 같은 날 T-066 Monorepo 재정렬 완료. 같은 날: T-060~T-063 완료, T-036 DEFERRED, T-064·T-065 추가)
+- 최종 수정: 2026-09-22 (**T-080 DONE — Slice 1 P0 29표 물리 설계 `docs/24` + 논리 모델 `docs/22` rev.2.5, 사용자 + ChatGPT 최종 승인. T-097 DONE · Q-69 CLOSED. 다음: U0(T-085) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE READY**)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
@@ -20,8 +20,9 @@
 3. ~~**T-069**~~ (DONE 2026-09-21) — 첫 Vertical Slice 구현 계획. 상세는 완료 섹션 · `docs/tasks/plans/T-069-external-communication-slice.md`
 4. ~~**T-083**~~ (DONE 2026-09-21, 사용자 결정) — **Q-64 CLOSED: Main Backend = TypeScript + NestJS**(모듈형 모놀리스, API + Worker) · **AI Server = 별도 Python 런타임**(ADR-033 Accepted). 상세는 완료 섹션
 5. ~~**T-084**~~ (DONE 2026-09-22, 사용자 결정·최종 승인) — **Q-68 CLOSED: PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용**(ADR-034 Accepted, SQLite 미사용). 상세는 완료 섹션
-6. **T-080** (P1) — P0 29개 물리 설계. ← **다음** (의존 해소 — 실행 가능)
-7. **T-085 ~ T-096** (U0 ~ U11) — Slice 1 구현 단위. **T-080 이 DONE 이 되기 전에는 하나도 실행 가능하지 않다.** 각 단위 뒤 Claude/Codex 검토 → 사용자 승인 → commit
+6. ~~**T-080**~~ (DONE 2026-09-22, 최종 승인) — P0 29개 물리 설계 `docs/24` · `docs/22` rev.2.5. 상세는 완료 섹션
+6-a. ~~**T-097**~~ (DONE 2026-09-22 — 사용자 검토 결과) — **Q-69: 물리 설계가 찾은 논리 모델 충돌 5건 결정**(`docs/24` 25·26절 — F-1 발송 멱등 키 범위 · F-2 `UNKNOWN` 화해 · F-3 `sent_at` · F-4 `external_thread_id` · F-5 INBOUND `drafted_by`) + D-1~D-5 검토. → `docs/22` rev.2.5 로 반영
+7. **T-085 ~ T-096** (U0 ~ U11) — Slice 1 구현 단위. ← **다음: T-085(U0) — 실행 가능**(T-080 DONE). 한 단위씩: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 → commit
 
 **병행 (사람 몫, 위 순서를 막지 않는다)**: **T-064** (NEEDS_HUMAN, P0) Control Tower Prototype 검토 · **T-001** (NEEDS_HUMAN, P0) 기획 v0.2 + T-032 결과 검토. **에이전트 병행 후보**: **T-034** 메일 Event 스키마 + LLM 추출 계약 (T-069 입력과 겹치므로 T-069 계획 안에 흡수할지 T-069 에서 판단)
 
@@ -29,9 +30,9 @@
 
 > **프론트엔드는 별도 트랙이다(2026-09-17 사용자 지시).** Antigravity가 Control Tower Prototype의 디자인을 손보고 있다. Orchestrator·다른 에이전트는 `front/`를 건드리지 않는다.
 
-실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082, **T-080** (8개). **주 흐름의 다음은 T-080(P0 29개 물리 설계)** 이다(T-083 Q-64 DONE — NestJS · T-084 Q-68 DONE — PostgreSQL + Drizzle). **T-085~T-096(U0~U11)은 T-080 DONE 뒤에만 풀린다 — 지금은 실행 가능하지 않다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
+실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082, **T-085** (8개). **주 흐름의 다음은 T-085(U0 Backend 뼈대)** 이다(T-080 DONE)(T-083 Q-64 DONE — NestJS · T-084 Q-68 DONE — PostgreSQL + Drizzle). **T-085~T-096(U0~U11)은 T-080 DONE 뒤에만 풀린다 — 지금은 실행 가능하지 않다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
 
-> **다음은 T-080(P0 29개 물리 설계)이다.** 기술 결정은 끝났다 — Main Backend = TypeScript + NestJS(ADR-033) · DB = PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration(ADR-034). 그다음 구현 단위 T-085~T-096. **에이전트가 집을 주 흐름 작업은 T-080 이다.** T-064·T-001 은 사람 몫이며 T-069 를 막지 않는다.
+> **다음은 T-085(U0 — Backend 뼈대 · 로컬 PostgreSQL · 역할 2개 · `docs/24` 18절 `[TO VERIFY]` 확인 시험)이다.** 기술·물리 설계는 끝났다 — NestJS(ADR-033) · PostgreSQL + Drizzle(ADR-034) · 물리 설계 `docs/24`(T-080). 그다음 U1(T-086 — P0 29표 migration · 시드 · ContentStore) → … → U11.
 
 **사람 지시**
 - (2026-09-21) **Q-44 = 선택지 ②**(방향별 — 미래 `Date` 만 거부, 원래 두 시각 보존), **Q-45 = 선택지 ①**(기록과 내용 분리, 행 삭제 ≠ 내용 파기, 기간 숫자는 Pilot 정책). 결정 반영과 Q-45 에 필요한 최소 논리 구조 보완까지만 한다. **T-069 본문 · T-080 · Backend/DB 기술 선택 · 제품 코드 · staging/commit/push 금지.** L-13 은 T-069 에서, ExceptionCase 는 다시 만들지 않는다. T-082 는 시작하지 않는다.
@@ -86,9 +87,17 @@
 
 ## 진행 중
 
-(없음 — 2026-09-22 T-084 DONE(Q-68 PostgreSQL + Drizzle). 다음은 **T-080**)
+(없음 — 2026-09-22 T-080 DONE. 다음은 **T-085(U0)**)
 
 ## 대기 — P0
+
+### T-097 — (NEEDS_HUMAN) Q-69 물리 설계가 찾은 논리 모델 충돌 결정
+
+- 상태: **DONE (2026-09-22 사용자 검토 결과 — `docs/22` rev.2.5 반영, T-080 과 함께 커밋)** · 우선순위 **P0** · 담당: 사용자 · 등록 2026-09-22(T-080 중)
+- 무엇: `docs/24` **25·26절**. 논리 모델(`docs/22`)을 바꿔야 풀리는 5건 — **F-1** `send_attempt.idempotency_key` UNIQUE ↔ 재시도 새 행(권고: 진행 중·성공 1건 부분 유일) · **F-2** `UNKNOWN` 뒤 화해(권고: `UNKNOWN → SUCCESS` 한 번) · **F-3** `comm_message.sent_at`(권고: CACHE) · **F-4** `comm_thread.external_thread_id`(권고: NULL → 값 한 번, Slice 2 전) · **F-5** INBOUND `drafted_by`(권고: OUTBOUND 만 필수). 함께 검토: D-1 ID(UUIDv7) · D-2 코드 표 없음 · D-3 KRW API 문자열 · D-4 append-only A+B+C · D-5 내용 저장소 DB 밖 · 표기 정리 F-6~F-8 · 확인 F-9~F-11
+- 왜 막나: F-1 · F-2 · F-5 는 Slice 1 시험(S-04 재시도 · S-03 화해 · 수신 저장)을 직접 막고 F-3 은 컬럼 의미를 비운다
+- 결정 뒤 에이전트 할 일: `docs/22`(+ 작업표) 반영 → `docs/24` 맞춤 → T-080 검토 → DONE
+- 풀리는 것: **T-080**
 
 ### T-082 — 시나리오 fixture 의 `event_type` 값이 `docs/05` 4.4 카탈로그에 없다
 
@@ -174,28 +183,6 @@
 - 완료 후 큐잉 힌트: T-003이 풀린다. 판정이 바뀌면 영향받는 명세 태스크 범위를 수정한다.
 
 ## 대기 — P1
-
-### T-080 — 물리 DB 설계 (Physical Design) — **첫 구현 슬라이스부터**
-
-- 상태: `TODO` · 우선순위 `P1` · 의존: ~~T-079-R~~ · ~~**T-069**~~(DONE 2026-09-21) · ~~**T-083**~~(Q-64 — DONE 2026-09-21, NestJS) · ~~**T-084**~~(Q-68 DB — DONE 2026-09-22, PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, ADR-034) — **의존 모두 해소, 실행 가능.** Q-65(솔버)는 의존이 아니다
-- 담당: —
-- **2026-09-18 변경**: 순서가 T-070 → T-069 → 기술 결정 → **T-080** 으로 바뀌었다. **논리 표 51개를 한 번에 물리 설계하지 않는다.** T-069 가 정한 첫 슬라이스(외부 통신)에 필요한 표부터 한다(`docs/22` 26·28절). 이 항목은 원래 QUEUE 의 템플릿 코드 블록 안에 잘못 들어가 있어 여기로 옮겼다
-- 목표: 승인된 논리 설계 중 **첫 슬라이스에 필요한 부분**을 실제 DB 구조로 옮긴다. **Backend·DB 기술은 T-080 이 처음 고르는 것이 아니라 그 전에 사용자가 정한 것을 반영한다.** 여기서는 그 기술 위의 `CREATE TABLE`·인덱스·마이그레이션·물리 표현을 정한다
-- 입력: **ADR-033 · ADR-034**(PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration — ADR-034 결과 절의 '정하지 않는 것'이 T-080·U0 몫), `docs/tasks/plans/T-084-db-decision-options.md` 7절, `docs/22_cera-logical-data-model.md` + 작업표(**rev.2.4**), `docs/tasks/plans/T-069-external-communication-slice.md` **5.1 P0 29개 · 17절 인계 목록**, `docs/23`(런타임·오류 처리)
-- 이번에 답할 것
-  - (사전에 결정된) DB 제품이 PoC 로컬 실행 제약 `NFR-09` 를 만족하는지 확인하고 물리 설정에 반영
-  - `event_id` 의 실제 형식 — **정렬 가능**해야 한다는 논리 제약을 무엇으로 만족시키나
-  - `CODE` 컬럼의 물리 표현: 코드 테이블 한 벌(`code_group`/`code_value`) vs 값별 테이블 vs 문자열 + 체크 제약 (`docs/22` 18절)
-  - 인덱스: 첫 슬라이스의 조회 경로(`comm_message.external_message_id` 멱등 판정, `send_attempt` 결과 화해, `system_error` 의 `trace_id`·시각 조회 등)
-  - 부분 유일 제약(`container_bl` 주 B/L, `event_entity_link` SUBJECT 1건, 무효화·해제 1건)을 PostgreSQL 에서 어떻게 구현하나(partial unique index 등 — ADR-034) · `bl` 업무 유일 제약은 L-16
-  - `planning_snapshot_input.value_path` 의 "전체" 표시 문자열(`docs/22` 13.2b)
-  - 원문(`raw_input.payload_ref`)을 DB 안에 둘지 파일로 둘지 — **실제 메일 본문·응답은 커밋하지 않는다**(`docs/01` 6절)
-- 완료 조건
-  - [ ] 첫 슬라이스에 필요한 논리 표가 물리 스키마로 빠짐없이 매핑되고, 이번에 하지 않는 표는 사유(뒤 슬라이스)가 적혀 있다
-  - [ ] **재현 테스트 설계**가 포함된다 — `canonical_fact` 전체 삭제 → `event` 재계산 → 동일성 확인 (`docs/22` I-7) — 해당 표가 첫 슬라이스에 있을 때
-  - [ ] 마이그레이션 전략(초기 생성 + 이후 변경)이 정해진다
-  - [ ] `docs/07_backend-architecture.md` 4절 저장 스키마와 어긋나지 않는다 (X-10 — T-070 에서 먼저 정리)
-- 하지 않을 것: Backend 코드 작성, API endpoint 확정, 솔버 구현, 실제 데이터 적재, 논리 표 전체의 일괄 물리 설계
 
 ### T-085 ~ T-096 — Slice 1 구현 단위 U0 ~ U11 (T-069 계획 20절)
 
@@ -498,6 +485,17 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-080 — 물리 DB 설계 (Slice 1 P0 29표) · **DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)**
+
+- 담당: Claude Code (claude-opus-5) / 2026-09-22 · 기준 커밋 `4db8608`
+- 산출물: **`docs/24_cera-physical-data-model.md`** + 작업표 · **`docs/22` rev.2.5**(+ 작업표) · `docs/18` H.2 · T-069 계획 13절 사후 주석
+- 결론: UUIDv7(`uuid`, 앱 생성, 시드 fixture 고정 값) · ENUM 없음(CHECK 54 · 형식 CHECK + Backend 카탈로그 27 · 규칙 id 2) · `timestamptz(3)` · `bigint` → TS `bigint` → API 문자열 · jsonb 6곳 + `uuid[]` 1 · SHA-256 + JCS · 사건 멱등 `evk/1` · FK RESTRICT(CASCADE 0) · 복합 FK 13 · append-only A + B + C(표 단위 권한) · 부분 유일 U-1~U-7 · Outbox = advisory lock + SKIP LOCKED + U-6·U-7 · `ContentStore` DB 밖(생성·파기 일관성) · migration M01~M10 앞으로만 · 시드 local·test
+- 논리 모순 해소(T-097 · Q-69): 발송 = 메시지 · 시도별 멱등 키 · 메시지당 성공 1 · 미확정 1 · `UNKNOWN` 화해만 한 번 · `sent_at` · `external_thread_id` 한 번 채움 · INBOUND `drafted_by`·`current_status` NULL(생애주기 미적용 — 수신 처리는 raw_input → extraction → event)
+- 검증: `docs/22` rev.2.5 작업표 587 · P0 29표 **349/349** 순서 일치 · 인수 18항목 + 시나리오 점검 PASS
+- 다시 열 조건: 한 채널에 연결 여럿(`external_thread_id` · `external_message_id` 유일 범위 → 연결 참조) · 비동기 trace 저장 근거 · 운영 가상 마스터
+- 제품 코드 0 · SQL/migration 0 · `docs/21` 0
+- 다음: **T-085(U0)**
 
 ### T-084 — Q-68 DB 제품·접근 방식·마이그레이션 도구 결정 · **DONE (2026-09-22, 사용자 결정·최종 승인)**
 

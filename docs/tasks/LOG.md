@@ -21,6 +21,34 @@
 
 ---
 
+## 2026-09-22 · T-080 DONE · T-097 DONE — 논리 모순 해소(`docs/22` rev.2.5) + Slice 1 P0 물리 설계 · Claude Code (claude-opus-5)
+- 상태: **완료 — 사용자 + ChatGPT 최종 승인.** 기준 HEAD `4db8608`. push 없음
+- 최종 확인 2건: (1) `external_thread_id` 유일 범위 `(channel_type, external_thread_id)` 는 "채널당 연결 계정 1개" 전제 — 재오픈 조건이 `docs/22` 15.1 · `docs/24` 13절 U-5 · 25절 F-4 에 이미 있었다 (2) INBOUND `current_status = NULL` 의 뜻("상태 모름"이 아니라 "보내는 메시지 생애주기 미적용", 수신 처리는 raw_input → extraction → event)을 `docs/22` 15.3 · `docs/24` 0절 · 22.14 에 명시로 보강
+- 사용자 검토 결과(T-097 · Q-69 CLOSED): 큰 방향 승인 · F-1~F-5 는 `docs/22` 수정 허용 · D-4 · D-5 보완 · F-9 는 업무 컬럼 추가 없음
+- 한 일
+  - **`docs/22` rev.2.5**(최소 변경, 새 표·컬럼 0): 15.7 · 15.7.3 규칙 2·4·6·7(시도별 멱등 키 · 논리 발송 = 메시지 · 성공 1 · 미확정 1 · `UNKNOWN` 화해 한 번) · 17.2 · I-18 · 1.3 · 15.1(`external_thread_id` 한 번 · 유일 범위 = 채널 종류) · 15.3(`sent_at` 한 번 · INBOUND `drafted_by`·`current_status` NULL) · 15.8.1 · 표기 정정(감사 `FAILURE` · 강도 `0`~`3` · `link_role` 필수 · 명령 id) · 작업표 21셀(서식 유지 확인)
+  - `docs/24` 재동기화: 0 · 3 · 4 · 6 · 8.2 · 10 · 12(A+B+C · 표 단위 권한 · 열 가드 · 한 번 채움 · 화해 증거) · 13(U-6 · U-7) · 14 · 15(T6r 화해) · 16.2(생성·파기 일관성) · 17 · 18(10/14/5) · 21 · 25~27
+  - 정합: `docs/18` H.2 · 336행 · T-069 계획 13절 사후 주석 · `docs/15` Q-69 CLOSED · README · AGENTS · QUEUE(T-097 DONE) · CURRENT
+- 새로 발견: INBOUND `current_status` 도 `drafted_by` 와 같은 문제(상태 값이 보내는 메시지 생애주기) → 같은 방식(OUTBOUND 만 필수)으로 정리, 보고
+- 검증: `docs/22` rev.2.5 작업표 재파싱 587 · P0 29표 **349/349** 순서 일치 · CLOSED 54 · CATALOG 27 · 규칙 id 2 · FK 58 + 복합 13 · 시나리오 점검(재시도 · `UNKNOWN` 화해 · 강제 종료 · 중복 발송 · `sent_at` · Gmail thread id · INBOUND 저장 · append-only · ContentStore) PASS · `git diff --check` 통과
+- **제품 코드 0 · SQL/migration/schema.ts 0 · 설치 0 · `docs/21` 0**
+- 다음 한 걸음: **T-085(U0)** — 시작하지 않았다
+
+## 2026-09-22 · T-080 초안 완료 · 상위 판단 대기(T-097) — Slice 1 P0 물리 DB 설계 · Claude Code (claude-opus-5)
+- 상태: **차단(사람 판단 대기)** — 설계 초안은 끝났지만 논리 모델 충돌 5건이 `docs/22` 변경을 요구한다. T-080 은 `IN_PROGRESS` 유지, **T-097(NEEDS_HUMAN, Q-69)** 신규. **미커밋.** 기준 HEAD `4db8608`
+- 한 일
+  - **`docs/24_cera-physical-data-model.md`** 신규(29절) + 짝 작업표 `docs/24_cera-physical-data-model.xlsx`(4 시트)
+  - 공통 규칙: ID = **UUIDv7 · `uuid` · 앱 생성**(시드는 결정적 UUIDv7) · CODE = **ENUM 없음, CLOSED CHECK 53 · CATALOG 형식 CHECK 28 · 규칙 id 2**, 코드 표 없음 · 시각 = `timestamptz(3)` · 세션 UTC · DB 는 시각을 만들지 않음 · KRW = `bigint` → TS `bigint` → API 10진 문자열 · `numeric` 문자열 경계 · jsonb 6곳 + `conflict.event_ids` → `uuid[]` · 해시 = SHA-256 `sha256:<hex>` + RFC 8785 JCS 재료 판
+  - 사건 멱등 `evk/1`(원천 + JSON Pointer 주장 위치 + SUBJECT + fact_key/대상 집합 + 범위 + 부류) · 사람 명령 재시도는 명령 id = `raw_input.source_record_key`
+  - FK: 기본 RESTRICT · CASCADE 0 · SET NULL 1 · 복합 FK 13(J.3 채널·시뮬레이션 일치 · 같은 메시지 승인 등) · 순환 2개 "NULL 먼저, FK 나중" · P1 참조 2컬럼은 FK 없음 + 임시 CHECK
+  - append-only: **A 저장소 + B 트리거 + C 역할 분리·열 단위 GRANT** 를 Slice 1 부터 · 발송 시도 삽입 가드(I-9) · 지연 제약 트리거(I-8 · I-21 · I-26 · 승인 사본)
+  - Outbox: 세션 advisory lock(단일 워커) + `FOR UPDATE SKIP LOCKED` + 부분 유일 · T1~T12 매핑 · 내용 저장소 = DB 밖 `ContentStore` 포트(`cref:v1:<범주>:<uuid>`) · 파기 판정 부분 인덱스 · migration M01~M10(생성 6 + custom 4) · 앞으로만 · 시드는 local·test 명령
+  - 동기화: `docs/15` Q-69 · `docs/README` · `AGENTS.md` 문서 지도·현재 단계 · `docs/07` 4절 한 줄 · QUEUE(T-080 IN_PROGRESS · T-097 신규) · CURRENT
+- 검증: `docs/22` 작업표를 다시 읽어 `docs/24` 22절 컬럼과 표·순서별 대조 — **29표 · 349/349 · 불일치 0** · `git diff --check` 통과
+- 발견(`docs/24` 25절): **F-1** 발송 멱등 키 UNIQUE ↔ 재시도 · **F-2** `UNKNOWN` 화해 ↔ 결과 한 번(S-03) · **F-3** `sent_at` · **F-4** `external_thread_id` · **F-5** INBOUND `drafted_by` — 논리 변경 필요. F-6~F-8 표기 불일치 · F-9 Outbox trace 전파 저장 위치 없음 · F-10 마스터 `is_simulated` 없음 · F-11 물리 보조 제약 확인
+- **제품 코드 0 · SQL/migration/schema.ts 0 · 설치 0 · `docs/21` · `docs/22` 변경 0**
+- 다음 한 걸음: 사용자 **T-097(Q-69)** → `docs/22` 반영 → `docs/24` 맞춤 → 사용자 + ChatGPT 검토 → T-080 DONE → U0(T-085)
+
 ## 2026-09-22 · T-084 DONE — Q-68 DB 결정 반영 · Claude Code (claude-opus-5)
 - 상태: **완료 — T-084 DONE (사용자 결정 · 최종 승인).** 기준 HEAD `12a849a`. push 없음
 - 결정(사용자, Option A): **PostgreSQL**(로컬·시험·운영 모두 — **SQLite 미사용**, 개발/운영 DB 이원화 금지) + **Drizzle ORM**(SQL-aware Hybrid — 핵심 경로는 PostgreSQL 의미를 드러내 쓴다, DB 불변식을 앱 코드로 흉내 내지 않는다) + **drizzle-kit 생성 SQL migration → 사람 검토 → 저장소 기록 → 명시 적용**(운영 자동 동기화 · `push` 정본 사용 · 검토 없는 파괴적 migration 금지). DB 권한·스키마·migration 은 Main Backend 만. Prisma · Kysely · TypeORM · MikroORM 후보 제외

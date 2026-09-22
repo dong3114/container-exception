@@ -1,6 +1,6 @@
 # 22. CERA 논리 데이터 모델 (Logical Data Model)
 
-- 상태: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
+- 상태: **rev.2.5 — T-080 물리 설계가 찾은 논리 모순 정리 (2026-09-22).** 표·컬럼 수 변화 없음(52 · 587). 발송 시도의 멱등·재시도·`UNKNOWN` 화해 · 한 번 채움(`sent_at` · `external_thread_id`) · 받은 메시지의 `drafted_by` · `current_status` · 표기 정정 4건 — 아래 rev.2.5 표. 이전: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
 - 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. rev.2.2 저장 커밋: `8d47a99`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
 - 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다. **rev.2.3 에서도 `docs/21` 변경 0건**
 - 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **53개**(MVP 52 + Next 1), 컬럼 **587개**(rev.2.4 — 내용 컬럼을 참조 + 지문으로 바꾸며 +1. rev.2.3 은 586, rev.2.2 는 52블록·557). 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
@@ -8,6 +8,17 @@
 - 런타임·오류 처리·관측성의 행동 규칙은 **`docs/23_runtime-platform-and-observability.md`** 가 정본이다. 이 문서는 그중 **DB 에 남는 `system_error` 표**만 다룬다
 - **2026-09-21 T-069: L-13 CLOSED** — 복구 맥락 = `recovery_run` 계보의 뿌리 실행 id(4절 L-13 · I-35 · I-36). **새 표·새 컬럼 없음**, 논리 테이블 수 52 그대로
 - **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절). **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다** — 11.2c. **Q-44 CLOSED · Q-45 구조 CLOSED(기간 OPEN)** — 2026-09-21 사용자 결정, 11.2e · 29절
+
+> **rev.2.5 (T-080 물리 설계 검토 · 2026-09-22 사용자 결정) 에서 고친 것** — 새 표 **0개** · 새 컬럼 **0개**(52표 · 587컬럼 그대로). 개념 모델(`docs/21`) 변경 없음. 물리 설계는 `docs/24`.
+>
+> | # | 고친 것 | 어디 |
+> | --- | --- | --- |
+> | **F-1** | `send_attempt.idempotency_key` 는 **시도마다 다르다**(재료 = 메시지 + 시도 번호). 논리 발송의 신원은 **메시지**. 중복 발송은 **메시지당 `SUCCESS` 1건 · 미확정 1건 · 재전송 전 `lookup_sent`** 가 막는다 — 옛 규칙(UNIQUE 키 재료 = 채널 + 메시지 + 지문 + 승인)은 "재시도 = 새 행"과 함께 설 수 없었다 | 15.7 · 15.7.3 규칙 6·7 · 17.2 |
+> | **F-2** | **`UNKNOWN` 은 확정 결과가 아니다.** 화해만 `UNKNOWN` → `SUCCESS` / `RETRYABLE_FAILURE` 로 한 번 더 바꾼다. 새 표 없음 | 1.3 · 15.7 · 15.7.3 규칙 2·4 · 15.8.1 · I-18 |
+> | **F-3** | `comm_message.sent_at` — `NULL` → 값 **한 번**(발송 성공 확인 뒤) | 1.3 · 15.3 |
+> | **F-4** | `comm_thread.external_thread_id` — `NULL` → 값 **한 번**(첫 발송 뒤 채널이 줄 때). 유일 범위는 채널 종류 그대로(연결 참조 없음) | 1.3 · 15.1 |
+> | **F-5** | `comm_message.drafted_by` · `current_status` 는 **`OUTBOUND` 만 필수**, `INBOUND` 는 비어 있다(받은 메시지에 가짜 내부 값을 넣지 않는다) | 15.3 |
+> | 표기 | 감사 `result` = `SUCCESS` · `FAILURE`(29.8 의 `FAILED` 정정) · `evidence_strength` 값 = 강도 `0`~`3`(`docs/05` 3.3) · `evidence_time_quality` 작업표 예시 정정 · `event_entity_link.link_role` 필수 · 사람 명령의 `source_record_key` = 명령 id | 29.8 · 11.4 · 11.3 · 11.1 |
 
 > **rev.2.4 (Q-44 · Q-45 사용자 결정) 에서 고친 것** — 새 표 **0개**, 논리 테이블 수 **52 그대로**.
 >
@@ -145,12 +156,12 @@
 | `plan_decision` | `DECISION_RECORD` | `APPEND_ONLY` | 아무것도. 결정이 바뀌면 새 결정 행이다 (13.5) |
 | `canonical_fact` | `DERIVED_MATERIALIZED` | `REBUILDABLE` | 재계산이 전부 덮어쓴다 |
 | `conflict` · `verification_request` | `DERIVED_MATERIALIZED` | `REBUILDABLE` | 같다 |
-| `comm_message` | `SOURCE_OF_TRUTH` | **내용 `IMMUTABLE_AFTER_CREATE` + 포인터 `CACHE_UPDATE`** | `current_status` · `current_approval_id` 만. **제목·본문·구조화 값은 절대 아니다** |
-| `send_attempt` | `SOURCE_OF_TRUTH` | **요청 `IMMUTABLE_AFTER_CREATE` + 결과 `CONTROLLED_UPDATE`** (rev.2.2) | 결과 5컬럼(`finished_at` · `result` · `error_code` · `error_message` · `provider_message_id`)만 **한 번**. 식별·승인·지문·멱등 키는 절대 아니다 (15.7.3) |
+| `comm_message` | `SOURCE_OF_TRUTH` | **내용 `IMMUTABLE_AFTER_CREATE` + 포인터 `CACHE_UPDATE` + 한 번 채움** (rev.2.5) | `current_status` · `current_approval_id`(캐시) + **`sent_at` 은 `NULL` → 값 한 번**(발송 성공이 확인된 뒤). **제목·본문·구조화 값은 절대 아니다** |
+| `send_attempt` | `SOURCE_OF_TRUTH` | **요청 `IMMUTABLE_AFTER_CREATE` + 결과 `CONTROLLED_UPDATE`** (rev.2.2 · rev.2.5) | 결과 5컬럼(`finished_at` · `result` · `error_code` · `error_message` · `provider_message_id`)만 — `NULL` → 결과 한 번, **`UNKNOWN` 이면 화해로 한 번 더**(`SUCCESS` 또는 재전송 가능 실패). 식별·승인·지문·멱등 키는 절대 아니다 (15.7.3) |
 | `extraction` | `EVIDENCE` | **추출 결과 `IMMUTABLE_AFTER_CREATE` + 검토 `CONTROLLED_UPDATE`** (rev.2.2) | 검토 4컬럼(`review_status` · `reviewed_by_actor_id` · `reviewed_at` · `created_event_id`)만. **후보 값·인용·모델 판은 절대 아니다** (15.9.1) |
 | `system_error` | `EVIDENCE` | `APPEND_ONLY` (rev.2.2 신규) | 아무것도. 오류 발생 기록 자체는 고치지 않는다 (16.2a) |
 | `contact_verification` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `used_at` · `result` 만 (10.4) |
-| `comm_thread` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `thread_status` · `last_activity_at` 만 |
+| `comm_thread` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `thread_status` · `last_activity_at` + **`external_thread_id` 는 `NULL` → 값 한 번**(첫 발송 뒤 채널이 줄 때, rev.2.5) |
 | `question_item` | `SOURCE_OF_TRUTH` | `CONTROLLED_UPDATE` | `question_status` 만. **대상 개체·사실 키·범위는 절대 아니다** |
 | `tariff_rule` | `MASTER` | `VERSION_REPLACEMENT` | 아무것도. 새 판을 만든다 |
 | `container` · `facility` · `counterparty` 등 | `MASTER` | `CONTROLLED_UPDATE` | 등록 정보. 삭제 대신 `is_active = false` |
@@ -789,7 +800,7 @@
 | 메일 채널 | 외부 메시지 id (`comm_message.external_message_id` 와 같은 값) |
 | Webhook | delivery id |
 | 공공 API | 출처가 응답 건 식별자를 줄 때만. **없으면 비워 둔다** |
-| 사람 입력·업로드 | 보통 없다 |
+| 사람 입력·업로드 | 화면 명령은 **명령 id**(화면 클라이언트가 명령마다 만든 전달 식별자 — 같은 명령의 재시도를 한 건으로 모은다, rev.2.5). 업로드는 보통 없다 |
 
 - **출처가 주지 않으면 비워 둔다.** CERA 가 지어내지 않는다. `NULL` 이 여럿이어도 유일 제약에 걸리지 않는다.
 - 같은 내용을 여러 번 수집하면 **`raw_input` 은 여러 행**이 되고 **사건도 여러 건**이 된다. 그 여러 사건 중 무엇이 현재 사실이 되는지는 Reconciliation 이 정한다(동일 값이면 최신 관측이 신선도를 갱신한다).
@@ -1150,7 +1161,7 @@ Date 를 쓰면           → 09:00 의 주장이다   → 10:00 관측이 이�
 | 사건 | `event_id` | `REF(event)` | 예 | **PK 일부**, FK |
 | 개체 종류 | `entity_type` | `CODE` | 예 | **PK 일부** (`CONTAINER`·`BL`·`FACILITY`·`COUNTERPARTY`·`TRUCK_POOL`·`VESSEL_CALL`) |
 | 개체 id | `entity_id` | `STRING(30)` | 예 | **PK 일부** |
-| 역할 | `link_role` | `CODE` | 아니오 | `SUBJECT`(사실의 주체) / `CONTEXT`(맥락) |
+| 역할 | `link_role` | `CODE` | **예** (rev.2.5 표기 정정 — I-8 이 이 값으로 SUBJECT 를 센다) | `SUBJECT`(사실의 주체) / `CONTEXT`(맥락) |
 
 **Integrity Rules** (rev.2 수정)
 
@@ -1198,7 +1209,7 @@ Date 를 쓰면           → 09:00 의 주장이다   → 10:00 관측이 이�
 | **③ 충돌** | `conflict_status` | `CODE` | 예 | | **rev.2.3 — 옛 `has_conflict BOOLEAN` 교체.** `NONE`·`DISSENT`(진 후보 기록, 판단 차단 없음)·`OPEN`(해결 전 판단 차단) |
 | **④ 보류** | `hold_status` | `CODE` | 예 | | **rev.2.3 신규.** `NONE`·`HELD`(불리한 큰 변경이 확인을 기다림, R10) |
 | **⑤ 결정 가능성** | `decision_usability` | `CODE` | 예 | | **rev.2.3 신규.** `USABLE`·`USABLE_WITH_WARNING`·`APPROVAL_BLOCKED`·`UNUSABLE` (R11). **엔진은 이것 하나만 본다** |
-| **근거 강도** | `evidence_strength` | `CODE` | 예 | | **계산 결과**. 원천 축 + 정책으로 판정한다. `event` 에는 없다 |
+| **근거 강도** | `evidence_strength` | `CODE` | 예 | | **계산 결과**. 원천 축 + 정책으로 판정한다. `event` 에는 없다. 값은 `docs/05` 3.3 의 강도 등급 **`0`·`1`·`2`·`3`**(rev.2.5 표기 정정 — 작업표 예시 `STRONG` 은 정본에 없는 값이었다) |
 | **근거 강도 정책 판** | `evidence_policy_version` | `STRING(20)` | 예 | | 어느 정책으로 판정했나. 정책이 바뀌면 재계산한다 |
 | 근거 시각 | `evidence_time` | `TIMESTAMP_TZ` | 아니오 | | 3단계 폴백 결과 |
 | 근거 시각 품질 | `evidence_time_quality` | `CODE` | 예 | | `EVENT_TIME`·`RECORDED_TIME`·`RECEIVED_ONLY` — 어느 단계에서 왔는지 |
@@ -1863,13 +1874,13 @@ rev.1 은 `ACTUAL_REPORTED`(사실로 보고된 발생액)를 성격 값에 넣�
 
 ### 15.1 `comm_thread` — 대화
 
-- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`CONTROLLED_UPDATE`** — `thread_status` · `last_activity_at` 만 · MVP
+- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`CONTROLLED_UPDATE`** — `thread_status` · `last_activity_at` + **`external_thread_id` 한 번 채움**(rev.2.5) · MVP
 
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
 | --- | --- | --- | --- | --- | --- |
 | 대화 id | `thread_id` | `STRING(40)` | 예 | **PK** | |
 | 채널 | `channel_type` | `CODE` | 예 | | |
-| **외부 대화 id** | `external_thread_id` | `STRING(200)` | 아니오 | **UNIQUE**(channel_type, external_thread_id) | Gmail threadId 등. 조회 경로라 컬럼(Q-54) |
+| **외부 대화 id** | `external_thread_id` | `STRING(200)` | 아니오 | **UNIQUE**(channel_type, external_thread_id) | Gmail threadId 등. 조회 경로라 컬럼(Q-54). **rev.2.5: 만들 때 비어 있을 수 있고, 첫 발송 뒤 채널이 id 를 주면 `NULL` → 값 한 번만 채운다. 채운 뒤 바꾸지 않는다.** 유일 범위는 채널 종류다 — 이 표는 채널 연결을 갖지 않고 Tech Validation 은 채널마다 전용 계정 하나다. 한 채널에 연결이 여럿 생기면 범위를 연결로 좁혀야 한다(그때 연결 참조가 필요 — `docs/24` 25절) |
 | 상대 거래처 | `counterparty_id` | `REF(counterparty)` | 예 | FK | |
 | 상대 연락처 | `contact_id` | `REF(counterparty_contact)` | 아니오 | FK | |
 | 목적 | `purpose` | `CODE` | 예 | | `CAPACITY_CHECK`·`RATE_REQUEST`·`SLOT_REQUEST`·`FACT_CONFIRM`·`GENERAL` |
@@ -1928,7 +1939,7 @@ rev.1 은 `ACTUAL_REPORTED`(사실로 보고된 발생액)를 성격 값에 넣�
 
 ### 15.3 `comm_message` — 메시지
 
-- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`IMMUTABLE_AFTER_CREATE`**(제목·본문·구조화 값·수신자·종류) **+ `CACHE_UPDATE`**(`current_status` · `current_approval_id`) · MVP
+- 분류 **`SOURCE_OF_TRUTH`** · 변경 **`IMMUTABLE_AFTER_CREATE`**(제목·본문·구조화 값·수신자·종류) **+ `CACHE_UPDATE`**(`current_status` · `current_approval_id`) **+ 한 번 채움**(`sent_at`, rev.2.5) · MVP
 
 | 한글 | 컬럼 | 타입 | 필수 | 키 | 설명 |
 | --- | --- | --- | --- | --- | --- |
@@ -1943,12 +1954,12 @@ rev.1 은 `ACTUAL_REPORTED`(사실로 보고된 발생액)를 성격 값에 넣�
 | 수신 주소 | `to_address_id` | `REF(contact_channel_address)` | 아니오 | FK | 발신 자격 검사 대상 |
 | **제목·본문 참조** | `message_content_ref` | `STRING(300)` | 아니오 | | **rev.2.4 — 옛 `subject` · `body_text`.** 제목과 안전한 텍스트 본문을 **한 묶음의 보관 관리 내용**으로 두고 참조만 기록한다(29절). 받은 메일은 원문에서 만든 **안전한 텍스트**다(원본 HTML 아님). **AI 가 쓰는 것은 문장뿐이다** |
 | 본문 지문 | `content_hash` | `HASH` | 예 | | 수신자·제목·본문·**구조화 값**을 모두 덮는 지문. **제목·본문이 파기돼도 남는다**(승인·발송 대조는 지문으로 한다) |
-| 현재 상태 | `current_status` | `CODE` | 예 | | `message_status_transition` 를 접은 **캐시** |
+| 현재 상태 | `current_status` | `CODE` | **`OUTBOUND` 면 예** | | `message_status_transition` 를 접은 **캐시**. **rev.2.5: 상태 값은 보내는 메시지의 생애주기다 — `INBOUND` 는 비어 있고 상태 전이도 없다**(받은 메시지에 맞는 값이 목록에 없다. 수신 사실은 `received_at` · 스레드 연결 · 원문 기록이 말한다). **INBOUND 의 `NULL` 은 "상태를 모른다"가 아니라 "보내는 메시지 생애주기가 적용되지 않는다"는 뜻이다.** 받은 메시지의 처리 상태는 `raw_input` → `extraction` → `event` 흐름(검토 상태 · 사건 생성 · 보류)에서 관리한다. 규칙: OUTBOUND = `drafted_by` · `current_status` NOT NULL, INBOUND = 둘 다 NULL |
 | 현재 승인 | `current_approval_id` | `REF(message_approval)` | 아니오 | FK | **편의 포인터일 뿐. 정본은 `message_approval`** |
-| 작성 주체 | `drafted_by` | `CODE` | 예 | | `AI_DRAFT`·`HUMAN`·`TEMPLATE` |
+| 작성 주체 | `drafted_by` | `CODE` | **`OUTBOUND` 면 예** | | `AI_DRAFT`·`HUMAN`·`TEMPLATE`. **rev.2.5: `INBOUND` 는 비어 있다** — 외부에서 받은 메시지에 CERA 안의 작성 주체를 지어 넣지 않는다. CERA 가 자동으로 만든 초안은 `TEMPLATE`(또는 `AI_DRAFT`)이고, 그 행위 주체는 상태 전이(`DRAFTED`)의 `actor_id` = `SYSTEM` actor 다 |
 | 관련 질문들 | (`comm_message_question` 로 연결) | — | | | 한 메시지에 여러 질문 |
 | 구조화 값들 | (`comm_message_structured_field` 로 연결) | — | | | **숫자는 본문이 아니라 여기 있다** |
-| 시각 | `created_at` · `sent_at` · `received_at` | `TIMESTAMP_TZ` | | | |
+| 시각 | `created_at` · `sent_at` · `received_at` | `TIMESTAMP_TZ` | | | **rev.2.5: `sent_at` 은 처음에 비어 있고, 발송 성공이 확인되면(발송 결과 또는 화해의 `SUCCESS`) 그 시도의 `finished_at` 으로 `NULL` → 값 한 번 채운다. 채운 뒤 바꾸지 않는다** |
 | 시뮬레이션 | `is_simulated` · `scenario_id` | — | | FK | |
 
 > 본문에 **API 키·실제 B/L 번호·실제 계약 내용**이 그대로 커밋되는 일이 없도록, 저장소에 들어가는 fixture 는 마스킹·합성만 쓴다(`docs/01` 6절).
@@ -2092,12 +2103,12 @@ message_id = 지금 보낼 메시지
 | 시도 id | `send_attempt_id` | `STRING(40)` | 예 | **PK** | |
 | 메시지 | `message_id` | `REF(comm_message)` | 예 | FK | |
 | **승인** | `approval_id` | `REF(message_approval)` | **조건부** | FK | **업무 메시지면 필수**, 주소 확인 메일이면 비어 있다 — 15.7.1 |
-| 시도 번호 | `attempt_no` | `INTEGER` | 예 | **UNIQUE**(message_id, attempt_no) | |
-| **멱등 키** | `idempotency_key` | `STRING(100)` | 예 | **UNIQUE** | 중복 발송 차단. 재료는 **채널 + 메시지 + 내용 지문 + (있으면) 승인**. 주소 확인 메일은 승인이 없으므로 승인을 재료에서 뺀다 |
+| 시도 번호 | `attempt_no` | `INTEGER` | 예 | **UNIQUE**(message_id, attempt_no) | 1, 2, 3 … 재시도마다 1 증가 |
+| **멱등 키** | `idempotency_key` | `STRING(100)` | 예 | **UNIQUE** | **rev.2.5 — 시도마다 다르다.** 재료는 **메시지 + 시도 번호**. **논리 발송의 신원은 메시지다**(`message_id` = 헤더 `X-CERA-Message`). 한 메시지의 중복 발송은 이 키가 아니라 **성공 시도 최대 1건 · 미확정 시도 최대 1건 · 재전송 전 `lookup_sent`** 가 막는다(15.7.3) |
 | 채널 연결 | `channel_connection_id` | `REF(channel_connection)` | 아니오 | FK | 어느 연결로 나갔나 |
 | 발송 내용 지문 | `sent_content_hash` | `HASH` | 예 | | **비교 대상이 메시지 종류에 따라 다르다** — 15.7.2 |
 | 시작·종료 시각 | `started_at` · `finished_at` | `TIMESTAMP_TZ` | 예/아니오 | | `started_at` 은 외부 호출 **전에** 기록. `finished_at` 은 결과 기록 때 한 번 |
-| 결과 | `result` | `CODE` | **아니오 (결과 기록 전 NULL)** | | `SUCCESS`·`RETRYABLE_FAILURE`·`PERMANENT_FAILURE`·`UNKNOWN`. **NULL = 아직 결과를 기록하지 않음(호출 중이거나 중단됨)**. `UNKNOWN` = 호출은 끝났는데 결과를 모름 — 둘은 다르다 |
+| 결과 | `result` | `CODE` | **아니오 (결과 기록 전 NULL)** | | `SUCCESS`·`RETRYABLE_FAILURE`·`PERMANENT_FAILURE`·`UNKNOWN`. **NULL = 아직 결과를 기록하지 않음(호출 중이거나 중단됨)**. `UNKNOWN` = 호출은 끝났는데 결과를 모름 — 둘은 다르다. **rev.2.5: `UNKNOWN` 은 최종 결과가 아니라 "아직 확인 안 됨"이다** — 화해만 `SUCCESS` 또는 `RETRYABLE_FAILURE`(보내지 않았음 확인)로 한 번 바꾼다 |
 | 채널 오류 | `error_code` · `error_message` | `CODE` · `STRING(500)` | 아니오 | | CERA 내부 오류 코드로 정규화한 값(`docs/23` 6절). **비밀값·토큰·원문 본문을 넣지 않는다** |
 | 채널 응답 id | `provider_message_id` | `STRING(200)` | 아니오 | | |
 | 시뮬레이션 | `is_simulated` | `BOOLEAN` | 예 | | Mock 채널 발송 |
@@ -2151,21 +2162,26 @@ approved_to_address_id 가 실제 수신자와 같다
 
 > **`UNKNOWN`(응답을 못 받음)을 성공·실패로 접지 않는다.** 이 값이 있어야 재시도 정책이 중복 발송을 만들지 않는다.
 
-#### 15.7.3 발송 시도의 생애주기 — 요청은 불변, 결과는 한 번 (rev.2.2 수정)
+#### 15.7.3 발송 시도의 생애주기 — 요청은 불변, 결과는 한 번 · `UNKNOWN` 은 화해로 한 번 더 (rev.2.2 수정 · rev.2.5 수정)
 
 rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었다. 그런데 중복 발송을 막으려면 **외부 호출 전에** 시도 행을 먼저 커밋해야 하고(`docs/18` H.2 — "보냈는지 모르겠다" 상태를 남기기 위해), 결과는 호출이 끝난 뒤에야 안다. 그래서 두 부분으로 나눈다. **결과를 담는 별도 표는 만들지 않는다.**
 
 | 부분 | 컬럼 | 변경 |
 | --- | --- | --- |
 | **식별·요청 (불변)** | `send_attempt_id` · `message_id` · `approval_id` · `attempt_no` · `idempotency_key` · `channel_connection_id` · `sent_content_hash` · `started_at` · `is_simulated` | **만든 뒤 절대 고치지 않는다** |
-| **결과 (정해진 생애주기)** | `finished_at` · `result` · `error_code` · `error_message` · `provider_message_id` | `result = NULL` 에서 **종료 값으로 한 번만** 간다 |
+| **결과 (정해진 생애주기)** | `finished_at` · `result` · `error_code` · `error_message` · `provider_message_id` | `result = NULL` 에서 **결과로 한 번** 간다. **`UNKNOWN` 만 화해로 한 번 더** 간다(규칙 2) |
 
 **Integrity Rules**
 
 1. 식별·요청 9컬럼은 **어떤 경우에도 UPDATE 하지 않는다.** 재시도는 이 행을 고치지 않고 **새 행**(`attempt_no + 1`)이다.
-2. `result` 는 `NULL` 에서 `SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` · `UNKNOWN` 중 하나로 **한 번만** 간다. 종료 값에서 다른 값으로 바꾸지 않는다.
+2. `result` 는 `NULL` 에서 `SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` · `UNKNOWN` 중 하나로 **한 번** 간다. **`SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` 는 확정 결과**이고 바꾸지 않는다. **`UNKNOWN` 은 확정이 아니다**(rev.2.5) — "이 시도의 결과를 아직 확인하지 못함"이며, **화해(`lookup_sent`)만** 한 번 더 바꿀 수 있다:
+   - 채널에서 발송을 찾음 → `UNKNOWN` → **`SUCCESS`**(`provider_message_id` 를 함께 기록)
+   - 발송이 없음을 확인 → `UNKNOWN` → **`RETRYABLE_FAILURE`**(`error_code` = 화해 결과 코드 — 보내지 않았음이 확인됐다)
+   - 화해가 확인하지 못하면 `UNKNOWN` 그대로 둔다(다시 화해한다). `finished_at` 은 호출이 끝난 시각이라 화해 때 바꾸지 않는다. 화해 결과를 담는 별도 표는 만들지 않는다 — 감사·상태 전이는 기존 구조에 남는다
 3. `result` 를 기록할 때 `finished_at` 도 함께 기록한다. `result = SUCCESS` 이면 `error_code` 는 비어 있다.
-4. 프로세스가 호출 중에 죽어 `result = NULL` 로 남은 행은 **다시 보내지 않고 먼저 외부 조회로 화해**한다(`docs/18` H.2). 화해 결과를 그 행의 결과로 한 번 기록한다.
+4. 프로세스가 호출 중에 죽어 `result = NULL` 로 남은 행은 **다시 보내지 않고 먼저 외부 조회로 화해**한다(`docs/18` H.2). 화해 결과(`SUCCESS` 또는 `RETRYABLE_FAILURE`)를 그 행의 결과로 한 번 기록한다.
+6. **논리 발송의 신원은 메시지다**(rev.2.5). 한 메시지에 대해 (a) **`SUCCESS` 시도는 최대 1건**, (b) **결과가 `NULL` 이거나 `UNKNOWN` 인 시도는 최대 1건** — 그래서 앞 시도가 확정 실패로 끝나야만 새 시도(`attempt_no + 1`)를 만들 수 있다. **`UNKNOWN` 뒤 곧바로 재전송하지 않는다**: `lookup_sent` → 발송 없음 확인(`RETRYABLE_FAILURE`) → 새 시도 순서다. `SUCCESS` 나 `PERMANENT_FAILURE` 시도가 있는 메시지에는 새 시도를 만들지 않는다.
+7. `idempotency_key` 는 **시도마다 다르다**(재료 = 메시지 + 시도 번호). 채널이 멱등 키를 받으면 그 값을 넘기고, 받지 않으면(Gmail) 중복 방지는 규칙 6 과 조회가 한다(`docs/18` H.2 "멱등키만으로는 안 된다").
 5. 기술 오류의 상세(어느 구성요소·어떤 예외·재시도 가능 여부·추적 id)는 여기가 아니라 **`system_error`** 에 남는다(16.2a). 이 표는 "이 시도가 어떻게 끝났나"만 답한다.
 
 ### 15.8 `message_status_transition` — 메시지 상태 전이
@@ -2194,7 +2210,7 @@ rev.2.1 은 이 표를 `APPEND_ONLY` 라고 적었다. 그런데 중복 발송�
 | **반송(bounce)** — 보냈는데 되돌아옴 | `DELIVERY_FAILED` | 이미 `SUCCESS` 로 끝난 시도는 **고치지 않는다**(15.7.3). 반송은 그 **뒤에 온 사실** | — | 아니다. 상대 메일함의 업무 사실이다 |
 | **영구 실패** — 주소 없음·수신 거부 | `DELIVERY_FAILED` | `PERMANENT_FAILURE` + `error_code` | — | 채널 오류면 함께 기록 |
 | **재시도 가능 실패** — 시간 초과·429 | 바뀌지 않는다 (`QUEUED` 유지) | `RETRYABLE_FAILURE` | — | 기록(`GMAIL_TIMEOUT` 등) |
-| **보냈는지 모름** | 바뀌지 않는다 | **`UNKNOWN`** — `NULL`(결과 미기록)과 다르다 | — | 기록 가능 |
+| **보냈는지 모름** | 바뀌지 않는다 | **`UNKNOWN`** — `NULL`(결과 미기록)과 다르다. 화해가 `SUCCESS` 또는 `RETRYABLE_FAILURE` 로 한 번 바꾼다(15.7.3 규칙 2, rev.2.5) | — | 기록 가능 |
 | **승인 취소·무효화** | `PENDING_APPROVAL` 로 돌아가지 않는다. **새 메시지가 필요하면 새 메시지다** | — | `REVOKED` · `INVALIDATED` **새 행**(15.5.1) | 아니다 |
 | **숫자 검사 실패** — 초안의 구조화 값이 계획과 다름 | 발송으로 가지 않는다 | **시도 자체가 생기지 않는다** | 유효한 승인이 없으므로 I-9 가 막는다 | **아니다. 정책 거부다**(`docs/23:232`) |
 
@@ -2426,7 +2442,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | `question_item` | (`thread_id`, `ask_id`) | 회신 매핑의 모호함 |
 | `comm_thread` | (`channel_type`, `external_thread_id`) | 스레드 중복 |
 | `comm_message` | (`channel_type`, `external_message_id`) | **중복 수신 처리** |
-| `send_attempt` | `idempotency_key` · (`message_id`, `attempt_no`) | **중복 발송** |
+| `send_attempt` | `idempotency_key`(시도마다 다름) · (`message_id`, `attempt_no`) · **메시지당 `SUCCESS` 1건** · **메시지당 미확정(`NULL`·`UNKNOWN`) 1건** (rev.2.5 — 뒤의 둘은 조건부 유일) | **중복 발송** — 논리 발송의 신원은 메시지다(15.7.3 규칙 6) |
 | `facility_*` 상세 | `facility_id` | 1:1 위반 |
 | `canonical_fact` | PK 에 **적용 범위 2컬럼 포함** | 범위가 다른 사실이 서로를 덮어쓰는 것(11.4.1) |
 
@@ -2495,7 +2511,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | **I-12** | 과거 `planning_snapshot` 하나로 **사실 + 계획 조건 + 마스터 기본값 + 요율·정책 판 + 당시 상태 6차원**을 모두 복원할 수 있어야 한다. 특히 **"그때 왜 승인 가능했나(없었나)"** 를 `decision_usability` 사본으로 설명할 수 있어야 한다 (rev.2.3 확장, 13.2.1) |
 | **I-13** | `event` 에 근거 강도(Evidence Strength) 컬럼이 없다. 정책 판이 바뀌어도 같은 사건 집합으로 재계산된다 |
 | **I-14** | `operator_planning_constraint` 와 `message_approval` 에 UPDATE 경로가 없다. 해제·무효화는 새 행이다 |
-| **I-18** | `send_attempt` · `extraction` 의 **불변 부분**은 UPDATE 되지 않고, 결과·검토 컬럼은 **한 방향으로 한 번만** 채워진다(15.7.3 · 15.9.1) — rev.2.2 |
+| **I-18** | `send_attempt` · `extraction` 의 **불변 부분**은 UPDATE 되지 않고, 결과·검토 컬럼은 **한 방향으로 한 번만** 채워진다(15.7.3 · 15.9.1) — rev.2.2. **예외 하나: `send_attempt.result = UNKNOWN` 은 화해가 `SUCCESS` · `RETRYABLE_FAILURE` 로 한 번 더 바꾼다**(rev.2.5). `comm_message.sent_at` · `comm_thread.external_thread_id` 는 `NULL` → 값 한 번(rev.2.5) |
 | **I-19** | `system_error` 는 **현재 사실·계산 결과·승인·발송 판정의 입력이 아니다.** 오류 기록이 `event`·`canonical_fact`·Activity Timeline 으로 흘러가지 않는다(16.2a) — rev.2.2 |
 | **I-20** | `system_error` 에 **비밀값·토큰·원문 본문·전체 스택 트레이스를 넣지 않는다.** 필요하면 `raw_log_ref` 참조만 둔다(`docs/23` 4.4) — rev.2.2 |
 | **I-21** | **`event_class` 별 필수 조합**이 지켜진다(11.2 규칙 5). `VERIFICATION` 은 사실 키·값을 갖지 않고 `TARGET` 1건 이상을 갖는다 — rev.2.3 |
@@ -3316,7 +3332,7 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | --- | --- | --- | --- |
 | a | 파기 가능 확인(29.7) | 사건 생성 완료 · 추출 `ACCEPTED` · 열린 확인 요청 없음 → **가능** | 변화 없음 |
 | b | 원문 제거 | `payload_ref` 가 가리키던 원문(첨부·HTML 포함)을 제거하고 **없어졌는지 확인** | **`raw_input` 행 그대로** — `payload_ref` · `payload_hash` · `attachment_manifest` · `source_record_key` · 시각 전부 남는다 |
-| c | 감사 (제거 확인 뒤) | `audit_log`(`CONTENT_PURGED` · `RAW_INPUT_PAYLOAD` · `raw_input_id` · 보관 정책 판 · `SUCCESS`) → 이제 **정상 파기** | **새 감사 행**. 제거에 실패했으면 `FAILED` + `system_error` |
+| c | 감사 (제거 확인 뒤) | `audit_log`(`CONTENT_PURGED` · `RAW_INPUT_PAYLOAD` · `raw_input_id` · 보관 정책 판 · `SUCCESS`) → 이제 **정상 파기** | **새 감사 행**. 제거에 실패했으면 `FAILURE` + `system_error` |
 | d | (나중) 본문·인용 파기 | `message_content_ref` · `source_quote_ref` 가 가리키던 내용 → 파기됨. 각각 감사 행 | **`comm_message` · `extraction` 행 그대로** — 지문·외부 id·인용 위치·후보 값 남는다 |
 
 **파기 뒤 확인**
@@ -3487,11 +3503,11 @@ Event → Risk → RecoveryRun → Communication → Reply → Re-run
 | `actor_id` | 실행 주체 — 보통 `SYSTEM`, 사람이 요청했으면 그 사람 |
 | `occurred_at` | 언제 |
 | `request_context` | **어느 보관 정책 판**에 의해 (`retention_policy_version`) |
-| `result` | `SUCCESS` · `FAILED` |
+| `result` | `SUCCESS` · `FAILURE` (rev.2.5 표기 정정 — 작업표 값) |
 | `before_ref` · `after_ref` | **참조만.** 내용은 절대 넣지 않는다 |
 
 - **파기된 내용을 감사 기록에 복사하지 않는다.** 감사에 본문이 있으면 파기가 무의미해진다(NFR-13 · `docs/23` 4.4).
-- 파기 작업이 기술적으로 실패하면 `audit_log`(`result = FAILED`)와 함께 `system_error` 에도 남는다(`docs/23` 4.1 — 세 기록을 섞지 않되, 같은 실패가 두 곳에 남을 수 있다).
+- 파기 작업이 기술적으로 실패하면 `audit_log`(`result = FAILURE`)와 함께 `system_error` 에도 남는다(`docs/23` 4.1 — 세 기록을 섞지 않되, 같은 실패가 두 곳에 남을 수 있다).
 - **"이 내용은 파기됐나"는 저장하지 않고 조회로 만든다** — `audit_log` 의 `CONTENT_PURGED` · `SUCCESS` 행(21절).
 - **`result = SUCCESS` 는 내용이 실제로 제거된 것을 확인한 뒤에만 남긴다.** 감사 기록이 삭제보다 앞서면 "감사는 성공, 내용은 그대로"인 상태가 생긴다.
 

@@ -631,7 +631,7 @@ Mock 전용(시험·시연): `SimulateInbound(script_step)` — Mock 채널에 �
 | 초안 생성 | (실행, gap, 주소)의 열린 초안 | 기존 초안 |
 | **승인** | (메시지, 지문) | 승인 1건(FR-APV-10) |
 | 무효화 | `invalidates_approval_id` 부분 유일 | 무효화 1건(I-17) |
-| **발송** | `send_attempt.idempotency_key` UNIQUE(채널 + 메시지 + 지문 + 승인) **+ 재시도 전 `lookup_sent`** | 두 번 나가지 않는다. **멱등 키만으로는 부족하다** — 채널에 멱등 개념이 없으므로 조회가 핵심(`18` H.2) |
+| **발송** | 논리 발송 = 메시지. **메시지당 `SUCCESS` 1건 · 미확정(`NULL`·`UNKNOWN`) 1건 + 재시도 전 `lookup_sent`**. `send_attempt.idempotency_key` 는 시도마다 다르다(메시지 + 시도 번호) — **2026-09-22 사후 주석(T-080 · `docs/22` rev.2.5)**. 옛 표기 "UNIQUE(채널 + 메시지 + 지문 + 승인)"는 재시도 새 행과 함께 설 수 없어 고쳤다 | 두 번 나가지 않는다. **멱등 키만으로는 부족하다** — 채널에 멱등 개념이 없으므로 조회가 핵심(`18` H.2) |
 | 수신 | `comm_message`(채널, 외부 id) UNIQUE · `raw_input`(출처, 전달 키) UNIQUE | 한 번만 처리 |
 | 사건 | `event.idempotency_key` UNIQUE(원천 · 주체 · 사실 키 · **범위** · 부류 · **주장 위치**) | 사건 수 불변(NFR-23) |
 | 사람 확인 | 확인 사건의 멱등 키(대상 사건 집합) | 확인 1건 |

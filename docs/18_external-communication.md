@@ -333,7 +333,7 @@ stateDiagram-v2
   REPLIED --> CLOSED
 ```
 
-**발송 시도 (메시지마다 0개 이상)**: 시도 행을 외부 호출 **전에** 만든다(`result` 비어 있음) → 호출 → 결과를 **한 번** 기록(`SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` · `UNKNOWN`). 재시도는 같은 메시지 아래 **새 시도**다(`22` 15.7.3).
+**발송 시도 (메시지마다 0개 이상)**: 시도 행을 외부 호출 **전에** 만든다(`result` 비어 있음) → 호출 → 결과를 **한 번** 기록(`SUCCESS` · `RETRYABLE_FAILURE` · `PERMANENT_FAILURE` · `UNKNOWN`). 재시도는 같은 메시지 아래 **새 시도**다(`22` 15.7.3). `UNKNOWN` 은 확정이 아니다 — 화해만 `SUCCESS` · `RETRYABLE_FAILURE` 로 한 번 더 바꾸고, 그 전에는 새 시도를 만들지 않는다(`22` rev.2.5).
 
 불변식:
 
@@ -572,14 +572,15 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 ```text
 1. 승인: message_approval(APPROVED) 에 승인 내용 지문 고정
 2. Outbox가 집음: 메시지 상태 QUEUED (message_status_transition)
-3. 전송 직전: send_attempt 행 생성·커밋 — attempt_no, idempotency_key(채널 + 메시지 + 내용 지문 + 승인),
+3. 전송 직전: send_attempt 행 생성·커밋 — attempt_no, idempotency_key(메시지 + 시도 번호 — 시도마다 다르다, `22` rev.2.5),
    sent_content_hash(= 유효한 승인의 지문), started_at, result = 비어 있음
 4. 어댑터 호출 (헤더에 X-CERA-Message: <message_id> 포함)
 5. 성공: 그 시도에 result = SUCCESS · provider_message_id 를 한 번 기록, 메시지 상태 SENT
 6. 실패·무응답: 그 시도의 result 가 비어 있거나(중단) RETRYABLE_FAILURE / UNKNOWN
 7. 재기동/재시도: 결과가 비었거나 UNKNOWN 인 시도를 보면 **재전송하지 않고 먼저 조회**한다
    → 채널에서 X-CERA-Message=<message_id>인 발신 메시지를 검색
-   → 있으면 그 시도를 SUCCESS 로 화해(결과 한 번 기록). 없으면 그때만 **새 시도**(attempt_no + 1)로 재전송
+   → 있으면 그 시도를 SUCCESS 로 화해. 없으면 그 시도를 RETRYABLE_FAILURE(보내지 않았음 확인)로 화해하고, 그때만 **새 시도**(attempt_no + 1)로 재전송
+   → UNKNOWN 은 확정 결과가 아니다 — 화해만 한 번 더 바꾼다. 한 메시지에 성공 시도 최대 1 · 미확정 시도 최대 1(`22` 15.7.3 규칙 2·6, rev.2.5)
 ```
 
 (2026-09-18 T-070 — 옛 판은 메시지 상태 `SENDING` 과 `hash(message_id, approved_content_hash)` 로 설명했다. 논리 설계는 이것을 발송 시도 행으로 옮겼다, `22` 15.7.)

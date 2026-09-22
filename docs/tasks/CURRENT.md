@@ -10,20 +10,21 @@
 
 ## Status
 
-**IDLE** — **T-084 DONE (2026-09-22, 사용자 결정 Q-68): DB = PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 검토 SQL migration, SQLite 미사용(ADR-034 Accepted, ADR-004 Superseded).** 진행 중인 Task 는 없다. **다음은 T-080(P0 29개 물리 설계)** — 의존이 모두 풀려 실행 가능하지만 아직 시작하지 않았다. 그 뒤 T-085~T-096(U0~U11 구현).
+**IDLE** — **T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)**: Slice 1 P0 29표 물리 설계 `docs/24` · 논리 모델 `docs/22` rev.2.5(T-097 · Q-69 CLOSED). 진행 중인 Task 는 없다. **다음은 T-085(U0 — Backend 뼈대)** 이고 실행 가능하다. 아직 시작하지 않았다.
 
-T-084 경과는 `LOG.md` 맨 위 항목, T-083 은 그 아래 항목에 있다. 선택지 비교 기록은 `docs/tasks/plans/T-084-db-decision-options.md`.
+T-080 경과는 `LOG.md` 맨 위 항목. 물리 설계 정본은 `docs/24_cera-physical-data-model.md`.
 
 ## 지금 확정된 상태
 
 | 항목 | 상태 |
 | --- | --- |
 | 개념 데이터 모델 `docs/21` | **승인·동결** (T-076). T-081 에서도 변경 0건 |
-| 논리 DB 설계 `docs/22` + 작업표 | **rev.2.4** (T-081 DONE 위에 Q-44·Q-45 반영). **MVP 52 · Next 1 · MVP 에서 만들지 않음 2 = 55**(변화 없음) · 작업표 블록 53 · **컬럼 587** · 흐름 검증 **64개 PASS** |
+| 논리 DB 설계 `docs/22` + 작업표 | **rev.2.5** (T-080 검토로 발송 시도·한 번 채움·INBOUND 정리. 그 전 rev.2.4 = Q-44·Q-45). **MVP 52 · Next 1 · MVP 에서 만들지 않음 2 = 55**(변화 없음) · 작업표 블록 53 · **컬럼 587** · 흐름 검증 **64개 PASS** |
 | Event·State 정합성 | `docs/05` 4.2 ↔ `docs/22` 대응 **누락 0건**(`docs/22` 23.1). ADR-020 상태 차원 복구. `docs/05` 머리의 "결정 대기" 해소 |
 | 출처 어휘 | **`source_type` 7값 · `source_role` · `extraction_method` 3축**(사용자 결정 C). **Q-46 은 OPEN** |
 | 런타임·오류 처리·관측성 `docs/23` | 정본. ADR-030 **Proposed** · ADR-031 은 Desktop·Web First 부분만 Proposed(결정 1·2·8 은 ADR-033 이 대체) |
 | Backend 언어 | **결정 — Main Backend = TypeScript + NestJS**(모듈형 모놀리스, API + Worker) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON). **ADR-033 Accepted**, ADR-002 Superseded, Q-64 CLOSED |
+| 물리 설계 `docs/24` | **승인 (T-080 DONE 2026-09-22)**. 논리 기준 `docs/22` rev.2.5 · P0 29표 · 349컬럼 |
 | DB · ORM · 마이그레이션 | **결정 — PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 검토 SQL migration**, SQLite 미사용. **ADR-034 Accepted**, ADR-004 Superseded, Q-68 CLOSED (2026-09-22). 비교 기록 `plans/T-084-db-decision-options.md` |
 
 ## Baseline
@@ -31,22 +32,23 @@ T-084 경과는 `LOG.md` 맨 위 항목, T-083 은 그 아래 항목에 있다. 
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-084 커밋 (`git log -1` 이 정본). 그 전: `12a849a` (T-083) |
+| 최신 커밋 | T-080 커밋 (`git log -1` 이 정본). 그 전: `4db8608` (T-084) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | `front/web/` 12개 파일(Antigravity 디자인 작업) · untracked `data/Proposal/` · `scripts/` — **이 흐름의 작업이 아니다. 수정·스테이징·커밋하지 않는다** |
 | last updated | 2026-09-22 |
-| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-084 결정 반영 |
+| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-080 물리 설계 |
 
 ## 다음 한 걸음
 
 1. ~~T-083 — Q-64~~ **DONE (NestJS + TypeScript, ADR-033)**
 2. ~~T-084 — Q-68~~ **DONE (PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, ADR-034)**
-3. **T-080 — P0 29개 물리 설계** ← **다음**(실행 가능, 아직 시작 안 함). 입력: ADR-034 결과 절의 "정하지 않는 것" · `plans/T-084-db-decision-options.md` 7절 · T-069 계획 5.1 · 17절
-4. **T-085 ~ T-096 — U0 ~ U11 구현**(T-080 DONE 뒤에만). Q-65(솔버)는 어느 단계도 막지 않는다
+3. ~~T-080 — P0 29개 물리 설계~~ **DONE (`docs/24`, `docs/22` rev.2.5)**
+4. **T-085 ~ T-096 — U0 ~ U11 구현** ← **다음: T-085(U0)**. U0 가 먼저 할 일은 `docs/24` 28절(로컬 PostgreSQL · 역할 2개 · 18절 `[TO VERIFY]` 확인 시험 · 시간·금액·ID·해시 유틸 · 트랜잭션 헬퍼). Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 
 - **Main Backend(NestJS)가 모든 권한을 갖고, Python AI Server 는 권한이 없다**(ADR-033). AI Server 는 DB·발송·사건·사실·승인을 하지 않고, 가진 외부 클라이언트는 LLM 공급자뿐이며, 출력은 후보다. `back/` 와 `ai/` 는 코드를 공유하지 않고 HTTP 계약으로만 만난다
+- **`docs/22` rev.2.5 는 사용자 검토 결과(Q-69)로 고친 최소 변경이다** — 새 표·새 컬럼 0, `docs/21` 0. 22절 표·작업표는 scratchpad 생성기로 만들었고(저장소에 없음) 23절 대응 검사는 `docs/22` 작업표를 다시 읽어 349/349 를 확인했다
 - **DB 는 PostgreSQL 하나다(ADR-034).** SQLite 로 개발하지 않는다. Drizzle 을 쓰지만 Full ORM 이 아니다 — Outbox · 멱등 · 부분 유일 · 잠금 · append-only · 핵심 트랜잭션은 PostgreSQL 의미를 드러내 쓰고, DB 가 지킬 수 있는 불변식을 앱 코드로만 흉내 내지 않는다. migration 은 drizzle-kit 생성 SQL 을 사람이 검토·커밋한 뒤에만 적용한다
 - **부분 유일은 PostgreSQL 의 UNIQUE 제약 자체가 아니라 partial unique index 등으로 구현한다** — 실제 index SQL 은 T-080
 - **T-084 비교 문서 4절(BIGINT = number, advisory lock + SKIP LOCKED 등)은 확정이 아니다.** T-080 에서 비교해 정한다
