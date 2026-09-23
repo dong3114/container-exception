@@ -1,6 +1,6 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-09-22 (**T-080 DONE — Slice 1 P0 29표 물리 설계 `docs/24` + 논리 모델 `docs/22` rev.2.5, 사용자 + ChatGPT 최종 승인. T-097 DONE · Q-69 CLOSED. 다음: U0(T-085) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE READY**)
+- 최종 수정: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
@@ -22,17 +22,18 @@
 5. ~~**T-084**~~ (DONE 2026-09-22, 사용자 결정·최종 승인) — **Q-68 CLOSED: PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용**(ADR-034 Accepted, SQLite 미사용). 상세는 완료 섹션
 6. ~~**T-080**~~ (DONE 2026-09-22, 최종 승인) — P0 29개 물리 설계 `docs/24` · `docs/22` rev.2.5. 상세는 완료 섹션
 6-a. ~~**T-097**~~ (DONE 2026-09-22 — 사용자 검토 결과) — **Q-69: 물리 설계가 찾은 논리 모델 충돌 5건 결정**(`docs/24` 25·26절 — F-1 발송 멱등 키 범위 · F-2 `UNKNOWN` 화해 · F-3 `sent_at` · F-4 `external_thread_id` · F-5 INBOUND `drafted_by`) + D-1~D-5 검토. → `docs/22` rev.2.5 로 반영
-7. **T-085 ~ T-096** (U0 ~ U11) — Slice 1 구현 단위. ← **다음: T-085(U0) — 실행 가능**(T-080 DONE). 한 단위씩: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 → commit
+7. ~~**T-085**~~ (DONE 2026-09-23, 최종 검토·커밋) — **U0 Backend 뼈대.** `back/`(NestJS 12 · API/Worker · Drizzle · 공통 유틸 · `/health`) · `infra/local/`(PostgreSQL 18.6 · 역할 2개) · `docs/24` 18.1 `[TO VERIFY]` 결과. 상세는 완료 섹션
+8. **T-086 ~ T-096** (U1 ~ U11) — Slice 1 구현 단위. ← **다음: T-086(U1) — 실행 가능**(T-085 DONE). 한 단위씩: 구현 → Claude/Codex 검토 → 사용자 승인 → commit
 
 **병행 (사람 몫, 위 순서를 막지 않는다)**: **T-064** (NEEDS_HUMAN, P0) Control Tower Prototype 검토 · **T-001** (NEEDS_HUMAN, P0) 기획 v0.2 + T-032 결과 검토. **에이전트 병행 후보**: **T-034** 메일 Event 스키마 + LLM 추출 계약 (T-069 입력과 겹치므로 T-069 계획 안에 흡수할지 T-069 에서 판단)
 
-**앞으로의 순서 (2026-09-22 갱신, 이 목록과 위 번호가 같은 순서다)**: ~~`T-079`~~ → ~~`T-070`~~ → ~~`T-081`~~ → ~~`T-069 구현 계획`~~ → ~~`T-083 Q-64 Backend 결정`~~(NestJS) → ~~`T-084 Q-68 DB 결정`~~(PostgreSQL + Drizzle) → **`T-080 P0 29개 물리 설계`(다음)** → `T-085 U0 뼈대` → … → `T-096 U11 인수` (각 단위: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 · commit). **Q-65(솔버)는 이 줄의 어느 단계도 막지 않는다**
+**앞으로의 순서 (2026-09-23 갱신, 이 목록과 위 번호가 같은 순서다)**: ~~`T-079`~~ → ~~`T-070`~~ → ~~`T-081`~~ → ~~`T-069 구현 계획`~~ → ~~`T-083 Q-64 Backend 결정`~~(NestJS) → ~~`T-084 Q-68 DB 결정`~~(PostgreSQL + Drizzle) → ~~`T-080 P0 29개 물리 설계`~~ → ~~`T-085 U0 뼈대`~~ → **`T-086 U1 스키마·migration·시드`(다음)** → … → `T-096 U11 인수` (각 단위: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 · commit). **Q-65(솔버)는 이 줄의 어느 단계도 막지 않는다**
 
 > **프론트엔드는 별도 트랙이다(2026-09-17 사용자 지시).** Antigravity가 Control Tower Prototype의 디자인을 손보고 있다. Orchestrator·다른 에이전트는 `front/`를 건드리지 않는다.
 
-실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082, **T-085** (8개). **주 흐름의 다음은 T-085(U0 Backend 뼈대)** 이다(T-080 DONE)(T-083 Q-64 DONE — NestJS · T-084 Q-68 DONE — PostgreSQL + Drizzle). **T-085~T-096(U0~U11)은 T-080 DONE 뒤에만 풀린다 — 지금은 실행 가능하지 않다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
+실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082, **T-086** (8개). **주 흐름의 다음은 T-086(U1 — P0 29표 스키마·migration·시드)** 이다(T-085 DONE). **T-087~T-096(U2~U11)은 앞 단위가 DONE 될 때마다 하나씩 풀린다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
 
-> **다음은 T-085(U0 — Backend 뼈대 · 로컬 PostgreSQL · 역할 2개 · `docs/24` 18절 `[TO VERIFY]` 확인 시험)이다.** 기술·물리 설계는 끝났다 — NestJS(ADR-033) · PostgreSQL + Drizzle(ADR-034) · 물리 설계 `docs/24`(T-080). 그다음 U1(T-086 — P0 29표 migration · 시드 · ContentStore) → … → U11.
+> **다음은 T-086(U1 — P0 29표 Drizzle 스키마 · migration M01~M10 · 시드 · 감사/오류 기록기 · 내용 저장소 포트)이다.** 뼈대는 끝났다 — `back/`(T-085) · NestJS(ADR-033) · PostgreSQL + Drizzle(ADR-034) · 물리 설계 `docs/24`(T-080). migration 은 `npm run db:generate` → **생성 SQL 을 사람이 검토** → 커밋 → `npm run db:migrate`(소유 역할) 순서다. `push` 는 쓰지 않는다.
 
 **사람 지시**
 - (2026-09-21) **Q-44 = 선택지 ②**(방향별 — 미래 `Date` 만 거부, 원래 두 시각 보존), **Q-45 = 선택지 ①**(기록과 내용 분리, 행 삭제 ≠ 내용 파기, 기간 숫자는 Pilot 정책). 결정 반영과 Q-45 에 필요한 최소 논리 구조 보완까지만 한다. **T-069 본문 · T-080 · Backend/DB 기술 선택 · 제품 코드 · staging/commit/push 금지.** L-13 은 T-069 에서, ExceptionCase 는 다시 만들지 않는다. T-082 는 시작하지 않는다.
@@ -87,7 +88,7 @@
 
 ## 진행 중
 
-(없음 — 2026-09-22 T-080 DONE. 다음은 **T-085(U0)**)
+(없음 — 2026-09-23 T-085 DONE. 다음은 **T-086(U1)**)
 
 ## 대기 — P0
 
@@ -190,8 +191,8 @@
 
 | ID | 단위 | 목적 | 의존 | 완료 조건(시험) | REAL / MOCK |
 | --- | --- | --- | --- | --- | --- |
-| **T-085** | U0 | Phase 0 — Backend 뼈대(**T-003 흡수**) | **T-080** | 오류 경계 `{code,message,request_id}` · 시계 주입 · 추적 id · 테스트 러너 · OpenAPI 뼈대 (R-01) | 전부 REAL(뼈대). 채널·AI 설정은 mock/replay 기본값 |
-| **T-086** | U1 | Phase 1 — P0 29개 마이그레이션 · 시드 · 감사/오류 기록기 · 내용 저장소 포트 | T-085 | 불변 표 쓰기 경로 없음 · 시드 `is_simulated` · 내용 부재 판정 C-01~03 | 저장·기록기 REAL / 시드 데이터 MOCK |
+| ~~**T-085**~~ | U0 | Phase 0 — Backend 뼈대(**T-003 흡수**) · **DONE (2026-09-23)** — 아래 완료 섹션 | ~~**T-080**~~ | 오류 경계 `{code,message,request_id}` · 시계 주입 · 추적 id · 테스트 러너 (OpenAPI 뼈대는 U1 로) | 전부 REAL(뼈대). 채널·AI 설정은 mock/replay 기본값 |
+| **T-086** | U1 | Phase 1 — P0 29개 마이그레이션 · 시드 · 감사/오류 기록기 · 내용 저장소 포트 · **OpenAPI 뼈대(T-085 에서 이월)** | ~~T-085~~ | 불변 표 쓰기 경로 없음 · 시드 `is_simulated` · 내용 부재 판정 C-01~03 | 저장·기록기 REAL / 시드 데이터 MOCK |
 | **T-087** | U2 | Phase 2 — 등록부 · Contact Gate · 개발 안전장치 | T-086 | 게이트 실패 4종 + 안전장치 G-01~05 | 판정 REAL / 등록부 상태 시드(MOCK) |
 | **T-088** | U3 | Phase 3 — 초안 · 구조화 값 · 숫자 검사 | T-087 | 숫자 검사 실패는 승인 화면에 못 오름 · AI 없이 초안 | 숫자 검사·주입 REAL / 부족분 fixture·문장 템플릿 MOCK |
 | **T-089** | U4 | Phase 4 — 발송 승인 · 무효화(내용 변경 · 계획 교체 · 취소 · 만료) | T-088 | A-02~06 | 전부 REAL |
@@ -485,6 +486,18 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-085 — U0 Backend 뼈대 · **DONE (2026-09-23, 최종 검토 뒤 커밋)**
+
+- 담당: Claude Code (claude-opus-5) / 구현 2026-09-22 · 독립 최종 검토 2026-09-23 · 기준 커밋 `8f9d2bf`
+- 산출물: **`back/`** (NestJS 12.0.4 · ESM · TypeScript 5.9.3 — API `src/main.ts` · Worker `src/worker.ts` · `config/`(zod) · `db/`(Pool · Drizzle · `TransactionRunner` · `migrate.ts` · 빈 `schema/`) · `shared/`(Instant · Clock · UUIDv7 · Krw · SHA-256/JCS · 문맥 · 오류) · `http/` · `health/` · `test/`) · **`infra/local/`**(PostgreSQL **18.6 고정** · `127.0.0.1` 만 · 역할 `cera_owner`/`cera_app` · DB `cera`/`cera_test`) · `docs/24` 18.1 · `back/README` · `infra/README` · `AGENTS.md` 6절
+- 검증(2026-09-23 재실행): `typecheck` · `build` · 시험 **61 통과**(unit 37 · db 24, 실제 PostgreSQL 18.6) **2회 연속 동일**(반복 실행 가능) · 빌드본으로 API(`/health` 200 `db:up` · `/health/live` · 404 공통 오류 바디 · SIGTERM 종료) · Worker(`--once` 종료 0 · idle 뒤 SIGTERM 종료) · `db:migrate`("적용할 것 없음")
+- 역할 경계 **직접 확인**: `pg_stat_activity` 에서 실행 프로세스(`cera-api`)가 `cera_app` 으로 접속 · `cera_app` 은 superuser/createdb/createrole/bypassrls 전부 없음 · `cera_owner` 의 멤버 아님 · `public`·DB `CREATE` 권한 없음 · 시험에서 DDL·`TRUNCATE`·`DISABLE TRIGGER` 42501 거부
+- 최종 검토에서 고친 것 2건: **① `compose.yaml` 이미지 `postgres:18`(떠다니는 태그) → `postgres:18.6` 고정**(digest 동일 확인, 볼륨 보존) · **② `processes.test.ts` 가 API 자식 프로세스를 종료까지 기다리지 않던 것**(종료 대기 + 종료 확인 추가)
+- **완료 조건 중 미이행 1건 — `OpenAPI 뼈대 (R-01)` 는 U1(T-086)로 옮겼다.** U0 에는 업무 endpoint 가 `/health` 뿐이라 계약 문서를 만들 대상이 없다. `packages/`(공유 계약)는 그대로 비어 있다
+- 남긴 것(U1 몫): 제품 스키마 · migration `back/drizzle/` · 시드 · `system_error` 기록 · ContentStore · Outbox · 채널 · AI Server
+- 알려진 위험(판 유지): drizzle-kit → 옛 esbuild 개발 서버 advisory **moderate 4건은 dev 전용**(`npm audit --omit=dev` = 0건). 강제 수정은 drizzle-kit 0.18 로 내려가므로 하지 않는다
+- 다음: **T-086(U1)**
 
 ### T-080 — 물리 DB 설계 (Slice 1 P0 29표) · **DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)**
 

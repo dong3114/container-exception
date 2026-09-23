@@ -1,0 +1,3 @@
+# back/ 로컬 산출물 (루트 .gitignore 에 더해)
+.spike/
+coverage/

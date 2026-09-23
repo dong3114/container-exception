@@ -1,6 +1,17 @@
 # back/ — CERA Backend 영역
 
-**현재 구현 전.** 코드, 프로젝트 설정, DB 스키마는 아직 없다. 아래는 **설계상 책임**이다.
+**U0(T-085) 뼈대가 있다** — NestJS API · Worker 진입점, PostgreSQL(Drizzle) 연결, 설정 검증, Clock · UUIDv7 · KRW(bigint) · SHA-256/JCS · 트랜잭션 경계 · 요청/추적/업무 상관 id · 공통 오류 · health. **제품 스키마(P0 29표)와 업무 기능은 아직 없다**(U1 이후). 명령은 `AGENTS.md` 6절.
+
+| 경로 | 무엇 |
+| --- | --- |
+| `src/main.ts` · `src/worker.ts` | API 프로세스 · Worker 프로세스 진입점(같은 코드베이스 — ADR-033) |
+| `src/config/` | 환경변수 검증(zod) |
+| `src/db/` | Pool · Drizzle · `TransactionRunner`(외부 I/O 는 트랜잭션 밖 — `assertOutsideTransaction`) · `migrate.ts` · `schema/`(U1) |
+| `src/shared/` | `time/`(Instant · Clock) · `id/`(UUIDv7) · `money/`(Krw) · `hash/`(SHA-256 · JCS) · `context/`(request/trace/correlation id) · `errors/` |
+| `src/http/` · `src/health/` | 요청 문맥 미들웨어 · 공통 오류 응답 · `/health` |
+| `test/unit/` · `test/db/` | 단위 시험 · 로컬 PostgreSQL 시험(일회용 스키마 `cera_spike_*`) |
+
+아래는 **설계상 책임**이다.
 
 앞으로 이 영역이 맡을 일 (설계: `docs/07_backend-architecture.md`, `docs/05_event-and-state.md`, 저장 구조: `docs/22_cera-logical-data-model.md`):
 

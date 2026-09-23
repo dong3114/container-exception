@@ -10,9 +10,13 @@
 
 ## Status
 
-**IDLE** — **T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)**: Slice 1 P0 29표 물리 설계 `docs/24` · 논리 모델 `docs/22` rev.2.5(T-097 · Q-69 CLOSED). 진행 중인 Task 는 없다. **다음은 T-085(U0 — Backend 뼈대)** 이고 실행 가능하다. 아직 시작하지 않았다.
+**IDLE** — **T-085 (U0 Backend Foundation) DONE** (2026-09-23 최종 검토·커밋, Claude Code). 진행 중인 Task 는 없다. **다음은 T-086(U1)** 이고 실행 가능하다. 아직 시작하지 않았다.
 
-T-080 경과는 `LOG.md` 맨 위 항목. 물리 설계 정본은 `docs/24_cera-physical-data-model.md`.
+T-085 경과는 `LOG.md` 맨 위 항목. Backend 뼈대 정본은 `back/`(구조는 `back/README.md`), 로컬 DB 는 `infra/local/`, 명령은 `AGENTS.md` 6절.
+
+- **다음 세션 시작 순서**: ① Docker Desktop 켜기(꺼져 있으면 DB 시험 불가) ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(61 통과 확인) ④ T-086(U1) 착수
+- 로컬 비밀번호는 `infra/local/.env` · `back/.env`(둘 다 gitignore, 이 PC 에만 있음). 지우면 `.env.example` 로 다시 만들고 DB 볼륨도 `down -v` 로 초기화해야 한다
+- **U0 가 남긴 것**: 제품 스키마 `back/src/db/schema/index.ts` 는 비어 있다 · 제품 migration `back/drizzle/` 은 아직 없다(U1 첫 migration 과 함께 생긴다) · `system_error` 기록은 U1 에 `ApiErrorFilter` 로 붙인다 · drizzle-kit 개발 의존성 moderate 4건은 **dev 전용**(`npm audit --omit=dev` = 0건)이라 판 유지
 
 ## 지금 확정된 상태
 
@@ -32,18 +36,19 @@ T-080 경과는 `LOG.md` 맨 위 항목. 물리 설계 정본은 `docs/24_cera-p
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-080 커밋 (`git log -1` 이 정본). 그 전: `4db8608` (T-084) |
+| 최신 커밋 | T-085 커밋 (`git log -1` 이 정본). 그 전: `8f9d2bf` (T-080) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | `front/web/` 12개 파일(Antigravity 디자인 작업) · untracked `data/Proposal/` · `scripts/` — **이 흐름의 작업이 아니다. 수정·스테이징·커밋하지 않는다** |
-| last updated | 2026-09-22 |
-| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-080 물리 설계 |
+| last updated | 2026-09-23 |
+| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-085 U0 |
 
 ## 다음 한 걸음
 
 1. ~~T-083 — Q-64~~ **DONE (NestJS + TypeScript, ADR-033)**
 2. ~~T-084 — Q-68~~ **DONE (PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, ADR-034)**
 3. ~~T-080 — P0 29개 물리 설계~~ **DONE (`docs/24`, `docs/22` rev.2.5)**
-4. **T-085 ~ T-096 — U0 ~ U11 구현** ← **다음: T-085(U0)**. U0 가 먼저 할 일은 `docs/24` 28절(로컬 PostgreSQL · 역할 2개 · 18절 `[TO VERIFY]` 확인 시험 · 시간·금액·ID·해시 유틸 · 트랜잭션 헬퍼). Q-65(솔버)는 어느 단계도 막지 않는다
+4. ~~T-085 — U0 Backend 뼈대~~ **DONE (`back/` · `infra/local/`, `docs/24` 18.1)**
+5. **T-086 ~ T-096 — U1 ~ U11 구현** ← **다음: T-086(U1)**. U1 이 할 일은 P0 29표 Drizzle 스키마 · migration M01~M10(생성 SQL 사람 검토 → 커밋 → `db:migrate`) · 시드 · 감사/오류 기록기 · 내용 저장소 포트. Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 

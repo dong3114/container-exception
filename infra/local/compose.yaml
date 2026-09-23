@@ -1,0 +1,34 @@
+# CERA 로컬 개발·시험용 PostgreSQL (T-085 · docs/24 12.2)
+# 실행:  docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d
+# 정지:  docker compose -f infra/local/compose.yaml --env-file infra/local/.env down
+# 초기화(데이터 삭제): down -v
+#
+# 운영과 같은 PostgreSQL 을 쓴다(SQLite 없음 — ADR-034). 클라우드 제품이 아니다.
+# 비밀번호는 infra/local/.env(커밋 금지)에서 읽는다. 예시는 .env.example.
+name: cera-local
+
+services:
+  postgres:
+    # 판을 고정한다(떠다니는 `postgres:18` 금지 — 로컬·CI 가 말없이 다른 판으로 갈라지지 않게).
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CERA_PG_SUPERUSER_PASSWORD:?set CERA_PG_SUPERUSER_PASSWORD in infra/local/.env}
+      POSTGRES_DB: postgres
+      CERA_DB_NAME: ${CERA_DB_NAME:-cera}
+      CERA_TEST_DB_NAME: ${CERA_TEST_DB_NAME:-cera_test}
+      CERA_OWNER_PASSWORD: ${CERA_OWNER_PASSWORD:?set CERA_OWNER_PASSWORD in infra/local/.env}
+      CERA_APP_PASSWORD: ${CERA_APP_PASSWORD:?set CERA_APP_PASSWORD in infra/local/.env}
+    ports:
+      - "127.0.0.1:${CERA_PG_PORT:-55442}:5432"
+    volumes:
+      - cera-pgdata:/var/lib/postgresql
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  cera-pgdata:

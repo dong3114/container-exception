@@ -124,7 +124,7 @@
 | 타입 | **모든 `TIMESTAMP_TZ` = `timestamptz(3)`**(밀리초). 시간대 없는 `timestamp` 는 쓰지 않는다 |
 | 저장 의미 | `timestamptz` 는 **시점(instant)** 을 UTC 로 저장한다. 원래 오프셋은 저장되지 않는다 |
 | DB 세션 | 연결마다 `TimeZone = 'UTC'`. DB 가 돌려주는 문자열 형식이 서버 설정에 따라 달라지지 않게 한다 |
-| Drizzle | `mode: 'string'` — 저장소 계층에서 **곧바로 시간 모듈의 Instant 로 바꾼다.** 도메인·엔진은 JS `Date` 를 쓰지 않는다(ADR-033 결정 8③) `[TO VERIFY: 사용하는 Drizzle·node-postgres 판에서 mode 'string' 이 timestamptz 를 문자열 그대로 돌려주는지 — U0 첫 시험]` |
+| Drizzle | `mode: 'string'` — 저장소 계층에서 **곧바로 시간 모듈의 Instant 로 바꾼다.** 도메인·엔진은 JS `Date` 를 쓰지 않는다(ADR-033 결정 8③) — **U0 확인(18.1)**: `YYYY-MM-DD HH:mm:ss.sss+00` 문자열 |
 | 정밀도 | 밀리초. 앱이 만드는 Instant 도 밀리초로 자른다 → 해시 재료·비교가 왕복 뒤에도 같다 |
 | 현재 시각 | **DB 는 시각을 만들지 않는다.** `DEFAULT now()` 없음, 트리거도 `now()` 를 쓰지 않는다(예: 승인 만료 검사는 `NEW.started_at` 과 비교). 모든 시각은 주입된 시계(`as_of`)에서 온다(`docs/01` 규칙 6) |
 | Asia/Seoul | **표시·직렬화 책임.** API 는 `+09:00` 오프셋이 붙은 ISO 8601 로 내보내고, 들어오는 시각은 **오프셋이 있는 값만** 받는다(없으면 400). 시간대 없는 출처 시각은 어댑터가 Asia/Seoul 로 해석하고 `payload.tz_assumed = true`(`docs/20` A-03) |
@@ -570,14 +570,45 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | N-4 | 역할별 **표 단위 GRANT**(열 단위는 필요할 때만) | 12.2 | Drizzle 이 권한을 다루지 않는다 |
 | N-5 | 스키마 `cera` 생성 · 기본 권한(`ALTER DEFAULT PRIVILEGES`) | M01 앞 | 같다 |
 | N-6 | advisory lock 함수 호출 | 14 · 15 | 스키마가 아니라 쿼리 — Drizzle `sql` 탈출구로 |
-| N-7 | `FOR UPDATE SKIP LOCKED` | 14 | Drizzle 쿼리 빌더가 지원 `[TO VERIFY: 사용하는 판]` — 안 되면 `sql` |
+| N-7 | `FOR UPDATE SKIP LOCKED` | 14 | Drizzle 쿼리 빌더가 지원(**U0 확인 18.1**) |
 | N-8 | `INSERT … ON CONFLICT DO NOTHING RETURNING` | T7 · T9 | Drizzle 지원(`onConflictDoNothing`) — 스키마 밖 쿼리 |
 | N-9 | 재귀 CTE(계보 뿌리) | 13.1 | `sql` 탈출구 |
 | N-10 | CHECK 제약의 `NOT VALID` → `VALIDATE` 교체 | 3절 CLOSED 값 변경 | drizzle-kit 이 두 단계로 만들지 않는다 — 손으로 고친다 |
 
-**Drizzle 로 쓰되 U0 첫 시험에서 확인할 것** `[TO VERIFY]`: `check()` 가 생성 SQL 에 들어가는가 · `uniqueIndex().where()` 부분 유일 · 유일 제약(비 PK)을 가리키는 **복합 `foreignKey()`** · `uuid().array()` · `timestamp({ mode: 'string' })` 의 실제 반환 형식 · `bigint({ mode: 'bigint' })` · `numeric` 문자열 반환 · custom migration 생성 명령과 적용 순서 · rename 감지 때 프롬프트 동작.
+**Drizzle 로 쓰되 U0 첫 시험에서 확인할 것** — **결과는 18.1**: `check()` 가 생성 SQL 에 들어가는가 · `uniqueIndex().where()` 부분 유일 · 유일 제약(비 PK)을 가리키는 **복합 `foreignKey()`** · `uuid().array()` · `timestamp({ mode: 'string' })` 의 실제 반환 형식 · `bigint({ mode: 'bigint' })` · `numeric` 문자열 반환 · custom migration 생성 명령과 적용 순서 · rename 감지 때 프롬프트 동작.
 
 > **Drizzle 편의를 위해 불변식을 약화하지 않는다.** 위 항목이 Drizzle 판에서 안 되면 그 제약을 custom SQL 로 옮기지, 제약을 빼지 않는다.
+
+### 18.1 U0 확인 결과 (T-085 · 2026-09-22)
+
+로컬 PostgreSQL **18.6**(Docker) · drizzle-orm **0.45.3** · drizzle-kit **0.31.11** · node-postgres **8.23.0** 에서 시험으로 확인했다(`back/test/db/drizzle-kit.test.ts` · `drizzle-runtime.test.ts`). 시험은 일회용 스키마(`cera_spike_*`)만 쓰고 지운다 — 제품 스키마·migration 은 만들지 않았다.
+
+| 항목 | 결과 | 내용 |
+| --- | --- | --- |
+| `check()` → 생성 SQL | **VERIFIED** | `CONSTRAINT … CHECK (…)` 가 CREATE TABLE 안에 들어간다. 식 안의 열 이름을 `"스키마"."표"."열"` 로 적지만 PostgreSQL 이 받아들이고 실행 시 거부도 된다 |
+| `uniqueIndex().where()` 부분 유일 | **VERIFIED** | `CREATE UNIQUE INDEX … WHERE …` 생성 · 적용 · 실행 시 23505 거부(U-1 · U-7 모양) |
+| 비 PK 유일 제약을 가리키는 복합 `foreignKey()` | **VERIFIED** | `UNIQUE("id","channel")` + `FOREIGN KEY (…,…) REFERENCES …(…,…) ON DELETE restrict ON UPDATE restrict` · 실행 시 23503 |
+| `uuid().array()` | **VERIFIED** | `uuid[]` 생성 · 읽으면 `string[]` |
+| `timestamp({ withTimezone, precision: 3, mode: 'string' })` | **VERIFIED + NOTE** | `timestamp(3) with time zone`. node-postgres 는 **`2026-09-22 09:04:14.246+00`**(세션 UTC) 문자열을 돌려준다 → `Instant.fromDb()` 로 바꾼다. **밀리초 아래는 PostgreSQL 이 반올림**한다(자르지 않는다) — 앱이 밀리초 Instant 만 쓰므로 영향 없음 |
+| `bigint({ mode: 'bigint' })` | **VERIFIED** | JS `bigint` 로 2^63−1 까지 정확히 왕복 |
+| `numeric` | **VERIFIED** | 열의 scale 대로 문자열(`'12.3400'`) — 부동소수 아님 |
+| `uuid` | **VERIFIED** | 소문자 문자열 |
+| 세션 `TimeZone = UTC` | **VERIFIED** | 풀 연결 옵션 `-c TimeZone=UTC` |
+| `FOR UPDATE SKIP LOCKED`(N-7) | **VERIFIED** | 쿼리 빌더 `.for('update', { skipLocked: true })` — 다른 트랜잭션이 잠근 행을 건너뛴다. `sql` 탈출구가 필요 없다 |
+| `onConflictDoNothing().returning()`(N-8) | **VERIFIED** | 중복이면 빈 배열 |
+| `sql` 템플릿 | **VERIFIED** | 값은 매개변수로 넘어간다(인젝션 문자열이 그대로 저장) |
+| 트랜잭션 | **VERIFIED** | 커밋 · 오류 시 롤백 · 격리 수준 명시(`read committed`) |
+| custom migration 생성·적용 순서 | **VERIFIED + NOTE** | `drizzle-kit generate --custom --name <이름>` 이 빈 SQL 파일을 만들고 journal 순서에 끼운다. 트리거·함수·GRANT 를 손으로 쓰고 `--> statement-breakpoint` 로 나눈다. 생성 SQL 과 함께 migrator 로 순서대로 적용된다 |
+| migration 이력 표(20절) | **VERIFIED** | `migrations: { schema, table }` 설정으로 스키마 `cera_meta` · 표 `drizzle_migrations` 에 둔다(시험은 `cera_spike_meta`) |
+| 소유 역할 ≠ 앱 역할(12.2) | **VERIFIED** | 앱 역할로 `DISABLE TRIGGER` · `CREATE TABLE`(cera · public) · `TRUNCATE` 모두 42501 거부. custom migration 트리거가 앱 역할의 UPDATE/DELETE 를 거부 |
+| `push` 미사용 | **VERIFIED** | `back/package.json` 에 `drizzle-kit push` 스크립트 없음(시험이 검사) |
+| rename 감지 프롬프트 | **IMPLEMENTATION NOTE** | 대화형이라 자동 시험 대상이 아니다. U1 부터 **이름 변경은 생성 SQL 을 사람이 반드시 확인**한다(20절 파괴적 migration 표시) |
+| drizzle-kit 첫 실행 부작용 | **IMPLEMENTATION NOTE** | `generate` · `check` 는 처음 돌 때 **빈 `drizzle/migrations/meta/_journal.json`** 을 만든다. U0 는 제품 migration 이 없으므로 지웠다 — U1 첫 migration 과 함께 커밋한다 |
+| ENUM diff(3절) | **해당 없음** | ENUM 을 쓰지 않는다 |
+| PostgreSQL `uuidv7()`(4절) | **NOTE** | PostgreSQL 18 에 있다 — 그래도 **앱이 생성**한다(4절 결정 그대로, 버전 무관) |
+| `bigint({ mode: 'string' })`(6절 비교표) | **해당 없음** | `mode: 'bigint'` 로 확정했다 |
+| 내용 저장소 운영 정책(16절) | **미확인 — Pilot** | U0 범위 밖 |
+
 
 ---
 
@@ -633,7 +664,7 @@ M06 파생·사람 처리   canonical_fact (event, scenario) · conflict (scenar
 | 되돌리기 | **앞으로만**(down migration 없음). 잘못된 migration 은 **새 수정 migration** 으로 고친다. 운영 전(로컬·시험)은 DB 를 지우고 처음부터 다시 적용할 수 있다 |
 | 파괴적 변경 | `DROP` · `RENAME` · 타입 축소 · NOT NULL 추가 · CHECK 강화는 PR 에 **"파괴적 migration" 표시**와 데이터 영향 설명이 있어야 병합한다. drizzle-kit 의 rename 추정은 사람이 확인한다 |
 | 적용 주체 | `cera_owner` 로 **배포 단계에서 명시적으로**. **앱 기동 시 자동 적용하지 않는다** |
-| 이력 | drizzle-kit 의 migration 이력 표(`__drizzle_migrations` 등 `[TO VERIFY]`)는 스키마 `cera` 밖(별도 스키마)에 둔다 |
+| 이력 | drizzle-kit 의 migration 이력 표(`cera_meta.drizzle_migrations` — U0 확인 18.1)는 스키마 `cera` 밖(별도 스키마)에 둔다 |
 | 확인 | 적용 뒤 **스키마 검사 시험**: 표 29 · 불변 표 트리거 존재 · 앱 역할로 UPDATE/DELETE 거부 · 부분 유일 존재 |
 
 ---

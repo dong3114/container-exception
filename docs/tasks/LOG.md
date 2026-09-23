@@ -21,6 +21,23 @@
 
 ---
 
+## 2026-09-23 · T-085 DONE — U0 Backend Foundation (구현 2026-09-22 · 최종 검토·커밋 2026-09-23) · Claude Code (claude-opus-5)
+- 상태: **완료 — 독립 최종 검토 통과 뒤 커밋.** 기준 HEAD `8f9d2bf`. push 없음. **첫 제품 코드**
+- 한 일
+  - `back/`: NestJS 12.0.4 모듈형 모놀리스 · ESM · TypeScript 5.9.3. API 진입점 `src/main.ts`(HTTP) · Worker 진입점 `src/worker.ts`(HTTP 없음, `--once` 기동 점검). 같은 코드베이스, 별도 프로세스(ADR-033)
+  - `infra/local/`: PostgreSQL 18(Docker Compose, `127.0.0.1:55442` — 55432 는 다른 프로젝트가 사용 중) · 초기화 스크립트가 역할 `cera_owner`(소유) · `cera_app`(앱) · DB `cera` · `cera_test` 를 만든다 · public 스키마 CREATE 회수
+  - Drizzle 0.45.3 + node-postgres 8.23.0(세션 `TimeZone=UTC`) · drizzle-kit 0.31.11(`drizzle.config.ts` — 스키마 `cera`, 이력 `cera_meta.drizzle_migrations`, push 없음, `db:migrate` 는 소유 역할로 명시 적용) · 제품 스키마는 빈 파일(U1)
+  - 공통: zod 설정 검증(값 비노출) · `Instant`/`Clock`(`SystemClock` · `FakeClock`) · UUIDv7(`uuid` 14) · `Krw`(bigint · 10진 문자열 · number 거부) · SHA-256 `sha256:<hex>` + RFC 8785 JCS(`canonicalize`) · `TransactionRunner`(READ COMMITTED 명시 · 중첩 금지) + `assertOutsideTransaction` · request/trace(W3C)/correlation 문맥(AsyncLocalStorage) · 오류 BUSINESS/VALIDATION/SYSTEM + `{code,message,request_id}` · `/health`(DB 포함, 다운 시 503) · `/health/live`
+  - `docs/24` 18.1(`[TO VERIFY]` 결과) · `AGENTS.md` 6절 명령 · `back/README` · `infra/README` · CURRENT · QUEUE
+- 검증(2026-09-23 독립 재실행): `typecheck` · `build` · `npm test` **61 통과**(unit 37 · db 24 — 실제 PostgreSQL 18.6) **2회 연속 동일**(기존 DB 상태에 의존하지 않는다 — spike 스키마는 시험이 만들고 지운다) · 빌드본으로 API 기동(`/health` 200 `db:up` · `/health/live` · 404 공통 오류 바디 · `x-powered-by` 없음 · SIGTERM 종료) · Worker(`--once` 종료 0 · idle 뒤 SIGTERM 종료, 바쁜 루프 없음) · `db:migrate`(적용할 것 없음)
+- 역할 경계 **DB 에서 직접 확인**: 실행 프로세스(`application_name=cera-api`)가 `cera_app` 으로 접속(`pg_stat_activity`) · `cera_app` 은 superuser·createdb·createrole·bypassrls 없음, `cera_owner` 멤버 아님, `public`·DB `CREATE` 권한 없음 · 시험에서 DDL·`TRUNCATE`·`DISABLE TRIGGER` 42501 거부 · 소유 역할 URL 은 migration 명령만 쓴다
+- 최종 검토에서 고친 것 **2건**: ① `infra/local/compose.yaml` 이미지가 떠다니는 `postgres:18` → **`postgres:18.6` 고정**(digest 동일 확인 후 교체, 컨테이너 재생성 · 볼륨/DB 보존) ② `back/test/db/processes.test.ts` 가 API 자식 프로세스를 `kill` 만 하고 종료를 기다리지 않던 것 → **종료 대기 + 종료 확인** 추가(고아 프로세스 방지 · 신호 처리 실제 검증)
+- **완료 조건 중 미이행 1건**: `OpenAPI 뼈대 (R-01)` 는 만들지 않고 **U1(T-086)로 이월**했다 — U0 에는 업무 endpoint 가 `/health` 뿐이라 계약 문서 대상이 없다. QUEUE 의 T-085·T-086 행에 표시했다
+- 비밀정보: `back/.env` · `infra/local/.env` 는 루트 `.gitignore` 로 무시됨을 `git check-ignore` 로 확인 · 저장소에 들어가는 파일에는 placeholder(`change-me-local-*`)와 시험 fixture 만 있다 · 초기화 스크립트는 비밀번호를 psql 변수로 넘긴다(소스 고정 없음)
+- 주의: Docker Desktop 을 켜자 다른 프로젝트 컨테이너(parkgolf · watereffect)도 재시작 정책으로 함께 올라왔다 — **건드리지 않았다** · drizzle-kit 개발 의존성 moderate 4건(옛 esbuild 개발 서버 advisory)은 **dev 전용**(`npm audit --omit=dev` = 0건)이라 판을 유지했다(강제 수정은 drizzle-kit 0.18 로 내려감)
+- 제품 스키마 · migration · 트리거 · 시드 · ContentStore · Outbox 는 만들지 않았다(U1 이후). `front/web/` · `data/Proposal/` · `scripts/` 변경 없음
+- 다음 한 걸음: **T-086(U1 — P0 29표 스키마 · M01~M10 · 시드 · 감사/오류 기록기 · ContentStore · OpenAPI 뼈대)**
+
 ## 2026-09-22 · T-080 DONE · T-097 DONE — 논리 모순 해소(`docs/22` rev.2.5) + Slice 1 P0 물리 설계 · Claude Code (claude-opus-5)
 - 상태: **완료 — 사용자 + ChatGPT 최종 승인.** 기준 HEAD `4db8608`. push 없음
 - 최종 확인 2건: (1) `external_thread_id` 유일 범위 `(channel_type, external_thread_id)` 는 "채널당 연결 계정 1개" 전제 — 재오픈 조건이 `docs/22` 15.1 · `docs/24` 13절 U-5 · 25절 F-4 에 이미 있었다 (2) INBOUND `current_status = NULL` 의 뜻("상태 모름"이 아니라 "보내는 메시지 생애주기 미적용", 수신 처리는 raw_input → extraction → event)을 `docs/22` 15.3 · `docs/24` 0절 · 22.14 에 명시로 보강
