@@ -779,7 +779,7 @@ CeraCommandClient  (쓰기, 신규)
   └─ resolveVerification(requestId, action)
 ```
 
-- 두 인터페이스 모두 `mock` / `api` 구현을 가진다. `NEXT_PUBLIC_CERA_PROVIDER`로 고른다.
+- 두 인터페이스 모두 `mock` / `api` 구현을 가진다. `VITE_CERA_PROVIDER`로 고른다(2026-10-06 ADR-035 — 옛 이름 `NEXT_PUBLIC_CERA_PROVIDER`).
 - Mock 구현은 시나리오 재생을 깨뜨리지 않게 **메모리 상태만 바꾼다**(Prototype의 "버튼은 재생 단계로만"을 대체).
 - `cera.ts`의 View Model은 그대로 두고 `CommunicationThread`/`MessageView`에 필드를 **더한다**: `channel`, `is_real`, `failure`, `attempt_count`, `approval`(누가·언제·해시), `extraction.model_ref`.
 

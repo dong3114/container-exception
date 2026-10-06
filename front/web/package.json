@@ -2,28 +2,34 @@
   "name": "cera-web",
   "version": "0.1.0",
   "private": true,
-  "description": "CERA Operations Control Tower prototype (scenario playback, mock data provider)",
+  "description": "CERA Operations Control Tower prototype (Vite + React SPA, client-side rendering only; scenario playback, mock data provider)",
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "start": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "validate:scenario": "node scripts/validate-scenario.mjs",
     "smoke": "node scripts/smoke-browser.mjs"
   },
   "dependencies": {
-    "next": "16.3.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.1.2",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.3.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.7",
+    "globals": "17.13.0",
     "playwright-core": "1.63.0",
-    "typescript": "5.9.3"
-  }
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.3"
+  },
+  "type": "module"
 }

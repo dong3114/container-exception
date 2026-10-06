@@ -2,7 +2,7 @@
 
 - 상태: Draft (기획 v0.2)
 - 최종 수정: 2026-09-15 (Prototype 구현 반영: 2D SVG, 신선도 UNKNOWN 인코딩, 데이터 계약)
-- 관련 ADR: ADR-016(웹 + Three.js), **ADR-022(Next.js + 2D SVG, Proposed)**, ADR-018(시나리오 재생)
+- 관련 ADR: ADR-016(웹 + Three.js), **ADR-022(2D SVG, Proposed — 프레임워크 부분은 ADR-035 Vite + React SPA 가 대체)**, ADR-018(시나리오 재생)
 - 상세 명세: T-038
 
 > **2026-09-15 Prototype 반영**: 이 문서의 요구사항 가운데 장면 구성(2절)·시각 인코딩(3절)·화면 배치(4절)·재생 모드(5절 재생)는 Control Tower Prototype(`16_frontend-prototype.md`)에서 **추상 2D SVG**로 먼저 구현했다. Three.js 2.5D는 쓰지 않았고(ADR-022), 필요하면 T-056에서 다시 판단한다. 데이터 계약(6절)은 SSE 대신 `as_of`를 주입하는 Provider 메서드(`16` 5절)로 구현했다. 실시간·영상 모드와 30fps 기준(7절)은 아직 해당 없음.

@@ -104,7 +104,7 @@ flowchart TB
 >
 > | 구분 | 뜻 | 해당 |
 > | --- | --- | --- |
-> | **A. 현재 구현된 기술** | 실제로 코드가 있다 | **프론트엔드 줄뿐** (Next.js + 2D SVG) |
+> | **A. 현재 구현된 기술** | 실제로 코드가 있다 | 프론트엔드 줄 (Vite + React SPA · 2D SVG — ADR-035) · Main Backend 뼈대·영속 기반(T-085 · T-086) |
 > | **B. Accepted 결정** | 뒤집으려면 새 ADR이 필요하다 | 언어·API 줄(ADR-033, 2026-09-21) · **DB 줄(ADR-034, 2026-09-22)** |
 > | **C. 판정 전 후보** | ADR이 Proposed다 | HTTP·스케줄·휴일·테스트 줄 (언어·API·DB 는 2026-09-21~22 에 B 로 옮겨졌다) |
 > | **D. 구현 시점으로 미룬 선택** | **지금 고르지 않기로 한 것** | **LLM 공급자·모델·SDK**, 최적화 방식·솔버, ~~DB 제품, ORM·마이그레이션 도구~~(ADR-034 로 결정), 큐·워커, 클라우드 |
@@ -125,7 +125,7 @@ flowchart TB
 | 스케줄·워커 | **Worker 프로세스 + DB Outbox 단일 워커 폴링**(ADR-033 결정 5). 스케줄러 패키지는 U0. ~~APScheduler~~ **(폐기)** · SimClock(시나리오)는 유지 | 큐 제품 없음 |
 | 휴일 | **(미정 — 구현 시점)** 휴일 데이터 + 수동 보정 파일. ~~`holidays`(KR, Python)~~ **(폐기)** | 영업일 Free Time |
 | 테스트·린트 | **(미정 — U0)** TypeScript 쪽 단위·통합 시험과 속성 시험, 린트(생성 타입만 import 규칙 포함). ~~pytest, hypothesis, ruff~~ **(Main Backend 에서는 폐기 — AI Server 는 Python 도구)** | 속성 테스트(순서 무관성, 비용 단조성) |
-| 프론트엔드 | TypeScript, React, **Next.js**(App Router), 운영 지도는 2D SVG. Three.js는 필요할 때만 | Control Tower Prototype으로 먼저 구현(ADR-022 Proposed, ADR-016 부분 개정). 화면은 Frontend Data Contract에만 의존(`16_frontend-prototype.md` 5절) |
+| 프론트엔드 | TypeScript, React, **Vite SPA — CSR 만**(ADR-035 Accepted, 2026-10-06 Next.js 에서 전환), 운영 지도는 2D SVG. Three.js는 필요할 때만 | Control Tower Prototype으로 먼저 구현(ADR-022 의 2D SVG · Data Contract 부분 유지). 화면은 Frontend Data Contract에만 의존(`16_frontend-prototype.md` 5절) |
 
 ## 4. 저장 스키마 (논리)
 
@@ -195,7 +195,7 @@ CERA는 **하나의 Private Monorepo**로 관리하며, Front / Back / AI는 코
 container_exception/            ← 저장소 루트 = CERA 루트
 ├─ AGENTS.md · CLAUDE.md · README.md · .gitignore · .gitattributes
 ├─ front/
-│  └─ web/        Next.js + React + TypeScript Control Tower Prototype
+│  └─ web/        Vite + React SPA (CSR) + TypeScript Control Tower Prototype
 │                 (src/contracts · src/data/(provider, mock/) · src/components · scripts/)
 ├─ back/          README.md만 (구현 전)
 ├─ ai/            README.md만 (구현 전)

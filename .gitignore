@@ -20,11 +20,9 @@ dist/
 build/
 *.egg-info/
 
-# Frontend (front/*, Next.js) — 빌드 산출물·로컬 스크린샷
+# Frontend (front/*, Vite) — 빌드 산출물(dist/ 는 위에서)·로컬 스크린샷
 node_modules/
-.next/
 .smoke/
-next-env.d.ts
 *.tsbuildinfo
 
 # 에이전트 로컬 설정

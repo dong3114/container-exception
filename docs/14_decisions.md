@@ -57,6 +57,7 @@
 | 032 | **메일 근거 시각 + 기록·내용 분리 보관**: 메일 `source_recorded_at` 은 `Date` 헤더가 정상이고 채널 수신 시각보다 **미래가 아니면** `Date`, 아니면 채널 수신 시각(원래 두 시각 보존, Q-44). 실제 메일은 **기록과 내용을 분리** — 행 삭제 ≠ 내용 파기. 원문·본문·인용·승인 문장은 참조 + 지문으로 기록에 붙고 보관 정책에 따라 내용만 파기, 파기는 감사(Q-45). **보관 기간 숫자는 미결(Pilot 정책)** | **Accepted** (2026-09-21 사용자 결정 — 구조·규칙 확정, 기간 숫자 제외) |
 | 033 | **Main Backend = TypeScript + NestJS**(모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON) · 큐 제품 없이 DB Outbox · OpenAPI → 생성 TS 타입 · 스키마 단일 원천 · 정확성 규칙 5가지 | **Accepted** (2026-09-21 사용자 결정 — Q-64 CLOSED) |
 | 034 | **영속 계층 = PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용** · SQLite 미사용 · DB 권한은 Main Backend 만 · 운영 자동 동기화 금지 | **Accepted** (2026-09-22 사용자 결정 — Q-68 CLOSED) |
+| 035 | **프론트엔드 = Vite + React SPA, 클라이언트 렌더링(CSR)만** — 서버 렌더링(SSR·RSC) 없음, `vite build` → 정적 파일. Backend 는 개발 서버 `/backend` 프록시로 부른다. 라우터 라이브러리는 아직 고르지 않음. ADR-022 결정 1(Next.js)·4(Turbopack root) 대체 | **Accepted** (2026-10-06 사용자 결정) |
 
 ---
 
@@ -272,7 +273,7 @@
   **주의**: "계산값"은 "절대 저장 금지"가 아니라 **"진실의 원천으로 삼지 않는다"**는 뜻이다. 성능을 위한 캐시·물질화는 조건부로 열려 있다(`20` 7절).
 
 ## ADR-022: 프론트엔드 = Next.js + 2D SVG 운영 지도 + Data Contract / Mock Provider (ADR-016 부분 개정)
-- 상태: Proposed
+- 상태: Proposed · **결정 1(Next.js)·4(Turbopack root)는 ADR-035 가 대체**(2026-10-06). 결정 2(2D SVG)·3(Data Contract / Provider)은 그대로
 - 날짜: 2026-09-15 (T-062·T-063)
 - 맥락: 2026-09-14 사람 지시로 Backend·Solver보다 Control Tower Prototype을 먼저 만든다(ADR-023). 지시는 Next.js / React / TypeScript를 지정했고, 3D는 목적이 아니라고 했다. 기존 문서(ADR-016, `07` 3절, T-003)는 Vite + Three.js였다. 백엔드가 없으므로 화면이 fixture에 직접 묶이면 나중에 백엔드로 바꿀 때 화면을 다시 짜야 한다.
 - 결정:
@@ -468,3 +469,16 @@
   11. **시각**: PostgreSQL 을 골랐다고 시각 정책이 풀리지 않는다. `received_at` · `source_recorded_at` · `source_event_time` · Gmail `Date` · `internalDate` · Asia/Seoul 표시 규칙(ADR-006 · ADR-032)은 그대로다. 물리 시각 타입 · UTC 저장 방식 · 타임존 정보 보존 방식은 T-080.
 - 대안: Prisma · Kysely · TypeORM · MikroORM 은 **현재 구현 후보에서 제외**한다. Drizzle 을 고른 이유는 결정 3·4 와 같다(스키마·타입·migration SQL 을 한 곳에서, 쿼리·트랜잭션은 명시적으로, PostgreSQL 기능으로 바로 내려갈 수 있음). 자세한 비교는 `docs/tasks/plans/T-084-db-decision-options.md` 2·3절에만 둔다. MySQL 은 CERA 요구에서 PostgreSQL 보다 나은 점이 없다.
 - 결과: ADR-004 **Superseded by ADR-034**. `docs/07` 3절 · `docs/15` Q-68 CLOSED · `docs/22` · `docs/23` 2·13절 · `back/` README · T-069 계획 16절 · `AGENTS.md` 동기화. **이 ADR 이 정하지 않는 것**: PostgreSQL · Drizzle · Node/Nest 버전 · 연결 풀 패키지 · DB 호스팅(클라우드 · 관리형 제품 · HA/복제 · 백업) · Docker 사용 여부 · 트랜잭션 API 세부 · 잠금 SQL(`SKIP LOCKED` · advisory lock 여부 · 폴링 주기) · 인덱스·트리거 SQL · 내용 저장소 제품 · 운영 구성·배포 · Redis/큐 제품 → T-080 / U0. 솔버(Q-65)는 여전히 OPEN.
+
+## ADR-035: 프론트엔드 = Vite + React SPA, 클라이언트 렌더링(CSR)만 (ADR-022 결정 1·4 대체)
+- 상태: **Accepted** (2026-10-06, 사용자 결정)
+- 날짜: 2026-10-06
+- 맥락: Prototype 은 Next.js(App Router)로 만들었지만 실제로는 화면 하나를 클라이언트에서 재생할 뿐이었다. 사용자는 화면을 **컴포넌트 단위로 다시 만들 계획**이고, **서버 렌더링을 쓰지 않고 CSR 로만** 가기로 했다. 데이터·권한·계산은 모두 Main Backend(NestJS, ADR-033)에 있으므로 프론트 서버가 할 일이 없다. Desktop 은 중앙 Backend 의 Client(ADR-031 Proposed, Electron 첫 후보)이고, 정적 SPA 가 그대로 들어간다.
+- 결정:
+  1. `front/web/` = **Vite + React + TypeScript SPA**. `index.html` 빈 껍데기 + `src/main.tsx` 의 `createRoot`. **서버 렌더링(SSR·RSC·SSG 미리 그리기) 없음.** `npm run build` → `dist/` 정적 파일.
+  2. Main Backend 호출은 같은 출처의 **`/backend/*` → Vite 프록시 → `CERA_API_URL`(기본 `http://127.0.0.1:3100`)**. 그래서 개발 중 Backend 에 CORS 설정이 필요 없다. 배포 때 정적 파일 앞단(리버스 프록시 등)에서 같은 경로를 넘길지, Backend CORS 를 열지는 배포 구성 때 정한다 `[TO VERIFY]`.
+  3. Data Contract / Provider(ADR-022 결정 3)와 2D SVG(결정 2)는 그대로. Provider 선택 환경 변수는 `VITE_CERA_PROVIDER`(이전 `NEXT_PUBLIC_CERA_PROVIDER`).
+  4. 라우터 라이브러리는 **아직 고르지 않는다**. 지금은 `src/App.tsx` 의 경로 분기 하나(`/` Control Tower, `/dev/api` Backend 응답 확인). 실제 화면을 컴포넌트로 다시 만들 때 고른다.
+  5. 시나리오 데이터 팩은 계속 `data/scenarios/` 에서 읽는다(`@scenario` 별칭 · 개발 서버 `fs.allow` = 저장소 루트).
+- 대안: Next.js 유지 + `output: 'export'`(런타임 SSR 은 없지만 빌드 때 HTML 을 미리 그리고, export 모드에서는 rewrites 프록시를 못 써서 Backend CORS 가 필요 — 사용자 의도 "서버에서 그리지 않음"과 어긋남).
+- 결과: `next` · `eslint-config-next` 제거, `vite` · `@vitejs/plugin-react` · `typescript-eslint` 계열 추가. `next.config.ts` · `src/app/layout.tsx` · `src/app/page.tsx` · `next-env.d.ts` · `.next/` 는 쓰지 않는다. `docs/16` 3·4절, `AGENTS.md` 1·6절, 루트 `README.md` 동기화.

@@ -1,7 +1,7 @@
 # 16. Frontend Prototype — CERA Operations Control Tower
 
 - 상태: Draft — **Prototype 구현 완료, 사람 검토 대기** (T-061~T-063, 2026-09-15)
-- 관련 ADR: ADR-022(Next.js + 2D SVG + Mock Provider, Proposed), ADR-023(Prototype 우선 개발 순서, Proposed), ADR-016(웹 프론트엔드), ADR-018(시나리오 재생)
+- 관련 ADR: **ADR-035(Vite + React SPA, CSR 만 — Accepted 2026-10-06)**, ADR-022(2D SVG + Mock Provider, Proposed — Next.js 부분은 ADR-035 가 대체), ADR-023(Prototype 우선 개발 순서, Proposed), ADR-016(웹 프론트엔드), ADR-018(시나리오 재생)
 - 코드: `front/web/` · 시나리오 데이터 팩: `data/scenarios/busan-wh-capacity-01/`
 - 관련 문서: `09_mvp-scenario.md`(시나리오 정본), `10_simulation-spec.md`(시뮬레이터 요구사항), `05_event-and-state.md`(출처·신선도), `08_optimization-model.md`(계획 출력)
 
@@ -33,9 +33,10 @@ npm install
 npm run validate:scenario   # 데이터 팩 정합성 (합계·용량·트럭·KPI·금지 표현)
 npm run typecheck           # tsc --noEmit
 npm run lint                # eslint
-npm run build && npm run start   # http://localhost:3000
+npm run build && npm run start   # 타입 검사 + vite build → dist/ 정적 파일, vite preview http://localhost:3000
 npm run smoke               # 서버가 떠 있을 때: Edge/Chrome 헤드리스로 9단계 재생·화면 값 확인, 스크린샷 front/web/.smoke/
-npm run dev                 # 개발 서버
+npm run dev                 # Vite 개발 서버 http://localhost:3000 (CSR 만 — 서버 렌더링 없음)
+                            # /dev/api = Backend 응답 확인 화면. /backend/* 는 Main Backend(CERA_API_URL, 기본 127.0.0.1:3100)로 프록시
 ```
 
 키보드: `→` 다음 이벤트, `←` 이전, `Esc` 상세 닫기.
@@ -54,7 +55,7 @@ flowchart LR
 
 - 컴포넌트는 raw fixture를 import하지 않는다. `fixture.ts`는 MockProvider만 쓴다.
 - 교체 순서: Mock Data → Backend API → Canonical State(DB) → Risk/Cost Engine → Solver. 각 단계에서 계약(`cera.ts`)은 그대로 두고 응답의 `meta.result_kind`만 `SCENARIO_RESULT` → `ENGINE_RESULT`로 바뀐다.
-- 과도한 추상화는 하지 않았다: provider 인터페이스 하나, 구현 하나, 선택 함수 하나(`createProvider`, `NEXT_PUBLIC_CERA_PROVIDER`).
+- 과도한 추상화는 하지 않았다: provider 인터페이스 하나, 구현 하나, 선택 함수 하나(`createProvider`, `VITE_CERA_PROVIDER`).
 
 ## 5. Frontend Data Contract (v0.1)
 

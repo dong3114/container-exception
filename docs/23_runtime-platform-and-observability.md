@@ -34,7 +34,7 @@
 
 | 영역 | 상태 | 내용 | 근거 |
 | --- | --- | --- | --- |
-| Frontend | **구현됨** | Next.js + React + TypeScript, 2D SVG 운영 지도, MockProvider | ADR-022(Proposed), `docs/16` |
+| Frontend | **구현됨** | **Vite + React SPA(CSR 만)** + TypeScript, 2D SVG 운영 지도, MockProvider. 브라우저는 Main Backend API 만 부른다 | **ADR-035 Accepted**(2026-10-06), ADR-022(2D SVG 부분), `docs/16` |
 | 저장소 | **Accepted** | 하나의 Private Monorepo, `front/`·`back/`·`ai/`·`packages/`·`data/`·`docs/`·`infra/` | ADR-024 |
 | 결정론 엔진 위치 | **Accepted** | Tariff·Cost·Risk·Reconciliation·Optimize·Solver 는 `back/`, `ai/` 는 LLM·비정형 처리만 | ADR-029 |
 | API 계약 | **Accepted (외부 통신 슬라이스부터)** | Backend OpenAPI 를 계약 정본으로, TypeScript 타입 생성 | ADR-028 |
@@ -334,7 +334,7 @@ TauriDesktopBridge     Tauri API
 ## 12. API 계약 (OpenAPI)
 
 - 방향: **Backend OpenAPI 를 계약 정본**으로 두고 TypeScript 타입을 `packages/` 에 생성한다(ADR-028, 외부 통신 슬라이스부터).
-- 목표: **Next.js Web · Electron Client · 향후 외부 Client 가 같은 Backend API 계약을 쓴다.** Desktop 용 별도 API 를 만들지 않는다.
+- 목표: **Web SPA(Vite + React) · Electron Client · 향후 외부 Client 가 같은 Backend API 계약을 쓴다.** Desktop 용 별도 API 를 만들지 않는다.
 - 오류 응답도 계약의 일부다 — 오류 코드 · 사람이 읽을 문장 · `request_id` 를 담는 **공통 오류 응답 모양**을 계약에 둔다. 모양의 세부는 구현 계획에서 정한다.
 - **이번에 확정하지 않는 것**: 실제 endpoint · URL · DTO 세부 · 코드 생성 도구.
 

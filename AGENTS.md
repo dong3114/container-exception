@@ -20,7 +20,7 @@
 | 현재 단계 | **Phase 0.5 → Slice 1 구현 중(U0 · U1 완료).** 이벤트·상태 설계 완료(T-032·T-060), 30대 시나리오 + Control Tower Prototype 완료(T-061~T-063), **외부 통신 Architecture RFC + AI/Backend 책임 경계 확정(T-068, `docs/18`, ADR-026~029 Accepted)**, **외부 통신 요구사항 명세(T-071, `docs/19`)**, **DB 설계 전 요구사항 검토(T-072, `docs/20`)**, **개념 데이터 모델 승인(T-073 → rev.2 T-075 → rev.3 T-077 → T-078 정합성 정리 → **T-076 최종 승인**, `docs/21`)**, **논리 DB 설계(T-079 → rev.2.2 → **rev.2.3**(T-081 논리 모델 후속 — `docs/05` 4.2 대조로 누락 13건 복구 + ADR-020 상태 차원 복구 + `event_verification_target`, MVP 52 · Next 1 · 만들지 않음 2 = 55), `docs/22` + 논리 스키마 작업표, **T-079 DONE 2026-09-18 · T-081 DONE 2026-09-21 · rev.2.4 Q-44·Q-45 결정(메일 근거 시각 · 기록·내용 분리 보관, ADR-032) 2026-09-21**)**, **런타임·오류 처리·관측성 문서(`docs/23`, ADR-030 Proposed)**, **Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임 결정(T-083, Q-64 CLOSED, ADR-033 Accepted 2026-09-21)**, **DB = PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, SQLite 미사용 결정(T-084, Q-68 CLOSED, ADR-034 Accepted 2026-09-22)**. 작업 순서는 `(논리 DB 설계 완료) → (T-070 문서 동기화 완료) → (T-081 논리 모델 후속 완료) → (T-069 구현 계획 DONE — 첫 Slice = Mock 루프, L-13 CLOSED, P0 29개) → (T-083 Q-64 Backend 결정 DONE — NestJS) → (T-084 Q-68 DB 결정 DONE — PostgreSQL + Drizzle) → (T-080 물리 설계 DONE — `docs/24` + `docs/22` rev.2.5) → (**T-085 U0 Backend 뼈대 DONE 2026-09-23** — `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · `docs/24` 18.1) → (**T-086 U1 영속 기반 DONE 2026-10-06** — P0 29표 · M01~M10 · 트리거 70 · 권한 · 감사/`system_error` · ContentStore · 시드 · OpenAPI 뼈대 · 최종 검토(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · 오류 기록 격리) · 시험 135 통과 · `docs/24` 18.2) → T-087~T-096 구현(U2~U11, **다음 T-087**)`이다. **제품 스키마·migration 은 생겼고**, 업무 흐름(초안·승인·발송·수신·사건)·Solver·메일 연동은 아직 코드가 없음. 사람 검토 대기: T-064·T-001. T-036은 DEFERRED |
 | 기획 버전 | v0.2 (2026-09-11, 2026-09-15 개정). 변경 이력은 `docs/CHANGELOG.md` |
 | 초기 범위 | 부산항 · Import FCL · 컨테이너 30대 안팎 · 창고 수용량 예외 · 사람 확인 · 가상 메일 · 운영 시뮬레이터(Prototype은 2D) |
-| 코드 | `front/web/` Next.js Prototype(시나리오 재생, MockProvider) · **`back/` Main Backend(T-085 U0 뼈대 + T-086 U1 영속 기반 — NestJS 12, API·Worker 프로세스, PostgreSQL + Drizzle, P0 29표 · migration M01~M10, 감사/오류 기록기, ContentStore, 시드, `/health` · `/openapi.json`. 업무 기능은 U2 부터)** · **`packages/contracts/openapi.json`(생성된 OpenAPI)** · **`infra/local/` 로컬 PostgreSQL 18.6(Docker Compose)**. `ai/`(별도 Python AI Server 예정)는 README만 있는 빈 책임 영역 |
+| 코드 | `front/web/` Vite + React SPA Prototype(CSR 만, 시나리오 재생, MockProvider, `/dev/api` Backend 응답 확인 — ADR-035) · **`back/` Main Backend(T-085 U0 뼈대 + T-086 U1 영속 기반 — NestJS 12, API·Worker 프로세스, PostgreSQL + Drizzle, P0 29표 · migration M01~M10, 감사/오류 기록기, ContentStore, 시드, `/health` · `/openapi.json`. 업무 기능은 U2 부터)** · **`packages/contracts/openapi.json`(생성된 OpenAPI)** · **`infra/local/` 로컬 PostgreSQL 18.6(Docker Compose)**. `ai/`(별도 Python AI Server 예정)는 README만 있는 빈 책임 영역 |
 
 ### 1.1 저장소 구조 (Private Monorepo, ADR-024)
 
@@ -28,7 +28,7 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 
 | 폴더 | 책임 | 현재 |
 | --- | --- | --- |
-| `front/` | 화면. `front/web/` = Control Tower (Next.js) | Prototype 동작 |
+| `front/` | 화면. `front/web/` = Control Tower (Vite + React SPA, CSR 만 — ADR-035) | Prototype 동작 |
 | `back/` | 중앙 API, 인증, DB·Event 저장, Canonical State(Reconciliation), 외부 연동(Channel Adapter·OAuth·Outbox·수신 원문 보존·발신자 등록부), 승인, 감사, 오류 처리·관측성, 백그라운드 작업, push, **그리고 모든 결정론 엔진**(Tariff·Cost·Risk·Optimization·Solver — ADR-029). 결정론 엔진은 DB·네트워크·LLM 클라이언트를 import하지 않는다 | 구현 전 |
 | `ai/` | **LLM·비정형 처리만**: 메일 초안 문장, 회신·계약서 구조화 추출(값 후보 + 원문 인용), 설명 문장. 신원·권한·사실 확정·현재 상태·숫자·발송은 하지 않는다(ADR-029, `docs/18` O절) | 구현 전 |
 | `packages/` | 공유 계약(OpenAPI, 생성 타입) | `contracts/openapi.json`(생성, T-086 — health 뿐) |
@@ -173,7 +173,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 
 ## 6. 개발 명령어
 
-> Node 22(≥ 22.12) 기준. `front/web/` Prototype(`docs/16` 3절)과 `back/` Main Backend(T-085 U0 — NestJS · PostgreSQL · Drizzle)가 있다. `back/` 는 `front/` 와 별도 npm 패키지다(루트 workspace 없음).
+> Node 22(≥ 22.12) 기준. `front/web/` Prototype(Vite SPA, `docs/16` 3절)과 `back/` Main Backend(T-085 U0 — NestJS · PostgreSQL · Drizzle)가 있다. `back/` 는 `front/` 와 별도 npm 패키지다(루트 workspace 없음).
 
 ```text
 [front/web — Control Tower Prototype]  (모든 명령은 front/web 폴더에서)
@@ -181,9 +181,9 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 시나리오 검사: npm run validate:scenario     # 데이터 팩 합계·용량·트럭·KPI·금지 표현
 타입 검사:    npm run typecheck
 린트:        npm run lint
-빌드·실행:    npm run build && npm run start  # http://localhost:3000
+빌드·실행:    npm run build && npm run start  # dist/ 정적 파일, vite preview http://localhost:3000
 브라우저 확인: npm run smoke                  # 서버가 떠 있을 때. Edge/Chrome 헤드리스, 스크린샷 front/web/.smoke/
-개발 서버:    npm run dev
+개발 서버:    npm run dev                    # http://localhost:3000 · /dev/api = Backend 응답 확인 · /backend/* → back(:3100) 프록시
 
 [로컬 PostgreSQL 18.6 — Docker]  (저장소 루트에서. 처음 한 번: infra/local/.env.example → infra/local/.env)
 켜기:        docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait

@@ -12,7 +12,7 @@ CERA는 **하나의 Private Monorepo**로 관리한다. Git 저장소는 하나�
 
 | 폴더 | 무엇을 담당하나 | 지금 실제 상태 |
 | --- | --- | --- |
-| `front/` | 사용자에게 보이는 화면 | `front/web/`에 Next.js Control Tower Prototype **있음** |
+| `front/` | 사용자에게 보이는 화면 | `front/web/`에 Vite + React SPA Control Tower Prototype **있음**(CSR 만) |
 | `back/` | 중앙 API, DB, Event 저장, 외부 연동(메일 등), 승인·감사, 그리고 **모든 결정론 계산**(Reconciliation·Tariff·비용·위험·최적화·Solver) | 구현 전 (README만) |
 | `ai/` | **LLM·비정형 처리만**: 메일 회신·계약서 해석, 문의 문장 작성, 결과 설명. 위험·비용·최적화는 여기 있지 않다 | 구현 전 (README만) |
 | `packages/` | front·back·ai가 함께 쓰는 계약(API 스키마, 공유 타입) | 비어 있음 (README만) |

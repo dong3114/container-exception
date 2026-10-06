@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import type { ContainerView } from "@/contracts/cera";
 import { RiskBadge, RouteBadge, UsabilityBadge } from "./badges";

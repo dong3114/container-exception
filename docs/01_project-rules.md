@@ -134,7 +134,7 @@ PoC의 "가상 메일함만" 규칙은 **화면과 의사결정 흐름을 검증
 ## 7. 코드 규칙 (T-003에서 확정, 초안)
 
 - 백엔드: **Main Backend = TypeScript + NestJS**(ADR-033 Accepted, 2026-09-21). **AI Server = 별도 Python 런타임**(권한 없음 — LLM 문장·추출 후보만). 옛 초안 Python 3.12 · Pydantic · ruff · pytest(ADR-002)는 Main Backend 에서 **Superseded**. 구체 라이브러리·버전은 U0(T-085), DB·ORM·마이그레이션은 **ADR-034**(PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, SQLite 미사용 — Q-68 CLOSED 2026-09-22). 어느 런타임이든 금액·시각·`as_of`·엔진 순수성 규칙은 그대로다.
-- 프론트엔드: TypeScript, Next.js (ADR-016·ADR-022 Proposed). 비즈니스 로직을 넣지 않는다. 화면에 보이는 숫자는 모두 백엔드 결과다. 백엔드가 없는 Prototype 단계에서는 MockProvider(백엔드 대역)가 시나리오 데이터 팩의 **명시값**을 돌려주고, 그 값은 `result_kind = SCENARIO_RESULT`로 표시한다. 컴포넌트는 Frontend Data Contract(`front/web/src/contracts/cera.ts`)에만 의존하고 raw fixture를 import하지 않는다(`16_frontend-prototype.md` 5절).
+- 프론트엔드: TypeScript, **Vite + React SPA, 클라이언트 렌더링(CSR)만**(ADR-035 Accepted 2026-10-06 — ADR-022 의 Next.js 부분 대체). 브라우저는 Main Backend(NestJS) API 만 부른다 — AI Server · LLM 공급자 · DB 에 직접 붙지 않고, 비밀값을 갖지 않는다. 비즈니스 로직을 넣지 않는다. 화면에 보이는 숫자는 모두 백엔드 결과다. 백엔드가 없는 Prototype 단계에서는 MockProvider(백엔드 대역)가 시나리오 데이터 팩의 **명시값**을 돌려주고, 그 값은 `result_kind = SCENARIO_RESULT`로 표시한다. 컴포넌트는 Frontend Data Contract(`front/web/src/contracts/cera.ts`)에만 의존하고 raw fixture를 import하지 않는다(`16_frontend-prototype.md` 5절).
 - 식별자는 영어로 쓰고, 도메인 용어는 `13_glossary.md`의 영문 표준 표기를 쓴다.
 - 엔진(`state`, `tariff`, `cost`, `risk`, `optimize`)은 순수 함수 위주로 짜고 I/O를 넣지 않는다.
 - 새 엔진 로직에는 단위 테스트를 반드시 붙인다. 비용 계산은 손으로 검산한 예제를 테스트 케이스로 둔다.
