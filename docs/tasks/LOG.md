@@ -21,6 +21,15 @@
 
 ---
 
+## 2026-10-06 · T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add communication draft validation flow`, 이 항목과 같은 커밋). 기준 HEAD `c7cdb5b`. push 없음. T-089 시작 안 함
+- 한 일: `POST /communication/drafts` — Contact Gate → 값 형식 · 출처 → Backend 가 질문 대상 확정 → 템플릿 문장(AI 없음) → 순수 숫자 검사 → 내용 저장소(트랜잭션 밖) → 한 트랜잭션(스레드 · 질문 · 메시지 · 구조화 값 · 상태 전이). 통과한 초안만 `PENDING_APPROVAL`. 본문 수정 = 새 메시지 + 재검사(이전 `CLOSED`). 읽기 · 목록 · 계획 실행 · 시설 목록 endpoint. OpenAPI + 생성 타입. 프론트 "문의 초안" 카드(이 영역만 실제 API) · `.act-btn`
+- 검증: Backend `npm test` **184**(156 회귀 + 단위 13 + DB/API 15) · typecheck · build · `drizzle-kit check` · 생성 차이 0 · fresh M01→M11 2회 · seed 25 → 0 · 빌드본 API(생성 201 PENDING_APPROVAL · 막힌 주소 403) · Worker `--once` · Front `npm test` **20** · typecheck · lint 오류 0 · build · validate · smoke · 헤드리스 브라우저 흐름(콘솔 오류 0) · `git diff --check`
+- 발견 · 처리: 밝은 카드에 어두운 바 전용 `.pb-btn` 을 써 버튼이 안 보임 → `.act-btn` · `BLOCKED_NUMBER_CHECK` 는 DB 상태 코드가 아님 → `DRAFTED` 유지 + 읽을 때 재계산(U3-1)
+- 남은 위험: 값이 계획 부족분과 같은지는 아직 대조하지 않음(부족분이 DB 에 없음, U3-5) · 인증 없음 → 전이 행위자는 SYSTEM(U3-4)
+- 다음: **T-089(U4)** — 승인 · 반려 · 승인 취소, 승인 시 숫자 재검사 + Contact Gate 재확인 + 사본 · `approved_plan_run_id`, 계획 교체 · 내용 변경 무효화
+- 큐 변경: T-088 `DONE`
+
 ## 2026-10-06 · T-087 DONE — U2 Registry · Contact Gate · 개발 안전장치 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add contact gate and registry API`, 이 항목과 같은 커밋). 기준 HEAD `17399b8`. push 없음. T-088 시작 안 함
 - 결정(사용자, Plan 10절): D1 `CONTACT_INACTIVE` 추가 · D2 개발 안전장치 = 실채널(GMAIL · PORTAL) × 비운영, 목록 비면 전부 차단 · D3 M11 등록부 불변 열 가드 · D4 생성 타입 + `/dev/api` · D5 막힌 시드 주소 2개

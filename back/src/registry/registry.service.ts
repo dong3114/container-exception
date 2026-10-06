@@ -6,7 +6,7 @@ import { RegistryReader } from '../persistence/registry-reader.js';
 import { BusinessRuleError, ValidationError } from '../shared/errors/cera-error.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { type ChannelType, type DevSafetyPolicy, type GateResult, evaluateContactGate } from './contact-gate.js';
-import type { AddressStatusDto, ContactEligibilityDto, CounterpartyListDto, CounterpartySummaryDto } from './dto.js';
+import type { AddressStatusDto, ContactEligibilityDto, CounterpartyListDto, CounterpartySummaryDto, FacilityListDto } from './dto.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -51,6 +51,18 @@ export class RegistryService {
       contact.addresses.push({ ...addressStatus(row), eligible: gate.eligible, reasons: gate.reasons });
     }
     return { counterparties: [...byCounterparty.values()], evaluated_at: evaluatedAt };
+  }
+
+  async listFacilities(): Promise<FacilityListDto> {
+    const rows = await this.registry.listFacilities();
+    return {
+      facilities: rows.map((f) => ({
+        facility_id: f.facilityId,
+        facility_type: f.facilityType as FacilityListDto['facilities'][number]['facility_type'],
+        facility_name: f.facilityName,
+        area: f.area,
+      })),
+    };
   }
 
   async getEligibility(addressId: string): Promise<ContactEligibilityDto> {

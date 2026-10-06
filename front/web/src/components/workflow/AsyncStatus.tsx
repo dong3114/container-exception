@@ -33,7 +33,7 @@ export function AsyncStatus<T>({
         </span>
       )}
       {error.retryable && onRetry && (
-        <button type="button" className="pb-btn" onClick={onRetry}>
+        <button type="button" className="act-btn" onClick={onRetry}>
           다시 시도
         </button>
       )}

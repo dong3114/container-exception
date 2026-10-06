@@ -1,6 +1,6 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
+- 최종 수정: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
@@ -23,15 +23,15 @@
 6. ~~**T-080**~~ (DONE 2026-09-22, 최종 승인) — P0 29개 물리 설계 `docs/24` · `docs/22` rev.2.5. 상세는 완료 섹션
 6-a. ~~**T-097**~~ (DONE 2026-09-22 — 사용자 검토 결과) — **Q-69: 물리 설계가 찾은 논리 모델 충돌 5건 결정**(`docs/24` 25·26절 — F-1 발송 멱등 키 범위 · F-2 `UNKNOWN` 화해 · F-3 `sent_at` · F-4 `external_thread_id` · F-5 INBOUND `drafted_by`) + D-1~D-5 검토. → `docs/22` rev.2.5 로 반영
 7. ~~**T-085**~~ (DONE 2026-09-23, 최종 검토·커밋) — **U0 Backend 뼈대.** `back/`(NestJS 12 · API/Worker · Drizzle · 공통 유틸 · `/health`) · `infra/local/`(PostgreSQL 18.6 · 역할 2개) · `docs/24` 18.1 `[TO VERIFY]` 결과. 상세는 완료 섹션
-8. **T-086 ~ T-096** (U1 ~ U11) — Slice 1 구현 단위. ~~T-086(U1)~~ · ~~T-087(U2)~~ DONE 2026-10-06 · ← **다음: T-088(U3) — 초안 · 구조화 값 · 숫자 검사**(실행 가능, 사용자 지시 전 시작하지 않음). 한 단위씩: 구현 → Claude/Codex 검토 → 사용자 승인 → commit
+8. **T-086 ~ T-096** (U1 ~ U11) — Slice 1 구현 단위. ~~T-086(U1)~~ · ~~T-087(U2)~~ · ~~T-088(U3)~~ DONE 2026-10-06 · ← **다음: T-089(U4) — 승인 · 무효화**(실행 가능, 사용자 지시 전 시작하지 않음). 한 단위씩: 구현 → Claude/Codex 검토 → 사용자 승인 → commit
 
 **병행 (사람 몫, 위 순서를 막지 않는다)**: **T-064** (NEEDS_HUMAN, P0) Control Tower Prototype 검토 · **T-001** (NEEDS_HUMAN, P0) 기획 v0.2 + T-032 결과 검토. **에이전트 병행 후보**: **T-034** 메일 Event 스키마 + LLM 추출 계약 (T-069 입력과 겹치므로 T-069 계획 안에 흡수할지 T-069 에서 판단)
 
-**앞으로의 순서 (2026-09-23 갱신, 이 목록과 위 번호가 같은 순서다)**: ~~`T-079`~~ → ~~`T-070`~~ → ~~`T-081`~~ → ~~`T-069 구현 계획`~~ → ~~`T-083 Q-64 Backend 결정`~~(NestJS) → ~~`T-084 Q-68 DB 결정`~~(PostgreSQL + Drizzle) → ~~`T-080 P0 29개 물리 설계`~~ → ~~`T-085 U0 뼈대`~~ → ~~`T-086 U1 스키마·migration·시드`~~ → ~~`T-087 U2`~~ → **`T-088 U3`** → … → `T-096 U11 인수` (각 단위: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 · commit). **Q-65(솔버)는 이 줄의 어느 단계도 막지 않는다**
+**앞으로의 순서 (2026-09-23 갱신, 이 목록과 위 번호가 같은 순서다)**: ~~`T-079`~~ → ~~`T-070`~~ → ~~`T-081`~~ → ~~`T-069 구현 계획`~~ → ~~`T-083 Q-64 Backend 결정`~~(NestJS) → ~~`T-084 Q-68 DB 결정`~~(PostgreSQL + Drizzle) → ~~`T-080 P0 29개 물리 설계`~~ → ~~`T-085 U0 뼈대`~~ → ~~`T-086 U1 스키마·migration·시드`~~ → ~~`T-087 U2`~~ → ~~`T-088 U3`~~ → **`T-089 U4`** → … → `T-096 U11 인수` (각 단위: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 · commit). **Q-65(솔버)는 이 줄의 어느 단계도 막지 않는다**
 
 > **프론트엔드 (2026-10-06 사용자 지시로 갱신)**: 실제 Backend 와 연결되는 운영 Control Tower 로 간다. **구현 도구는 Antigravity 에 고정하지 않는다** — Orchestrator 가 적절한 Coding Agent/Tool 을 고르고 최종 diff·시험을 직접 검토한다. 한 파일을 여러 Agent 가 동시에 고치지 않는다. 2026-10-06 상태: Vite + React SPA(CSR, ADR-035) · 디자인 정리 커밋 · Backend 연결 경계(`docs/16` 4.1). 화면별 실제 API 연결은 T-087 부터 엔드포인트가 생기는 순서대로. ~~(2026-09-17) 별도 트랙 — Orchestrator 는 `front/` 를 건드리지 않는다~~
 
-실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082 (7개). **주 흐름: T-087(U2) DONE(2026-10-06) → T-088(U3 — 초안 · 구조화 값 · 숫자 검사) 실행 가능.** **T-087~T-096(U2~U11)은 앞 단위가 DONE 될 때마다 하나씩 풀린다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
+실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082 (7개). **주 흐름: T-088(U3) DONE(2026-10-06) → T-089(U4 — 승인 · 무효화) 실행 가능.** **T-087~T-096(U2~U11)은 앞 단위가 DONE 될 때마다 하나씩 풀린다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
 
 > **T-086(U1) DONE(2026-10-06).** P0 29표 · M01~M10 · 트리거 70 · 권한 · 감사/`system_error` · ContentStore · 시드 · OpenAPI 뼈대가 커밋됐다. 결과는 `docs/24` 18.2(U1-1~U1-11). migration 은 `npm run db:generate` → **생성 SQL 을 사람이 검토** → 커밋 → `npm run db:migrate`(소유 역할) 순서다. `push` 는 쓰지 않는다. **커밋된 migration 파일은 고치지 않는다 — 바꿀 것은 M11 부터 새 migration 으로.**
 
@@ -88,7 +88,7 @@
 
 ## 진행 중
 
-(없음 — T-087 DONE 2026-10-06. 다음 실행 가능: T-088)
+(없음 — T-088 DONE 2026-10-06. 다음 실행 가능: T-089)
 
 ## 대기 — P0
 
@@ -194,7 +194,7 @@
 | ~~**T-085**~~ | U0 | Phase 0 — Backend 뼈대(**T-003 흡수**) · **DONE (2026-09-23)** — 아래 완료 섹션 | ~~**T-080**~~ | 오류 경계 `{code,message,request_id}` · 시계 주입 · 추적 id · 테스트 러너 (OpenAPI 뼈대는 U1 로) | 전부 REAL(뼈대). 채널·AI 설정은 mock/replay 기본값 |
 | ~~**T-086**~~ (`DONE` 2026-10-06) | U1 | Phase 1 — P0 29개 마이그레이션 · 시드 · 감사/오류 기록기 · 내용 저장소 포트 · **OpenAPI 뼈대(T-085 에서 이월)** | ~~T-085~~ | 불변 표 쓰기 경로 없음 · 시드 `is_simulated` · 내용 부재 판정 C-01~03 | 저장·기록기 REAL / 시드 데이터 MOCK |
 | ~~**T-087**~~ (`DONE` 2026-10-06) | U2 | Phase 2 — 등록부 · Contact Gate · 개발 안전장치 | T-086 | 게이트 실패 4종 + 안전장치 G-01~05 | 판정 REAL / 등록부 상태 시드(MOCK) |
-| **T-088** | U3 | Phase 3 — 초안 · 구조화 값 · 숫자 검사 | T-087 | 숫자 검사 실패는 승인 화면에 못 오름 · AI 없이 초안 | 숫자 검사·주입 REAL / 부족분 fixture·문장 템플릿 MOCK |
+| ~~**T-088**~~ (`DONE` 2026-10-06) | U3 | Phase 3 — 초안 · 구조화 값 · 숫자 검사 | T-087 | 숫자 검사 실패는 승인 화면에 못 오름 · AI 없이 초안 | 숫자 검사·주입 REAL / 부족분 fixture·문장 템플릿 MOCK |
 | **T-089** | U4 | Phase 4 — 발송 승인 · 무효화(내용 변경 · 계획 교체 · 취소 · 만료) | T-088 | A-02~06 | 전부 REAL |
 | **T-090** | U5 | Phase 5 — Outbox · Mock 발송 · 멱등 · 화해(`lookup_sent`) · kill switch | T-089 | A-01 · S-01~05 · **G-06(가상 데이터 실채널 차단)** | Outbox·멱등 REAL / 채널 MOCK |
 | **T-091** | U6 | Phase 6 — 수신 · 원문 · 발신자 매핑 · Quarantine · Q-44 시각 | T-089 (**T-090 과 병렬**) | I-01~07 · G-07 | 처리 REAL / 회신 MOCK |
@@ -486,6 +486,14 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-088 — U3 문의 초안 · 구조화 값 · 숫자 검사 · **DONE (2026-10-06, 사용자 승인 뒤 커밋)**
+
+- 담당: Claude Code (claude-opus-5-5) / 2026-10-06 · 기준 커밋 `c7cdb5b`
+- 산출물: `back/src/communication/`(순수 `number-check.ts` · `inquiry-intents.ts` · `draft-prose.ts` 템플릿 포트 · `DraftService` 한 트랜잭션) · `POST/GET /communication/drafts` · `GET /communication/drafts/{id}` · `POST .../revisions` · `GET /planning/runs` · `GET /registry/facilities` · OpenAPI + 생성 타입 · `front/web/src/components/drafts/` · `src/api/drafts.ts` · `.act-btn` · `docs/24` 18.4
+- DB 변경 없음(M11 그대로)
+- 검증: Backend 184 · Front 20 · fresh M01→M11 · seed · 빌드본 API 실제 호출 · 헤드리스 브라우저(생성 → 통과 → 수량 · 날짜 고침 → 차단)
+- 다음: **T-089(U4) 승인 · 무효화**
 
 ### T-087 — U2 Registry · Contact Gate · 개발 안전장치 · **DONE (2026-10-06, 사용자 승인 뒤 커밋)**
 

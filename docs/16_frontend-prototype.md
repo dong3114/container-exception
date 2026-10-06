@@ -71,6 +71,7 @@ flowchart LR
 
 - **Mock ↔ Real 교체**: 화면은 계속 `CeraDataProvider` 만 본다. T-087 부터 엔드포인트가 생기는 화면부터 `ApiProvider` 메서드가 `src/api/*` 를 부른다. 없는 Backend API 를 프론트에서 미리 지어내지 않는다.
 - **연결 후보 위치**: 거래처 · 연락처 · Contact Gate → `Communications` 스레드 머리 + `GateBlockers` · 초안 · 승인 → `MessageLifecycle`(지금 `MessageView.lifecycle` 을 MockProvider 가 시나리오 상태에서 매핑) · 활동 → `ActivityTimeline`.
+- **첫 실제 연결(T-088)**: `src/components/drafts/`(`InquiryDraftPanel` · `DraftView`) — "문의 초안" 카드만 Backend(`src/api/drafts.ts`, 생성 타입)를 쓴다. 계획 부족분(시나리오 RP-001)을 구조화 값으로 불러와 `POST /communication/drafts` · 본문 고치기는 `POST /communication/drafts/{id}/revisions`. 숫자 검사 · 승인 가능 여부 · Contact Gate 는 Backend 판정을 그대로 표시. 나머지 카드는 MockProvider. 밝은 카드 버튼은 `.act-btn`(`.pb-btn` 은 어두운 상단 바 전용).
 - 브라우저는 Main Backend 만 부른다. AI Server · LLM 공급자 · DB 직접 호출, 비밀값 보관 금지(`docs/23` 7.1).
 
 ## 5. Frontend Data Contract (v0.1)

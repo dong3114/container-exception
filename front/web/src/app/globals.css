@@ -1195,3 +1195,24 @@ table.tbl {
   .rc-costs { grid-template-columns: minmax(0, 1fr); }
   .shell { padding: 0 16px 28px; }
 }
+
+/* Action button on light cards (T-088). .pb-btn is styled for the dark top bar only. */
+.act-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.act-btn:hover:not(:disabled) { background: var(--panel-hover); }
+.act-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.act-btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.act-btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--blue); }
+.act-btn.row { width: 100%; height: auto; min-height: 30px; padding: 6px 10px; justify-content: flex-start; text-align: left; font-weight: 500; }

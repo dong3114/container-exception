@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CHANNEL_TYPE, COMMUNICATION_STATUS, COUNTERPARTY_ROLE, EMAIL_VERIFICATION_STATUS, RELATIONSHIP_STATUS } from '../db/schema/codes.js';
+import { CHANNEL_TYPE, COMMUNICATION_STATUS, COUNTERPARTY_ROLE, EMAIL_VERIFICATION_STATUS, FACILITY_TYPE, RELATIONSHIP_STATUS } from '../db/schema/codes.js';
 import { GATE_CONDITIONS, GATE_REASONS } from './contact-gate.js';
 
 /**
@@ -142,4 +142,23 @@ export class ContactEligibilityDto {
 
   @ApiProperty({ type: String, example: '2026-10-13T11:00:00.000+09:00' })
   evaluated_at!: string
+}
+
+export class FacilitySummaryDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  facility_id!: string;
+
+  @ApiProperty({ enum: FACILITY_TYPE })
+  facility_type!: (typeof FACILITY_TYPE)[number];
+
+  @ApiProperty({ type: String })
+  facility_name!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  area!: string | null;
+}
+
+export class FacilityListDto {
+  @ApiProperty({ type: [FacilitySummaryDto] })
+  facilities!: FacilitySummaryDto[];
 }

@@ -53,6 +53,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/registry/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active facilities (warehouse · ODCY · terminal) an inquiry can be about */
+        get: operations["RegistryController_listFacilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/registry/addresses/{addressId}/eligibility": {
         parameters: {
             query?: never;
@@ -62,6 +79,75 @@ export interface paths {
         };
         /** Contact Gate verdict for one address: all six conditions and every blocking reason (FR-ELG-04) */
         get: operations["RegistryController_getEligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest outbound inquiry drafts (newest first) */
+        get: operations["DraftController_list"];
+        put?: never;
+        /** Create an inquiry draft: Contact Gate → thread · question · structured values · template message · number check */
+        post: operations["DraftController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/drafts/{messageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One draft with its thread, question, structured values, number check and approval readiness */
+        get: operations["DraftController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/drafts/{messageId}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Operator edits the text: a new message (content is immutable) with the same structured values, re-checked */
+        post: operations["DraftController_revise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recovery runs (newest first) a plan-based inquiry can cite as its source */
+        get: operations["PlanningRunController_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -130,6 +216,17 @@ export interface components {
              */
             evaluated_at: string;
         };
+        FacilitySummaryDto: {
+            /** Format: uuid */
+            facility_id: string;
+            /** @enum {string} */
+            facility_type: "WAREHOUSE" | "TERMINAL" | "ODCY";
+            facility_name: string;
+            area: string | null;
+        };
+        FacilityListDto: {
+            facilities: components["schemas"]["FacilitySummaryDto"][];
+        };
         AddressStatusDto: {
             /** Format: uuid */
             address_id: string;
@@ -180,6 +277,191 @@ export interface components {
             dev_safety_applied: boolean;
             /** @example 2026-10-13T11:00:00.000+09:00 */
             evaluated_at: string;
+        };
+        StructuredValueInputDto: {
+            /** @example quantity */
+            key: string;
+            /** @example 2 */
+            value_number?: number | null;
+            /** @example 2026-10-13 */
+            value_text?: string | null;
+            /** @example TRUCK */
+            unit?: string | null;
+            /**
+             * @description Path inside the source run (requires source_run_id)
+             * @example resource_gaps[0].needed
+             */
+            source_path?: string | null;
+        };
+        CreateDraftRequestDto: {
+            /**
+             * Format: uuid
+             * @description Recipient address (decides contact and counterparty)
+             */
+            address_id: string;
+            /** @enum {string} */
+            intent: "TRUCK_SLOT" | "FACILITY_CAPACITY";
+            /**
+             * Format: uuid
+             * @description TRUCK_SLOT → truck pool of that counterparty (omit = its only active pool) · FACILITY_CAPACITY → warehouse / ODCY (required)
+             */
+            target_id?: string | null;
+            /**
+             * Format: uuid
+             * @description Recovery run the values come from (plan-based inquiry)
+             */
+            source_run_id?: string | null;
+            /**
+             * Format: uuid
+             * @description Scenario for a MOCK-channel draft without a source run
+             */
+            scenario_id?: string | null;
+            values: components["schemas"]["StructuredValueInputDto"][];
+        };
+        DraftMessageDto: {
+            /** Format: uuid */
+            message_id: string;
+            /** Format: uuid */
+            thread_id: string;
+            /**
+             * @description PENDING_APPROVAL = passed the number check; DRAFTED = blocked; CLOSED = superseded
+             * @enum {string}
+             */
+            status: "DRAFTED" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "QUEUED" | "SENT" | "DELIVERY_FAILED" | "REPLIED" | "CLOSED";
+            /**
+             * @description TEMPLATE (no AI) · HUMAN (operator revision) · AI_DRAFT (later)
+             * @enum {string}
+             */
+            drafted_by: "AI_DRAFT" | "HUMAN" | "TEMPLATE";
+            /** @enum {string} */
+            channel_type: "GMAIL" | "MOCK" | "PORTAL";
+            is_simulated: boolean;
+            content_hash: string;
+            /** @description null when the content is missing from the content store */
+            subject: string | null;
+            body: string | null;
+            /** @example 2026-10-13T11:00:00.000+09:00 */
+            created_at: string;
+        };
+        DraftThreadDto: {
+            /** Format: uuid */
+            thread_id: string;
+            /** @enum {string} */
+            purpose: "CAPACITY_CHECK" | "RATE_REQUEST" | "SLOT_REQUEST" | "FACT_CONFIRM" | "GENERAL";
+            /** @enum {string} */
+            thread_status: "OPEN" | "WAITING_REPLY" | "ANSWERED" | "CLOSED";
+            /** Format: uuid */
+            counterparty_id: string;
+            counterparty_name: string;
+            /** Format: uuid */
+            contact_id: string | null;
+            contact_name: string | null;
+            /** Format: uuid */
+            address_id: string | null;
+            normalized_address: string | null;
+            /**
+             * Format: uuid
+             * @description Recovery context the inquiry came from
+             */
+            related_run_id: string | null;
+            opened_at: string;
+        };
+        DraftQuestionDto: {
+            /** Format: uuid */
+            question_item_id: string;
+            /** @description Tag carried in the message so a reply maps back to this question */
+            ask_id: string;
+            question_type: string;
+            question_text: string;
+            target_entity_type: string | null;
+            /** Format: uuid */
+            target_entity_id: string | null;
+            target_name: string;
+            /** @example available.slot(2026-10-13T15:00-17:00) */
+            target_fact_key: string | null;
+            expected_value_type: string;
+            expected_unit: string | null;
+            question_status: string;
+        };
+        StructuredValueDto: {
+            key: string;
+            /**
+             * @description Decimal string
+             * @example 2
+             */
+            value_number: string | null;
+            value_text: string | null;
+            unit: string | null;
+            /**
+             * Format: uuid
+             * @description Set when the value came from a recovery run
+             */
+            source_run_id: string | null;
+            source_path: string | null;
+        };
+        DraftSourceRunDto: {
+            /** Format: uuid */
+            run_id: string;
+            /** @example RP-001 */
+            trigger_ref: string | null;
+            contains_simulated: boolean;
+        };
+        NumberTokenDto: {
+            /** @example 8 */
+            text: string;
+            /** @enum {string} */
+            kind: "DATE" | "TIME" | "MONEY" | "QUANTITY";
+            /** @description Structured value key it matched; null = not in the structured values */
+            matched_field: string | null;
+        };
+        NumberCheckDto: {
+            /** @enum {string} */
+            status: "PASSED" | "BLOCKED_NUMBER_CHECK";
+            passed: boolean;
+            tokens: components["schemas"]["NumberTokenDto"][];
+            /** @description Numbers / dates / times in the text that are not structured values (why it is blocked) */
+            unmatched: components["schemas"]["NumberTokenDto"][];
+            /** @description Structured values the text never mentions (information, not a failure) */
+            not_mentioned: string[];
+        };
+        DraftGateDto: {
+            eligible: boolean;
+            reasons: components["schemas"]["GateReasonDto"][];
+        };
+        DraftDto: {
+            message: components["schemas"]["DraftMessageDto"];
+            thread: components["schemas"]["DraftThreadDto"];
+            question: components["schemas"]["DraftQuestionDto"] | null;
+            structured_values: components["schemas"]["StructuredValueDto"][];
+            /** @description true when the values come from a recovery run */
+            plan_based: boolean;
+            source_run: components["schemas"]["DraftSourceRunDto"] | null;
+            /** @description Recomputed on every read (deterministic); null when the content is missing */
+            number_check: components["schemas"]["NumberCheckDto"] | null;
+            /** @description Contact Gate re-evaluated on read */
+            contact_gate: components["schemas"]["DraftGateDto"] | null;
+            /** @description May go to the approval step (U4) — PENDING_APPROVAL, number check passed, recipient eligible */
+            approval_ready: boolean;
+            blocked_reasons: ("BLOCKED_NUMBER_CHECK" | "RECIPIENT_NOT_ELIGIBLE" | "CONTENT_MISSING" | "NOT_PENDING_APPROVAL")[];
+        };
+        DraftListDto: {
+            drafts: components["schemas"]["DraftDto"][];
+        };
+        ReviseDraftRequestDto: {
+            subject: string;
+            body: string;
+        };
+        RunSummaryDto: {
+            /** Format: uuid */
+            run_id: string;
+            trigger_ref: string | null;
+            executed_at: string;
+            contains_simulated: boolean;
+            /** Format: uuid */
+            scenario_id: string | null;
+        };
+        RunListDto: {
+            runs: components["schemas"]["RunSummaryDto"][];
         };
         ErrorResponse: {
             /** @description Stable error code */
@@ -260,6 +542,25 @@ export interface operations {
             };
         };
     };
+    RegistryController_listFacilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FacilityListDto"];
+                };
+            };
+        };
+    };
     RegistryController_getEligibility: {
         parameters: {
             query?: never;
@@ -295,6 +596,203 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    DraftController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftListDto"];
+                };
+            };
+        };
+    };
+    DraftController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDraftRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_DRAFT_REQUEST · INVALID_DRAFT_VALUES · SOURCE_RUN_REQUIRED · SCENARIO_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RECIPIENT_NOT_ELIGIBLE — Contact Gate blocked the address */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_NOT_FOUND · TARGET_NOT_FOUND · RUN_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TARGET_COUNTERPARTY_MISMATCH · TARGET_NOT_SUPPORTED · TARGET_REQUIRED · SIMULATION_MISMATCH */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    DraftController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DRAFT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    DraftController_revise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseDraftRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_DRAFT_REQUEST */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RECIPIENT_NOT_ELIGIBLE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DRAFT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DRAFT_NOT_EDITABLE — already approved, sent or superseded */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningRunController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunListDto"];
                 };
             };
         };

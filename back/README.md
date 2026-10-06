@@ -13,6 +13,7 @@
 | `src/content/` | `ContentStore` 포트 · `LocalFileContentStore`(`CERA_CONTENT_DIR`) · `ContentService`(생성 4단계 · 파기 4단계 · 손실 판정) |
 | `src/seed/` | Slice 1 시드(`npm run db:seed`, local·test 만, 고정 UUIDv7, 반복 실행 안전) |
 | `src/http/openapi.ts` · `src/openapi/` | `GET /openapi.json` · `npm run openapi:emit` → `packages/contracts/openapi.json` |
+| `src/communication/` | **문의 초안**(T-088 U3): `number-check.ts` · `inquiry-intents.ts` · `draft-prose.ts`(템플릿 포트 — 순수) · `DraftService`(한 트랜잭션) · `POST /communication/drafts` · `GET /communication/drafts` · `GET /communication/drafts/{messageId}` · `POST /communication/drafts/{messageId}/revisions` · `GET /planning/runs` |
 | `src/registry/` | 등록부 조회 · **Contact Gate**(T-087 U2): `contact-gate.ts` 순수 판정(6조건 · 사유 6종 · 개발 안전장치) · `GET /registry/counterparties` · `GET /registry/addresses/{addressId}/eligibility` |
 | `src/shared/` | `time/`(Instant · Clock) · `id/`(UUIDv7) · `money/`(Krw) · `hash/`(SHA-256 · JCS) · `context/`(request/trace/correlation id) · `errors/` |
 | `src/http/` · `src/health/` | 요청 문맥 미들웨어 · 공통 오류 응답 · `/health` |

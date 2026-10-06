@@ -54,6 +54,28 @@
         ]
       }
     },
+    "/registry/facilities": {
+      "get": {
+        "operationId": "RegistryController_listFacilities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacilityListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Active facilities (warehouse · ODCY · terminal) an inquiry can be about",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
     "/registry/addresses/{addressId}/eligibility": {
       "get": {
         "operationId": "RegistryController_getEligibility",
@@ -103,6 +125,254 @@
         "summary": "Contact Gate verdict for one address: all six conditions and every blocking reason (FR-ELG-04)",
         "tags": [
           "registry"
+        ]
+      }
+    },
+    "/communication/drafts": {
+      "post": {
+        "operationId": "DraftController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDraftRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_DRAFT_REQUEST · INVALID_DRAFT_VALUES · SOURCE_RUN_REQUIRED · SCENARIO_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "RECIPIENT_NOT_ELIGIBLE — Contact Gate blocked the address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADDRESS_NOT_FOUND · TARGET_NOT_FOUND · RUN_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "TARGET_COUNTERPARTY_MISMATCH · TARGET_NOT_SUPPORTED · TARGET_REQUIRED · SIMULATION_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an inquiry draft: Contact Gate → thread · question · structured values · template message · number check",
+        "tags": [
+          "communication"
+        ]
+      },
+      "get": {
+        "operationId": "DraftController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Latest outbound inquiry drafts (newest first)",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/communication/drafts/{messageId}": {
+      "get": {
+        "operationId": "DraftController_get",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "DRAFT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One draft with its thread, question, structured values, number check and approval readiness",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/communication/drafts/{messageId}/revisions": {
+      "post": {
+        "operationId": "DraftController_revise",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseDraftRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_DRAFT_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "RECIPIENT_NOT_ELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "DRAFT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "DRAFT_NOT_EDITABLE — already approved, sent or superseded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Operator edits the text: a new message (content is immutable) with the same structured values, re-checked",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/planning/runs": {
+      "get": {
+        "operationId": "PlanningRunController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Recovery runs (newest first) a plan-based inquiry can cite as its source",
+        "tags": [
+          "planning"
         ]
       }
     }
@@ -308,6 +578,50 @@
           "evaluated_at"
         ]
       },
+      "FacilitySummaryDto": {
+        "type": "object",
+        "properties": {
+          "facility_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "facility_type": {
+            "type": "string",
+            "enum": [
+              "WAREHOUSE",
+              "TERMINAL",
+              "ODCY"
+            ]
+          },
+          "facility_name": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "facility_id",
+          "facility_type",
+          "facility_name",
+          "area"
+        ]
+      },
+      "FacilityListDto": {
+        "type": "object",
+        "properties": {
+          "facilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacilitySummaryDto"
+            }
+          }
+        },
+        "required": [
+          "facilities"
+        ]
+      },
       "AddressStatusDto": {
         "type": "object",
         "properties": {
@@ -480,6 +794,610 @@
           "reasons",
           "dev_safety_applied",
           "evaluated_at"
+        ]
+      },
+      "StructuredValueInputDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "example": "quantity"
+          },
+          "value_number": {
+            "type": "number",
+            "nullable": true,
+            "example": 2
+          },
+          "value_text": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-13"
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "example": "TRUCK"
+          },
+          "source_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "Path inside the source run (requires source_run_id)",
+            "example": "resource_gaps[0].needed"
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "CreateDraftRequestDto": {
+        "type": "object",
+        "properties": {
+          "address_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Recipient address (decides contact and counterparty)"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "TRUCK_SLOT",
+              "FACILITY_CAPACITY"
+            ]
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "TRUCK_SLOT → truck pool of that counterparty (omit = its only active pool) · FACILITY_CAPACITY → warehouse / ODCY (required)"
+          },
+          "source_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Recovery run the values come from (plan-based inquiry)"
+          },
+          "scenario_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Scenario for a MOCK-channel draft without a source run"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StructuredValueInputDto"
+            }
+          }
+        },
+        "required": [
+          "address_id",
+          "intent",
+          "values"
+        ]
+      },
+      "DraftMessageDto": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFTED",
+              "PENDING_APPROVAL",
+              "APPROVED",
+              "REJECTED",
+              "QUEUED",
+              "SENT",
+              "DELIVERY_FAILED",
+              "REPLIED",
+              "CLOSED"
+            ],
+            "description": "PENDING_APPROVAL = passed the number check; DRAFTED = blocked; CLOSED = superseded"
+          },
+          "drafted_by": {
+            "type": "string",
+            "enum": [
+              "AI_DRAFT",
+              "HUMAN",
+              "TEMPLATE"
+            ],
+            "description": "TEMPLATE (no AI) · HUMAN (operator revision) · AI_DRAFT (later)"
+          },
+          "channel_type": {
+            "type": "string",
+            "enum": [
+              "GMAIL",
+              "MOCK",
+              "PORTAL"
+            ]
+          },
+          "is_simulated": {
+            "type": "boolean"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "subject": {
+            "type": "string",
+            "nullable": true,
+            "description": "null when the content is missing from the content store"
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-10-13T11:00:00.000+09:00"
+          }
+        },
+        "required": [
+          "message_id",
+          "thread_id",
+          "status",
+          "drafted_by",
+          "channel_type",
+          "is_simulated",
+          "content_hash",
+          "subject",
+          "body",
+          "created_at"
+        ]
+      },
+      "DraftThreadDto": {
+        "type": "object",
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "CAPACITY_CHECK",
+              "RATE_REQUEST",
+              "SLOT_REQUEST",
+              "FACT_CONFIRM",
+              "GENERAL"
+            ]
+          },
+          "thread_status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "WAITING_REPLY",
+              "ANSWERED",
+              "CLOSED"
+            ]
+          },
+          "counterparty_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "counterparty_name": {
+            "type": "string"
+          },
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "contact_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "address_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "normalized_address": {
+            "type": "string",
+            "nullable": true
+          },
+          "related_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Recovery context the inquiry came from"
+          },
+          "opened_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id",
+          "purpose",
+          "thread_status",
+          "counterparty_id",
+          "counterparty_name",
+          "contact_id",
+          "contact_name",
+          "address_id",
+          "normalized_address",
+          "related_run_id",
+          "opened_at"
+        ]
+      },
+      "DraftQuestionDto": {
+        "type": "object",
+        "properties": {
+          "question_item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ask_id": {
+            "type": "string",
+            "description": "Tag carried in the message so a reply maps back to this question"
+          },
+          "question_type": {
+            "type": "string"
+          },
+          "question_text": {
+            "type": "string"
+          },
+          "target_entity_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_name": {
+            "type": "string"
+          },
+          "target_fact_key": {
+            "type": "string",
+            "nullable": true,
+            "example": "available.slot(2026-10-13T15:00-17:00)"
+          },
+          "expected_value_type": {
+            "type": "string"
+          },
+          "expected_unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_item_id",
+          "ask_id",
+          "question_type",
+          "question_text",
+          "target_entity_type",
+          "target_entity_id",
+          "target_name",
+          "target_fact_key",
+          "expected_value_type",
+          "expected_unit",
+          "question_status"
+        ]
+      },
+      "StructuredValueDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value_number": {
+            "type": "string",
+            "nullable": true,
+            "description": "Decimal string",
+            "example": "2"
+          },
+          "value_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Set when the value came from a recovery run"
+          },
+          "source_path": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "key",
+          "value_number",
+          "value_text",
+          "unit",
+          "source_run_id",
+          "source_path"
+        ]
+      },
+      "DraftSourceRunDto": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trigger_ref": {
+            "type": "string",
+            "nullable": true,
+            "example": "RP-001"
+          },
+          "contains_simulated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "trigger_ref",
+          "contains_simulated"
+        ]
+      },
+      "NumberTokenDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "example": "8"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "DATE",
+              "TIME",
+              "MONEY",
+              "QUANTITY"
+            ]
+          },
+          "matched_field": {
+            "type": "string",
+            "nullable": true,
+            "description": "Structured value key it matched; null = not in the structured values"
+          }
+        },
+        "required": [
+          "text",
+          "kind",
+          "matched_field"
+        ]
+      },
+      "NumberCheckDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PASSED",
+              "BLOCKED_NUMBER_CHECK"
+            ]
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NumberTokenDto"
+            }
+          },
+          "unmatched": {
+            "description": "Numbers / dates / times in the text that are not structured values (why it is blocked)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NumberTokenDto"
+            }
+          },
+          "not_mentioned": {
+            "description": "Structured values the text never mentions (information, not a failure)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "passed",
+          "tokens",
+          "unmatched",
+          "not_mentioned"
+        ]
+      },
+      "DraftGateDto": {
+        "type": "object",
+        "properties": {
+          "eligible": {
+            "type": "boolean"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateReasonDto"
+            }
+          }
+        },
+        "required": [
+          "eligible",
+          "reasons"
+        ]
+      },
+      "DraftDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/DraftMessageDto"
+          },
+          "thread": {
+            "$ref": "#/components/schemas/DraftThreadDto"
+          },
+          "question": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DraftQuestionDto"
+              }
+            ]
+          },
+          "structured_values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StructuredValueDto"
+            }
+          },
+          "plan_based": {
+            "type": "boolean",
+            "description": "true when the values come from a recovery run"
+          },
+          "source_run": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DraftSourceRunDto"
+              }
+            ]
+          },
+          "number_check": {
+            "nullable": true,
+            "description": "Recomputed on every read (deterministic); null when the content is missing",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NumberCheckDto"
+              }
+            ]
+          },
+          "contact_gate": {
+            "nullable": true,
+            "description": "Contact Gate re-evaluated on read",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DraftGateDto"
+              }
+            ]
+          },
+          "approval_ready": {
+            "type": "boolean",
+            "description": "May go to the approval step (U4) — PENDING_APPROVAL, number check passed, recipient eligible"
+          },
+          "blocked_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "BLOCKED_NUMBER_CHECK",
+                "RECIPIENT_NOT_ELIGIBLE",
+                "CONTENT_MISSING",
+                "NOT_PENDING_APPROVAL"
+              ]
+            }
+          }
+        },
+        "required": [
+          "message",
+          "thread",
+          "question",
+          "structured_values",
+          "plan_based",
+          "source_run",
+          "number_check",
+          "contact_gate",
+          "approval_ready",
+          "blocked_reasons"
+        ]
+      },
+      "DraftListDto": {
+        "type": "object",
+        "properties": {
+          "drafts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftDto"
+            }
+          }
+        },
+        "required": [
+          "drafts"
+        ]
+      },
+      "ReviseDraftRequestDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "subject",
+          "body"
+        ]
+      },
+      "RunSummaryDto": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trigger_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "executed_at": {
+            "type": "string"
+          },
+          "contains_simulated": {
+            "type": "boolean"
+          },
+          "scenario_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "required": [
+          "run_id",
+          "trigger_ref",
+          "executed_at",
+          "contains_simulated",
+          "scenario_id"
+        ]
+      },
+      "RunListDto": {
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "runs"
         ]
       },
       "ErrorResponse": {

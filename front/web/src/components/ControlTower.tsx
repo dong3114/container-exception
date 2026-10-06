@@ -15,6 +15,7 @@ import { Communications } from "./Communications";
 import { ContainerDrawer } from "./ContainerDrawer";
 import { ContainerTable } from "./ContainerTable";
 import { DataTrustPanel } from "./DataTrustPanel";
+import { InquiryDraftPanel } from "./drafts/InquiryDraftPanel";
 import { ExceptionPanel } from "./ExceptionPanel";
 import { KpiStrip } from "./KpiStrip";
 import { OperationsMap } from "./OperationsMap";
@@ -163,6 +164,9 @@ export function ControlTower() {
           <a href="#sec-comms" className="quick-nav-link">
             <span>✉️</span> 외부 채널 소통
           </a>
+          <a href="#sec-drafts" className="quick-nav-link">
+            <span>📝</span> 문의 초안 (Backend)
+          </a>
           <a href="#sec-containers" className="quick-nav-link">
             <span>📦</span> 컨테이너 상세 현황 ({view.containers.length}대)
           </a>
@@ -206,6 +210,11 @@ export function ControlTower() {
           <div id="sec-trust">
             <DataTrustPanel trust={view.trust} />
           </div>
+        </div>
+
+        {/* 실제 Backend 영역(T-088): 문의 초안만 API 로 — 위의 통신 카드는 시나리오 재생 그대로 */}
+        <div className="block" id="sec-drafts">
+          <InquiryDraftPanel plan={view.plan.plan} asOf={step.as_of} />
         </div>
 
         <div id="sec-containers">

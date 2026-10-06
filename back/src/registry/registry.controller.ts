@@ -1,6 +1,6 @@
 import { Controller, Get, Inject, Param } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ContactEligibilityDto, CounterpartyListDto } from './dto.js';
+import { ContactEligibilityDto, CounterpartyListDto, FacilityListDto } from './dto.js';
 import { RegistryService } from './registry.service.js';
 
 const ERROR_SCHEMA = { $ref: '#/components/schemas/ErrorResponse' };
@@ -19,6 +19,13 @@ export class RegistryController {
   @ApiOkResponse({ type: CounterpartyListDto })
   listCounterparties(): Promise<CounterpartyListDto> {
     return this.registry.listCounterparties();
+  }
+
+  @Get('facilities')
+  @ApiOperation({ summary: 'Active facilities (warehouse · ODCY · terminal) an inquiry can be about' })
+  @ApiOkResponse({ type: FacilityListDto })
+  listFacilities(): Promise<FacilityListDto> {
+    return this.registry.listFacilities();
   }
 
   @Get('addresses/:addressId/eligibility')

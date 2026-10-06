@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import { DATABASE, type Database } from '../db/database.js';
-import { actor, contactChannelAddress, counterparty, counterpartyContact } from '../db/schema/index.js';
+import { actor, contactChannelAddress, counterparty, counterpartyContact, facility } from '../db/schema/index.js';
 
 export type ActorRow = typeof actor.$inferSelect;
 
@@ -64,6 +64,15 @@ export class RegistryReader {
   async findAddress(addressId: string): Promise<CounterpartyAddressRow | null> {
     const rows = await this.addressQuery().where(eq(contactChannelAddress.addressId, addressId)).limit(1);
     return rows[0] ?? null;
+  }
+
+  /** 활성 시설(창고 · ODCY · 터미널) — 문의 대상 고르기. */
+  async listFacilities(): Promise<{ facilityId: string; facilityType: string; facilityName: string; area: string | null }[]> {
+    return this.db
+      .select({ facilityId: facility.facilityId, facilityType: facility.facilityType, facilityName: facility.facilityName, area: facility.area })
+      .from(facility)
+      .where(eq(facility.isActive, true))
+      .orderBy(asc(facility.facilityType), asc(facility.facilityName));
   }
 
   private addressQuery() {
