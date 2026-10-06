@@ -8,6 +8,8 @@ interface Props {
   plan: RecoveryPlanView | null;
   exception: ActiveException | null;
   onSelect: (id: string) => void;
+  hoveredId?: string | null;
+  onHover?: (id: string | null) => void;
 }
 
 // Abstract layout (not a real port layout). Coordinates are in the 1000×440 viewBox.
@@ -18,7 +20,7 @@ const ODCY_B = { x: 468, y: 262, w: 176, h: 96 };
 const WH_A = { x: 790, y: 108, w: 194, h: 164 };
 const WH_B = { x: 790, y: 318, w: 194, h: 68 };
 
-export function OperationsMap({ containers, resources, plan, exception, onSelect }: Props) {
+export function OperationsMap({ containers, resources, plan, exception, onSelect, hoveredId, onHover }: Props) {
   const whA = resources.warehouses.find((w) => w.id === "WAREHOUSE_A")!;
   const whB = resources.warehouses.find((w) => w.id === "WAREHOUSE_B")!;
   const odcyA = resources.odcys.find((o) => o.id === "ODCY_A")!;
@@ -87,37 +89,53 @@ export function OperationsMap({ containers, resources, plan, exception, onSelect
           {/* ---------- terminal ---------- */}
           <g>
             <rect x={TERMINAL.x} y={TERMINAL.y} width={TERMINAL.w} height={TERMINAL.h} rx={10} fill="#f7f8fb" stroke="#cfd4dc" />
-            <text x={TERMINAL.x + 12} y={TERMINAL.y + 20} fontSize={13} fontWeight={700} fill="#121826">
+            <text x={TERMINAL.x + 12} y={TERMINAL.y + 20} fontSize={13} fontWeight={700} fill="#0f172a">
               터미널 T1
             </text>
-            <text x={TERMINAL.x + 76} y={TERMINAL.y + 20} fontSize={11} fill="#7a8294">
-              부산신항 · 가상 배치
+            <text x={TERMINAL.x + 76} y={TERMINAL.y + 20} fontSize={11} fill="#64748b">
+              부산신항
             </text>
             {waitCount > 0 && (
               <g>
-                <rect x={TERMINAL.x + TERMINAL.w - 96} y={TERMINAL.y + 8} width={86} height={20} rx={10} fill="#fdf6dc" stroke="#e7cf7a" />
-                <text x={TERMINAL.x + TERMINAL.w - 53} y={TERMINAL.y + 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#8a6408">
+                <rect x={TERMINAL.x + TERMINAL.w - 96} y={TERMINAL.y + 8} width={86} height={20} rx={10} fill="#fef3c7" stroke="#fde68a" />
+                <text x={TERMINAL.x + TERMINAL.w - 53} y={TERMINAL.y + 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#b45309">
                   터미널 대기 {waitCount}
                 </text>
               </g>
             )}
             {atTerminal.map((c, i) => (
-              <ContainerCell key={c.id} c={c} x={TERMINAL.x + 14 + (i % 5) * 56} y={TERMINAL.y + 40 + Math.floor(i / 5) * 48} onSelect={onSelect} />
+              <ContainerCell
+                key={c.id}
+                c={c}
+                x={TERMINAL.x + 14 + (i % 5) * 56}
+                y={TERMINAL.y + 40 + Math.floor(i / 5) * 48}
+                onSelect={onSelect}
+                isHovered={hoveredId === c.id}
+                onHover={onHover}
+              />
             ))}
-            <text x={TERMINAL.x + 12} y={TERMINAL.y + TERMINAL.h - 10} fontSize={10.5} fill="#7a8294">
-              모두 아직 터미널 (첫 배차 13:00) · 색 = 배정 경로
+            <text x={TERMINAL.x + 12} y={TERMINAL.y + TERMINAL.h - 10} fontSize={10.5} fill="#94a3b8">
+              색상 = 배정 경로 · 첫 배차 13:00
             </text>
           </g>
           <g>
-            <rect x={VESSEL.x} y={VESSEL.y} width={VESSEL.w} height={VESSEL.h} rx={10} fill="#fff" stroke="#b8dfee" strokeDasharray="5 4" />
-            <text x={VESSEL.x + 12} y={VESSEL.y + 20} fontSize={12} fontWeight={700} fill="#0e7fa8">
-              선박 · 입항 전
+            <rect x={VESSEL.x} y={VESSEL.y} width={VESSEL.w} height={VESSEL.h} rx={10} fill="#ffffff" stroke="#bae6fd" strokeDasharray="5 4" />
+            <text x={VESSEL.x + 12} y={VESSEL.y + 20} fontSize={12} fontWeight={700} fill="#0284c7">
+              선박 (입항 전)
             </text>
-            <text x={VESSEL.x + 12} y={VESSEL.y + 38} fontSize={10.5} fill="#7a8294">
-              ETA 10/14 06:00 (예상값)
+            <text x={VESSEL.x + 12} y={VESSEL.y + 38} fontSize={10.5} fill="#64748b">
+              ETA 10/14 06:00
             </text>
             {arriving.map((c, i) => (
-              <ContainerCell key={c.id} c={c} x={VESSEL.x + 150 + i * 60} y={VESSEL.y + 18} onSelect={onSelect} />
+              <ContainerCell
+                key={c.id}
+                c={c}
+                x={VESSEL.x + 150 + i * 60}
+                y={VESSEL.y + 18}
+                onSelect={onSelect}
+                isHovered={hoveredId === c.id}
+                onHover={onHover}
+              />
             ))}
           </g>
 
@@ -180,16 +198,39 @@ function Route(props: { d: string; color: string; active: boolean; dashed?: bool
   );
 }
 
-function ContainerCell({ c, x, y, onSelect }: { c: ContainerView; x: number; y: number; onSelect: (id: string) => void }) {
+function ContainerCell({
+  c,
+  x,
+  y,
+  onSelect,
+  isHovered,
+  onHover,
+}: {
+  c: ContainerView;
+  x: number;
+  y: number;
+  onSelect: (id: string) => void;
+  isHovered?: boolean;
+  onHover?: (id: string | null) => void;
+}) {
   const w = c.size_type.startsWith("20") ? 34 : 50;
   const fill = ROUTE_COLOR[c.current_route as RouteCode];
   const affected = c.impact === "AFFECTED";
   const reefer = c.size_type.endsWith("RF");
   return (
-    <g className="cell" onClick={() => onSelect(c.id)} style={{ cursor: "pointer" }} data-testid={`cell-${c.id}`} data-route={c.current_route}>
+    <g
+      className="cell"
+      onClick={() => onSelect(c.id)}
+      onMouseEnter={() => onHover?.(c.id)}
+      onMouseLeave={() => onHover?.(null)}
+      style={{ cursor: "pointer" }}
+      data-testid={`cell-${c.id}`}
+      data-route={c.current_route}
+    >
       <title>{`${c.id} ${c.size_label} · ${c.current_route_label} · 위험 ${c.risk.grade}`}</title>
+      {isHovered && <rect x={x - 3} y={y - 3} width={w + 6} height={28} rx={5} fill="#2563eb" opacity={0.25} />}
       {c.route_changed_in_current_plan && <rect x={x - 4} y={y - 4} width={w + 8} height={30} rx={5} fill="none" stroke="#121826" strokeWidth={1.6} strokeDasharray="4 3" />}
-      <rect x={x} y={y} width={w} height={22} rx={3} fill={fill} opacity={c.current_route === "PLANNED_LATER" ? 0.55 : 0.92} stroke={affected ? "#d62d2d" : "rgba(0,0,0,0.15)"} strokeWidth={affected ? 2.4 : 1} />
+      <rect x={x} y={y} width={w} height={22} rx={3} fill={fill} opacity={c.current_route === "PLANNED_LATER" ? 0.55 : 0.92} stroke={isHovered ? "#2563eb" : affected ? "#d62d2d" : "rgba(0,0,0,0.15)"} strokeWidth={isHovered ? 2 : affected ? 2.4 : 1} />
       <text x={x + w / 2} y={y + 15} textAnchor="middle" fontSize={10} fontWeight={700} fill="#fff" style={{ pointerEvents: "none" }}>
         {c.id.slice(1)}
       </text>

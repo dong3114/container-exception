@@ -8,11 +8,13 @@ interface Props {
   plannedToday: number;
   affectedCount: number;
   onSelect: (id: string) => void;
+  hoveredId?: string | null;
+  onHover?: (id: string | null) => void;
 }
 
 const ROUTE_ORDER: RouteCode[] = ["WAREHOUSE_DIRECT", "ODCY_A", "ODCY_B", "TERMINAL_WAIT"];
 
-export function RecoveryConsole({ current, containers, plannedToday, affectedCount, onSelect }: Props) {
+export function RecoveryConsole({ current, containers, plannedToday, affectedCount, onSelect, hoveredId, onHover }: Props) {
   const { plan, baseline, history } = current;
   const byId = new Map(containers.map((c) => [c.id, c]));
 
@@ -35,54 +37,54 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
             ))}
           </span>
         )}
-        <span className="card-meta">{plan ? `생성 ${hms(plan.generated_at)} · 시나리오 결과 (Solver 아님)` : ""}</span>
+        <span className="card-meta">{plan ? `생성 ${hms(plan.generated_at)} · 시뮬레이션 계획` : ""}</span>
       </div>
 
-      {!baseline && <div className="empty">활성 예외가 없어 복구 계획이 없습니다. 원래 입고 계획대로 진행합니다.</div>}
+      {!baseline && <div className="empty">활성 예외가 없어 복구 계획이 필요하지 않습니다. 정상 배차를 유지합니다.</div>}
 
       {baseline && (
         <div className="card-body">
           {plan?.status_flags.includes("INPUT_CHANGED") && (
-            <div className="rc-note warn" style={{ marginBottom: 10, background: "var(--red-soft)", borderColor: "#f0b3b3" }} data-testid="input-changed">
+            <div className="rc-note warn" style={{ marginBottom: 12, background: "var(--red-soft)", borderColor: "var(--red-border)" }} data-testid="input-changed">
               <b style={{ color: "var(--red)" }}>계획 입력 변경 — 재계획 필요.</b> {plan.status_note}
             </div>
           )}
           {plan?.status === "PROPOSED" && plan.active_approved_plan_id && (
-            <div className="rc-note" style={{ marginBottom: 10 }}>
-              {plan.label}은 승인 대기입니다. 승인 전까지 실행 기준은 {plan.active_approved_plan_id} (승인된 계획)입니다.
+            <div className="rc-note" style={{ marginBottom: 12 }}>
+              {plan.label}은 승인 대기 중입니다. 승인 전 실행 기준은 <b>{plan.active_approved_plan_id}</b> (기존 승인 계획)입니다.
             </div>
           )}
 
           <div className="rc-costs">
             <div className="rc-cost">
-              <div className="rc-cost-label">Baseline Cost (조치 없음)</div>
+              <div className="rc-cost-label">Baseline Cost (미조치 시)</div>
               <div className="rc-cost-value num" data-testid="baseline-cost">
                 {krw(baseline.total_cost_krw)}
               </div>
-              <div className="rc-cost-note">영향 12대를 터미널에서 기다리게 할 때</div>
+              <div className="rc-cost-note">영향 12대 터미널 대기 기준 예상 총비용</div>
             </div>
             <div className="rc-cost">
-              <div className="rc-cost-label">Simulated Recovery Plan Cost</div>
+              <div className="rc-cost-label">Recovery Plan Cost (복구 계획)</div>
               <div className="rc-cost-value num" data-testid="plan-cost">
                 {plan ? krw(plan.plan_cost_krw) : "계획 대기"}
               </div>
               <div className="rc-cost-note">
-                {plan?.previous ? `이전 ${plan.previous.plan_id}: ${krw(plan.previous.plan_cost_krw)}` : plan ? "같은 12대 · 같은 입고일" : "다음 이벤트에서 계획 생성"}
+                {plan?.previous ? `이전 계획(${plan.previous.plan_id}): ${krw(plan.previous.plan_cost_krw)}` : plan ? "우회 반출 및 분산 배치" : "다음 이벤트에서 계획 생성"}
               </div>
             </div>
             <div className="rc-cost saving">
-              <div className="rc-cost-label">Potential Saving (시뮬레이션 기준)</div>
+              <div className="rc-cost-label">Potential Saving (예상 절감액)</div>
               <div className="rc-cost-value num" data-testid="potential-saving">
                 {plan ? krw(plan.potential_saving_krw) : "—"}
               </div>
-              <div className="rc-cost-note">{plan?.previous ? `이전 ${krw(plan.previous.potential_saving_krw)}` : "실제 절감 실적 아님"}</div>
+              <div className="rc-cost-note">{plan?.previous ? `이전 대비 절감액: ${krw(plan.previous.potential_saving_krw)}` : "Baseline 대비 순 절감"}</div>
             </div>
           </div>
 
           <div className="rc-bars" aria-hidden>
-            <Bar label="Baseline" value={baseline.total_cost_krw} max={baseline.total_cost_krw} color="#d9a0a0" />
-            {plan?.previous && <Bar label={`${plan.previous.plan_id} (이전)`} value={plan.previous.plan_cost_krw} max={baseline.total_cost_krw} color="#b9c9ee" />}
-            {plan && <Bar label={plan.label} value={plan.plan_cost_krw} max={baseline.total_cost_krw} color="#0f8a80" />}
+            <Bar label="Baseline" value={baseline.total_cost_krw} max={baseline.total_cost_krw} color="#f87171" />
+            {plan?.previous && <Bar label={`${plan.previous.plan_id} (이전)`} value={plan.previous.plan_cost_krw} max={baseline.total_cost_krw} color="#93c5fd" />}
+            {plan && <Bar label={plan.label} value={plan.plan_cost_krw} max={baseline.total_cost_krw} color="#0d9488" />}
           </div>
 
           {plan && (
@@ -99,7 +101,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                   <span className="rc-eq">= {plannedToday}대</span>
                 </div>
               </div>
-              <div className="rc-sum-block" style={{ borderColor: "#f0b3b3" }}>
+              <div className="rc-sum-block" style={{ borderColor: "var(--red-border)" }}>
                 <div className="rc-sum-title">영향 {affectedCount}대 Recovery Actions</div>
                 <div className="rc-sum-items" data-testid="action-summary">
                   {ROUTE_ORDER.filter((r) => plan.recovery_action_summary_12[r]).map((r, i) => (
@@ -121,23 +123,31 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                   <tr>
                     <th>컨테이너</th>
                     <th>규격 · 선사</th>
-                    <th>우선</th>
+                    <th>우선순위</th>
                     <th>LFD</th>
-                    <th>위험</th>
+                    <th>위험 등급</th>
                     <th>Recovery Action</th>
                     <th>출발 · 트럭</th>
-                    <th>입고</th>
+                    <th>입고일</th>
                     <th className="r">Baseline</th>
                     <th className="r">Plan</th>
-                    <th className="r">절감</th>
+                    <th className="r">절감액</th>
                   </tr>
                 </thead>
                 <tbody>
                   {plan.actions.map((a) => {
                     const c = byId.get(a.container_id)!;
                     const changed = a.change_from_previous?.kind === "ROUTE_CHANGED";
+                    const isHovered = hoveredId === a.container_id;
                     return (
-                      <tr key={a.container_id} className={`clickable ${changed ? "changed" : ""}`} onClick={() => onSelect(a.container_id)} data-testid={`action-${a.container_id}`}>
+                      <tr
+                        key={a.container_id}
+                        className={`clickable ${changed ? "changed" : ""} ${isHovered ? "is-hovered" : ""}`}
+                        onClick={() => onSelect(a.container_id)}
+                        onMouseEnter={() => onHover?.(a.container_id)}
+                        onMouseLeave={() => onHover?.(null)}
+                        data-testid={`action-${a.container_id}`}
+                      >
                         <td>
                           <b>{a.container_id}</b>
                           <div className="muted mono" style={{ fontSize: 10.5 }}>
@@ -154,7 +164,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                           <RiskBadge grade={c.risk.grade} />
                         </td>
                         <td className="wrap" style={{ minWidth: 260 }}>
-                          <span className="muted">터미널 → </span>
+                          <span className="muted" style={{ fontSize: 11.5 }}>터미널 → </span>
                           <RouteBadge route={a.route} />
                           {a.uses_provisional_input && <span className="badge b-amber b-dashed" style={{ marginLeft: 4 }}>잠정 입력</span>}
                           {a.change_from_previous && (
@@ -178,7 +188,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                   })}
                   <tr className="row-detail">
                     <td colSpan={11} className="wrap">
-                      창고 A 직송 유지 {plan.unchanged_direct.count}대 ({plan.unchanged_direct.container_ids.join(", ")}) — {krw(plan.unchanged_direct.cost_krw)}. Reefer(ODCY 불가)와 우선순위 필수 화물. 세 계획에서 같아 비교에서 뺐습니다.
+                      <b>직송 유지 {plan.unchanged_direct.count}대</b> ({plan.unchanged_direct.container_ids.join(", ")}) — 비용 {krw(plan.unchanged_direct.cost_krw)}. 리퍼 및 필수 우선순위 화물은 기존 창고 직송을 유지합니다.
                     </td>
                   </tr>
                 </tbody>
@@ -195,7 +205,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
               {plan.change_summary.length > 0 && (
                 <div className="rc-note change" data-testid="change-summary">
                   <h4>
-                    {plan.previous?.plan_id} → {plan.label}에서 바뀐 것
+                    {plan.previous?.plan_id} → {plan.label} 변경 사항
                   </h4>
                   <ul>
                     {plan.change_summary.map((s) => (
@@ -205,7 +215,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                 </div>
               )}
               <div className="rc-note warn">
-                <h4>잠정 입력 {plan.provisional_inputs.length}건 (PROVISIONAL — 사람 확인 전)</h4>
+                <h4>잠정 입력 {plan.provisional_inputs.length}건 (사람 확인 전)</h4>
                 <ul>
                   {plan.provisional_inputs.map((p) => (
                     <li key={p.ref}>{p.label}</li>
@@ -213,7 +223,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                 </ul>
               </div>
               <div className="rc-note">
-                <h4>막고 있는 제약</h4>
+                <h4>운영 제약</h4>
                 <ul>
                   {plan.binding_constraints.map((b) => (
                     <li key={b.type + b.ref}>{b.note}</li>
@@ -222,7 +232,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
               </div>
               {plan.resource_gaps.length > 0 && (
                 <div className="rc-note">
-                  <h4>부족한 자원 → 문의 대상</h4>
+                  <h4>부족 자원 및 문의 대상</h4>
                   <ul>
                     {plan.resource_gaps.map((g) => (
                       <li key={g.type + g.note}>
@@ -233,20 +243,17 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
                 </div>
               )}
               <div className="rc-note">
-                <h4>사람 승인 (G3)</h4>
+                <h4>운영자 승인 (G3)</h4>
                 {plan.approval ? (
-                  <div>
-                    {plan.approval.decided_by} · {hms(plan.approval.decided_at)} 승인. 잠정 입력 {plan.approval.acknowledged_provisional_inputs.length}건 인지. 계획 승인은 사실 확인이 아니다 — 입력은 계속 잠정.
+                  <div style={{ lineHeight: 1.4 }}>
+                    <b>{plan.approval.decided_by}</b> ({hms(plan.approval.decided_at)}) 승인 완료. 잠정 입력 {plan.approval.acknowledged_provisional_inputs.length}건 인지 기록됨.
                   </div>
                 ) : (
-                  <div>승인 전. 승인하려면 잠정 입력 {plan.provisional_inputs.length}건을 인지했다고 기록해야 한다.</div>
+                  <div style={{ color: "var(--text-3)" }}>승인 대기 중 (잠정 입력 {plan.provisional_inputs.length}건 인지 필요)</div>
                 )}
               </div>
             </div>
           )}
-          <p className="muted" style={{ fontSize: 11, margin: "10px 0 0" }}>
-            {plan ? `${plan.definitions.total_cost} · ${plan.definitions.saving} · ${plan.definitions.delivery_day_rule}` : ""}
-          </p>
         </div>
       )}
     </section>

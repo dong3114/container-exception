@@ -43,6 +43,7 @@ export function ControlTower() {
   const [previous, setPrevious] = useState<ViewData | null>(null);
   const viewRef = useRef<ViewData | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
     provider.getScenario().then(setScenario);
@@ -151,37 +152,87 @@ export function ControlTower() {
 
         <KpiStrip summary={view.ops.summary} previous={previous?.ops.summary ?? null} stepId={view.stepId} />
 
-        <div className="grid-main">
-          <OperationsMap containers={view.containers} resources={view.resources} plan={view.plan.plan} exception={view.ops.exceptions[0] ?? null} onSelect={setSelectedId} />
+        <div className="quick-nav" role="navigation" aria-label="섹션 바로가기">
+          <a href="#sec-map" className="quick-nav-link">
+            <span>🗺️</span> 관제 지도 및 예외
+          </a>
+          <a href="#sec-console" className="quick-nav-link">
+            <span>⚡</span> 복구 계획 콘솔
+          </a>
+          <a href="#sec-comms" className="quick-nav-link">
+            <span>✉️</span> 외부 채널 소통
+          </a>
+          <a href="#sec-containers" className="quick-nav-link">
+            <span>📦</span> 컨테이너 상세 현황 ({view.containers.length}대)
+          </a>
+          <a href="#sec-trust" className="quick-nav-link">
+            <span>🛡️</span> 데이터 신뢰도
+          </a>
+        </div>
+
+        <div className="grid-main" id="sec-map">
+          <OperationsMap
+            containers={view.containers}
+            resources={view.resources}
+            plan={view.plan.plan}
+            exception={view.ops.exceptions[0] ?? null}
+            onSelect={setSelectedId}
+            hoveredId={hoveredId}
+            onHover={setHoveredId}
+          />
           <div className="stack">
             <ExceptionPanel exceptions={view.ops.exceptions} onSelect={setSelectedId} />
             <ActivityTimeline items={view.activity} />
           </div>
         </div>
 
-        <div className="block">
+        <div className="block" id="sec-console">
           <RecoveryConsole
             current={view.plan}
             containers={view.containers}
             plannedToday={view.ops.summary.warehouse.planned_today}
             affectedCount={view.ops.summary.affected_count}
             onSelect={setSelectedId}
+            hoveredId={hoveredId}
+            onHover={setHoveredId}
           />
         </div>
 
         <div className="grid-two">
-          <Communications threads={view.comms} />
-          <DataTrustPanel trust={view.trust} />
+          <div id="sec-comms">
+            <Communications threads={view.comms} />
+          </div>
+          <div id="sec-trust">
+            <DataTrustPanel trust={view.trust} />
+          </div>
         </div>
 
-        <ContainerTable containers={view.containers} onSelect={setSelectedId} />
+        <div id="sec-containers">
+          <ContainerTable
+            containers={view.containers}
+            onSelect={setSelectedId}
+            hoveredId={hoveredId}
+            onHover={setHoveredId}
+          />
+        </div>
 
         <footer className="footer">
-          <ul>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="badge b-sim">시뮬레이션 모드</span>
+              <span className="muted" style={{ fontSize: 11.5 }}>실제 항만 및 외부 통신 연동 전 프로토타입 화면입니다.</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 11.5, color: "var(--text-3)" }}>
+              <span>단축키:</span>
+              <kbd style={{ padding: "2px 6px", background: "var(--slate-soft)", border: "1px solid var(--line)", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 11 }}>← 이전</kbd>
+              <kbd style={{ padding: "2px 6px", background: "var(--slate-soft)", border: "1px solid var(--line)", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 11 }}>→ 다음</kbd>
+              <kbd style={{ padding: "2px 6px", background: "var(--slate-soft)", border: "1px solid var(--line)", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 11 }}>Esc 닫기</kbd>
+            </div>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-3)", fontSize: 11 }}>
             {view.ops.disclaimers.map((d) => (
               <li key={d}>{d}</li>
             ))}
-            <li>시뮬레이션 화면 — 실제 항만 배치가 아니다. 키보드: ← 이전 · → 다음 · Esc 닫기.</li>
           </ul>
         </footer>
       </main>

@@ -15,7 +15,7 @@ export function ActivityTimeline({ items }: { items: ActivityItem[] }) {
     <section className="card" data-testid="activity-timeline">
       <div className="card-head">
         <span className="card-title">Activity Timeline</span>
-        <span className="card-meta">최신이 위 · {items.length}건</span>
+        <span className="card-meta">최근 발생 순 · {items.length}건</span>
       </div>
       <ol className="timeline">
         {ordered.map((i) => {
@@ -24,7 +24,7 @@ export function ActivityTimeline({ items }: { items: ActivityItem[] }) {
             <li key={`${i.at}-${i.text}`} className={`tl-item ${i.is_new_in_step ? "new" : ""}`} data-testid="activity-item">
               <span className="tl-time">{hms(i.at)}</span>
               <span className="tl-dot" style={{ background: dot }} />
-              <span>
+              <span style={{ lineHeight: 1.4 }}>
                 <span className="tl-actor">{i.actor}</span>
                 {i.text}
                 <span className={`badge ${tone} tl-kind`}>{label}</span>

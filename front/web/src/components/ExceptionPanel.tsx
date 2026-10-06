@@ -19,9 +19,12 @@ export function ExceptionPanel({ exceptions, onSelect }: { exceptions: ActiveExc
       <div className="card-body">
         {exceptions.length === 0 ? (
           <div className="exc calm">
-            <b>활성 예외 없음</b>
-            <div className="sub" style={{ marginTop: 4 }}>
-              창고 A 오늘 20대 입고 예정 · 수용 20. 통관 대기 2대(HIGH)는 예외가 아니라 위험 목록에서 관리합니다.
+            <div style={{ fontWeight: 750, color: "var(--text-2)", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--green)" }} />
+              활성 예외 없음
+            </div>
+            <div className="sub" style={{ marginTop: 6, fontSize: 12 }}>
+              창고 A 입고 20대 정상 수용 가능 · 통관 대기 화물은 위험 관리 탭에서 모니터링 중입니다.
             </div>
           </div>
         ) : (
@@ -30,19 +33,19 @@ export function ExceptionPanel({ exceptions, onSelect }: { exceptions: ActiveExc
             return (
               <div className="exc" key={e.exception_id}>
                 <div className="exc-title">
-                  ⚠ {e.resource_name} Equipment Failure
+                  <span>⚠ {e.resource_name} 설비 장애</span>
                   <span className={`badge ${tone}`} style={{ marginLeft: "auto" }}>
                     {label}
                   </span>
                 </div>
                 <div className="exc-cap">
-                  <span className="muted">오늘 수용량</span>
+                  <span className="muted" style={{ fontSize: 12 }}>수용량 변화</span>
                   <span className="exc-cap-from">{e.capacity_before}</span>
-                  <span>→</span>
+                  <span style={{ color: "var(--text-3)" }}>→</span>
                   <span className="exc-cap-to" data-testid="exc-capacity">
                     {e.capacity_after}
                   </span>
-                  <span className="muted">({md(e.day)})</span>
+                  <span className="muted" style={{ fontSize: 12 }}>({md(e.day)})</span>
                 </div>
                 <dl className="kv">
                   <dt>Affected</dt>
@@ -50,21 +53,23 @@ export function ExceptionPanel({ exceptions, onSelect }: { exceptions: ActiveExc
                     <b className="num" style={{ color: "var(--red)", fontSize: 15 }} data-testid="exc-affected">
                       {e.affected_count}대
                     </b>{" "}
-                    <span className="muted">/ 오늘 입고 예정 {e.planned_today}대</span>
+                    <span className="muted">/ 입고 예정 {e.planned_today}대</span>
                   </dd>
                   <dt>Detected</dt>
-                  <dd className="num">{hms(e.detected_at)}</dd>
+                  <dd className="num" style={{ fontWeight: 600 }}>{hms(e.detected_at)}</dd>
                   <dt>Source</dt>
                   <dd>
-                    {e.source.type === "HUMAN_UI" && e.source.value_status === "CONFIRMED" && <span className="badge b-green">Human Confirmed</span>}{" "}
-                    {e.source.is_simulated && <span className="badge b-sim">Simulated</span>}
-                    <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
-                      {e.source.label} · {e.source.event_id}
+                    <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                      {e.source.type === "HUMAN_UI" && e.source.value_status === "CONFIRMED" && <span className="badge b-green">Human Confirmed</span>}
+                      {e.source.is_simulated && <span className="badge b-sim">Simulated</span>}
+                    </div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
+                      {e.source.label}
                     </div>
                   </dd>
-                  <dt>상태</dt>
+                  <dt>상태 노트</dt>
                   <dd className="sub">{e.status_note}</dd>
-                  <dt>영향 컨테이너</dt>
+                  <dt>영향 화물</dt>
                   <dd>
                     <div className="chips">
                       {e.affected_container_ids.map((id) => (
