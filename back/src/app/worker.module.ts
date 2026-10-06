@@ -2,6 +2,7 @@ import { type DynamicModule, Inject, Injectable, Logger, Module } from '@nestjs/
 import { ConfigModule } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { DatabaseHealth, DatabaseModule } from '../db/database.module.js';
+import { PersistenceModule } from '../persistence/persistence.module.js';
 import { newJobContext, runWithContext } from '../shared/context/request-context.js';
 import { SharedModule } from '../shared/shared.module.js';
 
@@ -30,7 +31,7 @@ export class WorkerModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: WorkerModule,
-      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker')],
+      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule],
       providers: [{ provide: WorkerRunner, inject: [DatabaseHealth], useFactory: (db: DatabaseHealth) => new WorkerRunner(db) }],
     };
   }

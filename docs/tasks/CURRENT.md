@@ -10,13 +10,26 @@
 
 ## Status
 
-**IDLE** — **T-085 (U0 Backend Foundation) DONE** (2026-09-23 최종 검토·커밋, Claude Code). 진행 중인 Task 는 없다. **다음은 T-086(U1)** 이고 실행 가능하다. 아직 시작하지 않았다.
+**IDLE** — **T-086 (U1 Persistence Foundation) DONE** (2026-10-06 최종 안전성 검토 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-087(U2)** 이고 실행 가능하다. **아직 시작하지 않았다**(사용자 지시 2026-10-06).
 
-T-085 경과는 `LOG.md` 맨 위 항목. Backend 뼈대 정본은 `back/`(구조는 `back/README.md`), 로컬 DB 는 `infra/local/`, 명령은 `AGENTS.md` 6절.
+T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은 `docs/24` 18.2(U1-1~U1-11).
 
-- **다음 세션 시작 순서**: ① Docker Desktop 켜기(꺼져 있으면 DB 시험 불가) ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(61 통과 확인) ④ T-086(U1) 착수
-- 로컬 비밀번호는 `infra/local/.env` · `back/.env`(둘 다 gitignore, 이 PC 에만 있음). 지우면 `.env.example` 로 다시 만들고 DB 볼륨도 `down -v` 로 초기화해야 한다
-- **U0 가 남긴 것**: 제품 스키마 `back/src/db/schema/index.ts` 는 비어 있다 · 제품 migration `back/drizzle/` 은 아직 없다(U1 첫 migration 과 함께 생긴다) · `system_error` 기록은 U1 에 `ApiErrorFilter` 로 붙인다 · drizzle-kit 개발 의존성 moderate 4건은 **dev 전용**(`npm audit --omit=dev` = 0건)이라 판 유지
+- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(135 통과 확인) ④ T-087(U2) Brief 작성 → 사용자 승인
+- **migration 은 이제 커밋됐다(M01~M10 = `0000`~`0009`).** 고치지 않는다 — 스키마 변경은 `npm run db:generate`(또는 `db:generate:custom`)로 **M11 부터 새 파일**. 개발 DB `cera` 는 2026-10-06 `down -v` 뒤 M01→M10 + 시드 20행으로 새로 만들었다
+- 마지막 migration 번호: **M10 = `0009_m10_permissions.sql`** · 함수 17 · 트리거 70 · SQLSTATE CE001~CE006
+
+## 커밋하지 않은 working tree (T-086 커밋 밖 — 각자 따로 정리)
+
+| 무엇 | 파일 | 상태 |
+| --- | --- | --- |
+| **프론트 CSR 전환 (사용자 직접 지시 2026-10-06, ADR-035 Accepted)** | `front/web/`(Vite 설정 · `index.html` · `src/main.tsx` · `src/App.tsx` · `src/vite-env.d.ts` · `src/app/dev/api/page.tsx` · `package*.json` · `tsconfig.json` · `eslint.config.mjs` · `src/data/index.ts` · Next 파일 삭제 3) · `docs/14`(ADR-035) · `docs/16` · `README.md` · `.gitignore` · `AGENTS.md` 의 front 줄 | 검증 끝(typecheck · lint 오류 0 · build · validate · smoke · `/backend/health` 프록시). **별도 커밋 대기** |
+| 프론트 디자인 작업(Antigravity, 이 흐름 밖) | `front/web/src/components/*` 11개 · `src/app/globals.css` | 이 흐름이 고치지 않음(CSR 전환 때 `"use client"` 줄 2개만 지움) |
+| 이 흐름 밖 untracked | `data/Proposal/` · `scripts/`(제안서 생성 — 문구에 "Next.js" 남음) | 손대지 않음 |
+| 정본 문서의 Next.js 잔여 표기 | `docs/01` 7절 · `docs/07` 3절 · `docs/10` · `docs/18` 782줄 · `docs/23` 2·10절 | ADR-035 에 맞춰 동기화 필요(프론트 커밋과 함께) |
+
+## 다른 PC 로 옮길 때 (Google Drive 복사 — remote 없음)
+
+**이 저장소는 remote 가 없다. Google Drive 폴더 복사가 유일한 이전 수단이다.** `node_modules`(back · front/web)와 `back/dist` 는 복사하지 않고 새 PC 에서 `npm install` · `npm run build`. `back/.env` · `infra/local/.env`(gitignore)와 `.git/` 은 **반드시 함께 복사**(author `dong3114` 설정이 `.git` 안에 있다). Docker 볼륨은 따라가지 않는다 — 새 PC 에서 `up -d --wait` → `cd back && npm run db:migrate && npm run db:seed`. 미커밋 작업(`front/web/` 12 · `data/Proposal/` · `scripts/` · **T-086 전체**)은 폴더째 복사하면 따라간다. 준비물: Node ≥ 22.12 · Docker Desktop · 포트 55442.
 
 ## 지금 확정된 상태
 
@@ -28,7 +41,8 @@ T-085 경과는 `LOG.md` 맨 위 항목. Backend 뼈대 정본은 `back/`(구조
 | 출처 어휘 | **`source_type` 7값 · `source_role` · `extraction_method` 3축**(사용자 결정 C). **Q-46 은 OPEN** |
 | 런타임·오류 처리·관측성 `docs/23` | 정본. ADR-030 **Proposed** · ADR-031 은 Desktop·Web First 부분만 Proposed(결정 1·2·8 은 ADR-033 이 대체) |
 | Backend 언어 | **결정 — Main Backend = TypeScript + NestJS**(모듈형 모놀리스, API + Worker) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON). **ADR-033 Accepted**, ADR-002 Superseded, Q-64 CLOSED |
-| 물리 설계 `docs/24` | **승인 (T-080 DONE 2026-09-22)**. 논리 기준 `docs/22` rev.2.5 · P0 29표 · 349컬럼 |
+| 물리 설계 `docs/24` | **승인 (T-080 DONE 2026-09-22)**. 논리 기준 `docs/22` rev.2.5 · P0 29표 · 349컬럼. **U1 구현 확인 18.2 (2026-10-02 · 최종 검토 2026-10-06 U1-11)** |
+| 프론트엔드 | **Vite + React SPA, CSR 만 — ADR-035 Accepted (2026-10-06)**. 라우터 미선택. `/backend/*` → Main Backend 프록시 |
 | DB · ORM · 마이그레이션 | **결정 — PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 검토 SQL migration**, SQLite 미사용. **ADR-034 Accepted**, ADR-004 Superseded, Q-68 CLOSED (2026-09-22). 비교 기록 `plans/T-084-db-decision-options.md` |
 
 ## Baseline
@@ -36,11 +50,11 @@ T-085 경과는 `LOG.md` 맨 위 항목. Backend 뼈대 정본은 `back/`(구조
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-085 커밋 (`git log -1` 이 정본). 그 전: `8f9d2bf` (T-080) |
+| 최신 커밋 | T-086 커밋(`feat: add CERA persistence foundation`, 해시는 `LOG.md` 맨 위) — 그 전 `b7103de`(T-085) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
-| working tree 의 다른 작업 | `front/web/` 12개 파일(Antigravity 디자인 작업) · untracked `data/Proposal/` · `scripts/` — **이 흐름의 작업이 아니다. 수정·스테이징·커밋하지 않는다** |
-| last updated | 2026-09-23 |
-| current orchestrator | 없음 (IDLE). 직전: Claude Code (claude-opus-5) — T-085 U0 |
+| working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
+| last updated | 2026-10-06 (T-086 DONE · 커밋, CURRENT IDLE) |
+| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-086 |
 
 ## 다음 한 걸음
 
@@ -48,7 +62,8 @@ T-085 경과는 `LOG.md` 맨 위 항목. Backend 뼈대 정본은 `back/`(구조
 2. ~~T-084 — Q-68~~ **DONE (PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration, ADR-034)**
 3. ~~T-080 — P0 29개 물리 설계~~ **DONE (`docs/24`, `docs/22` rev.2.5)**
 4. ~~T-085 — U0 Backend 뼈대~~ **DONE (`back/` · `infra/local/`, `docs/24` 18.1)**
-5. **T-086 ~ T-096 — U1 ~ U11 구현** ← **다음: T-086(U1)**. U1 이 할 일은 P0 29표 Drizzle 스키마 · migration M01~M10(생성 SQL 사람 검토 → 커밋 → `db:migrate`) · 시드 · 감사/오류 기록기 · 내용 저장소 포트. Q-65(솔버)는 어느 단계도 막지 않는다
+5. ~~T-086 — U1 영속 기반~~ **DONE (2026-10-06, 커밋)**
+6. **T-087 — U2 등록부 · Contact Gate · 첫 업무 endpoint · OpenAPI 확장** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-088 ~ T-096 (U3 ~ U11). Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 

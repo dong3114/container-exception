@@ -1,6 +1,6 @@
 # packages/ — 공유 계약 영역
 
-**현재 비어 있다.**
+**`contracts/openapi.json`** — Main Backend 가 **생성한** OpenAPI 문서(T-086 U1, 지금은 health 경로 + 공통 오류 스키마뿐). 손으로 고치지 않는다: `back/` 에서 `npm run openapi:emit` 으로 다시 만들고, DB 시험이 최신인지 검사한다. 생성 클라이언트·타입 파이프라인은 프론트 연결(U10) 때 만든다.
 
 front·back·ai가 함께 쓰는 계약을 둘 자리다: API 스키마, OpenAPI에서 생성한 클라이언트, 공유 타입.
 

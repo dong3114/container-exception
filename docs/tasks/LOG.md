@@ -21,6 +21,33 @@
 
 ---
 
+## 2026-10-06 · T-086 DONE — U1 Persistence Foundation (최종 안전성 검토 · 커밋) · Claude Code (claude-opus-5-5)
+- 상태: **완료.** 기준 HEAD `b7103de` → T-086 커밋 `feat: add CERA persistence foundation`(이 항목과 같은 커밋). push 없음. T-087 은 시작하지 않음(사용자 지시)
+- 한 일(2026-10-06 최종 검토 — 구현 내용은 아래 2026-10-02 항목)
+  - **A. `actor.actor_type`**: 정본 `docs/24` 22.2 = "`actor_type` 불변"인데 B층 가드가 없었고 M10 이 `cera_app` 에 `actor` UPDATE 를 준다. 고치기 전 개발 DB 에서 `cera_app` 이 SYSTEM actor 를 HUMAN 으로 UPDATE 함을 **실제로 확인**(ROLLBACK) → 사람 승인 가드(`fn_cera_guard_approval_insert`) · 확인 처리 가드 우회 가능. **수정**: M07 `tg_actor__guard_columns`(`display_name` · `is_active` 만 변경, 그 밖 CE002). 마스터 열 가드 금지(12.1)의 유일한 예외로 문서화
+  - **B. 계획 기반 승인**: 정본(`docs/22` 15.5 `approved_plan_run_id` = "어느 계산 결과를 근거로" 단수 · `docs/19` FR-COM-10 문의 ↔ 계획(버전) · FR-APV-06 근거 계획이 바뀌면 자동 취소)과 대조 — 기존 가드는 "값에 `source_run_id` 가 있으면 `approved_plan_run_id` NOT NULL"만 봤다. **수정**: M08 `fn_cera_check_approval_copies`(커밋 시)가 값의 실행이 2개 이상이면 CE006, 1개면 `approved_plan_run_id` = 그 실행(아니면 CE006). `source_run_id` 없는 값만 있으면 계획 무관 승인 유지
+  - **C. `system_error` 기록기**: DB 삽입 실패는 이미 `null` 로 격리돼 있었지만 문맥 · ID 생성이 `try` 밖이고 `ApiErrorFilter` 가 `void` 로 부른 Promise 의 rejection 을 처리하지 않았다. **수정**: `record` 전체를 `try` 로(실패 로그까지 격리) · 필터는 `.catch(() => undefined)`. 응답은 원래 오류 그대로
+  - 문서: `docs/24` 12.1(예외) · 12.3 · 22.x · 18.2(트리거 70 · U1-2 보강 · U1-10(a) 해소 · **U1-11**) · QUEUE(T-086 DONE) · CURRENT(IDLE) · AGENTS 1절
+- 변경 파일(이번 검토): `back/drizzle/migrations/0006_m07_append_only_guards.sql` · `0007_m08_communication_guards.sql` · `back/src/persistence/system-error-recorder.ts` · `back/src/http/error.filter.ts` · `back/test/db/{fixtures,invariants.test}.ts` · `back/test/unit/persistence-support.test.ts` · `docs/24` · `docs/tasks/{CURRENT,QUEUE,LOG}.md` · `AGENTS.md`
+- 검증(2026-10-06 실제 실행): 대상 시험 39 통과 → 전체 `npm test` **135 통과**(unit 50 · db 85, 회귀 +9) · typecheck · build · 개발 DB `down -v` 뒤 **fresh M01→M10**(2회 — 이력 10행 · 29표 · 트리거 함수 17 · 트리거 70) · seed 2회(20 → 0) · 고친 뒤 같은 우회 시도 → CE002 · `drizzle-kit check` · `generate` 차이 0 · 빌드본 API `/health` 200 `db:up` · 404 공통 바디 · Worker `--once` 0 · `git diff --check`
+- 커밋 범위: T-086 파일만 경로로 staging(`git add .`/`-A` 없음). `AGENTS.md` 는 T-086 줄만 index 에 넣고 프론트 줄(ADR-035)은 working tree 에 남김
+- 남은 일 / 다음 한 걸음: **T-087(U2)** — 등록부 · Contact Gate · 개발 안전장치 · 첫 업무 endpoint · OpenAPI 확장. Brief → 사용자 승인부터
+- 큐 변경: T-086 `DONE`
+- 주의사항: migration M01~M10 은 커밋됨 — 고치지 말고 M11 부터 · 다른 마스터의 "불변" 열(`contact_channel_address.normalized_address` · `channel_type` · `counterparty_contact.counterparty_id` · `facility.facility_type` · `scenario.as_of_base`)은 여전히 A층만 지킨다 — U2 Contact Gate 설계 때 B층 강제 여부 판단 · 프론트 CSR 전환(ADR-035)은 별도 커밋 대기(CURRENT 표)
+
+## 2026-10-02 · T-086 구현·검증 완료 · 사용자 검토 대기 — U1 Persistence Foundation · Claude Code (claude-opus-5-5)
+- 상태: **중단(검토 대기)** — 구현·검증 끝, 사용자 검토 전. T-086 은 `IN_PROGRESS` 유지. 기준 HEAD `b7103de`. **staging 0 · commit 없음 · push 없음**
+- 사용자 지시: Phase A → B → C 를 중간 승인 없이 진행(18:00 체크포인트 규칙). 착수 전 "분할 여부" 결정은 이 지시로 해소 — 적용은 빈 DB 에 M01 → M10 한 번
+- 한 일
+  - **Phase A**: P0 29표 Drizzle 스키마(`back/src/db/schema/` — 파일 = migration 층) · drizzle-kit 생성 SQL M01~M06(층마다 따로 생성 → 사람 검토). 스키마 `cera` 생성 포함 · 이름 규칙 `pk_/fk_/uq_/ck_/ix_`(63자 검사) · CLOSED 코드 단일 원천 `codes.ts`
+  - **Phase B**: custom SQL M07(append-only · DELETE · TRUNCATE 거부 · 열 가드 · 한 번 채움) · M08(발송 결과·삽입 가드 · 추출 검토 · 승인 삽입 가드 · 승인 사본 지연 검사 · 메시지 자식 가드 · 상태 전이 캐시) · M09(사건 삽입 가드 · 사건 링크 지연 검사 I-8/I-21/I-26 · 다형 가드 · 처리 가드) · M10(표 단위 GRANT). 함수 17 · 트리거 68 · SQLSTATE CE001~CE006
+  - **Phase C**: `AuditRecorder`(같은 트랜잭션 / 단독) · `SystemErrorRecorder`(별도 트랜잭션, 메시지·스택 저장 안 함) · `ApiErrorFilter` 5xx → `system_error` · `RegistryReader` · `EventWriter`(evk/1) · `ContentStore` 포트 + `LocalFileContentStore` + `ContentService`(생성 4단계 · 파기 4단계 · 손실 판정) · Slice 1 시드(`npm run db:seed`, local·test 만, 고정 UUIDv7, 창고 A 수용량 사실은 raw_input → event → 링크) · OpenAPI 뼈대(`GET /openapi.json` · `npm run openapi:emit` → `packages/contracts/openapi.json`)
+- 검증: `npm test` **126 통과**(unit 47 · db 79, U0 61 포함 — 독립 검토 반영 뒤) · fresh DB M01→M10(시험마다) · 반복 적용 이력 10행 · 개발 DB migrate 2회 · seed 2회(20 → 0) · typecheck · build · `drizzle-kit check` · 생성 차이 0 · 빌드본 API `/health` · `/openapi.json` · Worker `--once` · `npm audit --omit=dev` 0 · `git diff --check`
+- 새로 발견·해석: `docs/24` 18.2 U1-1~U1-8(FK 이름 축약 1 · 계획 기반 승인 판정 · 사본 검사 부착 위치 · 발송 시도 OUTBOUND 한정 · DEFAULT PRIVILEGES 미사용 · 한 번 채움 `UPDATE OF` · `CERA_CONTENT_DIR` · 오류 코드 최소 카탈로그). 상위 설계 변경 0. 독립 검토로 결함 5건 수정(U1-9) · 남은 위험 3건 알림(U1-10)
+- 변경 파일: `back/`(src · test · drizzle · package.json · lock · .env.example · vitest.config.ts · README) · `packages/contracts/openapi.json` · `packages/README.md` · `docs/24` · `AGENTS.md` · `docs/tasks/{CURRENT,QUEUE,LOG}.md`. `front/web/` · `data/Proposal/` · `scripts/` 변경 없음
+- 다음 한 걸음: 사용자 검토 → 승인되면 커밋(범위는 CURRENT) → T-086 DONE → T-087(U2)
+- 큐 변경: T-086 `IN_PROGRESS`(검토 대기)
+
 ## 2026-09-23 · T-085 DONE — U0 Backend Foundation (구현 2026-09-22 · 최종 검토·커밋 2026-09-23) · Claude Code (claude-opus-5)
 - 상태: **완료 — 독립 최종 검토 통과 뒤 커밋.** 기준 HEAD `8f9d2bf`. push 없음. **첫 제품 코드**
 - 한 일

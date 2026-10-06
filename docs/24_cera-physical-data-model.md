@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절)
+- 상태: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -333,7 +333,7 @@ evk/1 = sha256(JCS({
 | **C. 역할 분리** | **migration 소유 역할 `cera_owner` ≠ 실행 앱 역할 `cera_app`.** 앱 역할은 표의 소유자가 아니므로 **트리거를 끄거나 스키마를 바꿀 수 없다.** 권한은 **표 단위**로 준다 | 트리거 해제 · DDL · TRUNCATE |
 
 - **열 단위 GRANT 를 기본값으로 쓰지 않는다.** 어느 열이 바뀔 수 있는지는 B 의 가드 트리거가 정하고, C 는 표 단위(SELECT · INSERT · 필요한 표의 UPDATE · 재생성 표의 DELETE)만 다룬다. 열 단위 권한은 **실제로 필요한 경우만** 추가한다(Slice 1 에는 없다).
-- **B 는 "불변 기록과 한 번 전이"에 쓴다.** 등록부 마스터의 일반 수정(이름 · 활성 여부 등)은 A 가 다룬다 — 마스터에 열 가드 트리거를 붙이지 않는다(과한 설계를 피한다).
+- **B 는 "불변 기록과 한 번 전이"에 쓴다.** 등록부 마스터의 일반 수정(이름 · 활성 여부 등)은 A 가 다룬다 — 마스터에 열 가드 트리거를 붙이지 않는다(과한 설계를 피한다). **예외 하나: `actor`** — `actor_type` 은 승인 · 확인 처리 가드(B)가 믿는 권한 속성이라, 앱 역할이 바꾸면 B 의 "사람만 승인"이 무너진다. 그래서 `actor` 에만 열 가드(`display_name` · `is_active` 만 변경)를 붙인다(T-086 최종 검토 2026-10-06, 18.2 U1-11)
 - 사람의 운영 작업(점검 · 긴급 수정)은 소유 역할로 하고 운영 절차·감사로 다룬다(이 문서 밖).
 
 ### 12.2 역할과 표 단위 권한
@@ -361,13 +361,13 @@ evk/1 = sha256(JCS({
 | `fn_cera_reject_mutation()` — `BEFORE UPDATE OR DELETE` | **APPEND_ONLY 14표**: `planning_snapshot` · `recovery_run` · `comm_message_structured_field` · `comm_message_question` · `message_approval` · `message_approval_structured_field` · `message_status_transition` · `raw_input` · `event` · `event_entity_link` · `event_verification_target` · `verification_request_handling` · `audit_log` · `system_error` | 예외(앱이 구분할 수 있는 전용 SQLSTATE) |
 | `fn_cera_reject_delete()` — `BEFORE DELETE` | `send_attempt` · `extraction` · `comm_message` · `comm_thread` · `question_item` | 예외 |
 | `fn_cera_reject_truncate()` — `BEFORE TRUNCATE` | 재생성 표를 뺀 모든 표 | 예외 |
-| `fn_cera_guard_columns(가변 열 목록)` — `BEFORE UPDATE`, **인자로 바뀔 수 있는 열을 받는 공통 함수** | `comm_message`(`current_status` · `current_approval_id` · `sent_at`) · `comm_thread`(`thread_status` · `last_activity_at` · `external_thread_id`) · `question_item`(`question_status`) · `send_attempt`(결과 5열) · `extraction`(검토 4열) | 목록 밖 열이 바뀌면 예외 |
+| `fn_cera_guard_columns(가변 열 목록)` — `BEFORE UPDATE`, **인자로 바뀔 수 있는 열을 받는 공통 함수** | `comm_message`(`current_status` · `current_approval_id` · `sent_at`) · `comm_thread`(`thread_status` · `last_activity_at` · `external_thread_id`) · `question_item`(`question_status`) · `send_attempt`(결과 5열) · `extraction`(검토 4열) · **`actor`(`display_name` · `is_active` — `actor_type` 불변, 12.1 예외)** | 목록 밖 열이 바뀌면 예외 |
 | `fn_cera_guard_one_time_fill(열)` — `BEFORE UPDATE` | `comm_message.sent_at` · `comm_thread.external_thread_id` | **`NULL` → 값 한 번**. 값이 있으면 바꿀 수 없다(같은 값 재기록은 허용하지 않는다) |
 | `fn_cera_guard_send_attempt_result()` — `BEFORE UPDATE` | `send_attempt` | 허용 전이만: `NULL` → {`SUCCESS`, `RETRYABLE_FAILURE`, `PERMANENT_FAILURE`, `UNKNOWN`}(이때 `finished_at` 도 함께) · **`UNKNOWN` → `SUCCESS`**(`provider_message_id` NOT NULL — 화해가 찾은 증거) · **`UNKNOWN` → `RETRYABLE_FAILURE`**(`error_code = 'RECONCILED_NOT_SENT'` — 화해가 발송 없음을 확인). `finished_at` 은 한 번 기록 뒤 바꾸지 않는다. 그 밖의 전이(확정 결과 변경 등) 거부 |
 | `fn_cera_guard_extraction_review()` — `BEFORE UPDATE` | `extraction` | `PENDING` → 종료 한 번 |
 | `fn_cera_guard_send_attempt_insert()` — `BEFORE INSERT` | `send_attempt` | **I-9 · I-3 · I-3b**(BUSINESS: 유효한 승인 여섯 조건을 `NEW.started_at` 기준으로 · 지문 = `approved_content_hash` · 수신자 일치 / CV: 승인 NULL · 지문 = 메시지 `content_hash`) + **새 시도 조건**: 그 메시지에 `SUCCESS` · `PERMANENT_FAILURE` 시도가 있으면 거부 · `attempt_no` = 이전 최대 + 1 |
 | `fn_cera_guard_approval_insert()` — `BEFORE INSERT` | `message_approval` | 무효화 대상이 APPROVED · CV 메시지 승인 금지(I-10) · 결정 주체 `HUMAN`(`INVALIDATED` 는 `SYSTEM` 허용 — AI 는 승인하지 않는다) · 계획 기반이면 `approved_plan_run_id` · 내용이 있으면 `approved_content_ref` |
-| `fn_cera_check_approval_copies()` — **지연 제약 트리거**(커밋 시) | `message_approval` | APPROVED 의 구조화 값 사본 = 메시지 구조화 값 |
+| `fn_cera_check_approval_copies()` — **지연 제약 트리거**(커밋 시) | `message_approval` · `message_approval_structured_field` · `comm_message_structured_field` | APPROVED 의 구조화 값 사본 = 메시지 구조화 값 · **계획 기반 승인: 메시지 값의 `source_run_id` 는 한 실행뿐이고 `approved_plan_run_id` = 그 실행**(`source_run_id` 없는 값만 있으면 계획 무관 승인) |
 | `fn_cera_guard_message_children_insert()` — `BEFORE INSERT` | `comm_message_structured_field` · `comm_message_question` | 메시지 `BUSINESS` · `current_status = DRAFTED` · 같은 스레드(I-10 규칙 4·5) |
 | `fn_cera_guard_approval_copy_insert()` — `BEFORE INSERT` | `message_approval_structured_field` | 부모 decision ∈ (APPROVED, REJECTED, REVISION_REQUESTED) |
 | `fn_cera_apply_status_transition()` — `AFTER INSERT` | `message_status_transition` | `comm_message.current_status` 갱신(캐시가 정본과 어긋날 수 없게). **INBOUND 메시지에는 전이를 넣을 수 없다**(삽입 거부) |
@@ -608,6 +608,36 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | PostgreSQL `uuidv7()`(4절) | **NOTE** | PostgreSQL 18 에 있다 — 그래도 **앱이 생성**한다(4절 결정 그대로, 버전 무관) |
 | `bigint({ mode: 'string' })`(6절 비교표) | **해당 없음** | `mode: 'bigint'` 로 확정했다 |
 | 내용 저장소 운영 정책(16절) | **미확인 — Pilot** | U0 범위 밖 |
+
+### 18.2 U1 구현 확인 결과 (T-086 · 2026-10-02)
+
+이 문서대로 `back/src/db/schema/`(Drizzle) · `back/drizzle/migrations/`(M01~M10)를 만들고, **빈 `cera_test` 에 M01 → M10 을 처음부터** 적용한 결과를 PostgreSQL 카탈로그로 확인했다(`back/test/db/global-setup.ts` · `schema-catalog.test.ts` · `invariants.test.ts` · `permissions-migrations.test.ts`). 시험은 이 문서 22절을 직접 읽어 컬럼 하나씩 대조한다.
+
+| 항목 | 결과 |
+| --- | --- |
+| 표 · 컬럼 | **29표 · 349컬럼** — 이름 · 순서 · 타입 · NULL · 기본값 모두 22절과 일치(불일치 0) |
+| CODE | CLOSED **54** 컬럼 = `CHECK IN` 값 목록 일치 · CATALOG **27** · 규칙 id 2 형식 CHECK · ENUM 0 · DB 생성 id/시각 기본값 0 |
+| 키 | PK 29(`pk_<표>`) · FK **58**(복합 **13**) · `CASCADE` 0 · `SET NULL` 1(`verification_request.conflict_id`) · 나머지 RESTRICT |
+| 부분 유일 | U-1 · U-6 · U-7 존재 + 실행 시 23505 확인 · Outbox = `ix_comm_message__queued`(표 없음) |
+| 트리거 | 함수 **17**(12.3 표와 1:1) · 트리거 70(2026-10-06 `tg_actor__guard_columns` +1) · 함수 안 `now()` 0 · 전용 SQLSTATE `CE001`~`CE006`(`back/src/db/sqlstate.ts`) |
+| 권한 | 29표 모두 표 단위 GRANT(12.2 묶음대로) · 앱 역할 DDL · DROP · TRUNCATE · 트리거 해제 · `cera_meta` 읽기 42501 |
+| migration | 이력 10행 = 파일 SHA-256 · 세 번 적용해도 10행(반복 안전) · `drizzle-kit check` 통과 · 스키마 ↔ migration 차이 0 |
+
+**구현 메모(설계 해석 — 사용자 확인 대상)**
+
+| # | 내용 |
+| --- | --- |
+| U1-1 | 이름 63자 제한 때문에 FK 하나를 줄였다: `fk_message_approval_structured_field__approved_src_question`(컬럼 `approved_source_question_item_id`). 다른 이름은 2절 규칙 그대로. 스키마 로드 때 63자 초과를 거부한다 |
+| U1-2 | 승인 삽입 가드의 "계획 기반이면 `approved_plan_run_id`"를 **"메시지 구조화 값 중 `source_run_id` 가 있는 것이 있으면"** 으로 판정했다. **2026-10-06 보강(U1-11)**: 커밋 시 검사가 값의 실행이 하나뿐인지, `approved_plan_run_id` 가 그 실행과 같은지도 본다 |
+| U1-3 | 승인 사본 지연 검사(`fn_cera_check_approval_copies`)를 승인 행 삽입뿐 아니라 **사본 행 삽입에도** 붙였다(같은 함수 · 같은 불변식 — 나중에 사본을 더해 어긋나게 하는 경로를 막는다) |
+| U1-4 | 발송 시도 삽입 가드: 결과 5컬럼은 삽입 때 비어 있어야 한다("NULL → 결과 한 번")와 **OUTBOUND 메시지에만** 시도를 둔다를 함께 검사한다. 결과 가드는 결과가 NULL 인 채로 다른 결과 컬럼만 바꾸는 것도 거부한다 |
+| U1-5 | `ALTER DEFAULT PRIVILEGES` 는 쓰지 않았다(N-5) — 새 표가 자동으로 권한을 받지 않게 M10 이 표마다 명시 GRANT 한다. 시험이 29표 모두 GRANT 가 있는지 확인한다 |
+| U1-6 | 한 번 채움 트리거는 `BEFORE UPDATE OF <열>` 이다 — 그 열이 SET 에 있을 때만 돌고, 값이 있으면 같은 값 재기록도 거부한다 |
+| U1-7 | 내용 저장소 로컬 어댑터 뿌리 설정 이름은 `CERA_CONTENT_DIR`(기본 `../data/raw/content` — gitignore). 파일 옆 `<uuid>.meta.json` 에 sha256 · size · media_type · stored_at 만. 고아 정리는 DEFERRED(16.2) |
+| U1-8 | `system_error` 오류 코드는 U1 이 쓰는 최소 값만 앱 카탈로그에 두었다(`back/src/persistence/catalog.ts`). 전체 목록은 Q-66(OPEN) |
+| U1-9 | **독립 검토(2026-10-02)로 고친 것**: ① 승인 사본 검사를 메시지 구조화 값 삽입에도 붙였다 — 승인 뒤 메시지 값을 더해 사본과 어긋나게 하는 경로 차단 ② `comm_message.current_status` 는 **캐시 열**(`@current_status`): 상태 전이 트리거 안에서만 바뀐다(직접 UPDATE 거부 — 캐시가 정본과 어긋나지 않게) ③ BUSINESS 발송 시도도 `sent_content_hash = 메시지 content_hash` 를 검사(`docs/22` 15.7.2 "작성한 내용 ≠ 보낸 내용은 어느 종류에서도 불허") ④ 발송 시도 삽입 가드가 메시지 행을 `FOR UPDATE` 로 잠근다(동시 결과 확정과 줄 세움) ⑤ 이미 없는 내용의 파기 요청: 앞선 성공 감사가 있으면 멱등, 없으면 `CONTENT_MISSING` — 성공 감사로 덮지 않는다 |
+| U1-10 | **남은 위험(알림)**: (a) ~~`cera_app` 이 `actor_type` 을 바꿔 사람 승인 가드를 우회~~ → **U1-11 에서 해소** (b) 상태 캐시는 삽입 순서를 따른다(`occurred_at` 순서가 아님) — 전이는 시계 순서대로 넣는다는 앱 규칙 (c) T3(무효화) · T6(결과)도 메시지 행을 잠가야 삽입 가드의 줄 세움이 완전하다 — U4 · U5 구현 때 |
+| U1-11 | **T-086 최종 안전성 검토(2026-10-06)로 고친 것**: ① **`actor_type` 불변**(22.2 정본) — 고치기 전 스키마에서 `cera_app` 이 SYSTEM actor 를 HUMAN 으로 UPDATE 할 수 있음을 실제로 확인(승인 가드 우회 가능) → M07 에 `tg_actor__guard_columns`(`display_name` · `is_active` 만 변경, 그 밖 CE002). 마스터 열 가드 금지(12.1)의 유일한 예외 ② **계획 기반 승인 = 한 실행**(`docs/22` 15.5 `approved_plan_run_id` "어느 계산 결과를 근거로" · `docs/19` FR-COM-10 · FR-APV-06): M08 `fn_cera_check_approval_copies` 가 커밋 때 메시지 값의 `source_run_id` 가 2개 이상이면 CE006, 1개면 `approved_plan_run_id` = 그 실행(아니면 CE006). 값에 `source_run_id` 가 없으면 계획 무관 승인 그대로 ③ **`system_error` 기록 실패가 원래 오류를 덮지 않음**: `SystemErrorRecorder.record` 가 문맥 · ID 생성 · 삽입 · 실패 로그 어디서 실패해도 던지지 않고 `null`, `ApiErrorFilter` 는 기록을 기다리지 않고 rejection 을 삼킨다(처리되지 않은 rejection 으로 프로세스가 흔들리지 않게). 회귀 시험 +9(135). 다른 마스터(`counterparty_contact` · `contact_channel_address` · `facility` 등)의 "불변" 열은 여전히 A층 책임 — 22절 문구와 B층 강제 사이 차이는 후속 판단 |
 
 
 ---
@@ -1187,7 +1217,7 @@ M06 파생·사람 처리   canonical_fact (event, scenario) · conflict (scenar
 
 - 논리: `DECISION_RECORD` · `APPEND_ONLY` · 그룹 **C 통신** · Drizzle 분류 **POSTGRES_NATIVE**
 - PK: `approval_id`
-- 변경 방식: APPEND_ONLY + 삽입 가드(대상 승인이 APPROVED · CV 메시지 승인 금지 · 결정 주체 HUMAN(INVALIDATED 는 SYSTEM 허용) · 계획 기반이면 `approved_plan_run_id` · 내용 있으면 `approved_content_ref`) + **커밋 시 지연 검사**: APPROVED 의 구조화 값 사본 = 메시지 구조화 값
+- 변경 방식: APPEND_ONLY + 삽입 가드(대상 승인이 APPROVED · CV 메시지 승인 금지 · 결정 주체 HUMAN(INVALIDATED 는 SYSTEM 허용) · 계획 기반이면 `approved_plan_run_id` · 내용 있으면 `approved_content_ref`) + **커밋 시 지연 검사**: APPROVED 의 구조화 값 사본 = 메시지 구조화 값 · 값의 `source_run_id` 는 한 실행뿐 · `approved_plan_run_id` = 그 실행
 - migration 의존: comm_message · actor · recovery_run · contact_channel_address · Slice 1 사용: T2 · T3
 
 | # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |

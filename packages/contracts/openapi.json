@@ -1,0 +1,72 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Process is accepting requests (database not checked)"
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Application and database are up"
+          },
+          "503": {
+            "description": "Database is unreachable (status degraded)"
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "CERA Main Backend API",
+    "description": "CERA (Container Exception Recovery Agent) Main Backend. Times are ISO 8601 with +09:00; KRW amounts are decimal integer strings.",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "description": "Stable error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Safe human-readable message (no secrets, no raw content)"
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "UUIDv7 request id (X-Request-Id)"
+          }
+        }
+      }
+    }
+  }
+}

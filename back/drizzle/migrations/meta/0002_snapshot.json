@@ -1,0 +1,1350 @@
+{
+  "id": "2247af02-42c9-408b-a4c3-18685125d81a",
+  "prevId": "3a2ff031-beec-4cc9-ab49-a287003ecb6e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "cera.actor": {
+      "name": "actor",
+      "schema": "cera",
+      "columns": {
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_type": {
+          "name": "actor_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "pk_actor": {
+          "name": "pk_actor",
+          "columns": [
+            "actor_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_actor__actor_type": {
+          "name": "ck_actor__actor_type",
+          "value": "\"cera\".\"actor\".\"actor_type\" IN ('HUMAN', 'SYSTEM', 'AI_AGENT')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.audit_log": {
+      "name": "audit_log",
+      "schema": "cera",
+      "columns": {
+        "audit_id": {
+          "name": "audit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "before_ref": {
+          "name": "before_ref",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "after_ref": {
+          "name": "after_ref",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_context": {
+          "name": "request_context",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result": {
+          "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_simulated": {
+          "name": "is_simulated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "ix_audit_log__content_purged": {
+          "name": "ix_audit_log__content_purged",
+          "columns": [
+            {
+              "expression": "target_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"cera\".\"audit_log\".\"action\" = 'CONTENT_PURGED' AND \"cera\".\"audit_log\".\"result\" = 'SUCCESS'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ix_audit_log__target_type__target_id__occurred_at": {
+          "name": "ix_audit_log__target_type__target_id__occurred_at",
+          "columns": [
+            {
+              "expression": "target_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ix_audit_log__occurred_at": {
+          "name": "ix_audit_log__occurred_at",
+          "columns": [
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fk_audit_log__actor_id": {
+          "name": "fk_audit_log__actor_id",
+          "tableFrom": "audit_log",
+          "tableTo": "actor",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "actor_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_audit_log": {
+          "name": "pk_audit_log",
+          "columns": [
+            "audit_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_audit_log__action": {
+          "name": "ck_audit_log__action",
+          "value": "\"cera\".\"audit_log\".\"action\" ~ '^[A-Z0-9][A-Z0-9_]*$'"
+        },
+        "ck_audit_log__target_type": {
+          "name": "ck_audit_log__target_type",
+          "value": "\"cera\".\"audit_log\".\"target_type\" ~ '^[A-Z0-9][A-Z0-9_]*$'"
+        },
+        "ck_audit_log__result": {
+          "name": "ck_audit_log__result",
+          "value": "\"cera\".\"audit_log\".\"result\" IN ('SUCCESS', 'FAILURE')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.scenario": {
+      "name": "scenario",
+      "schema": "cera",
+      "columns": {
+        "scenario_id": {
+          "name": "scenario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scenario_name": {
+          "name": "scenario_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_pack_ref": {
+          "name": "data_pack_ref",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "as_of_base": {
+          "name": "as_of_base",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "pk_scenario": {
+          "name": "pk_scenario",
+          "columns": [
+            "scenario_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cera.system_error": {
+      "name": "system_error",
+      "schema": "cera",
+      "columns": {
+        "error_id": {
+          "name": "error_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_name": {
+          "name": "service_name",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "component_name": {
+          "name": "component_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation_name": {
+          "name": "operation_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error_boundary": {
+          "name": "error_boundary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error_category": {
+          "name": "error_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "safe_error_message": {
+          "name": "safe_error_message",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exception_type": {
+          "name": "exception_type",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trace_id": {
+          "name": "trace_id",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "target_system": {
+          "name": "target_system",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "http_status": {
+          "name": "http_status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retryable": {
+          "name": "retryable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "related_entity_type": {
+          "name": "related_entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "related_entity_id": {
+          "name": "related_entity_id",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_log_ref": {
+          "name": "raw_log_ref",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_simulated": {
+          "name": "is_simulated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scenario_id": {
+          "name": "scenario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "ix_system_error__trace_id": {
+          "name": "ix_system_error__trace_id",
+          "columns": [
+            {
+              "expression": "trace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"cera\".\"system_error\".\"trace_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ix_system_error__occurred_at": {
+          "name": "ix_system_error__occurred_at",
+          "columns": [
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ix_system_error__error_code__occurred_at": {
+          "name": "ix_system_error__error_code__occurred_at",
+          "columns": [
+            {
+              "expression": "error_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ix_system_error__related_entity": {
+          "name": "ix_system_error__related_entity",
+          "columns": [
+            {
+              "expression": "related_entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "related_entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fk_system_error__scenario_id": {
+          "name": "fk_system_error__scenario_id",
+          "tableFrom": "system_error",
+          "tableTo": "scenario",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "scenario_id"
+          ],
+          "columnsTo": [
+            "scenario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_system_error": {
+          "name": "pk_system_error",
+          "columns": [
+            "error_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_system_error__error_boundary": {
+          "name": "ck_system_error__error_boundary",
+          "value": "\"cera\".\"system_error\".\"error_boundary\" IN ('API_REQUEST', 'INTEGRATION', 'BACKGROUND_JOB')"
+        },
+        "ck_system_error__error_category": {
+          "name": "ck_system_error__error_category",
+          "value": "\"cera\".\"system_error\".\"error_category\" ~ '^[A-Z0-9][A-Z0-9_]*$'"
+        },
+        "ck_system_error__target_system": {
+          "name": "ck_system_error__target_system",
+          "value": "\"cera\".\"system_error\".\"target_system\" ~ '^[A-Z0-9][A-Z0-9_]*$'"
+        },
+        "ck_system_error__related_entity_type": {
+          "name": "ck_system_error__related_entity_type",
+          "value": "\"cera\".\"system_error\".\"related_entity_type\" ~ '^[A-Z0-9][A-Z0-9_]*$'"
+        },
+        "ck_system_error__s2_simulated_scenario": {
+          "name": "ck_system_error__s2_simulated_scenario",
+          "value": "\"cera\".\"system_error\".\"is_simulated\" = (\"cera\".\"system_error\".\"scenario_id\" IS NOT NULL)"
+        },
+        "ck_system_error__related_entity_pair": {
+          "name": "ck_system_error__related_entity_pair",
+          "value": "(\"cera\".\"system_error\".\"related_entity_type\" IS NULL) = (\"cera\".\"system_error\".\"related_entity_id\" IS NULL)"
+        },
+        "ck_system_error__http_status": {
+          "name": "ck_system_error__http_status",
+          "value": "\"cera\".\"system_error\".\"http_status\" BETWEEN 100 AND 599"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.contact_channel_address": {
+      "name": "contact_channel_address",
+      "schema": "cera",
+      "columns": {
+        "address_id": {
+          "name": "address_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel_type": {
+          "name": "channel_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_address": {
+          "name": "normalized_address",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verification_status": {
+          "name": "email_verification_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relationship_status": {
+          "name": "relationship_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "communication_status": {
+          "name": "communication_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_by_actor_id": {
+          "name": "approved_by_actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "ix_contact_channel_address__contact_id": {
+          "name": "ix_contact_channel_address__contact_id",
+          "columns": [
+            {
+              "expression": "contact_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fk_contact_channel_address__contact_id": {
+          "name": "fk_contact_channel_address__contact_id",
+          "tableFrom": "contact_channel_address",
+          "tableTo": "counterparty_contact",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "contact_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_contact_channel_address__approved_by_actor_id": {
+          "name": "fk_contact_channel_address__approved_by_actor_id",
+          "tableFrom": "contact_channel_address",
+          "tableTo": "actor",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "approved_by_actor_id"
+          ],
+          "columnsTo": [
+            "actor_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_contact_channel_address": {
+          "name": "pk_contact_channel_address",
+          "columns": [
+            "address_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "uq_contact_channel_address__channel_type__normalized_address": {
+          "name": "uq_contact_channel_address__channel_type__normalized_address",
+          "nullsNotDistinct": false,
+          "columns": [
+            "channel_type",
+            "normalized_address"
+          ]
+        },
+        "uq_contact_channel_address__address_id__channel_type": {
+          "name": "uq_contact_channel_address__address_id__channel_type",
+          "nullsNotDistinct": false,
+          "columns": [
+            "address_id",
+            "channel_type"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ck_contact_channel_address__channel_type": {
+          "name": "ck_contact_channel_address__channel_type",
+          "value": "\"cera\".\"contact_channel_address\".\"channel_type\" IN ('GMAIL', 'MOCK', 'PORTAL')"
+        },
+        "ck_contact_channel_address__email_verification_status": {
+          "name": "ck_contact_channel_address__email_verification_status",
+          "value": "\"cera\".\"contact_channel_address\".\"email_verification_status\" IN ('UNVERIFIED', 'PENDING', 'VERIFIED', 'FAILED', 'EXPIRED')"
+        },
+        "ck_contact_channel_address__relationship_status": {
+          "name": "ck_contact_channel_address__relationship_status",
+          "value": "\"cera\".\"contact_channel_address\".\"relationship_status\" IN ('PENDING', 'APPROVED', 'REJECTED')"
+        },
+        "ck_contact_channel_address__communication_status": {
+          "name": "ck_contact_channel_address__communication_status",
+          "value": "\"cera\".\"contact_channel_address\".\"communication_status\" IN ('ACTIVE', 'PAUSED', 'INACTIVE')"
+        },
+        "ck_contact_channel_address__normalized": {
+          "name": "ck_contact_channel_address__normalized",
+          "value": "\"cera\".\"contact_channel_address\".\"normalized_address\" = lower(btrim(\"cera\".\"contact_channel_address\".\"normalized_address\"))"
+        },
+        "ck_contact_channel_address__verified_at": {
+          "name": "ck_contact_channel_address__verified_at",
+          "value": "\"cera\".\"contact_channel_address\".\"email_verification_status\" <> 'VERIFIED' OR \"cera\".\"contact_channel_address\".\"verified_at\" IS NOT NULL"
+        },
+        "ck_contact_channel_address__approved_by": {
+          "name": "ck_contact_channel_address__approved_by",
+          "value": "\"cera\".\"contact_channel_address\".\"relationship_status\" <> 'APPROVED' OR (\"cera\".\"contact_channel_address\".\"approved_by_actor_id\" IS NOT NULL AND \"cera\".\"contact_channel_address\".\"approved_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.counterparty": {
+      "name": "counterparty",
+      "schema": "cera",
+      "columns": {
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_role": {
+          "name": "source_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_code": {
+          "name": "org_code",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "pk_counterparty": {
+          "name": "pk_counterparty",
+          "columns": [
+            "counterparty_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_counterparty__source_role": {
+          "name": "ck_counterparty__source_role",
+          "value": "\"cera\".\"counterparty\".\"source_role\" IN ('TRUCKING', 'ODCY', 'WAREHOUSE', 'SHIPPING_LINE', 'TERMINAL')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.counterparty_contact": {
+      "name": "counterparty_contact",
+      "schema": "cera",
+      "columns": {
+        "contact_id": {
+          "name": "contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_name": {
+          "name": "person_name",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team": {
+          "name": "team",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "ix_counterparty_contact__counterparty_id": {
+          "name": "ix_counterparty_contact__counterparty_id",
+          "columns": [
+            {
+              "expression": "counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fk_counterparty_contact__counterparty_id": {
+          "name": "fk_counterparty_contact__counterparty_id",
+          "tableFrom": "counterparty_contact",
+          "tableTo": "counterparty",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "counterparty_id"
+          ],
+          "columnsTo": [
+            "counterparty_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_counterparty_contact": {
+          "name": "pk_counterparty_contact",
+          "columns": [
+            "contact_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "uq_counterparty_contact__contact_id__counterparty_id": {
+          "name": "uq_counterparty_contact__contact_id__counterparty_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "contact_id",
+            "counterparty_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cera.facility": {
+      "name": "facility",
+      "schema": "cera",
+      "columns": {
+        "facility_id": {
+          "name": "facility_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facility_type": {
+          "name": "facility_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "facility_name": {
+          "name": "facility_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "area": {
+          "name": "area",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_open_time": {
+          "name": "default_open_time",
+          "type": "time(0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_close_time": {
+          "name": "default_close_time",
+          "type": "time(0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "pk_facility": {
+          "name": "pk_facility",
+          "columns": [
+            "facility_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_facility__facility_type": {
+          "name": "ck_facility__facility_type",
+          "value": "\"cera\".\"facility\".\"facility_type\" IN ('WAREHOUSE', 'TERMINAL', 'ODCY')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.truck_pool": {
+      "name": "truck_pool",
+      "schema": "cera",
+      "columns": {
+        "truck_pool_id": {
+          "name": "truck_pool_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pool_name": {
+          "name": "pool_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ownership": {
+          "name": "ownership",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_counterparty_id": {
+          "name": "owner_counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "ix_truck_pool__owner_counterparty_id": {
+          "name": "ix_truck_pool__owner_counterparty_id",
+          "columns": [
+            {
+              "expression": "owner_counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fk_truck_pool__owner_counterparty_id": {
+          "name": "fk_truck_pool__owner_counterparty_id",
+          "tableFrom": "truck_pool",
+          "tableTo": "counterparty",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "owner_counterparty_id"
+          ],
+          "columnsTo": [
+            "counterparty_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_truck_pool": {
+          "name": "pk_truck_pool",
+          "columns": [
+            "truck_pool_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_truck_pool__ownership": {
+          "name": "ck_truck_pool__ownership",
+          "value": "\"cera\".\"truck_pool\".\"ownership\" IN ('OWN', 'PARTNER')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.planning_snapshot": {
+      "name": "planning_snapshot",
+      "schema": "cera",
+      "columns": {
+        "snapshot_id": {
+          "name": "snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "as_of": {
+          "name": "as_of",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fact_fingerprint": {
+          "name": "fact_fingerprint",
+          "type": "varchar(71)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rule_version": {
+          "name": "rule_version",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tariff_version": {
+          "name": "tariff_version",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policy_version": {
+          "name": "policy_version",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope_ref": {
+          "name": "scope_ref",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contains_simulated": {
+          "name": "contains_simulated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scenario_id": {
+          "name": "scenario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fk_planning_snapshot__scenario_id": {
+          "name": "fk_planning_snapshot__scenario_id",
+          "tableFrom": "planning_snapshot",
+          "tableTo": "scenario",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "scenario_id"
+          ],
+          "columnsTo": [
+            "scenario_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_planning_snapshot": {
+          "name": "pk_planning_snapshot",
+          "columns": [
+            "snapshot_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "uq_planning_snapshot__snapshot_id__contains_simulated": {
+          "name": "uq_planning_snapshot__snapshot_id__contains_simulated",
+          "nullsNotDistinct": false,
+          "columns": [
+            "snapshot_id",
+            "contains_simulated"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ck_planning_snapshot__fact_fingerprint": {
+          "name": "ck_planning_snapshot__fact_fingerprint",
+          "value": "\"cera\".\"planning_snapshot\".\"fact_fingerprint\" ~ '^sha256:[0-9a-f]{64}$'"
+        },
+        "ck_planning_snapshot__scenario_simulated": {
+          "name": "ck_planning_snapshot__scenario_simulated",
+          "value": "\"cera\".\"planning_snapshot\".\"scenario_id\" IS NULL OR \"cera\".\"planning_snapshot\".\"contains_simulated\""
+        },
+        "ck_planning_snapshot__scope_ref_object": {
+          "name": "ck_planning_snapshot__scope_ref_object",
+          "value": "jsonb_typeof(\"cera\".\"planning_snapshot\".\"scope_ref\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cera.recovery_run": {
+      "name": "recovery_run",
+      "schema": "cera",
+      "columns": {
+        "run_id": {
+          "name": "run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_id": {
+          "name": "snapshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trigger_type": {
+          "name": "trigger_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trigger_ref": {
+          "name": "trigger_ref",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "previous_run_id": {
+          "name": "previous_run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "objective_version": {
+          "name": "objective_version",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "run_status": {
+          "name": "run_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unmet_constraints": {
+          "name": "unmet_constraints",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_cost_krw": {
+          "name": "total_cost_krw",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "solve_ms": {
+          "name": "solve_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contains_simulated": {
+          "name": "contains_simulated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "executed_at": {
+          "name": "executed_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "ix_recovery_run__previous_run_id": {
+          "name": "ix_recovery_run__previous_run_id",
+          "columns": [
+            {
+              "expression": "previous_run_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ix_recovery_run__snapshot_id": {
+          "name": "ix_recovery_run__snapshot_id",
+          "columns": [
+            {
+              "expression": "snapshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fk_recovery_run__snapshot_id__contains_simulated": {
+          "name": "fk_recovery_run__snapshot_id__contains_simulated",
+          "tableFrom": "recovery_run",
+          "tableTo": "planning_snapshot",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "snapshot_id",
+            "contains_simulated"
+          ],
+          "columnsTo": [
+            "snapshot_id",
+            "contains_simulated"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_recovery_run__previous_run_id": {
+          "name": "fk_recovery_run__previous_run_id",
+          "tableFrom": "recovery_run",
+          "tableTo": "recovery_run",
+          "schemaTo": "cera",
+          "columnsFrom": [
+            "previous_run_id"
+          ],
+          "columnsTo": [
+            "run_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_recovery_run": {
+          "name": "pk_recovery_run",
+          "columns": [
+            "run_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ck_recovery_run__trigger_type": {
+          "name": "ck_recovery_run__trigger_type",
+          "value": "\"cera\".\"recovery_run\".\"trigger_type\" IN ('EXCEPTION_DETECTED', 'OPERATOR_REQUEST', 'FACT_CORRECTION', 'CONSTRAINT_CHANGE', 'REPLY_RECEIVED', 'SCHEDULED')"
+        },
+        "ck_recovery_run__run_status": {
+          "name": "ck_recovery_run__run_status",
+          "value": "\"cera\".\"recovery_run\".\"run_status\" IN ('FEASIBLE', 'INFEASIBLE', 'TIMEOUT', 'ERROR')"
+        },
+        "ck_recovery_run__previous_not_self": {
+          "name": "ck_recovery_run__previous_not_self",
+          "value": "\"cera\".\"recovery_run\".\"previous_run_id\" <> \"cera\".\"recovery_run\".\"run_id\""
+        },
+        "ck_recovery_run__infeasible_unmet": {
+          "name": "ck_recovery_run__infeasible_unmet",
+          "value": "\"cera\".\"recovery_run\".\"run_status\" <> 'INFEASIBLE' OR \"cera\".\"recovery_run\".\"unmet_constraints\" IS NOT NULL"
+        },
+        "ck_recovery_run__total_cost_krw": {
+          "name": "ck_recovery_run__total_cost_krw",
+          "value": "\"cera\".\"recovery_run\".\"total_cost_krw\" >= 0"
+        },
+        "ck_recovery_run__solve_ms": {
+          "name": "ck_recovery_run__solve_ms",
+          "value": "\"cera\".\"recovery_run\".\"solve_ms\" >= 0"
+        },
+        "ck_recovery_run__unmet_constraints_array": {
+          "name": "ck_recovery_run__unmet_constraints_array",
+          "value": "jsonb_typeof(\"cera\".\"recovery_run\".\"unmet_constraints\") = 'array'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "cera": "cera"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

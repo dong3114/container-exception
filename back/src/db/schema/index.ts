@@ -1,5 +1,11 @@
 /**
- * 제품 스키마(Drizzle) 정본 — 스키마 `cera`, P0 29표(docs/24 22절).
- * **U1(T-086)에서 채운다.** U0 에서는 비어 있다(제품 표를 앞당겨 만들지 않는다).
+ * 제품 스키마(Drizzle) 정본 — 스키마 `cera`, Slice 1 P0 29표(docs/24 22절).
+ * 파일은 migration 층(docs/24 19절)과 같은 순서로 나눈다: M01 기반 · M02 등록부 · M03 계획 · M04 통신 · M05 수신·사건 · M06 파생.
+ * 트리거 · 권한 · 행 사이 불변식은 Drizzle 밖 custom migration(M07~M10)에 있다.
  */
-export {};
+export * from './m01-foundation.js';
+export * from './m02-registry.js';
+export * from './m03-planning.js';
+export * from './m04-communication.js';
+export * from './m05-inbound-event.js';
+export * from './m06-derived.js';

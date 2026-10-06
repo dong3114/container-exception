@@ -1,15 +1,21 @@
 # back/ — CERA Backend 영역
 
-**U0(T-085) 뼈대가 있다** — NestJS API · Worker 진입점, PostgreSQL(Drizzle) 연결, 설정 검증, Clock · UUIDv7 · KRW(bigint) · SHA-256/JCS · 트랜잭션 경계 · 요청/추적/업무 상관 id · 공통 오류 · health. **제품 스키마(P0 29표)와 업무 기능은 아직 없다**(U1 이후). 명령은 `AGENTS.md` 6절.
+**U0(T-085) 뼈대 + U1(T-086) 영속 기반이 있다** — NestJS API · Worker 진입점, PostgreSQL(Drizzle) 연결, 설정 검증, Clock · UUIDv7 · KRW(bigint) · SHA-256/JCS · 트랜잭션 경계 · 요청/추적/업무 상관 id · 공통 오류 · health, 그리고 **P0 29표 스키마 · migration M01~M10(트리거 · 권한) · 감사/`system_error` 기록기 · ContentStore(로컬 파일) · 시드 · OpenAPI 뼈대**. **업무 기능(초안 · 승인 · 발송 · 수신 · 사건 흐름)은 아직 없다**(U2 이후). 명령은 `AGENTS.md` 6절.
 
 | 경로 | 무엇 |
 | --- | --- |
 | `src/main.ts` · `src/worker.ts` | API 프로세스 · Worker 프로세스 진입점(같은 코드베이스 — ADR-033) |
 | `src/config/` | 환경변수 검증(zod) |
-| `src/db/` | Pool · Drizzle · `TransactionRunner`(외부 I/O 는 트랜잭션 밖 — `assertOutsideTransaction`) · `migrate.ts` · `schema/`(U1) |
+| `src/db/` | Pool · Drizzle · `TransactionRunner`(외부 I/O 는 트랜잭션 밖 — `assertOutsideTransaction`) · `migrate.ts` · `sqlstate.ts`(트리거 전용 코드 CE001~CE006) |
+| `src/db/schema/` | P0 29표 Drizzle 스키마 — 파일이 migration 층과 같다(`m01-foundation` … `m06-derived`) · `codes.ts`(CLOSED 코드 값) · `_common.ts`(이름 규칙 · CHECK 도구) |
+| `drizzle/migrations/` | **검토된 SQL migration** M01~M06(drizzle-kit 생성) + M07~M10(사람이 쓴 custom: append-only · 열/한 번 채움 가드 · 발송/승인/사건 가드 · 지연 트리거 · GRANT). 앞으로만 |
+| `src/persistence/` | `AuditRecorder` · `SystemErrorRecorder`(별도 트랜잭션) · `RegistryReader` · `EventWriter`(사람 입력 경로) · `catalog.ts`(CATALOG 코드 정본) |
+| `src/content/` | `ContentStore` 포트 · `LocalFileContentStore`(`CERA_CONTENT_DIR`) · `ContentService`(생성 4단계 · 파기 4단계 · 손실 판정) |
+| `src/seed/` | Slice 1 시드(`npm run db:seed`, local·test 만, 고정 UUIDv7, 반복 실행 안전) |
+| `src/http/openapi.ts` · `src/openapi/` | `GET /openapi.json` · `npm run openapi:emit` → `packages/contracts/openapi.json` |
 | `src/shared/` | `time/`(Instant · Clock) · `id/`(UUIDv7) · `money/`(Krw) · `hash/`(SHA-256 · JCS) · `context/`(request/trace/correlation id) · `errors/` |
 | `src/http/` · `src/health/` | 요청 문맥 미들웨어 · 공통 오류 응답 · `/health` |
-| `test/unit/` · `test/db/` | 단위 시험 · 로컬 PostgreSQL 시험(일회용 스키마 `cera_spike_*`) |
+| `test/unit/` · `test/db/` | 단위 시험 · 로컬 PostgreSQL 시험. DB 시험은 `global-setup` 이 **빈 `cera_test` 에 M01→M10 을 처음부터** 적용하고, `schema-catalog` 시험이 `docs/24` 22절과 컬럼 349개를 대조한다 |
 
 아래는 **설계상 책임**이다.
 
@@ -25,6 +31,6 @@
 - **결정론 엔진**: Reconciliation·Tariff·LFD·비용·위험·복구 최적화·Solver (ADR-029). 순수 함수로 두고 DB·네트워크·LLM 을 import하지 않는다
 - 백그라운드 작업, 화면으로 변경 알림(push)
 
-**Main Backend = TypeScript + NestJS**(ADR-033 Accepted, 2026-09-21) — 모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스. DB = **PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration**(ADR-034 Accepted, 2026-09-22 — SQLite 미사용, 스키마·migration 소유자는 이 영역). 미확정 사항: 물리 설계(T-080), 솔버 실행 위치(Q-65, Slice 1 을 막지 않음), 메일 연동 방식(Q-33). 구현은 T-080 뒤 T-085(U0 뼈대)부터 시작한다.
+**Main Backend = TypeScript + NestJS**(ADR-033 Accepted, 2026-09-21) — 모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스. DB = **PostgreSQL + Drizzle ORM + drizzle-kit 검토 SQL migration**(ADR-034 Accepted, 2026-09-22 — SQLite 미사용, 스키마·migration 소유자는 이 영역). 미확정 사항: 물리 설계(T-080), 솔버 실행 위치(Q-65, Slice 1 을 막지 않음), 메일 연동 방식(Q-33). 구현: T-085(U0 뼈대) → T-086(U1 영속 기반) → U2(T-087)부터 업무 기능.
 
 위험·비용·Tariff·최적화 같은 결정론 엔진은 **이 영역(`back/`)에 둔다**(ADR-029). `ai/`는 LLM·비정형 처리만 맡는다(`ai/README.md`). 화면과 주고받는 계약은 이 영역의 API 명세(OpenAPI)를 정본으로 삼는다(ADR-028, `packages/README.md`).

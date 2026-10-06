@@ -7,6 +7,7 @@ import { z } from 'zod';
  *
  * - DATABASE_URL: 실행 앱 역할(cera_app) 연결. API · Worker 가 쓴다
  * - MIGRATION_DATABASE_URL: migration 소유 역할(cera_owner) 연결. drizzle-kit · migrate 명령만 쓴다(docs/24 12.2)
+ * - CERA_CONTENT_DIR: 로컬·시험 내용 저장소 뿌리(실제 메일·원문은 커밋하지 않는다 — gitignore 된 경로)
  */
 export const APP_ENVS = ['local', 'test', 'staging', 'production'] as const;
 export const LOG_LEVELS = ['error', 'warn', 'log', 'debug', 'verbose'] as const;
@@ -24,6 +25,8 @@ export const envSchema = z.object({
   DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(100).max(600_000).default(30_000),
   MIGRATION_DATABASE_URL: postgresUrl.optional(),
+  // 내용 저장소 로컬 어댑터의 뿌리(docs/24 16.3). 기본값은 저장소 루트의 gitignore 된 data/raw/content/(back 에서 실행 기준)
+  CERA_CONTENT_DIR: z.string().min(1).default('../data/raw/content'),
 });
 
 export type Env = z.infer<typeof envSchema>;
