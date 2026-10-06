@@ -18,7 +18,17 @@ type Exchange = {
   error?: string;
 };
 
-const PRESETS = ["/health", "/health/live", "/openapi.json", "/does-not-exist"];
+// Registry presets use the fixed seed ids (back/src/seed/slice1-fixture.ts — local/test seed, MOCK *.invalid addresses).
+const PRESETS = [
+  "/health",
+  "/health/live",
+  "/openapi.json",
+  "/registry/counterparties",
+  "/registry/addresses/01a0fb92-9b65-7540-b184-75a5cb057e40/eligibility",
+  "/registry/addresses/01a11030-2d25-73fe-bbe8-d7841b6eb4af/eligibility",
+  "/registry/addresses/01a11030-2d25-73fe-bbe8-dec99646ac08/eligibility",
+  "/does-not-exist",
+];
 
 function prettyBody(text: string): string {
   try {

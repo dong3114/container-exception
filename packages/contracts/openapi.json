@@ -31,6 +31,80 @@
           "health"
         ]
       }
+    },
+    "/registry/counterparties": {
+      "get": {
+        "operationId": "RegistryController_listCounterparties",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartyListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Counterparties, contacts and addresses with the current send-eligibility verdict per address (FR-CPY-11)",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
+    "/registry/addresses/{addressId}/eligibility": {
+      "get": {
+        "operationId": "RegistryController_getEligibility",
+        "parameters": [
+          {
+            "name": "addressId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactEligibilityDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID — addressId is not a UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADDRESS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Contact Gate verdict for one address: all six conditions and every blocking reason (FR-ELG-04)",
+        "tags": [
+          "registry"
+        ]
+      }
     }
   },
   "info": {
@@ -43,6 +117,371 @@
   "servers": [],
   "components": {
     "schemas": {
+      "GateReasonDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "COUNTERPARTY_INACTIVE",
+              "CONTACT_INACTIVE",
+              "NOT_ACTIVE",
+              "NOT_VERIFIED",
+              "NOT_APPROVED",
+              "NOT_IN_TEST_ALLOWLIST"
+            ],
+            "description": "Why the address is blocked (a result value, not an HTTP error code)"
+          },
+          "layer": {
+            "type": "string",
+            "enum": [
+              "PRODUCT_RULE",
+              "DEV_SAFETY"
+            ],
+            "description": "PRODUCT_RULE = Contact Gate, DEV_SAFETY = test recipient allowlist"
+          }
+        },
+        "required": [
+          "code",
+          "layer"
+        ]
+      },
+      "AddressSummaryDto": {
+        "type": "object",
+        "properties": {
+          "address_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel_type": {
+            "type": "string",
+            "enum": [
+              "GMAIL",
+              "MOCK",
+              "PORTAL"
+            ]
+          },
+          "normalized_address": {
+            "type": "string",
+            "description": "Normalized address. Seed addresses are synthetic *.invalid values"
+          },
+          "email_verification_status": {
+            "type": "string",
+            "enum": [
+              "UNVERIFIED",
+              "PENDING",
+              "VERIFIED",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "relationship_status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "communication_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED",
+              "INACTIVE"
+            ]
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "description": "MOCK channel — nothing leaves the system"
+          },
+          "eligible": {
+            "type": "boolean",
+            "description": "Contact Gate + dev safety verdict at evaluated_at"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateReasonDto"
+            }
+          }
+        },
+        "required": [
+          "address_id",
+          "channel_type",
+          "normalized_address",
+          "email_verification_status",
+          "relationship_status",
+          "communication_status",
+          "is_simulated",
+          "eligible",
+          "reasons"
+        ]
+      },
+      "ContactSummaryDto": {
+        "type": "object",
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "person_name": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "addresses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddressSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "contact_id",
+          "person_name",
+          "team",
+          "is_active",
+          "addresses"
+        ]
+      },
+      "CounterpartySummaryDto": {
+        "type": "object",
+        "properties": {
+          "counterparty_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "source_role": {
+            "type": "string",
+            "enum": [
+              "TRUCKING",
+              "ODCY",
+              "WAREHOUSE",
+              "SHIPPING_LINE",
+              "TERMINAL"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "counterparty_id",
+          "display_name",
+          "source_role",
+          "is_active",
+          "contacts"
+        ]
+      },
+      "CounterpartyListDto": {
+        "type": "object",
+        "properties": {
+          "counterparties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CounterpartySummaryDto"
+            }
+          },
+          "evaluated_at": {
+            "type": "string",
+            "example": "2026-10-13T11:00:00.000+09:00",
+            "description": "When the verdicts were computed (Asia/Seoul)"
+          }
+        },
+        "required": [
+          "counterparties",
+          "evaluated_at"
+        ]
+      },
+      "AddressStatusDto": {
+        "type": "object",
+        "properties": {
+          "address_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel_type": {
+            "type": "string",
+            "enum": [
+              "GMAIL",
+              "MOCK",
+              "PORTAL"
+            ]
+          },
+          "normalized_address": {
+            "type": "string",
+            "description": "Normalized address. Seed addresses are synthetic *.invalid values"
+          },
+          "email_verification_status": {
+            "type": "string",
+            "enum": [
+              "UNVERIFIED",
+              "PENDING",
+              "VERIFIED",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "relationship_status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "communication_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED",
+              "INACTIVE"
+            ]
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "description": "MOCK channel — nothing leaves the system"
+          }
+        },
+        "required": [
+          "address_id",
+          "channel_type",
+          "normalized_address",
+          "email_verification_status",
+          "relationship_status",
+          "communication_status",
+          "is_simulated"
+        ]
+      },
+      "EligibilityContactDto": {
+        "type": "object",
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "person_name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "contact_id",
+          "person_name",
+          "is_active"
+        ]
+      },
+      "EligibilityCounterpartyDto": {
+        "type": "object",
+        "properties": {
+          "counterparty_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "counterparty_id",
+          "display_name",
+          "is_active"
+        ]
+      },
+      "GateConditionDto": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "type": "string",
+            "enum": [
+              "COUNTERPARTY_ACTIVE",
+              "CONTACT_ACTIVE",
+              "ADDRESS_ACTIVE",
+              "ADDRESS_VERIFIED",
+              "RELATIONSHIP_APPROVED",
+              "COMMUNICATION_ACTIVE"
+            ],
+            "description": "FR-ELG-01 condition"
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "condition",
+          "passed"
+        ]
+      },
+      "ContactEligibilityDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/AddressStatusDto"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/EligibilityContactDto"
+          },
+          "counterparty": {
+            "$ref": "#/components/schemas/EligibilityCounterpartyDto"
+          },
+          "eligible": {
+            "type": "boolean",
+            "description": "true only when every condition passes and no dev safety reason applies"
+          },
+          "conditions": {
+            "description": "All six FR-ELG-01 conditions, always in this order",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateConditionDto"
+            }
+          },
+          "reasons": {
+            "description": "Every blocking reason (not only the first)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateReasonDto"
+            }
+          },
+          "dev_safety_applied": {
+            "type": "boolean",
+            "description": "Whether the test recipient allowlist applied (real channel outside production)"
+          },
+          "evaluated_at": {
+            "type": "string",
+            "example": "2026-10-13T11:00:00.000+09:00"
+          }
+        },
+        "required": [
+          "address",
+          "contact",
+          "counterparty",
+          "eligible",
+          "conditions",
+          "reasons",
+          "dev_safety_applied",
+          "evaluated_at"
+        ]
+      },
       "ErrorResponse": {
         "type": "object",
         "required": [

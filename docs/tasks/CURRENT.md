@@ -10,13 +10,14 @@
 
 ## Status
 
-**IDLE** — **T-086 (U1 Persistence Foundation) DONE** (2026-10-06 최종 안전성 검토 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-087(U2)** 이고 실행 가능하다. **아직 시작하지 않았다**(사용자 지시 2026-10-06).
+**IDLE** — **T-087 (U2 Registry · Contact Gate · 개발 안전장치) DONE** (2026-10-06 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-088(U3 — 초안 · 구조화 값 · 숫자 검사)** 이고 실행 가능하다. **아직 시작하지 않았다.**
 
-T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은 `docs/24` 18.2(U1-1~U1-11).
+T-087 경과는 `LOG.md` 맨 위, 결과 · 구현 메모는 `docs/24` 18.3(U2-1~U2-4), Plan 은 `docs/tasks/plans/T-087-registry-contact-gate.md`.
 
-- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(135 통과 확인) ④ T-087(U2) Brief 작성 → 사용자 승인
-- **migration 은 이제 커밋됐다(M01~M10 = `0000`~`0009`).** 고치지 않는다 — 스키마 변경은 `npm run db:generate`(또는 `db:generate:custom`)로 **M11 부터 새 파일**. 개발 DB `cera` 는 2026-10-06 `down -v` 뒤 M01→M10 + 시드 20행으로 새로 만들었다
-- 마지막 migration 번호: **M10 = `0009_m10_permissions.sql`** · 함수 17 · 트리거 70 · SQLSTATE CE001~CE006
+- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(156 통과) · `cd front/web && npm test`(17 통과) ④ T-088 Brief → 사용자 승인
+- **마지막 migration: M11 = `0010_m11_registry_guards.sql`**(커밋됨 — 고치지 않는다, 다음은 M12). 함수 17 · 트리거 72. 개발 DB `cera` 는 M01→M11 + 시드 25행
+- 계약 갱신 순서: `back` `npm run openapi:emit` → `front/web` `npm run openapi:types` → 둘 다 커밋(각자 시험이 최신인지 검사)
+- 서버를 끈 뒤 node 자식 프로세스가 3100/3000 을 잡고 남을 수 있다 — 확인 전 포트를 본다
 
 ## 커밋하지 않은 working tree (T-086 커밋 밖 — 각자 따로 정리)
 
@@ -52,8 +53,8 @@ T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은
 | 최신 커밋 | T-086 커밋(`feat: add CERA persistence foundation`, 해시는 `LOG.md` 맨 위) — 그 전 `b7103de`(T-085) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
-| last updated | 2026-10-06 (T-086 DONE · 프론트 정리 커밋 3개, CURRENT IDLE) |
-| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-086 |
+| last updated | 2026-10-06 (T-087 DONE · 커밋, CURRENT IDLE) |
+| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-087 |
 
 ## 다음 한 걸음
 
@@ -62,7 +63,8 @@ T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은
 3. ~~T-080 — P0 29개 물리 설계~~ **DONE (`docs/24`, `docs/22` rev.2.5)**
 4. ~~T-085 — U0 Backend 뼈대~~ **DONE (`back/` · `infra/local/`, `docs/24` 18.1)**
 5. ~~T-086 — U1 영속 기반~~ **DONE (2026-10-06, 커밋)**
-6. **T-087 — U2 등록부 · Contact Gate · 첫 업무 endpoint · OpenAPI 확장** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-088 ~ T-096 (U3 ~ U11). Q-65(솔버)는 어느 단계도 막지 않는다
+6. ~~T-087 — U2 등록부 · Contact Gate~~ **DONE (2026-10-06, 커밋)**
+7. **T-088 — U3 초안 · 구조화 값 · 숫자 검사** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-089 ~ T-096 (U4 ~ U11). Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 

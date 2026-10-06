@@ -13,9 +13,10 @@
 | `src/content/` | `ContentStore` 포트 · `LocalFileContentStore`(`CERA_CONTENT_DIR`) · `ContentService`(생성 4단계 · 파기 4단계 · 손실 판정) |
 | `src/seed/` | Slice 1 시드(`npm run db:seed`, local·test 만, 고정 UUIDv7, 반복 실행 안전) |
 | `src/http/openapi.ts` · `src/openapi/` | `GET /openapi.json` · `npm run openapi:emit` → `packages/contracts/openapi.json` |
+| `src/registry/` | 등록부 조회 · **Contact Gate**(T-087 U2): `contact-gate.ts` 순수 판정(6조건 · 사유 6종 · 개발 안전장치) · `GET /registry/counterparties` · `GET /registry/addresses/{addressId}/eligibility` |
 | `src/shared/` | `time/`(Instant · Clock) · `id/`(UUIDv7) · `money/`(Krw) · `hash/`(SHA-256 · JCS) · `context/`(request/trace/correlation id) · `errors/` |
 | `src/http/` · `src/health/` | 요청 문맥 미들웨어 · 공통 오류 응답 · `/health` |
-| `test/unit/` · `test/db/` | 단위 시험 · 로컬 PostgreSQL 시험. DB 시험은 `global-setup` 이 **빈 `cera_test` 에 M01→M10 을 처음부터** 적용하고, `schema-catalog` 시험이 `docs/24` 22절과 컬럼 349개를 대조한다 |
+| `test/unit/` · `test/db/` | 단위 시험 · 로컬 PostgreSQL 시험. DB 시험은 `global-setup` 이 **빈 `cera_test` 에 M01→M11 을 처음부터** 적용하고, `schema-catalog` 시험이 `docs/24` 22절과 컬럼 349개를 대조한다 |
 
 아래는 **설계상 책임**이다.
 

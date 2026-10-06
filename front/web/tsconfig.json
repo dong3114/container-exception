@@ -15,7 +15,8 @@
     "types": ["vite/client", "node"],
     "paths": {
       "@/*": ["./src/*"],
-      "@scenario/*": ["../../data/scenarios/*"]
+      "@scenario/*": ["../../data/scenarios/*"],
+      "@contracts/*": ["../../packages/contracts/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],

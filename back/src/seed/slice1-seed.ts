@@ -121,6 +121,7 @@ export class Slice1Seed {
           .values([
             { counterpartyId: SEED_IDS.counterpartyTrucking, displayName: (partnerPool?.name ?? truckerName).slice(0, 100), sourceRole: 'TRUCKING' },
             { counterpartyId: SEED_IDS.counterpartyOdcy, displayName: 'ODCY A (가상)', sourceRole: 'ODCY' },
+            { counterpartyId: SEED_IDS.counterpartyWarehouse, displayName: '창고 A (가상)', sourceRole: 'WAREHOUSE' },
           ])
           .onConflictDoNothing()
           .returning({ id: counterparty.counterpartyId }),
@@ -131,6 +132,8 @@ export class Slice1Seed {
           .values([
             { contactId: SEED_IDS.contactTrucking, counterpartyId: SEED_IDS.counterpartyTrucking, personName: truckerName.slice(0, 60) },
             { contactId: SEED_IDS.contactOdcy, counterpartyId: SEED_IDS.counterpartyOdcy, personName: odcyName.slice(0, 60) },
+            { contactId: SEED_IDS.contactWarehouse, counterpartyId: SEED_IDS.counterpartyWarehouse, personName: '창고 A 운영팀 (가상)' },
+            { contactId: SEED_IDS.contactTruckingNight, counterpartyId: SEED_IDS.counterpartyTrucking, personName: '야간 배차 (가상)', team: '야간' },
           ])
           .onConflictDoNothing()
           .returning({ id: counterpartyContact.contactId }),
@@ -150,6 +153,24 @@ export class Slice1Seed {
           .values([
             { addressId: SEED_IDS.addressTrucking, contactId: SEED_IDS.contactTrucking, normalizedAddress: 'dispatch@k-trucking.example.invalid', ...approved },
             { addressId: SEED_IDS.addressOdcy, contactId: SEED_IDS.contactOdcy, normalizedAddress: 'sales@odcy-a.example.invalid', ...approved },
+            // 막힌 주소(T-087): 확인 전 · 관계 승인 전 → NOT_VERIFIED + NOT_APPROVED
+            {
+              addressId: SEED_IDS.addressWarehouse,
+              contactId: SEED_IDS.contactWarehouse,
+              normalizedAddress: 'ops@warehouse-a.example.invalid',
+              channelType: 'MOCK',
+              emailVerificationStatus: 'UNVERIFIED',
+              relationshipStatus: 'PENDING',
+              communicationStatus: 'ACTIVE',
+            },
+            // 막힌 주소(T-087): 확인 · 승인됐지만 통신 일시 중지 → NOT_ACTIVE
+            {
+              addressId: SEED_IDS.addressTruckingNight,
+              contactId: SEED_IDS.contactTruckingNight,
+              normalizedAddress: 'night-dispatch@k-trucking.example.invalid',
+              ...approved,
+              communicationStatus: 'PAUSED',
+            },
           ])
           .onConflictDoNothing()
           .returning({ id: contactChannelAddress.addressId }),

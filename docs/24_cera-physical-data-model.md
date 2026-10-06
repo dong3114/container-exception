@@ -333,7 +333,7 @@ evk/1 = sha256(JCS({
 | **C. 역할 분리** | **migration 소유 역할 `cera_owner` ≠ 실행 앱 역할 `cera_app`.** 앱 역할은 표의 소유자가 아니므로 **트리거를 끄거나 스키마를 바꿀 수 없다.** 권한은 **표 단위**로 준다 | 트리거 해제 · DDL · TRUNCATE |
 
 - **열 단위 GRANT 를 기본값으로 쓰지 않는다.** 어느 열이 바뀔 수 있는지는 B 의 가드 트리거가 정하고, C 는 표 단위(SELECT · INSERT · 필요한 표의 UPDATE · 재생성 표의 DELETE)만 다룬다. 열 단위 권한은 **실제로 필요한 경우만** 추가한다(Slice 1 에는 없다).
-- **B 는 "불변 기록과 한 번 전이"에 쓴다.** 등록부 마스터의 일반 수정(이름 · 활성 여부 등)은 A 가 다룬다 — 마스터에 열 가드 트리거를 붙이지 않는다(과한 설계를 피한다). **예외 하나: `actor`** — `actor_type` 은 승인 · 확인 처리 가드(B)가 믿는 권한 속성이라, 앱 역할이 바꾸면 B 의 "사람만 승인"이 무너진다. 그래서 `actor` 에만 열 가드(`display_name` · `is_active` 만 변경)를 붙인다(T-086 최종 검토 2026-10-06, 18.2 U1-11)
+- **B 는 "불변 기록과 한 번 전이"에 쓴다.** 등록부 마스터의 일반 수정(이름 · 활성 여부 등)은 A 가 다룬다 — 마스터에 열 가드 트리거를 붙이지 않는다(과한 설계를 피한다). **예외 하나: `actor`** — `actor_type` 은 승인 · 확인 처리 가드(B)가 믿는 권한 속성이라, 앱 역할이 바꾸면 B 의 "사람만 승인"이 무너진다. 그래서 `actor` 에만 열 가드(`display_name` · `is_active` 만 변경)를 붙인다(T-086 최종 검토 2026-10-06, 18.2 U1-11). **예외 둘(2026-10-06 T-087 M11): `contact_channel_address`(`contact_id` · `channel_type` · `normalized_address` 불변)와 `counterparty_contact`(`counterparty_id` 불변)** — 승인 · 발송은 수신자를 `address_id` 로 맞추므로, 주소 값이나 소속 연락처 · 거래처가 바뀌면 승인된 메시지가 다른 주소로 나가거나 다른 거래처로 게이트를 통과한다(18.3 U2-1)
 - 사람의 운영 작업(점검 · 긴급 수정)은 소유 역할로 하고 운영 절차·감사로 다룬다(이 문서 밖).
 
 ### 12.2 역할과 표 단위 권한
@@ -361,7 +361,7 @@ evk/1 = sha256(JCS({
 | `fn_cera_reject_mutation()` — `BEFORE UPDATE OR DELETE` | **APPEND_ONLY 14표**: `planning_snapshot` · `recovery_run` · `comm_message_structured_field` · `comm_message_question` · `message_approval` · `message_approval_structured_field` · `message_status_transition` · `raw_input` · `event` · `event_entity_link` · `event_verification_target` · `verification_request_handling` · `audit_log` · `system_error` | 예외(앱이 구분할 수 있는 전용 SQLSTATE) |
 | `fn_cera_reject_delete()` — `BEFORE DELETE` | `send_attempt` · `extraction` · `comm_message` · `comm_thread` · `question_item` | 예외 |
 | `fn_cera_reject_truncate()` — `BEFORE TRUNCATE` | 재생성 표를 뺀 모든 표 | 예외 |
-| `fn_cera_guard_columns(가변 열 목록)` — `BEFORE UPDATE`, **인자로 바뀔 수 있는 열을 받는 공통 함수** | `comm_message`(`current_status` · `current_approval_id` · `sent_at`) · `comm_thread`(`thread_status` · `last_activity_at` · `external_thread_id`) · `question_item`(`question_status`) · `send_attempt`(결과 5열) · `extraction`(검토 4열) · **`actor`(`display_name` · `is_active` — `actor_type` 불변, 12.1 예외)** | 목록 밖 열이 바뀌면 예외 |
+| `fn_cera_guard_columns(가변 열 목록)` — `BEFORE UPDATE`, **인자로 바뀔 수 있는 열을 받는 공통 함수** | `comm_message`(`current_status` · `current_approval_id` · `sent_at`) · `comm_thread`(`thread_status` · `last_activity_at` · `external_thread_id`) · `question_item`(`question_status`) · `send_attempt`(결과 5열) · `extraction`(검토 4열) · **`actor`(`display_name` · `is_active` — `actor_type` 불변, 12.1 예외)** · **`contact_channel_address`(3상태 · `verified_at` · `approved_by_actor_id` · `approved_at`) · `counterparty_contact`(`person_name` · `team` · `note` · `is_active`) — M11, 12.1 예외** | 목록 밖 열이 바뀌면 예외 |
 | `fn_cera_guard_one_time_fill(열)` — `BEFORE UPDATE` | `comm_message.sent_at` · `comm_thread.external_thread_id` | **`NULL` → 값 한 번**. 값이 있으면 바꿀 수 없다(같은 값 재기록은 허용하지 않는다) |
 | `fn_cera_guard_send_attempt_result()` — `BEFORE UPDATE` | `send_attempt` | 허용 전이만: `NULL` → {`SUCCESS`, `RETRYABLE_FAILURE`, `PERMANENT_FAILURE`, `UNKNOWN`}(이때 `finished_at` 도 함께) · **`UNKNOWN` → `SUCCESS`**(`provider_message_id` NOT NULL — 화해가 찾은 증거) · **`UNKNOWN` → `RETRYABLE_FAILURE`**(`error_code = 'RECONCILED_NOT_SENT'` — 화해가 발송 없음을 확인). `finished_at` 은 한 번 기록 뒤 바꾸지 않는다. 그 밖의 전이(확정 결과 변경 등) 거부 |
 | `fn_cera_guard_extraction_review()` — `BEFORE UPDATE` | `extraction` | `PENDING` → 종료 한 번 |
@@ -641,6 +641,23 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 
 
 ---
+
+### 18.3 U2 구현 확인 결과 (T-087 · 2026-10-06)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **M11 = `0010_m11_registry_guards.sql`**(custom) — 함수 17 그대로 · 트리거 **72**(+2) · 이력 11행 · fresh M01→M11 2회 적용 안전 |
+| 판정 | `back/src/registry/contact-gate.ts` — **import 0**(순수 함수, 시험이 검사) · 6조건 · 사유 6종(`CONTACT_INACTIVE` 추가 — T-087 D1) · 개발 안전장치는 실채널(GMAIL · PORTAL) × 비운영(`local` · `test` · `staging`)만, 목록 비면 전부 차단(D2) |
+| API | `GET /registry/counterparties` · `GET /registry/addresses/{addressId}/eligibility`(404 `ADDRESS_NOT_FOUND` · 400 `INVALID_ID`). 읽기 전용 · 감사 없음 · 판정 저장 없음 |
+| 시드 | 25행(+5: 창고 A 거래처 · 연락처 · `UNVERIFIED`/`PENDING` 주소, K운송 야간 연락처 · `PAUSED` 주소) |
+| 계약 | `packages/contracts/openapi.json` 에 응답 스키마 · `openapi.d.ts`(openapi-typescript 7.13.0 생성, 프론트 시험이 최신인지 검사) |
+
+| # | 구현 메모 |
+| --- | --- |
+| U2-1 | **M11 등록부 불변 열 가드** — 고치기 전에는 `cera_app` 이 `normalized_address` 를 바꿔 승인된 메시지를 다른 주소로 돌릴 수 있었다(승인 · 발송 가드는 `address_id` 로 맞춘다). 22절 "불변" 열을 B층으로 강제(12.1 예외) |
+| U2-2 | 주소 표에 `is_active` 가 없다 — FR-ELG-01 ③ "주소 활성"과 ⑥ "통신 활성"은 같은 `communication_status` 를 본다(`PAUSED` = ③ 통과 · ⑥ 실패). 사유 코드는 `NOT_ACTIVE` 하나만 낸다 |
+| U2-3 | OpenAPI 경로 매개변수는 `@ApiParam` 으로 명시한다 — `openapi:emit` 은 tsx(esbuild)로 돌아 decorator metadata 가 없어서, 명시하지 않으면 실행 방식에 따라 문서가 달라졌다(시험이 잡음) |
+| U2-4 | 개발 안전장치 목록 `CERA_TEST_RECIPIENT_ALLOWLIST` 는 zod 로 정규화(소문자 · 공백 제거)하고 값은 로그에 남기지 않는다 |
 
 ## 19. migration 순서 (의존 그래프)
 

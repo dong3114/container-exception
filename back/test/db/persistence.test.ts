@@ -238,14 +238,15 @@ describe('Slice 1 seed', () => {
     const first = await seed.apply(packDir);
     const second = await seed.apply(packDir);
     // global-setup 이 빈 DB 를 만들었으므로 첫 실행이 전부 넣는다(같은 실행에서 다시 돌리면 0)
-    expect(first).toEqual({ inserted: 20, capacityEventCreated: true });
+    expect(first).toEqual({ inserted: 25, capacityEventCreated: true });
     expect(second).toEqual({ inserted: 0, capacityEventCreated: false });
   });
 
   it('seed channels are MOCK only, addresses are *.invalid, and record rows are simulated', async () => {
     const addresses = await ctx.get(RegistryReader).listCounterpartyAddresses();
-    const seeded = addresses.filter((a) => [SEED_IDS.addressTrucking, SEED_IDS.addressOdcy].includes(a.addressId as never));
-    expect(seeded).toHaveLength(2);
+    const seedIds: string[] = [SEED_IDS.addressTrucking, SEED_IDS.addressOdcy, SEED_IDS.addressWarehouse, SEED_IDS.addressTruckingNight];
+    const seeded = addresses.filter((a) => seedIds.includes(a.addressId));
+    expect(seeded).toHaveLength(4);
     expect(seeded.every((a) => a.channelType === 'MOCK' && a.normalizedAddress.endsWith('.invalid'))).toBe(true);
     const { rows } = await app.query<{ is_simulated: boolean; scenario_id: string; value_number: string }>(
       'SELECT is_simulated, scenario_id, value_number FROM cera.event WHERE event_id = $1',

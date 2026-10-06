@@ -21,6 +21,16 @@
 
 ---
 
+## 2026-10-06 · T-087 DONE — U2 Registry · Contact Gate · 개발 안전장치 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add contact gate and registry API`, 이 항목과 같은 커밋). 기준 HEAD `17399b8`. push 없음. T-088 시작 안 함
+- 결정(사용자, Plan 10절): D1 `CONTACT_INACTIVE` 추가 · D2 개발 안전장치 = 실채널(GMAIL · PORTAL) × 비운영, 목록 비면 전부 차단 · D3 M11 등록부 불변 열 가드 · D4 생성 타입 + `/dev/api` · D5 막힌 시드 주소 2개
+- 한 일: 순수 판정 `back/src/registry/contact-gate.ts`(import 0 · 6조건 · 사유 6종 · 사유 전부 반환) · `RegistryService` · `GET /registry/counterparties` · `GET /registry/addresses/{addressId}/eligibility`(404 `ADDRESS_NOT_FOUND` · 400 `INVALID_ID`) · OpenAPI 응답 스키마 · M11(`contact_channel_address` 주소 · 연락처 · 채널, `counterparty_contact.counterparty_id` 불변) · 시드 25행 · `openapi-typescript` 7.13.0 → `packages/contracts/openapi.d.ts` · `front/web/src/api/registry.ts` · 계약 최신 검사 시험 · 문서(`docs/24` 12.1 · 12.3 · 18.3, `docs/18` D.5 · G.5, `docs/16` 4.1, packages · back README, AGENTS)
+- 검증: Backend `npm test` **156 통과**(135 회귀 + 13 + 8) · typecheck · build · `drizzle-kit check` · 생성 차이 0 · fresh M01→M11 2회(이력 11 · 표 29 · 함수 17 · 트리거 72) · seed 25 → 0 · 빌드본 API `/health` + 두 endpoint 실제 호출 · Worker `--once` 0 · Front `npm test` 17 · typecheck · lint 오류 0 · build · validate · smoke · 프록시 200 · `git diff --check`
+- 발견 · 처리: ① 고치기 전 `cera_app` 이 `normalized_address` 를 바꿔 승인 메시지를 다른 주소로 돌릴 수 있었다 → M11 ② `openapi:emit`(tsx)은 decorator metadata 가 없어 경로 매개변수가 빠졌다 → `@ApiParam` 명시(계약 최신 시험이 잡음) ③ 서버를 끈 뒤 node 자식이 포트를 잡고 남아 옛 빌드가 응답 → PID 정리
+- 계획과 다른 점: 개발 안전장치 정책을 별도 파일 없이 `contact-gate.ts` 한 순수 모듈에
+- 다음: **T-088(U3)** — 초안 · 구조화 값(출처 포인터) · 숫자 검사 · 템플릿 초안 포트. 판정 `evaluateContactGate` 는 U4 승인 · U5 발송 직전에 다시 부른다
+- 큐 변경: T-087 `DONE`
+
 ## 2026-10-06 · Frontend 정리 — Vite 전환 커밋 · 디자인 커밋 · 실제 Backend 연결 준비 (사용자 직접 지시) · Claude Code (claude-opus-5-5)
 - 상태: **완료.** 기준 HEAD `5463078`(T-086). 커밋 3개 — 해시는 `git log --oneline -4`: `refactor(front): switch Control Tower to Vite + React SPA (CSR only)` · `style(front): apply Control Tower design refresh` · `feat(front): prepare backend integration boundary`(이 항목과 같은 커밋). push 없음. T-087 시작 안 함
 - 구현 도구: Claude Code 직접 구현(Orchestrator 겸). 다른 Coding Agent 는 쓰지 않았다 — 한 파일을 여러 Agent 가 고치지 않음

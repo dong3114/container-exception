@@ -13,6 +13,12 @@ export const SEED_IDS = {
   contactOdcy: '01a0fb92-9b65-7540-b184-73fcad01818e',
   addressTrucking: '01a0fb92-9b65-7540-b184-75a5cb057e40',
   addressOdcy: '01a0fb92-9b66-7544-aeb3-1d484c43e86c',
+  // T-087: 막힌 주소 2개(Contact Gate 시연 · 화면 확인). 아직 확인 전 창고 연락처 · 통신 일시 중지된 K운송 야간 배차
+  counterpartyWarehouse: '01a11030-2d24-7584-bce2-7eb4662f8ff4',
+  contactWarehouse: '01a11030-2d25-73fe-bbe8-d047c1ed2364',
+  addressWarehouse: '01a11030-2d25-73fe-bbe8-d7841b6eb4af',
+  contactTruckingNight: '01a11030-2d25-73fe-bbe8-d993b10a4a0d',
+  addressTruckingNight: '01a11030-2d25-73fe-bbe8-dec99646ac08',
   facilityWarehouseA: '01a0fb92-9b66-7544-aeb3-216d6e00eef3',
   facilityWarehouseB: '01a0fb92-9b66-7544-aeb3-244fc160cb7f',
   facilityOdcyA: '01a0fb92-9b66-7544-aeb3-28ca5dc2afa8',

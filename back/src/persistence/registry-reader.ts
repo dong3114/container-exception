@@ -9,8 +9,11 @@ export interface CounterpartyAddressRow {
   counterpartyId: string;
   counterpartyName: string;
   sourceRole: string;
+  counterpartyIsActive: boolean;
   contactId: string;
   personName: string;
+  team: string | null;
+  contactIsActive: boolean;
   addressId: string;
   channelType: string;
   normalizedAddress: string;
@@ -19,9 +22,26 @@ export interface CounterpartyAddressRow {
   communicationStatus: string;
 }
 
+const addressColumns = {
+  counterpartyId: counterparty.counterpartyId,
+  counterpartyName: counterparty.displayName,
+  sourceRole: counterparty.sourceRole,
+  counterpartyIsActive: counterparty.isActive,
+  contactId: counterpartyContact.contactId,
+  personName: counterpartyContact.personName,
+  team: counterpartyContact.team,
+  contactIsActive: counterpartyContact.isActive,
+  addressId: contactChannelAddress.addressId,
+  channelType: contactChannelAddress.channelType,
+  normalizedAddress: contactChannelAddress.normalizedAddress,
+  emailVerificationStatus: contactChannelAddress.emailVerificationStatus,
+  relationshipStatus: contactChannelAddress.relationshipStatus,
+  communicationStatus: contactChannelAddress.communicationStatus,
+};
+
 /**
- * 등록부 읽기(U1 최소 범위). 쓰기·발송 자격 판정(Contact Gate)은 U2(T-087)에서 업무 서비스로 만든다.
- * 표마다 CRUD 저장소를 만들지 않는다 — 쓰임새가 생길 때 그 질의를 더한다.
+ * 등록부 읽기. 발송 자격 판정은 `registry/contact-gate.ts`(순수 함수)가 하고, 이 클래스는 판정 입력(거래처 · 연락처 ·
+ * 주소 상태)을 한 질의로 모아 줄 뿐이다. 표마다 CRUD 저장소를 만들지 않는다 — 쓰임새가 생길 때 그 질의를 더한다.
  */
 @Injectable()
 export class RegistryReader {
@@ -33,23 +53,25 @@ export class RegistryReader {
   }
 
   async listCounterpartyAddresses(): Promise<CounterpartyAddressRow[]> {
+    return this.addressQuery().orderBy(
+      asc(counterparty.displayName),
+      asc(counterpartyContact.personName),
+      asc(contactChannelAddress.normalizedAddress),
+    );
+  }
+
+  /** 주소 한 건과 그 연락처 · 거래처(발송 자격 판정 입력). 없으면 null. */
+  async findAddress(addressId: string): Promise<CounterpartyAddressRow | null> {
+    const rows = await this.addressQuery().where(eq(contactChannelAddress.addressId, addressId)).limit(1);
+    return rows[0] ?? null;
+  }
+
+  private addressQuery() {
     return this.db
-      .select({
-        counterpartyId: counterparty.counterpartyId,
-        counterpartyName: counterparty.displayName,
-        sourceRole: counterparty.sourceRole,
-        contactId: counterpartyContact.contactId,
-        personName: counterpartyContact.personName,
-        addressId: contactChannelAddress.addressId,
-        channelType: contactChannelAddress.channelType,
-        normalizedAddress: contactChannelAddress.normalizedAddress,
-        emailVerificationStatus: contactChannelAddress.emailVerificationStatus,
-        relationshipStatus: contactChannelAddress.relationshipStatus,
-        communicationStatus: contactChannelAddress.communicationStatus,
-      })
+      .select(addressColumns)
       .from(counterparty)
       .innerJoin(counterpartyContact, eq(counterpartyContact.counterpartyId, counterparty.counterpartyId))
       .innerJoin(contactChannelAddress, eq(contactChannelAddress.contactId, counterpartyContact.contactId))
-      .orderBy(asc(counterparty.displayName), asc(contactChannelAddress.normalizedAddress));
+      .$dynamic();
   }
 }

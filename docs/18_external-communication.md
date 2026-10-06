@@ -275,7 +275,7 @@ can_send(address) :=
 ```
 
 - 승인 시점과 **발송 직전**에 각각 검사한다. 3분 전에 유효했다고 지금 유효한 것이 아니다.
-- 실패 사유는 코드로 구분해 화면에 보여준다: `NOT_VERIFIED`, `NOT_APPROVED`, `NOT_ACTIVE`, `COUNTERPARTY_INACTIVE`, `NOT_IN_TEST_ALLOWLIST`.
+- 실패 사유는 코드로 구분해 화면에 보여준다: `NOT_VERIFIED`, `NOT_APPROVED`, `NOT_ACTIVE`, `COUNTERPARTY_INACTIVE`, **`CONTACT_INACTIVE`**(2026-10-06 T-087 D1 — FR-ELG-01 ② · FR-ELG-04 "연락처 비활성"), `NOT_IN_TEST_ALLOWLIST`. 막힌 사유는 첫 하나가 아니라 **전부** 돌려준다. 구현: `back/src/registry/contact-gate.ts` · `GET /registry/addresses/{addressId}/eligibility`.
 - **AI는 이 판정에 어떤 형태로도 참여하지 않는다.** "이 주소가 K운송 담당자인 것 같다"는 추론은 존재하지 않는다.
 
 ### D.6 Contact Verification Flow
@@ -530,7 +530,7 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 | 판정 | `VERIFIED` AND `APPROVED` AND `ACTIVE` AND 거래처 active | 주소가 목록에 있는가 |
 | 수명 | **영구.** 제품이 살아 있는 한 항상 적용된다. Pilot·Scale에서도 그대로 | **임시.** 기술검증·개발 환경에서만 켠다 |
 | 바뀌는 방법 | 사용자가 Contact를 등록·검증·승인 | 개발자가 환경 설정 변경 |
-| 실패 코드 | `NOT_VERIFIED` / `NOT_APPROVED` / `NOT_ACTIVE` / `COUNTERPARTY_INACTIVE` | `NOT_IN_TEST_ALLOWLIST` |
+| 실패 코드 | `NOT_VERIFIED` / `NOT_APPROVED` / `NOT_ACTIVE` / `COUNTERPARTY_INACTIVE` / `CONTACT_INACTIVE` | `NOT_IN_TEST_ALLOWLIST` (실채널 × 비운영에만 — MOCK · production 은 검사 안 함, 목록 비면 전부 차단. 2026-10-06 T-087 D2) |
 
 **둘을 섞지 않는 이유**: 허용목록을 제품 모델로 두면 "검증되지 않은 주소라도 목록에 넣으면 보낼 수 있다"는 뒷문이 생긴다. 반대로 Contact Gate만 두면 개발 중 실수로 진짜 거래처를 등록·승인해 버렸을 때 막을 것이 없다. **두 겹은 서로를 대신하지 못한다.**
 

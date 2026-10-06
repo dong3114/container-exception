@@ -64,7 +64,7 @@ flowchart LR
 | --- | --- | --- |
 | API base | `src/api/config.ts` | `VITE_CERA_API_BASE`(기본 `/backend` = 개발 Vite 프록시, 운영 `/api` 또는 배포 URL). **호스트 하드코딩 금지** — 잘못된 값이면 빌드된 앱이 바로 실패 |
 | HTTP 클라이언트 | `src/api/client.ts` · `errors.ts` | JSON 요청 하나. 공통 오류 바디 `{code, message, request_id}` → `ApiError`(`HTTP` · `NETWORK` · `TIMEOUT` · `ABORTED` · `INVALID_RESPONSE`, `retryable`). 기본 15초 제한. 세션 고정 · 인스턴스 메모리 의존 없음(LB 뒤 어느 API 인스턴스든 응답 가능) |
-| 엔드포인트 함수 | `src/api/health.ts` | 지금은 `/health` 뿐. **T-087 부터는 생성된 OpenAPI 타입**(`packages/contracts/openapi.json`)으로 쓴다 — Backend 소스 import 금지 |
+| 엔드포인트 함수 | `src/api/health.ts` · **`src/api/registry.ts`(T-087)** | `/health` 는 손 타입. **업무 endpoint 는 생성 타입**(`@contracts/openapi` = `packages/contracts/openapi.d.ts`, `npm run openapi:types` — 시험이 `openapi.json` 과 같은지 검사). Backend 소스 import 금지 |
 | 요청 상태 | `src/state/async.ts` | `AsyncState` = `IDLE` · `LOADING` · `SUCCESS` · `FAILED`, `useAsyncAction`(새 요청이 옛 요청 취소 · 언마운트 취소 · 화면 전체를 막지 않음). 긴 AI 작업이 202 + 조회로 바뀌면 상태 하나를 더한다 |
 | 공통 표시 | `src/components/workflow/` | `AsyncStatus`(실패 사유 · 다시 시도는 `retryable` 일 때만 · `request_id`) · `GateBlockers`(Backend Contact Gate 가 준 차단 사유를 제품 규칙 / 개발 안전장치로 나눠 표시 — 판정은 서버, FR-ELG-02·04·05) · `MessageLifecycle`(docs/19 15.1 의 보이는 상태 · 승인 무효화 → 재승인 필요) · `CandidateBadge`(AI 제안 · 잠정 · 사람 확인 필요 · 확인 완료 — **AI 표시는 `LLM_EXTRACTED` 일 때만**) |
 | 데이터 출처 표시 | `src/components/BackendStatus.tsx` | 헤더에 "데이터: Mock (시나리오)"와 Backend 연결 상태를 **따로** 보여준다(Backend 가 살아 있어도 운영 데이터는 아직 Mock) |

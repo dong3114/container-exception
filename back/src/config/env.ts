@@ -8,6 +8,7 @@ import { z } from 'zod';
  * - DATABASE_URL: 실행 앱 역할(cera_app) 연결. API · Worker 가 쓴다
  * - MIGRATION_DATABASE_URL: migration 소유 역할(cera_owner) 연결. drizzle-kit · migrate 명령만 쓴다(docs/24 12.2)
  * - CERA_CONTENT_DIR: 로컬·시험 내용 저장소 뿌리(실제 메일·원문은 커밋하지 않는다 — gitignore 된 경로)
+ * - CERA_TEST_RECIPIENT_ALLOWLIST: 개발 안전장치 수신 주소 목록(값은 로그에 남기지 않는다)
  */
 export const APP_ENVS = ['local', 'test', 'staging', 'production'] as const;
 export const LOG_LEVELS = ['error', 'warn', 'log', 'debug', 'verbose'] as const;
@@ -27,6 +28,12 @@ export const envSchema = z.object({
   MIGRATION_DATABASE_URL: postgresUrl.optional(),
   // 내용 저장소 로컬 어댑터의 뿌리(docs/24 16.3). 기본값은 저장소 루트의 gitignore 된 data/raw/content/(back 에서 실행 기준)
   CERA_CONTENT_DIR: z.string().min(1).default('../data/raw/content'),
+  // 개발 안전장치(docs/18 G.5 · FR-ELG-05): 비운영 환경에서 실채널(GMAIL · PORTAL)로 나갈 수 있는 수신 주소 목록.
+  // 쉼표로 나눈다. 비어 있으면 실채널 발송은 전부 막힌다(fail-closed). 제품 Contact Gate 를 대신하지 않는다.
+  CERA_TEST_RECIPIENT_ALLOWLIST: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((a) => a.trim().toLowerCase()).filter((a) => a.length > 0)),
 });
 
 export type Env = z.infer<typeof envSchema>;

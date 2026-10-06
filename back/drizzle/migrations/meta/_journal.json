@@ -71,6 +71,13 @@
       "when": 1790926446693,
       "tag": "0009_m10_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791272914256,
+      "tag": "0010_m11_registry_guards",
+      "breakpoints": true
     }
   ]
 }
