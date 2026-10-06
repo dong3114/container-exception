@@ -37,7 +37,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
             ))}
           </span>
         )}
-        <span className="card-meta">{plan ? `생성 ${hms(plan.generated_at)} · 시뮬레이션 계획` : ""}</span>
+        <span className="card-meta">{plan ? `생성 ${hms(plan.generated_at)} · 시나리오 결과 (Solver 아님)` : ""}</span>
       </div>
 
       {!baseline && <div className="empty">활성 예외가 없어 복구 계획이 필요하지 않습니다. 정상 배차를 유지합니다.</div>}
@@ -73,7 +73,7 @@ export function RecoveryConsole({ current, containers, plannedToday, affectedCou
               </div>
             </div>
             <div className="rc-cost saving">
-              <div className="rc-cost-label">Potential Saving (예상 절감액)</div>
+              <div className="rc-cost-label">Potential Saving (시뮬레이션 기준)</div>
               <div className="rc-cost-value num" data-testid="potential-saving">
                 {plan ? krw(plan.potential_saving_krw) : "—"}
               </div>

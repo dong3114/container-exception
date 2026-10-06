@@ -21,6 +21,17 @@
 
 ---
 
+## 2026-10-06 · Frontend 정리 — Vite 전환 커밋 · 디자인 커밋 · 실제 Backend 연결 준비 (사용자 직접 지시) · Claude Code (claude-opus-5-5)
+- 상태: **완료.** 기준 HEAD `5463078`(T-086). 커밋 3개 — 해시는 `git log --oneline -4`: `refactor(front): switch Control Tower to Vite + React SPA (CSR only)` · `style(front): apply Control Tower design refresh` · `feat(front): prepare backend integration boundary`(이 항목과 같은 커밋). push 없음. T-087 시작 안 함
+- 구현 도구: Claude Code 직접 구현(Orchestrator 겸). 다른 Coding Agent 는 쓰지 않았다 — 한 파일을 여러 Agent 가 고치지 않음
+- 한 일
+  - **① CSR 전환 커밋**: Vite 설정 · Next 파일 삭제 · ADR-035 · 정본 동기화(`docs/01` 7절 · `docs/07` 3·6절 · `docs/10` · `docs/18` · `docs/23` 2·12절 · `docs/16` · AGENTS · README). HEAD 컴포넌트에서 `"use client"` 만 지운 판으로 index 를 만들고, **그 커밋만 꺼낸 임시 worktree 에서** typecheck · lint · build · validate · smoke · 프록시 health 통과 확인(Antigravity 변경 없이도 동작)
+  - **② 디자인 커밋**: 2026-09-17 Antigravity 변경(컴포넌트 11 · `globals.css`)을 그대로. **검토 결과 시뮬레이션 표시 일부를 지운 것을 발견** — 절감액 "(시뮬레이션 기준)" · 계획 "시나리오 결과 (Solver 아님)" · "시나리오 시계" (`docs/01` 4절 · 규칙 9)
+  - **③ 연결 준비 커밋**: `src/api/`(config · client · errors · health) · `src/state/async.ts` · `src/components/workflow/`(AsyncStatus · GateBlockers · MessageLifecycle · CandidateBadge · lifecycle 매핑) · `BackendStatus`(데이터 출처 Mock 과 Backend 연결 상태를 따로) · 계약 `MessageView.lifecycle`(정본 상태 코드, MockProvider 매핑) · dev 페이지가 같은 API base 사용 · ②가 지운 표시 복구 · `.env.example` · vitest 5.0.1 + 단위 시험 15 · `docs/16` 4.1 · `docs/23` 7.1(배포 원칙 Implementation Note) · QUEUE 프론트 트랙 문구 갱신
+- 검증: `npm test` 15 통과 · typecheck · lint 오류 0(경고 2 — 기존 `badges.tsx`) · build · validate:scenario OK(2,238 — 개수는 `src` 파일 수 × 금지 표현 7패턴이라 파일이 늘면 는다) · smoke OK · `/backend/health` 프록시 200 · 화면 확인(헤더 "데이터: Mock (시나리오)" + "Backend 연결됨 · DB up" · S2 초안 3건 "승인 필요" · S4 회신 "잠정 정보", AI 표시 없음) · lockfile 깨끗한 설치(`npm ci`) · `npm audit --omit=dev` 0
+- 주의사항: vitest 추가 때 npm 10.9 arborist 버그(`edgesOut`)로 `--legacy-peer-deps` 사용 — 결과 lockfile 은 `npm ci` 정상. `src/app/` 폴더 이름은 Next 시절 이름(옮기지 않음). 라우터 라이브러리 미선택
+- 다음: T-087(U2) — 엔드포인트가 생기면 `ApiProvider` 를 그 화면부터. Contact Gate 사유 코드 · 메시지 상태 · 승인 무효화는 OpenAPI 계약으로 받아 `GateBlockers` · `MessageLifecycle` 에 연결
+
 ## 2026-10-06 · T-086 DONE — U1 Persistence Foundation (최종 안전성 검토 · 커밋) · Claude Code (claude-opus-5-5)
 - 상태: **완료.** 기준 HEAD `b7103de` → T-086 커밋 `feat: add CERA persistence foundation`(이 항목과 같은 커밋). push 없음. T-087 은 시작하지 않음(사용자 지시)
 - 한 일(2026-10-06 최종 검토 — 구현 내용은 아래 2026-10-02 항목)

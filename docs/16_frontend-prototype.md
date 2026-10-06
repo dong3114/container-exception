@@ -32,6 +32,7 @@ cd front/web
 npm install
 npm run validate:scenario   # 데이터 팩 정합성 (합계·용량·트럭·KPI·금지 표현)
 npm run typecheck           # tsc --noEmit
+npm test                    # vitest — API 경계 · 상태 매핑 단위 시험(브라우저 · Backend 불필요)
 npm run lint                # eslint
 npm run build && npm run start   # 타입 검사 + vite build → dist/ 정적 파일, vite preview http://localhost:3000
 npm run smoke               # 서버가 떠 있을 때: Edge/Chrome 헤드리스로 9단계 재생·화면 값 확인, 스크린샷 front/web/.smoke/
@@ -56,6 +57,21 @@ flowchart LR
 - 컴포넌트는 raw fixture를 import하지 않는다. `fixture.ts`는 MockProvider만 쓴다.
 - 교체 순서: Mock Data → Backend API → Canonical State(DB) → Risk/Cost Engine → Solver. 각 단계에서 계약(`cera.ts`)은 그대로 두고 응답의 `meta.result_kind`만 `SCENARIO_RESULT` → `ENGINE_RESULT`로 바뀐다.
 - 과도한 추상화는 하지 않았다: provider 인터페이스 하나, 구현 하나, 선택 함수 하나(`createProvider`, `VITE_CERA_PROVIDER`).
+
+### 4.1 Backend 연결 경계 (2026-10-06 — 실제 Backend 연결 준비)
+
+| 층 | 파일 | 하는 일 |
+| --- | --- | --- |
+| API base | `src/api/config.ts` | `VITE_CERA_API_BASE`(기본 `/backend` = 개발 Vite 프록시, 운영 `/api` 또는 배포 URL). **호스트 하드코딩 금지** — 잘못된 값이면 빌드된 앱이 바로 실패 |
+| HTTP 클라이언트 | `src/api/client.ts` · `errors.ts` | JSON 요청 하나. 공통 오류 바디 `{code, message, request_id}` → `ApiError`(`HTTP` · `NETWORK` · `TIMEOUT` · `ABORTED` · `INVALID_RESPONSE`, `retryable`). 기본 15초 제한. 세션 고정 · 인스턴스 메모리 의존 없음(LB 뒤 어느 API 인스턴스든 응답 가능) |
+| 엔드포인트 함수 | `src/api/health.ts` | 지금은 `/health` 뿐. **T-087 부터는 생성된 OpenAPI 타입**(`packages/contracts/openapi.json`)으로 쓴다 — Backend 소스 import 금지 |
+| 요청 상태 | `src/state/async.ts` | `AsyncState` = `IDLE` · `LOADING` · `SUCCESS` · `FAILED`, `useAsyncAction`(새 요청이 옛 요청 취소 · 언마운트 취소 · 화면 전체를 막지 않음). 긴 AI 작업이 202 + 조회로 바뀌면 상태 하나를 더한다 |
+| 공통 표시 | `src/components/workflow/` | `AsyncStatus`(실패 사유 · 다시 시도는 `retryable` 일 때만 · `request_id`) · `GateBlockers`(Backend Contact Gate 가 준 차단 사유를 제품 규칙 / 개발 안전장치로 나눠 표시 — 판정은 서버, FR-ELG-02·04·05) · `MessageLifecycle`(docs/19 15.1 의 보이는 상태 · 승인 무효화 → 재승인 필요) · `CandidateBadge`(AI 제안 · 잠정 · 사람 확인 필요 · 확인 완료 — **AI 표시는 `LLM_EXTRACTED` 일 때만**) |
+| 데이터 출처 표시 | `src/components/BackendStatus.tsx` | 헤더에 "데이터: Mock (시나리오)"와 Backend 연결 상태를 **따로** 보여준다(Backend 가 살아 있어도 운영 데이터는 아직 Mock) |
+
+- **Mock ↔ Real 교체**: 화면은 계속 `CeraDataProvider` 만 본다. T-087 부터 엔드포인트가 생기는 화면부터 `ApiProvider` 메서드가 `src/api/*` 를 부른다. 없는 Backend API 를 프론트에서 미리 지어내지 않는다.
+- **연결 후보 위치**: 거래처 · 연락처 · Contact Gate → `Communications` 스레드 머리 + `GateBlockers` · 초안 · 승인 → `MessageLifecycle`(지금 `MessageView.lifecycle` 을 MockProvider 가 시나리오 상태에서 매핑) · 활동 → `ActivityTimeline`.
+- 브라우저는 Main Backend 만 부른다. AI Server · LLM 공급자 · DB 직접 호출, 비밀값 보관 금지(`docs/23` 7.1).
 
 ## 5. Frontend Data Contract (v0.1)
 

@@ -358,6 +358,30 @@ export interface RecoveryPlanCurrent {
 
 export type MessageStatus = "DRAFT" | "SENT_SIMULATED" | "RECEIVED";
 
+/**
+ * Canonical outbound message status (comm_message.current_status — docs/22 · docs/24 22절) and approval invalidation
+ * cause. Mirrored, not imported from the backend; from T-087 the generated OpenAPI types replace these.
+ */
+export type MessageStatusCode =
+  | "DRAFTED"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "REJECTED"
+  | "QUEUED"
+  | "SENT"
+  | "DELIVERY_FAILED"
+  | "REPLIED"
+  | "CLOSED";
+export type InvalidationCause = "USER_REVOKED" | "PLAN_SUPERSEDED" | "CONTENT_CHANGED";
+
+export interface MessageLifecycleView {
+  status: MessageStatusCode;
+  /** Set when the latest approval was revoked or invalidated (a new approval is needed). */
+  invalidation: InvalidationCause | null;
+  /** A send attempt without a result yet (shown as 발송 중). */
+  attempt_in_progress: boolean;
+}
+
 export interface MessageView {
   message_id: string;
   direction: "OUT" | "IN";
@@ -366,6 +390,8 @@ export interface MessageView {
   subject: string | null;
   body: string;
   extraction: { method: string; value_status: ValueStatus; fields: { field: string; value: unknown; evidence: string }[]; note: string | null } | null;
+  /** OUTBOUND only. MockProvider maps the scenario status; ApiProvider passes the backend value. */
+  lifecycle: MessageLifecycleView | null;
 }
 
 export interface CommunicationThread {

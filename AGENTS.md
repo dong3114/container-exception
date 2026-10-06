@@ -180,6 +180,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 설치:        cd front/web && npm install
 시나리오 검사: npm run validate:scenario     # 데이터 팩 합계·용량·트럭·KPI·금지 표현
 타입 검사:    npm run typecheck
+단위 시험:    npm test                       # vitest — API 경계 · 상태 매핑
 린트:        npm run lint
 빌드·실행:    npm run build && npm run start  # dist/ 정적 파일, vite preview http://localhost:3000
 브라우저 확인: npm run smoke                  # 서버가 떠 있을 때. Edge/Chrome 헤드리스, 스크린샷 front/web/.smoke/

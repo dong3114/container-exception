@@ -45,7 +45,7 @@ export function KpiStrip({ summary, previous, stepId }: Props) {
       <Kpi
         label="Recoverable Exposure"
         value={summary.recoverable_exposure_krw == null ? "—" : krw(summary.recoverable_exposure_krw)}
-        hint={summary.recoverable_plan_id ? `예상 절감 가능액 (${summary.recoverable_plan_id})` : "복구 계획 없음"}
+        hint={summary.recoverable_plan_id ? `예상 절감 가능액 · 시뮬레이션 기준 (${summary.recoverable_plan_id})` : "복구 계획 없음"}
         small
         tone={summary.recoverable_exposure_krw ? "teal" : undefined}
         stepId={stepId}

@@ -10,6 +10,7 @@ import {
   CONTRACT_VERSION,
   type ActivityItem,
   type CommunicationThread,
+  type MessageView,
   type ContainerView,
   type DataTrustSummary,
   type DecisionUsability,
@@ -435,7 +436,20 @@ export class MockProvider implements CeraDataProvider {
           });
         const replied = messages.some((m) => m.direction === "IN");
         const sent = messages.some((m) => m.status === "SENT_SIMULATED");
-        return { ...th, messages, state: replied ? "REPLIED" : sent ? "AWAITING_REPLY" : "DRAFT" };
+        // Scenario statuses → canonical lifecycle: a scenario draft waits for approval; a simulated send is SENT,
+        // REPLIED once the reply arrived. No approval was ever invalidated in this scenario.
+        const withLifecycle = messages.map((m): MessageView => ({
+          ...m,
+          lifecycle:
+            m.direction === "OUT"
+              ? {
+                  status: m.status === "DRAFT" ? "PENDING_APPROVAL" : replied ? "REPLIED" : "SENT",
+                  invalidation: null,
+                  attempt_in_progress: false,
+                }
+              : null,
+        }));
+        return { ...th, messages: withLifecycle, state: replied ? "REPLIED" : sent ? "AWAITING_REPLY" : "DRAFT" };
       })
       .filter((th) => th.messages.length > 0);
     return envelope(data, step);

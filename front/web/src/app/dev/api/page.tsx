@@ -1,8 +1,10 @@
 
 // Backend exchange viewer: shows each request to the Main Backend and the raw response (status, headers, body).
-// Development aid only — not part of the Control Tower prototype. Requests go through the /backend proxy (vite.config.ts).
+// Development aid only — not part of the Control Tower prototype. Uses the same API base as the app (src/api/config.ts):
+// raw fetch on purpose, so error statuses and headers are shown as received instead of being turned into ApiError.
 
 import { useState } from "react";
+import { API_BASE, apiUrl } from "@/api/config";
 
 type Exchange = {
   id: number;
@@ -38,7 +40,7 @@ export default function ApiExchangePage() {
     const base = { id: Date.now(), method: "GET", path: clean, sentAt };
     let entry: Exchange;
     try {
-      const res = await fetch(`/backend${clean}`, { cache: "no-store" });
+      const res = await fetch(apiUrl(clean), { cache: "no-store" });
       const body = await res.text();
       entry = {
         ...base,
@@ -67,7 +69,7 @@ export default function ApiExchangePage() {
     <main style={{ maxWidth: 1200, margin: "0 auto", padding: 24, fontFamily: "system-ui, sans-serif", color: "var(--text)" }}>
       <h1 style={{ fontSize: 20, margin: "0 0 4px" }}>Backend 응답 확인</h1>
       <p style={{ margin: "0 0 16px", color: "#64748b", fontSize: 13 }}>
-        브라우저 → <code>/backend/*</code> (Vite 프록시) → Main Backend <code>127.0.0.1:3100</code>. 받은 값을 가공하지 않고 그대로 보여준다.
+        브라우저 → <code>{API_BASE}/*</code> → Main Backend (개발: Vite 프록시 → <code>CERA_API_URL</code>). 받은 값을 가공하지 않고 그대로 보여준다.
       </p>
 
       <form

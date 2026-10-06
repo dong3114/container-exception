@@ -29,7 +29,7 @@
 
 **앞으로의 순서 (2026-09-23 갱신, 이 목록과 위 번호가 같은 순서다)**: ~~`T-079`~~ → ~~`T-070`~~ → ~~`T-081`~~ → ~~`T-069 구현 계획`~~ → ~~`T-083 Q-64 Backend 결정`~~(NestJS) → ~~`T-084 Q-68 DB 결정`~~(PostgreSQL + Drizzle) → ~~`T-080 P0 29개 물리 설계`~~ → ~~`T-085 U0 뼈대`~~ → ~~`T-086 U1 스키마·migration·시드`~~ → **`T-087 U2`** → … → `T-096 U11 인수` (각 단위: Antigravity 구현 → Claude/Codex 검토 → 사용자 승인 · commit). **Q-65(솔버)는 이 줄의 어느 단계도 막지 않는다**
 
-> **프론트엔드는 별도 트랙이다(2026-09-17 사용자 지시).** Antigravity가 Control Tower Prototype의 디자인을 손보고 있다. Orchestrator·다른 에이전트는 `front/`를 건드리지 않는다.
+> **프론트엔드 (2026-10-06 사용자 지시로 갱신)**: 실제 Backend 와 연결되는 운영 Control Tower 로 간다. **구현 도구는 Antigravity 에 고정하지 않는다** — Orchestrator 가 적절한 Coding Agent/Tool 을 고르고 최종 diff·시험을 직접 검토한다. 한 파일을 여러 Agent 가 동시에 고치지 않는다. 2026-10-06 상태: Vite + React SPA(CSR, ADR-035) · 디자인 정리 커밋 · Backend 연결 경계(`docs/16` 4.1). 화면별 실제 API 연결은 T-087 부터 엔드포인트가 생기는 순서대로. ~~(2026-09-17) 별도 트랙 — Orchestrator 는 `front/` 를 건드리지 않는다~~
 
 실행 가능(TODO + 의존 해소): T-017, T-029, T-034, T-035, T-040, T-030, T-082 (7개). **주 흐름: T-086(U1) DONE(2026-10-06) → T-087(U2 — 등록부 · Contact Gate · OpenAPI 첫 업무 endpoint) 실행 가능.** **T-087~T-096(U2~U11)은 앞 단위가 DONE 될 때마다 하나씩 풀린다.** T-065는 T-064 뒤, T-036은 DEFERRED(재개 조건: T-064·T-065), T-037은 아래 사람 지시로 대기.
 

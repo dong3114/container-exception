@@ -1,5 +1,7 @@
 import type { CommunicationThread } from "@/contracts/cera";
 import { hm } from "./format";
+import { CandidateBadge } from "./workflow/CandidateBadge";
+import { MessageLifecycle } from "./workflow/MessageLifecycle";
 
 const STATE: Record<CommunicationThread["state"], [string, string]> = {
   DRAFT: ["b-outline", "초안 · 승인 대기"],
@@ -36,10 +38,17 @@ export function Communications({ threads }: { threads: CommunicationThread[] }) 
                     {m.direction === "OUT" && m.status === "DRAFT" && <span className="badge b-outline">초안 (사람 승인 전 발송 불가)</span>}
                     {m.subject && <span style={{ fontWeight: 600, color: "var(--text)" }}>{m.subject}</span>}
                   </div>
+                  {m.lifecycle && (
+                    <MessageLifecycle
+                      compact={m.lifecycle.status !== "PENDING_APPROVAL"}
+                      facts={{ status: m.lifecycle.status, invalidation: m.lifecycle.invalidation, attemptInProgress: m.lifecycle.attempt_in_progress }}
+                    />
+                  )}
                   <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap" }}>{m.body}</div>
                   {m.extraction && (
                     <div className="extract">
-                      <span className="badge b-amber b-dashed">추출 · {m.extraction.value_status === "PROVISIONAL" ? "잠정" : m.extraction.value_status}</span>
+                      <span className="badge b-amber b-dashed">추출</span>
+                      <CandidateBadge facts={{ method: m.extraction.method, valueStatus: m.extraction.value_status }} />
                       {m.extraction.fields.map((f) => (
                         <span key={f.field} className="badge b-outline" title={`근거: "${f.evidence}"`}>
                           {f.field} = <b>{String(f.value)}</b>

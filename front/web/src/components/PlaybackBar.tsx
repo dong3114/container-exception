@@ -1,4 +1,5 @@
 import type { ScenarioInfo } from "@/contracts/cera";
+import { BackendStatus } from "./BackendStatus";
 import { hms, md } from "./format";
 
 interface Props {
@@ -9,9 +10,11 @@ interface Props {
   onGo: (i: number) => void;
   onReset: () => void;
   onTogglePlay: () => void;
+  /** Where the operational data comes from (MockProvider today). */
+  dataSource: "mock" | "api";
 }
 
-export function PlaybackBar({ scenario, stepIndex, asOf, playing, onGo, onReset, onTogglePlay }: Props) {
+export function PlaybackBar({ scenario, stepIndex, asOf, playing, onGo, onReset, onTogglePlay, dataSource }: Props) {
   const last = scenario.steps.length - 1;
   return (
     <header className="topbar">
@@ -30,9 +33,10 @@ export function PlaybackBar({ scenario, stepIndex, asOf, playing, onGo, onReset,
         <span className="sim-badge" title={scenario.disclaimers.join("\n")}>
           SIMULATED SCENARIO · {scenario.scenario_id}
         </span>
+        <BackendStatus dataSource={dataSource} />
         <div className="clock" data-testid="clock">
           <span className="clock-time">{hms(asOf)}</span>
-          <span className="clock-date">{md(asOf)} (Asia/Seoul)</span>
+          <span className="clock-date">{md(asOf)} · 시나리오 시계 (Asia/Seoul)</span>
         </div>
         <nav className="playback" aria-label="시나리오 재생">
           <button className="pb-btn" onClick={onReset} data-testid="btn-reset" title="처음으로 리셋">

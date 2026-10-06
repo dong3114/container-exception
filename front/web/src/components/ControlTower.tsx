@@ -9,7 +9,7 @@ import type {
   ResourceStatus,
   ScenarioInfo,
 } from "@/contracts/cera";
-import { createProvider } from "@/data";
+import { PROVIDER_KIND, createProvider } from "@/data";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { Communications } from "./Communications";
 import { ContainerDrawer } from "./ContainerDrawer";
@@ -121,6 +121,7 @@ export function ControlTower() {
   return (
     <>
       <PlaybackBar
+        dataSource={PROVIDER_KIND}
         scenario={scenario}
         stepIndex={stepIndex}
         asOf={step.as_of}

@@ -22,10 +22,9 @@ T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은
 
 | 무엇 | 파일 | 상태 |
 | --- | --- | --- |
-| **프론트 CSR 전환 (사용자 직접 지시 2026-10-06, ADR-035 Accepted)** | `front/web/`(Vite 설정 · `index.html` · `src/main.tsx` · `src/App.tsx` · `src/vite-env.d.ts` · `src/app/dev/api/page.tsx` · `package*.json` · `tsconfig.json` · `eslint.config.mjs` · `src/data/index.ts` · Next 파일 삭제 3) · `docs/14`(ADR-035) · `docs/16` · `README.md` · `.gitignore` · `AGENTS.md` 의 front 줄 | 검증 끝(typecheck · lint 오류 0 · build · validate · smoke · `/backend/health` 프록시). **별도 커밋 대기** |
-| 프론트 디자인 작업(Antigravity, 이 흐름 밖) | `front/web/src/components/*` 11개 · `src/app/globals.css` | 이 흐름이 고치지 않음(CSR 전환 때 `"use client"` 줄 2개만 지움) |
-| 이 흐름 밖 untracked | `data/Proposal/` · `scripts/`(제안서 생성 — 문구에 "Next.js" 남음) | 손대지 않음 |
-| 정본 문서의 Next.js 잔여 표기 | `docs/01` 7절 · `docs/07` 3절 · `docs/10` · `docs/18` 782줄 · `docs/23` 2·10절 | ADR-035 에 맞춰 동기화 필요(프론트 커밋과 함께) |
+| 이 흐름 밖 untracked | `data/Proposal/` · `scripts/`(제안서 생성 — 문구에 "Next.js 관제탑 UI" 남음) | 손대지 않음 — 사용자가 정리 |
+
+**프론트 정리(2026-10-06, 사용자 직접 지시 — Task ID 없음)는 커밋 3개로 끝났다**: ① CSR 전환(ADR-035 · 정본 5곳 Next.js 표기 동기화) ② 기존 Antigravity 디자인 변경(09-17 작업, 그대로) ③ Backend 연결 준비(`docs/16` 4.1 — API base · `ApiError` · `AsyncState` · `GateBlockers` · `MessageLifecycle` · `CandidateBadge` · 데이터 출처 표시 · ②가 지운 시뮬레이션 표시 복구 · vitest 15 · `docs/23` 7.1 배포 원칙). 해시는 `LOG.md` 맨 위
 
 ## 다른 PC 로 옮길 때 (Google Drive 복사 — remote 없음)
 
@@ -42,7 +41,7 @@ T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은
 | 런타임·오류 처리·관측성 `docs/23` | 정본. ADR-030 **Proposed** · ADR-031 은 Desktop·Web First 부분만 Proposed(결정 1·2·8 은 ADR-033 이 대체) |
 | Backend 언어 | **결정 — Main Backend = TypeScript + NestJS**(모듈형 모놀리스, API + Worker) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON). **ADR-033 Accepted**, ADR-002 Superseded, Q-64 CLOSED |
 | 물리 설계 `docs/24` | **승인 (T-080 DONE 2026-09-22)**. 논리 기준 `docs/22` rev.2.5 · P0 29표 · 349컬럼. **U1 구현 확인 18.2 (2026-10-02 · 최종 검토 2026-10-06 U1-11)** |
-| 프론트엔드 | **Vite + React SPA, CSR 만 — ADR-035 Accepted (2026-10-06)**. 라우터 미선택. `/backend/*` → Main Backend 프록시 |
+| 프론트엔드 | **Vite + React SPA, CSR 만 — ADR-035 Accepted (2026-10-06)**. 라우터 미선택. API base = `VITE_CERA_API_BASE`(개발 `/backend` 프록시). Backend 연결 경계 `docs/16` 4.1. 운영 데이터는 아직 MockProvider |
 | DB · ORM · 마이그레이션 | **결정 — PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 검토 SQL migration**, SQLite 미사용. **ADR-034 Accepted**, ADR-004 Superseded, Q-68 CLOSED (2026-09-22). 비교 기록 `plans/T-084-db-decision-options.md` |
 
 ## Baseline
@@ -53,7 +52,7 @@ T-086 경과·검증은 `LOG.md` 맨 위 항목, 구현 해석·수정 기록은
 | 최신 커밋 | T-086 커밋(`feat: add CERA persistence foundation`, 해시는 `LOG.md` 맨 위) — 그 전 `b7103de`(T-085) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
-| last updated | 2026-10-06 (T-086 DONE · 커밋, CURRENT IDLE) |
+| last updated | 2026-10-06 (T-086 DONE · 프론트 정리 커밋 3개, CURRENT IDLE) |
 | current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-086 |
 
 ## 다음 한 걸음

@@ -107,7 +107,7 @@ function CostCompare(props: { planLabel: string; plan: CostLine[]; planTotal: nu
       </div>
       <div>
         <div className="muted" style={{ fontSize: 11.5, fontWeight: 650, marginBottom: 4 }}>
-          {props.planLabel} · 절감 <b style={{ color: "var(--teal)" }}>{krw(props.saving)}</b>
+          {props.planLabel} · 절감(시뮬레이션 기준) <b style={{ color: "var(--teal)" }}>{krw(props.saving)}</b>
         </div>
         <CostTable lines={props.plan} total={props.planTotal} />
       </div>

@@ -248,6 +248,19 @@ Frontend ──(request_id)──> Backend API ──(trace_id 전파)──> Ou
 
 이 루프가 Web 에서 돌기 전에는 Desktop 을 만들지 않는다.
 
+### 7.1 배포 형태 원칙 (Implementation Note, 2026-10-06 — 제품·클라우드는 정하지 않는다)
+
+| 원칙 | 뜻 |
+| --- | --- |
+| Frontend = 정적 SPA | `vite build` 산출물(정적 파일)을 정적 호스팅에 둔다. 프론트 서버 렌더링 없음(ADR-035) |
+| 브라우저는 Main Backend API 만 | 브라우저 → (리버스 프록시 / LB) → NestJS API. **AI Server · LLM 공급자 · PostgreSQL 로 직접 가지 않는다** |
+| API base URL 은 설정값 | 개발 `/backend`(Vite 프록시) · 운영 `/api` 또는 배포 base URL(`VITE_CERA_API_BASE`). 제품 코드에 `localhost:3100` 같은 주소를 쓰지 않는다 |
+| NestJS API 는 LB 뒤 여러 인스턴스 가능 | 요청 처리에 인스턴스 메모리 상태를 쓰지 않는다(상태는 DB). **Sticky session 을 전제하지 않는다** |
+| Worker = 별도 프로세스 | 같은 NestJS 코드베이스, 다른 진입점(ADR-033). Outbox 는 DB 폴링 |
+| AI Server = 내부 서비스 | NestJS 만 부른다. **LLM 공급자는 AI Server 만 부른다.** AI Server 는 DB 권한이 없다(ADR-033 · ADR-034) |
+| 비밀은 서버 쪽만 | LLM 키 · AI Server 자격증명 · DB 자격증명은 브라우저 번들 · `VITE_*` 변수에 넣지 않는다 |
+| 긴 AI 작업 | 화면은 요청 상태(IDLE · LOADING · SUCCESS · FAILED)를 갖고 UI 전체를 막지 않는다. 202 + 작업 조회 등 비동기 방식은 Backend Task 에서 정한다 |
+
 ## 8. Desktop 전략
 
 ### 8.1 Desktop 은 Client 다
