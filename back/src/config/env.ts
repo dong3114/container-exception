@@ -38,6 +38,23 @@ export const envSchema = z.object({
   // 발송 승인 유효 기한(docs/19 FR-APV-07 — 설정값). 지나면 그 승인으로는 보낼 수 없고 다시 승인해야 한다.
   // 기본 24시간 [ASSUMPTION] — Pilot 운영 주기로 조정한다.
   CERA_APPROVAL_TTL_MINUTES: z.coerce.number().int().min(1).max(10_080).default(1_440),
+  // ── 발송(T-090 U5 · docs/24 14절 · docs/18 H.3) ──
+  // 실제 발송 차단 스위치(FR-SND-12): true 면 발송 요청 · 승인은 되지만 Worker 가 보내지 않는다(발송 대기에 머문다).
+  CERA_SENDING_PAUSED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Mock 채널 "보낸 편지함" 뿌리(gitignore 된 data/raw/ 아래). 네트워크를 쓰지 않는다.
+  CERA_MOCK_CHANNEL_DIR: z.string().min(1).default('../data/raw/mock-channel'),
+  // Mock 장애 주입(시험 · 시연 전용). production 에서는 none 만 허용한다(아래 refine).
+  CERA_MOCK_CHANNEL_FAULT: z.enum(['none', 'transient', 'permanent', 'timeout_after_send', 'crash_after_send']).default('none'),
+  // Worker 폴링 주기 — 기본 5초 [ASSUMPTION](docs/24 14 결정 7)
+  CERA_OUTBOX_POLL_MS: z.coerce.number().int().min(200).max(600_000).default(5_000),
+  // 일시 실패 재시도: 최대 시도 수 · 첫 간격(지수 백오프, 상한 10분) [ASSUMPTION](docs/18 H.3)
+  CERA_SEND_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
+  CERA_SEND_RETRY_BASE_MS: z.coerce.number().int().min(0).max(600_000).default(30_000),
+  // 결과 없는 시도를 화해하기 전 기다리는 시간 — 다른 워커가 아직 보내는 중일 수 있다(재기동 직후에는 이 시간이 지난 시도만 본다)
+  CERA_SEND_RECONCILE_AFTER_MS: z.coerce.number().int().min(0).max(3_600_000).default(60_000),
+}).refine((e) => e.APP_ENV !== 'production' || e.CERA_MOCK_CHANNEL_FAULT === 'none', {
+  path: ['CERA_MOCK_CHANNEL_FAULT'],
+  message: 'fault injection is not allowed in production',
 });
 
 export type Env = z.infer<typeof envSchema>;

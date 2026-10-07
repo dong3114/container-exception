@@ -1,5 +1,6 @@
 /** API · Worker 가 같은 코드베이스의 별도 프로세스로 뜨는지(ADR-033). 실제 node 프로세스를 띄운다. */
 import { execFile, spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
@@ -9,7 +10,8 @@ const run = promisify(execFile);
 const TSX = join('node_modules', 'tsx', 'dist', 'cli.mjs');
 
 function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  return { ...process.env, APP_ENV: 'test', LOG_LEVEL: 'log', DATABASE_URL: TEST_DATABASE_URL, ...extra };
+  // --once 는 발송 주기도 한 번 돈다(T-090) — Mock 보낸 편지함은 임시 디렉터리로
+  return { ...process.env, APP_ENV: 'test', LOG_LEVEL: 'log', DATABASE_URL: TEST_DATABASE_URL, CERA_MOCK_CHANNEL_DIR: join(tmpdir(), 'cera-proc-mock'), ...extra };
 }
 
 describe('process entry points', () => {

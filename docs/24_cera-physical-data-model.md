@@ -368,6 +368,7 @@ evk/1 = sha256(JCS({
 | `fn_cera_guard_send_attempt_insert()` — `BEFORE INSERT` | `send_attempt` | **I-9 · I-3 · I-3b**(BUSINESS: 유효한 승인 여섯 조건을 `NEW.started_at` 기준으로 · 지문 = `approved_content_hash` · 수신자 일치 / CV: 승인 NULL · 지문 = 메시지 `content_hash`) + **새 시도 조건**: 그 메시지에 `SUCCESS` · `PERMANENT_FAILURE` 시도가 있으면 거부 · `attempt_no` = 이전 최대 + 1 |
 | `fn_cera_guard_approval_insert()` — `BEFORE INSERT` | `message_approval` | 무효화 대상이 APPROVED · CV 메시지 승인 금지(I-10) · 결정 주체 `HUMAN`(`INVALIDATED` 는 `SYSTEM` 허용 — AI 는 승인하지 않는다) · 계획 기반이면 `approved_plan_run_id` · 내용이 있으면 `approved_content_ref` |
 | **`fn_cera_guard_approval_decision()`** — `BEFORE INSERT`(**M12**, T-089) | `message_approval` | 메시지 행 `FOR UPDATE`(결정 줄 세움) · `APPROVED`: 메시지 `PENDING_APPROVAL`/`APPROVED` · 승인 지문 = 메시지 지문 · 그 시각 살아 있는 승인 없음 · 계획 기반이면 근거 실행 미교체(`fn_cera_lock_plan_run` advisory lock 뒤 확인) · `REJECTED`/`REVISION_REQUESTED`: 메시지 `PENDING_APPROVAL` · `REVOKED`/`INVALIDATED`: 성공 · 미확정 발송 시도 없음(18.5 U4-2) |
+| **`fn_cera_guard_status_transition()`** — `BEFORE INSERT`(**M13**, T-090) | `message_status_transition` | 메시지 행 `FOR UPDATE` · OUTBOUND 허용 전이 표만 · BUSINESS `QUEUED` = 그 시각 유효한 승인(지문 · 수신자 · 만료 · 무효화) · `SENT` = SUCCESS 시도 있음(18.6 U5-6) |
 | `fn_cera_check_approval_copies()` — **지연 제약 트리거**(커밋 시) | `message_approval` · `message_approval_structured_field` · `comm_message_structured_field` | APPROVED 의 구조화 값 사본 = 메시지 구조화 값 · **계획 기반 승인: 메시지 값의 `source_run_id` 는 한 실행뿐이고 `approved_plan_run_id` = 그 실행**(`source_run_id` 없는 값만 있으면 계획 무관 승인) |
 | `fn_cera_guard_message_children_insert()` — `BEFORE INSERT` | `comm_message_structured_field` · `comm_message_question` | 메시지 `BUSINESS` · `current_status = DRAFTED` · 같은 스레드(I-10 규칙 4·5) |
 | `fn_cera_guard_approval_copy_insert()` — `BEFORE INSERT` | `message_approval_structured_field` | 부모 decision ∈ (APPROVED, REJECTED, REVISION_REQUESTED) |
@@ -410,7 +411,7 @@ PostgreSQL 의 `UNIQUE` 제약은 `WHERE` 조건을 가질 수 없다. 조건이
 
 ## 14. Outbox · 워커 잠금
 
-**Slice 1 흐름**: DB Outbox(= `comm_message.current_status = 'QUEUED'`) → 단일 워커 → 발송 → `lookup_sent` 화해. 큐 제품은 쓰지 않는다(ADR-033 결정 5 · ADR-034 결정 8).
+**Slice 1 흐름**: DB Outbox(= `comm_message.current_status = 'QUEUED'`) → 단일 워커 → 발송 → `lookup_sent` 화해. 큐 제품은 쓰지 않는다(ADR-033 결정 5 · ADR-034 결정 8). **구현: T-090 — `back/src/communication/outbox-dispatcher.ts` · `back/src/app/worker.module.ts`(18.6).**
 
 | 선택지 | 무엇을 보장하나 | Slice 1 |
 | --- | --- | --- |
@@ -694,6 +695,27 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | U4-7 | **계획 교체**(FR-APV-06): `PlanSupersessionService.invalidateForNewRun(tx, newRunId, systemActorId)` — 새 실행 등록 트랜잭션 안에서 부른다(HTTP 없음 — 실행 등록은 Solver · 계획 단위). 옛 실행 근거의 살아 있는 · 미발송 승인에 `INVALIDATED(PLAN_SUPERSEDED)`. 승인 쪽과 같은 advisory lock(`fn_cera_lock_plan_run` — `recovery_run` 은 앱 역할에 UPDATE 가 없어 행 잠금 불가)으로 줄 세운다. 승인 전 초안은 승인 시점 검사가 막는다 |
 | U4-8 | **승인자**: 인증 전 개발용 헤더 `X-CERA-Actor-Id`. 서버가 활성 HUMAN actor 인지 확인하고, DB 가드(M08)가 다시 HUMAN 을 강제한다. **누구나 헤더로 다른 운영자를 사칭할 수 있다** — 인증 단위에서 교체해야 하는 남은 위험. 시스템 무효화(내용 변경 · 계획 교체)와 상태 전이 일부는 SYSTEM actor(U3-4 그대로) |
 | U4-9 | 기존 시험 조정: M12 가 `DRAFTED` 메시지 승인 · 살아 있는 승인 위 승인 · 다른 지문 승인을 거부하게 되어 fixture `approve()` 가 먼저 `PENDING_APPROVAL` 전이를 넣고, "승인 뒤 값 추가 → CE006" 두 시험은 상태를 `DRAFTED` 로 되돌린 뒤 값을 넣는다(전이 순서는 아직 DB 가 강제하지 않는다 — 그래도 커밋 검사가 잡는지 확인). OpenAPI 매개변수 순서를 경로 → 쿼리 → 헤더로 고정(tsx · vitest 의 decorator 순서 차이) |
+
+### 18.6 U5 구현 확인 결과 (T-090 · 2026-10-07)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **M13 = `0012_m13_message_lifecycle_guards.sql`**(custom) — 함수 **20**(+1 `fn_cera_guard_status_transition`) · 트리거 **74**(+1) · 이력 13행 · 표 29 그대로 · 재실행 안전. **새 표 · 새 열 · 새 상태 코드 0** — Outbox 는 14절 그대로 `comm_message.current_status = 'QUEUED'` |
+| API | `POST /communication/drafts/{messageId}/send`(요청 = `content_hash` · 헤더 `X-CERA-Actor-Id`) — **검증 뒤 `APPROVED → QUEUED` 만**. 네트워크 호출 없음. 이미 대기 · 발송 · 실패면 지금 상태를 돌려준다(멱등). 읽기 `DraftDto.dispatch`(상태 `NOT_REQUESTED · QUEUED · SENDING · RETRY_WAIT · SENT · FAILED` · 막힌 이유 15종 · 요청 · 발송 시각 · 사용한 승인 · 시도 요약 · 대기 해제 사유 · kill switch) |
+| Worker | `OutboxDispatcher` — 화해 → 픽업(`FOR UPDATE SKIP LOCKED`) → 발송 판정 → 시도 선커밋 → 트랜잭션 밖 발송 → 결과 한 번. `WorkerRunner` 가 세션 advisory lock(`cera.outbox.worker`)으로 단일 보장. `npm run dev:worker`(주기 `CERA_OUTBOX_POLL_MS`) · `--once`(점검 + 한 주기) |
+| 채널 | `back/src/channel/` — `ChannelAdapter` 포트(`docs/18` J.1: `capabilities` · `send` · `lookupSent`, `fetch_inbound` 는 U6) · `MockChannelAdapter`(파일 "보낸 편지함" `CERA_MOCK_CHANNEL_DIR` — 네트워크 없음, 재시작 뒤 조회 가능) · 장애 주입 `CERA_MOCK_CHANNEL_FAULT`(production 금지) |
+
+| # | 구현 메모 |
+| --- | --- |
+| U5-1 | **한 판정, 두 자리**: 발송 요청(빠른 실패)과 Worker 시도 직전(최종 검사, FR-SND-08)이 같은 `DraftService.sendCheck` → 순수 `sendBlocks`(유효한 승인 여섯 조건 · 승인 사본 재해시 · 내용 지문 재계산 · Contact Gate(개발 안전장치 포함) · 계획 교체 · 채널 · 시뮬레이션 불일치)를 부른다. 잠근 뒤 승인 행을 다시 읽어 같은 살아 있는 승인인지 확인한다 |
+| U5-2 | **보내는 내용 = 승인 사본**(`MESSAGE_APPROVAL_CONTENT` + 승인 수신자) — 화면 문자열을 다시 조합하지 않는다. `send_attempt.approval_id` = 실제로 쓴 살아 있는 승인 행 · `sent_content_hash` = 승인 지문 · `idempotency_key` = `sak/1`(`{k:'send-attempt', v:1, message_id, attempt_no}`) |
+| U5-3 | **정책 거부(Worker 시점)**: 시도를 만들지 않고 `QUEUED → APPROVED`(대기 해제) + 사유 note + 감사 `SEND_DEQUEUED`. 재시도하지 않는다(docs/18 H.3). 사람이 사유를 보고 다시 요청한다. 화면 `dispatch.dequeued_reason` |
+| U5-4 | **재시도**: 일시 실패 = `RETRYABLE_FAILURE` + 지수 백오프(`CERA_SEND_RETRY_BASE_MS` × 2^(n-1), 상한 10분) · 최대 `CERA_SEND_MAX_ATTEMPTS`(기본 5) 뒤 `DELIVERY_FAILED` · 영구 실패 = `PERMANENT_FAILURE` + `DELIVERY_FAILED`(재시도 없음) · 분류 못 한 예외 = `UNKNOWN`(재전송 전에 화해) |
+| U5-5 | **화해**: 결과 없는 · `UNKNOWN` 시도 중 `CERA_SEND_RECONCILE_AFTER_MS`(기본 60초 — 다른 워커가 아직 보내는 중일 수 있다)보다 오래된 것만 `lookupSent`. 찾으면 `SUCCESS`(+ `provider_message_id`, 표식 `error_message = 'reconciled: found in channel (lookup_sent)'` — 성공에는 오류 코드를 둘 수 없다) · 없음이 확인되면 `RETRYABLE_FAILURE`(`RECONCILED_NOT_SENT`, 바로 재시도) · 조회 실패면 그대로. 미확정 시도가 있으면 새 시도를 만들지 않는다(U-7 + 앱) |
+| U5-6 | **M13 상태 전이 가드**(T-089 기술 부채 ② 해소): 허용 전이 표(DRAFTED → PENDING_APPROVAL/CLOSED · PENDING_APPROVAL → APPROVED/REJECTED/CLOSED · APPROVED → APPROVED/QUEUED/CLOSED · REJECTED → CLOSED · QUEUED → SENT/DELIVERY_FAILED/APPROVED · SENT → REPLIED/DELIVERY_FAILED/CLOSED · REPLIED → REPLIED/CLOSED · DELIVERY_FAILED → CLOSED) + **BUSINESS 의 QUEUED 는 그 시각 유효한 승인 필요** + **SENT 는 SUCCESS 시도 필요**. `docs/18` E.1 상태도에 없던 화살표: `* → CLOSED`(수정본 대체, U4-5) · `QUEUED → APPROVED`(U5-3) · 같은 상태 반복(DRAFTED 첫 기록 · APPROVED 재승인 · REPLIED) |
+| U5-7 | 첫 성공 때 한 번 채움: `comm_message.sent_at` · `comm_thread.external_thread_id`(화해 성공은 외부 스레드 id 를 모르면 채우지 않는다) · 스레드 `WAITING_REPLY` · 질문 `SENT` |
+| U5-8 | **kill switch**(FR-SND-12): `CERA_SENDING_PAUSED=true` 면 요청 · 승인은 되고 Worker 가 보내지 않는다(대기열에 머묾, 화면 표시). 실행 중 전환 명령(`SetKillSwitch`)은 아직 없다 — 설정값 |
+| U5-9 | 기존 시험 조정: M13 이 "승인 뒤 DRAFTED 로 되돌리기"를 막아 T-089 때 남긴 두 시험(되돌린 뒤 값 추가 → CE006)은 이제 CE005 를 확인한다 — 커밋 시 사본 검사(M08 CE006)는 앱 역할로는 닿지 않는 마지막 방어선으로 남는다. 프로세스 시험의 Worker `--once` 는 Mock 보낸 편지함을 임시 디렉터리로 |
 
 
 

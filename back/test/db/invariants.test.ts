@@ -189,21 +189,21 @@ describe('plan-based approval (docs/22 15.5 · docs/19 FR-COM-10 · FR-APV-06)',
     }
   });
 
-  it('a plan value from another run added after the approval (same transaction) is caught at commit (CE006)', async () => {
+  it('a plan value cannot be added after the approval: the message cannot go back to DRAFTED (M13 CE005)', async () => {
     const { r, m } = await draft();
     const run1 = await recoveryRun(app);
     const run2 = await recoveryRun(app);
     await structuredValue(app, m.messageId, 'teu', 4, run1);
+    // 값은 DRAFTED 에만 붙는다(M08) · 승인 뒤 DRAFTED 로 되돌리는 전이는 M13 이 막는다(T-090 — T-089 기술 부채 ②).
+    // 커밋 시 사본 검사(M08 CE006)는 이제 앱 역할로는 닿지 않는 마지막 방어선으로 남는다.
     await expect(
       inTx(app, async (c) => {
         const approvalId = await approve(c, r, m, { planRunId: run1 });
         await approvedCopy(c, approvalId, 'teu', 4, run1);
-        // 값은 DRAFTED 에만 붙는다(M08). 전이 순서는 DB 가 강제하지 않으므로 되돌린 경우에도 커밋 검사가 잡는지 본다.
         await transition(c, m.messageId, 'DRAFTED', r.systemId);
         await structuredValue(c, m.messageId, 'slots', 2, run2);
-        await approvedCopy(c, approvalId, 'slots', 2, run2);
       }),
-    ).rejects.toMatchObject({ code: 'CE006' });
+    ).rejects.toMatchObject({ code: 'CE005' });
   });
 });
 
@@ -293,18 +293,12 @@ describe('message approval guards', () => {
     });
   });
 
-  it('a structured value added after an APPROVED decision breaks the copies at commit (CE006)', async () => {
+  it('a structured value cannot be added after an APPROVED decision (M08 status · M13 no way back to DRAFTED)', async () => {
     const r = await registry(app);
     const m = await outboundMessage(app, r, await thread(app, r));
     await approve(app, r, m); // 구조화 값 0건 — 사본 0건과 같다
-    await expect(
-      inTx(app, async (c) => {
-        await transition(c, m.messageId, 'DRAFTED', r.systemId); // 되돌린 경우(위 시험과 같은 이유)
-        await c.query("INSERT INTO cera.comm_message_structured_field (message_id, field_key, value_text) VALUES ($1, 'late', 'x')", [
-          m.messageId,
-        ]);
-      }),
-    ).rejects.toMatchObject({ code: 'CE006' });
+    await expectSqlState(app.query("INSERT INTO cera.comm_message_structured_field (message_id, field_key, value_text) VALUES ($1, 'late', 'x')", [m.messageId]), 'CE005');
+    await expectSqlState(transition(app, m.messageId, 'DRAFTED', r.systemId), 'CE005'); // 되돌려 붙이는 길도 막혔다(M13)
   });
 
   it('current_status cache cannot be updated directly — only through a transition row (CE002)', async () => {

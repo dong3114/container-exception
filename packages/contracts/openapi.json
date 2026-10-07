@@ -672,6 +672,98 @@
         ]
       }
     },
+    "/communication/drafts/{messageId}/send": {
+      "post": {
+        "operationId": "SendController_send",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Requesting operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendDraftRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The draft with its dispatch state (QUEUED, or the current state if already queued / sent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · RECIPIENT_NOT_ELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "DRAFT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONTENT_CHANGED · NOT_APPROVED · APPROVAL_MISSING · APPROVAL_EXPIRED · APPROVAL_REVOKED · APPROVAL_INVALIDATED · APPROVAL_CONTENT_MISMATCH · APPROVAL_RECIPIENT_MISMATCH · APPROVAL_COPY_INVALID · CONTENT_HASH_MISMATCH · PLAN_SUPERSEDED · MESSAGE_SUPERSEDED · SIMULATION_MISMATCH · CHANNEL_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Request sending of an approved message: re-checks the valid approval (six conditions), the frozen copy, Contact Gate and the plan, then queues it (Outbox). The worker sends it. Repeating the request does not queue or send twice.",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
     "/planning/runs": {
       "get": {
         "operationId": "PlanningRunController_list",
@@ -1791,6 +1883,141 @@
           "previous_approval_invalidated"
         ]
       },
+      "SendAttemptSummaryDto": {
+        "type": "object",
+        "properties": {
+          "attempt_no": {
+            "type": "number",
+            "example": 1
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "RETRYABLE_FAILURE",
+              "PERMANENT_FAILURE",
+              "UNKNOWN"
+            ],
+            "nullable": true,
+            "description": "null = in progress (no result recorded yet)"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "Failure reason code (no secrets, no raw content)"
+          },
+          "reconciled": {
+            "type": "boolean",
+            "description": "The result was settled by reconciliation (looked up in the channel) rather than by the send call"
+          }
+        },
+        "required": [
+          "attempt_no",
+          "started_at",
+          "finished_at",
+          "result",
+          "error_code",
+          "reconciled"
+        ]
+      },
+      "DraftDispatchDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "NOT_REQUESTED",
+              "QUEUED",
+              "SENDING",
+              "RETRY_WAIT",
+              "SENT",
+              "FAILED"
+            ],
+            "description": "NOT_REQUESTED · QUEUED (waiting for the worker) · SENDING (an attempt has no settled result) · RETRY_WAIT (temporary failure, will retry) · SENT · FAILED"
+          },
+          "can_request_send": {
+            "type": "boolean",
+            "description": "A send can be requested now (approved, every send check passes, not yet queued)"
+          },
+          "blocked_reasons": {
+            "type": "array",
+            "description": "Why it cannot be sent now (re-checked on every read, by the worker before every attempt)",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ALREADY_SENT",
+                "MESSAGE_SUPERSEDED",
+                "NOT_APPROVED",
+                "APPROVAL_MISSING",
+                "APPROVAL_EXPIRED",
+                "APPROVAL_REVOKED",
+                "APPROVAL_INVALIDATED",
+                "APPROVAL_CONTENT_MISMATCH",
+                "APPROVAL_RECIPIENT_MISMATCH",
+                "APPROVAL_COPY_INVALID",
+                "CONTENT_HASH_MISMATCH",
+                "RECIPIENT_NOT_ELIGIBLE",
+                "PLAN_SUPERSEDED",
+                "SIMULATION_MISMATCH",
+                "CHANNEL_UNAVAILABLE"
+              ]
+            }
+          },
+          "queued_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "sent_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "approval_id_used": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The approval the (last) attempt used"
+          },
+          "next_attempt_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "When the next retry may start (RETRY_WAIT)"
+          },
+          "dequeued_reason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Why the worker took it off the queue (policy check failed right before sending — not retried)"
+          },
+          "sending_paused": {
+            "type": "boolean",
+            "description": "Sending is paused by the kill switch — requests queue but nothing is sent"
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SendAttemptSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "state",
+          "can_request_send",
+          "blocked_reasons",
+          "queued_at",
+          "sent_at",
+          "approval_id_used",
+          "next_attempt_at",
+          "dequeued_reason",
+          "sending_paused",
+          "attempts"
+        ]
+      },
       "DraftDto": {
         "type": "object",
         "properties": {
@@ -1873,6 +2100,9 @@
           },
           "revision": {
             "$ref": "#/components/schemas/DraftRevisionDto"
+          },
+          "dispatch": {
+            "$ref": "#/components/schemas/DraftDispatchDto"
           }
         },
         "required": [
@@ -1887,7 +2117,8 @@
           "approval_ready",
           "blocked_reasons",
           "approval",
-          "revision"
+          "revision",
+          "dispatch"
         ]
       },
       "DraftListDto": {
@@ -2026,6 +2257,19 @@
             "maxLength": 500
           }
         }
+      },
+      "SendDraftRequestDto": {
+        "type": "object",
+        "properties": {
+          "content_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "content_hash of the approved content the operator asks to send"
+          }
+        },
+        "required": [
+          "content_hash"
+        ]
       },
       "RunSummaryDto": {
         "type": "object",

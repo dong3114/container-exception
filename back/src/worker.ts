@@ -6,7 +6,8 @@ import { loadDotEnvIfPresent, parseEnv } from './config/env.js';
 
 /**
  * Worker 프로세스 진입점(ADR-033 — 같은 코드베이스, 별도 프로세스). HTTP 서버를 띄우지 않는다.
- * `--once`: 기동 점검 뒤 바로 종료(시험 · 배포 확인용).
+ * - 기본: 기동 점검 → `CERA_OUTBOX_POLL_MS` 마다 발송 주기(화해 → 픽업 · 발송). SIGINT/SIGTERM 에 잠금을 풀고 끝난다
+ * - `--once`: 기동 점검 + 발송 주기 한 번 뒤 종료(로컬 확인 · 시험용)
  */
 async function bootstrap(): Promise<void> {
   loadDotEnvIfPresent();
@@ -14,18 +15,36 @@ async function bootstrap(): Promise<void> {
   const logger = createLogger(env, 'cera-worker');
   const app = await NestFactory.createApplicationContext(WorkerModule.forRoot(env), { logger });
   app.enableShutdownHooks();
-  await app.get(WorkerRunner).bootstrapCheck();
+  const runner = app.get(WorkerRunner);
+  await runner.bootstrapCheck();
 
   if (process.argv.includes('--once')) {
+    await runner.tick();
+    await runner.releaseLock();
     await app.close();
     return;
   }
-  logger.log({ msg: 'worker idle — no jobs registered yet (U5/U6)' });
-  // 작업이 붙기 전까지 종료 신호를 기다린다. enableShutdownHooks 가 SIGINT/SIGTERM 에 app.close() 를 부른다.
-  await new Promise<void>((resolve) => {
-    process.once('SIGINT', resolve);
-    process.once('SIGTERM', resolve);
+
+  let stopping = false;
+  const stopped = new Promise<void>((resolve) => {
+    const stop = () => {
+      stopping = true;
+      resolve();
+    };
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
   });
+  logger.log({ msg: 'outbox worker polling', every_ms: env.CERA_OUTBOX_POLL_MS });
+  while (!stopping) {
+    try {
+      await runner.tick();
+    } catch (error) {
+      logger.error({ msg: 'outbox cycle failed — will retry next cycle', error: error instanceof Error ? error.message : String(error) });
+    }
+    await Promise.race([stopped, new Promise((r) => setTimeout(r, env.CERA_OUTBOX_POLL_MS))]);
+  }
+  await runner.releaseLock();
+  await app.close();
 }
 
 bootstrap().catch((error: unknown) => {

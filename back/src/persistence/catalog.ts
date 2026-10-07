@@ -11,12 +11,23 @@ export const AUDIT_ACTION = {
   MESSAGE_REJECTED: 'MESSAGE_REJECTED',
   APPROVAL_REVOKED: 'APPROVAL_REVOKED',
   APPROVAL_INVALIDATED: 'APPROVAL_INVALIDATED',
+  // T-090 U5 발송
+  SEND_REQUESTED: 'SEND_REQUESTED',
+  SEND_DEQUEUED: 'SEND_DEQUEUED',
+  MESSAGE_SENT: 'MESSAGE_SENT',
+  SEND_FAILED: 'SEND_FAILED',
+  SEND_RECONCILED: 'SEND_RECONCILED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];
 
 /** 감사 대상 종류. 내용 파기 감사는 내용 범주를 그대로 쓴다(docs/24 16.3 · 17절). 승인 결정은 승인 행을 가리킨다. */
-export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL')[] = [...CONTENT_CATEGORIES, 'MESSAGE_APPROVAL'];
-export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL';
+export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT')[] = [
+  ...CONTENT_CATEGORIES,
+  'MESSAGE_APPROVAL',
+  'COMM_MESSAGE',
+  'SEND_ATTEMPT',
+];
+export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT';
 
 export const SYSTEM_ERROR_CATEGORY = {
   UNEXPECTED: 'UNEXPECTED',

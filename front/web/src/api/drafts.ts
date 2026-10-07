@@ -73,3 +73,19 @@ export function listRuns(signal?: AbortSignal) {
 export function listFacilities(signal?: AbortSignal) {
   return apiRequest<FacilityList>("/registry/facilities", { signal });
 }
+
+/**
+ * Send request (T-090). This does not send anything over a network: the backend re-checks the approval and Contact Gate,
+ * then puts the message on the outbox. A separate worker sends it — the screen only reads the result (`dispatch`).
+ */
+export function sendDraft(messageId: string, contentHash: string, actorId: string, signal?: AbortSignal, fetchImpl?: typeof fetch) {
+  return apiRequest<Draft>(
+    `/communication/drafts/${encodeURIComponent(messageId)}/send`,
+    { method: "POST", body: { content_hash: contentHash }, headers: { [ACTOR_HEADER]: actorId }, signal },
+    fetchImpl,
+  );
+}
+
+export function getDraft(messageId: string, signal?: AbortSignal) {
+  return apiRequest<Draft>(`/communication/drafts/${encodeURIComponent(messageId)}`, { signal });
+}

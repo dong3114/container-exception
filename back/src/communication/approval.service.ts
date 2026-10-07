@@ -269,7 +269,8 @@ export class ApprovalService {
     return locked;
   }
 
-  private async resolveApprover(header: string | undefined): Promise<ActorRow> {
+  /** 결정 · 발송 요청을 하는 운영자(헤더 — 인증 전 개발용). 활성 HUMAN actor 만. */
+  async resolveApprover(header: string | undefined): Promise<ActorRow> {
     const value = header?.trim();
     if (!value) throw new ValidationError('ACTOR_REQUIRED', 'The X-CERA-Actor-Id header is required for approval decisions', [ACTOR_HEADER]);
     assertUuid(value, ACTOR_HEADER);

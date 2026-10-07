@@ -3,6 +3,7 @@ import { type Draft, approveDraft, rejectDraft, reviseDraft, revokeApproval } fr
 import { describeApiError } from "@/api/errors";
 import { useAsyncAction } from "@/state/async";
 import { AsyncStatus } from "../workflow/AsyncStatus";
+import { DispatchPanel } from "./DispatchPanel";
 import { GateBlockers } from "../workflow/GateBlockers";
 import { MessageLifecycle } from "../workflow/MessageLifecycle";
 import { INVALIDATION_LABEL } from "../workflow/lifecycle";
@@ -107,7 +108,7 @@ export function DraftView({ draft, approverId, onChanged }: { draft: Draft; appr
         </div>
       )}
 
-      <MessageLifecycle compact facts={{ status: m.status, invalidation: ended, attemptInProgress: false }} />
+      <MessageLifecycle compact facts={{ status: m.status, invalidation: ended, attemptInProgress: draft.dispatch.state === "SENDING" }} />
 
       {draft.question && (
         <section>
@@ -189,7 +190,7 @@ export function DraftView({ draft, approverId, onChanged }: { draft: Draft; appr
             {approval.state === "INVALIDATED" && ended ? INVALIDATION_LABEL[ended] : APPROVAL_STATE_LABEL[approval.state]}
           </span>
           {approval.state === "ACTIVE" && (
-            <span className="badge b-outline">{approval.usable_for_send ? "발송에 쓸 수 있는 승인 (실제 발송은 다음 단계)" : "발송에 쓸 수 없음"}</span>
+            <span className="badge b-outline">{draft.dispatch.state === "SENT" ? "이 승인으로 발송됨" : approval.usable_for_send ? "발송에 쓸 수 있는 승인" : "발송에 쓸 수 없음"}</span>
           )}
         </div>
 
@@ -256,7 +257,7 @@ export function DraftView({ draft, approverId, onChanged }: { draft: Draft; appr
               반려
             </button>
           )}
-          {approval.state === "ACTIVE" && current && (
+          {approval.state === "ACTIVE" && current && (m.status === "APPROVED" || (m.status === "QUEUED" && draft.dispatch.state === "QUEUED")) && (
             <button type="button" className="act-btn" data-testid="btn-revoke" disabled={!approverId || busy} onClick={() => approverId && revoke.run(approverId, current.approval_id)}>
               승인 취소
             </button>
@@ -288,6 +289,8 @@ export function DraftView({ draft, approverId, onChanged }: { draft: Draft; appr
           </form>
         )}
       </section>
+
+      <DispatchPanel draft={draft} approverId={approverId} onChanged={onChanged} />
 
       {editable && !editing && (
         <button type="button" className="act-btn" style={{ justifySelf: "start" }} onClick={() => setEditing(true)} data-testid="btn-edit-draft">

@@ -85,6 +85,13 @@
       "when": 1791332797064,
       "tag": "0011_m12_approval_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791349746585,
+      "tag": "0012_m13_message_lifecycle_guards",
+      "breakpoints": true
     }
   ]
 }

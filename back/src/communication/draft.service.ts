@@ -13,7 +13,11 @@ import { BusinessRuleError, SystemError, ValidationError } from '../shared/error
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
+import { CHANNEL_ADAPTERS, type ChannelAdapter, type ChannelType as AdapterChannel, type OutboundMessage } from '../channel/channel-adapter.js';
+import type { ChannelAdapters } from '../channel/channel.module.js';
 import { type ApprovalRecord, ApprovalRepository } from './approval.repository.js';
+import { SendRepository } from './send.repository.js';
+import { type AttemptRow, RECONCILED_FOUND, RECONCILED_NOT_SENT, type SendBlockReason, dispatchState, nextAttemptAt, sendBlocks } from './send-rules.js';
 import { approvalBlocks, isUsableForSend, liveApproval, summarizeApprovals } from './approval-rules.js';
 import { type DraftProse, TemplateDraftProse, askTag } from './draft-prose.js';
 import { DraftRepository, type FieldInsert, type TargetRow } from './draft.repository.js';
@@ -64,6 +68,16 @@ const PURPOSE_INTENT: Record<string, InquiryIntent> = { SLOT_REQUEST: 'TRUCK_SLO
 
 type LoadedDraft = NonNullable<Awaited<ReturnType<DraftRepository['loadDraft']>>>;
 
+export interface SendCheck {
+  blocks: SendBlockReason[];
+  /** 살아 있는 승인(발송 시도의 `approval_id` 가 될 행). */
+  live: ApprovalRecord | null;
+  attempts: AttemptRow[];
+  adapter: ChannelAdapter | null;
+  /** 통과했을 때만 — 승인 사본에서 만든 보낼 내용. */
+  outbound: OutboundMessage | null;
+}
+
 /** 초안 한 건을 판정하는 데 필요한 사실(읽기 · 승인 명령이 같은 판정을 쓴다). */
 export interface DraftInspection {
   loaded: LoadedDraft;
@@ -95,6 +109,8 @@ export interface DraftInspection {
 export class DraftService {
   private readonly prose: DraftProse = new TemplateDraftProse();
   private readonly safety: DevSafetyPolicy;
+  private readonly sendingPaused: boolean;
+  private readonly retryBaseMs: number;
 
   constructor(
     @Inject(DraftRepository) private readonly drafts: DraftRepository,
@@ -106,9 +122,13 @@ export class DraftService {
     @Inject(AuditRecorder) private readonly audit: AuditRecorder,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
+    @Inject(SendRepository) private readonly sends: SendRepository,
+    @Inject(CHANNEL_ADAPTERS) private readonly adapters: ChannelAdapters,
     @Inject(ENV) env: Env,
   ) {
     this.safety = { appEnv: env.APP_ENV, allowlist: env.CERA_TEST_RECIPIENT_ALLOWLIST };
+    this.sendingPaused = env.CERA_SENDING_PAUSED;
+    this.retryBaseMs = env.CERA_SEND_RETRY_BASE_MS;
   }
 
   async create(body: unknown): Promise<DraftDto> {
@@ -413,6 +433,7 @@ export class DraftService {
       blocked_reasons: blocked,
       approval: await this.approvalView(i, asOf),
       revision: await this.revisionView(message.messageId, thread.threadId),
+      dispatch: await this.dispatchView(i, asOf),
     };
   }
 
@@ -455,6 +476,103 @@ export class DraftService {
     return id;
   }
 
+  /**
+   * 발송 판정(T-090) — 발송 요청 API(빠른 실패)와 Worker 의 시도 직전(최종 검사)이 **같은 이 함수**를 부른다.
+   * 규칙은 순수 함수 `sendBlocks`(유효한 승인 여섯 조건 · 사본 온전 · 내용 온전 · Contact Gate · 계획 교체 · 채널) 하나다.
+   * 통과하면 보낼 내용(`outbound`)을 **승인 사본에서** 만든다 — 화면 문자열을 다시 조합하지 않는다.
+   */
+  async sendCheck(i: DraftInspection, asOf: Instant): Promise<SendCheck> {
+    const { message, thread } = i.loaded;
+    const attempts = await this.sends.attempts(message.messageId);
+    const live = liveApproval(i.approvals, asOf);
+    const liveRecord = live ? (i.approvals.find((a) => a.approvalId === live.approvalId) ?? null) : null;
+    const copy = liveRecord ? await this.approvalCopy(liveRecord) : null;
+    const adapter = this.adapters.get(message.channelType as AdapterChannel) ?? null;
+    const blocks = sendBlocks(
+      {
+        status: message.currentStatus ?? '',
+        messageContentHash: message.contentHash,
+        messageToAddressId: message.toAddressId,
+        isSimulated: message.isSimulated,
+        approvals: i.approvals,
+        liveCopyVerified: copy?.verified ?? false,
+        contentHashMatches: i.contentHashMatches,
+        recipientEligible: i.gate?.eligible ?? false,
+        planSuperseded: i.successorRunId !== null,
+        hasSuccessfulAttempt: attempts.some((a) => a.result === 'SUCCESS'),
+        adapter,
+      },
+      asOf,
+    );
+    let outbound: OutboundMessage | null = null;
+    if (blocks.length === 0 && liveRecord && copy?.text && i.loaded.normalizedAddress) {
+      outbound = {
+        ceraMessageId: message.messageId,
+        ceraThreadId: thread.threadId,
+        externalThreadId: thread.externalThreadId,
+        to: i.loaded.normalizedAddress,
+        subject: copy.text.subject,
+        bodyText: copy.text.bodyText,
+        contentHash: liveRecord.approvedContentHash ?? '',
+        isSimulated: message.isSimulated,
+      };
+    }
+    return { blocks, live: liveRecord, attempts, adapter, outbound };
+  }
+
+  /** 화면의 발송 요약(docs/19 15.1 · FR-SND-11) — 내부 멱등 키 같은 기술 값은 내보내지 않는다. */
+  private async dispatchView(i: DraftInspection, asOf: Instant): Promise<DraftDto['dispatch']> {
+    const check = await this.sendCheck(i, asOf);
+    const status = i.loaded.message.currentStatus ?? '';
+    const transitions = await this.sends.transitions(i.loaded.message.messageId);
+    const lastQueued = [...transitions].reverse().find((t) => t.status === 'QUEUED') ?? null;
+    const last = transitions.at(-1);
+    const beforeLast = transitions.at(-2);
+    const dequeued = status === 'APPROVED' && last?.status === 'APPROVED' && beforeLast?.status === 'QUEUED' ? last.note : null;
+    const lastAttempt = check.attempts.at(-1) ?? null;
+    const state = dispatchState(status, check.attempts);
+    const next = state === 'RETRY_WAIT' ? nextAttemptAt(check.attempts, this.retryBaseMs) : null;
+    return {
+      state,
+      can_request_send: status === 'APPROVED' && check.blocks.length === 0,
+      blocked_reasons: status === 'APPROVED' || status === 'QUEUED' ? check.blocks : [],
+      queued_at: lastQueued ? lastQueued.occurredAt.toSeoulIso() : null,
+      sent_at: i.loaded.message.sentAt ? Instant.fromDb(i.loaded.message.sentAt).toSeoulIso() : null,
+      approval_id_used: lastAttempt?.approvalId ?? null,
+      next_attempt_at: next ? next.toSeoulIso() : null,
+      dequeued_reason: dequeued,
+      sending_paused: this.sendingPaused,
+      attempts: check.attempts.map((a) => ({
+        attempt_no: a.attemptNo,
+        started_at: a.startedAt.toSeoulIso(),
+        finished_at: a.finishedAt?.toSeoulIso() ?? null,
+        result: a.result,
+        error_code: a.errorCode,
+        reconciled: a.errorCode === RECONCILED_NOT_SENT || a.errorMessage === RECONCILED_FOUND,
+      })),
+    };
+  }
+
+  /**
+   * 승인 사본(제목 · 본문 · 구조화 값) — 승인 순간 고정한 그대로. 다시 해시해 `approved_content_hash` 와 같으면 `verified`.
+   * 화면 표시와 발송(T-090)이 같은 사본 · 같은 검증을 쓴다 — 발송 내용은 화면 문자열이 아니라 이 사본에서 만든다.
+   */
+  async approvalCopy(approval: ApprovalRecord) {
+    const copies = await this.approvals.copiesFor(approval.approvalId);
+    const text = await this.readText(approval.approvedContentRef);
+    const fields: ContentField[] = copies.map((c) => ({
+      fieldKey: c.fieldKey,
+      valueText: c.approvedValueText,
+      valueNumber: c.approvedValueNumber,
+      unit: c.approvedUnit,
+    }));
+    const verified =
+      text !== null &&
+      approval.approvedToAddressId !== null &&
+      messageContentHash({ toAddressId: approval.approvedToAddressId, text, fields }) === approval.approvedContentHash;
+    return { copies, text, fields, verified };
+  }
+
   /** 승인 축(docs/22 15.8.1) — 승인 행들로 지금 상태 · 사본 · 이력을 만든다. 사본은 다시 해시해 온전한지 본다. */
   private async approvalView(i: DraftInspection, asOf: Instant): Promise<DraftDto['approval']> {
     const summary = summarizeApprovals(i.approvals, asOf);
@@ -462,18 +580,7 @@ export class DraftService {
     const latest = summary.latestApproved ? (i.approvals.find((a) => a.approvalId === summary.latestApproved?.approvalId) ?? null) : null;
     let current: ApprovalSnapshotDto | null = null;
     if (latest && summary.latestApprovedState) {
-      const copies = await this.approvals.copiesFor(latest.approvalId);
-      const copyText = await this.readText(latest.approvedContentRef);
-      const copyFields: ContentField[] = copies.map((c) => ({
-        fieldKey: c.fieldKey,
-        valueText: c.approvedValueText,
-        valueNumber: c.approvedValueNumber,
-        unit: c.approvedUnit,
-      }));
-      const copyVerified =
-        copyText !== null &&
-        latest.approvedToAddressId !== null &&
-        messageContentHash({ toAddressId: latest.approvedToAddressId, text: copyText, fields: copyFields }) === latest.approvedContentHash;
+      const { copies, text: copyText, verified: copyVerified } = await this.approvalCopy(latest);
       current = {
         approval_id: latest.approvalId,
         state: summary.latestApprovedState,

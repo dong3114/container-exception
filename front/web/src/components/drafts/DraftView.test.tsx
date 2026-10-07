@@ -55,6 +55,18 @@ const base: Draft = {
   blocked_reasons: [],
   approval: { state: "NONE", usable_for_send: false, current: null, ended_by: null, rejection: null, history: [] },
   revision: { previous_message_id: null, next_message_id: null, previous_approval_invalidated: null },
+  dispatch: {
+    state: "NOT_REQUESTED",
+    can_request_send: false,
+    blocked_reasons: [],
+    queued_at: null,
+    sent_at: null,
+    approval_id_used: null,
+    next_attempt_at: null,
+    dequeued_reason: null,
+    sending_paused: false,
+    attempts: [],
+  },
 };
 
 const OPERATOR = "01a11040-0000-7000-8000-0000000000aa";
@@ -172,7 +184,7 @@ describe("DraftView", () => {
     const html = render(approvedDraft);
     expect(html).toContain('data-approval-state="ACTIVE"');
     expect(html).toContain("승인됨");
-    expect(html).toContain("발송에 쓸 수 있는 승인 (실제 발송은 다음 단계)");
+    expect(html).toContain("발송에 쓸 수 있는 승인");
     expect(html).toContain('data-testid="approver-name">운영자 (가상)<');
     expect(html).toContain("2026-10-07 10:15");
     expect(html).toContain("2026-10-08 10:15");
@@ -245,5 +257,11 @@ describe("DraftView", () => {
     });
     expect(html).toContain("반려 사유: 시간대가 맞지 않음");
     expect(html).not.toContain('data-testid="btn-reject"');
+  });
+
+  it("after sending the approval can no longer be revoked from the screen", () => {
+    const html = render({ ...approvedDraft, message: { ...approvedDraft.message, status: "SENT" }, dispatch: { ...approvedDraft.dispatch, state: "SENT" } });
+    expect(html).toContain("이 승인으로 발송됨");
+    expect(html).not.toContain('data-testid="btn-revoke"');
   });
 });

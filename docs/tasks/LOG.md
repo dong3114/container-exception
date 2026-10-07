@@ -21,6 +21,15 @@
 
 ---
 
+## 2026-10-07 · T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add outbox mock send workflow`, 이 항목과 같은 커밋). 기준 HEAD `6dd6a3c`. push 없음. T-091 시작 안 함. T-098 은 건드리지 않음(큐에 유지)
+- 한 일: 발송 요청 API(검증 → `APPROVED → QUEUED` 만, 외부 호출 없음) · Worker(`OutboxDispatcher` — 화해 → `FOR UPDATE SKIP LOCKED` 픽업 → 같은 발송 판정 → 시도 선커밋 → 트랜잭션 밖 Mock 발송 → 결과 한 번 · 백오프 · 정책 거부 시 대기 해제) · 세션 advisory lock 단일 Worker · `ChannelAdapter` 포트 + `MockChannelAdapter`(파일 보낸 편지함, 네트워크 없음, 장애 주입) · M13 상태 전이 가드 · 화면 발송 상태
+- 발견 · 처리: 발송 완료 뒤에도 [승인 취소]가 보임 → 숨김 · OpenAPI DTO 선언 순서(데코레이터 메타데이터) · M13 이 "승인 뒤 DRAFTED 되돌리기"를 막아 T-089 시험 2곳 조정(`docs/24` 18.6 U5-9)
+- 검증: Backend `npm test` **232**(211 + 21) · typecheck · build · `drizzle-kit check` · Front `npm test` **34** · lint 오류 0 · build · smoke · 헤드리스 Edge(초안 → 승인 → 발송 요청 → Worker → 발송 완료 · 재요청 → 1통 · 승인 뒤 Gate 차단) · **실제 Worker 프로세스 크래시(exit 70) → 재기동 → `lookup_sent` → SUCCESS · 1통** · UNKNOWN 화해
+- 기술 부채 4건(사용자 결정 2026-10-07, T-090 blocker 아님 — 후속 Task): ① `X-CERA-Actor-Id` 임시 인증(인증 구현에서 교체) ② kill switch 실행 중 전환 명령 없음(설정값만) ③ `DELIVERY_FAILED` 수동 재시도 명령 없음 ④ 장시간 채널 호출 + 향후 다중 Worker 에서 화해 대기 시간(60초) 위험. **채널은 Mock 이다 — 실제 Gmail 발송이 되었다고 문서 · 화면에 쓰지 않는다**
+- 다음: **T-091(U6)** — 회신 원문 보존 · 어떤 발송 스레드의 답인지 연결 · 발신자 등록 여부 판정 · 정상/보류 분리. LLM 없음. 그 뒤 추출(T-092), T-098 은 적절한 시점에
+- 큐 변경: T-090 `DONE`
+
 ## 2026-10-07 · T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add human approval workflow`, 이 항목과 같은 커밋). 기준 HEAD `36ae8b2`. push 없음. T-090 시작 안 함
 - 사용자 결정(2026-10-07): ① 승인자 = 헤더 `X-CERA-Actor-Id`(서버가 활성 HUMAN 확인) ② 구조화 값 변경 = 수정 API `values`(바뀐 값은 계획 출처를 뗀다) ③ 계획 교체 = 도메인 함수 + 승인 시 검사(HTTP 없음) ④ 승인 유효 기한 기본 24시간

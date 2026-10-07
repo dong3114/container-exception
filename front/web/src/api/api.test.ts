@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { apiRequest } from "./client";
 import { DEFAULT_API_BASE, apiUrl, resolveApiBase } from "./config";
-import { approveDraft } from "./drafts";
+import { approveDraft, sendDraft } from "./drafts";
 import { ApiError } from "./errors";
 
 describe("API base URL (no hard-coded backend host)", () => {
@@ -103,5 +103,21 @@ describe("approval command (T-089)", () => {
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({ content_hash: hash });
     expect((init.headers as Record<string, string>)["X-CERA-Actor-Id"]).toBe("actor-1");
+  });
+});
+
+describe("send request (T-090)", () => {
+  it("asks the backend to queue the approved content — hash and operator only, no send flag", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = ((url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return Promise.resolve(jsonResponse(200, { ok: true }));
+    }) as unknown as typeof fetch;
+    const hash = `sha256:${"d".repeat(64)}`;
+    await sendDraft("msg-2", hash, "actor-2", undefined, fetchImpl);
+    const { url, init } = calls[0] as { url: string; init: RequestInit };
+    expect(url).toMatch(/\/communication\/drafts\/msg-2\/send$/);
+    expect(JSON.parse(init.body as string)).toEqual({ content_hash: hash });
+    expect((init.headers as Record<string, string>)["X-CERA-Actor-Id"]).toBe("actor-2");
   });
 });

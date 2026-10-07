@@ -10,14 +10,15 @@
 
 ## Status
 
-**IDLE** — **T-089 (U4 발송 승인 · 반려 · 승인 취소 · 무효화) DONE** (2026-10-07 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-090(U5 — Outbox · Mock 발송)** 이고 실행 가능하다. **아직 시작하지 않았다.**
+**IDLE** — **T-090 (U5 Outbox · Mock 발송 · 멱등 · 화해) DONE** (2026-10-07 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-091(U6 — 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 정상/보류 분리, LLM 없음)** 이고 실행 가능하다. **아직 시작하지 않았다.**
 
-T-089 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.5(U4-1~9).
+T-090 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.6(U5-1~9).
 
-- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(211 통과) · `cd front/web && npm test`(27 통과) ④ T-090 Brief → 사용자 승인
-- **마지막 migration: M12**. 다음 DB 변경은 M13
-- 기술 부채 2건(사용자 결정 2026-10-07, T-089 blocker 아님): ① `X-CERA-Actor-Id` 승인자 헤더는 인증 전 임시 장치 — 인증 구현에서 교체 ② 메시지 상태 전이 순서는 DB 가 완전히 강제하지 않음 — T-090 발송 lifecycle 구현 때 실제 전이 규칙과 함께 검토
-- **방향 결정(2026-10-07, 사용자)**: T-090 뒤에 **T-098 — 실제 서비스 화면**(운영자 · 관리자 완전히 다른 화면 · 현장 담당자, 로그인 · 페이지 분리, 투자 · 공모전 시연 영상용 — 시나리오 · 더미 표현 최소화, 남길 표시 범위는 Plan 에서 결정). 결정 전문은 `QUEUE.md` T-098
+- **순서(사용자 결정 2026-10-07)**: T-091 수신 → 추출(T-092) 쪽 → 적절한 시점에 T-098(역할별 실제 화면 · 인증). T-098 은 큐에 유지
+- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(232 통과) · `cd front/web && npm test`(34 통과) ④ T-091 Brief
+- **마지막 migration: M13**. 다음 DB 변경은 그때의 다음 번호(M14)
+- 기술 부채 4건(사용자 결정 2026-10-07, T-090 blocker 아님 — 후속 Task): ① `X-CERA-Actor-Id` 임시 인증(인증 구현에서 교체) ② kill switch 실행 중 전환 명령 없음(설정값만) ③ `DELIVERY_FAILED` 수동 재시도 명령 없음 ④ 장시간 채널 호출 + 향후 다중 Worker 에서 화해 대기 시간(60초) 위험. **채널은 Mock 이다 — 실제 Gmail 발송이 되었다고 문서 · 화면에 쓰지 않는다**
+- 로컬 실행: API(`npm run dev:api`) · **Worker(`npm run dev:worker`)** · 화면(`front/web` `npm run dev`). Worker 를 안 켜면 발송 요청은 "발송 대기"에 머문다(정상)
 - 계약 갱신 순서: `back` `npm run openapi:emit` → `front/web` `npm run openapi:types` → 둘 다 커밋
 - 서버를 끈 뒤 node 자식 프로세스가 3100/3000 을 잡고 남을 수 있다 — 확인 전 포트를 본다
 
@@ -52,11 +53,11 @@ T-089 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.5(U4-1~9).
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-089 커밋(`feat: add human approval workflow`, 해시는 `git log -1`) — 그 전 `36ae8b2`(T-088) |
+| 최신 커밋 | T-090 커밋(`feat: add outbox mock send workflow`, 해시는 `git log -1`) — 그 전 `6dd6a3c`(T-098 큐잉) · `fb8321e`(T-089) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
-| last updated | 2026-10-07 (T-089 DONE · 커밋, CURRENT IDLE) |
-| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-089 |
+| last updated | 2026-10-07 (T-090 DONE · 커밋, CURRENT IDLE) |
+| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-090 |
 
 ## 다음 한 걸음
 
@@ -68,7 +69,8 @@ T-089 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.5(U4-1~9).
 6. ~~T-087 — U2 등록부 · Contact Gate~~ **DONE (2026-10-06, 커밋)**
 7. ~~T-088 — U3 초안 · 구조화 값 · 숫자 검사~~ **DONE (2026-10-06, 커밋)**
 8. ~~T-089 — U4 승인 · 무효화~~ **DONE (2026-10-07, 커밋)**
-9. **T-090 — U5 Outbox · Mock 발송** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-091 ~ T-096 (U6 ~ U11). Q-65(솔버)는 어느 단계도 막지 않는다
+9. ~~T-090 — U5 Outbox · Mock 발송~~ **DONE (2026-10-07, 커밋)**
+10. **T-091 — U6 수신** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-092 ~ T-096 (U7 ~ U11) · T-098(역할별 실제 화면)은 적절한 시점에. Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 

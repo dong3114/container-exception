@@ -207,6 +207,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/communication/drafts/{messageId}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request sending of an approved message: re-checks the valid approval (six conditions), the frozen copy, Contact Gate and the plan, then queues it (Outbox). The worker sends it. Repeating the request does not queue or send twice. */
+        post: operations["SendController_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planning/runs": {
         parameters: {
             query?: never;
@@ -569,6 +586,46 @@ export interface components {
              */
             previous_approval_invalidated: "USER_REVOKED" | "PLAN_SUPERSEDED" | "CONTENT_CHANGED" | null;
         };
+        SendAttemptSummaryDto: {
+            /** @example 1 */
+            attempt_no: number;
+            started_at: string;
+            finished_at: string | null;
+            /**
+             * @description null = in progress (no result recorded yet)
+             * @enum {string|null}
+             */
+            result: "SUCCESS" | "RETRYABLE_FAILURE" | "PERMANENT_FAILURE" | "UNKNOWN" | null;
+            /** @description Failure reason code (no secrets, no raw content) */
+            error_code: string | null;
+            /** @description The result was settled by reconciliation (looked up in the channel) rather than by the send call */
+            reconciled: boolean;
+        };
+        DraftDispatchDto: {
+            /**
+             * @description NOT_REQUESTED · QUEUED (waiting for the worker) · SENDING (an attempt has no settled result) · RETRY_WAIT (temporary failure, will retry) · SENT · FAILED
+             * @enum {string}
+             */
+            state: "NOT_REQUESTED" | "QUEUED" | "SENDING" | "RETRY_WAIT" | "SENT" | "FAILED";
+            /** @description A send can be requested now (approved, every send check passes, not yet queued) */
+            can_request_send: boolean;
+            /** @description Why it cannot be sent now (re-checked on every read, by the worker before every attempt) */
+            blocked_reasons: ("ALREADY_SENT" | "MESSAGE_SUPERSEDED" | "NOT_APPROVED" | "APPROVAL_MISSING" | "APPROVAL_EXPIRED" | "APPROVAL_REVOKED" | "APPROVAL_INVALIDATED" | "APPROVAL_CONTENT_MISMATCH" | "APPROVAL_RECIPIENT_MISMATCH" | "APPROVAL_COPY_INVALID" | "CONTENT_HASH_MISMATCH" | "RECIPIENT_NOT_ELIGIBLE" | "PLAN_SUPERSEDED" | "SIMULATION_MISMATCH" | "CHANNEL_UNAVAILABLE")[];
+            queued_at: string | null;
+            sent_at: string | null;
+            /**
+             * Format: uuid
+             * @description The approval the (last) attempt used
+             */
+            approval_id_used: string | null;
+            /** @description When the next retry may start (RETRY_WAIT) */
+            next_attempt_at: string | null;
+            /** @description Why the worker took it off the queue (policy check failed right before sending — not retried) */
+            dequeued_reason: string | null;
+            /** @description Sending is paused by the kill switch — requests queue but nothing is sent */
+            sending_paused: boolean;
+            attempts: components["schemas"]["SendAttemptSummaryDto"][];
+        };
         DraftDto: {
             message: components["schemas"]["DraftMessageDto"];
             thread: components["schemas"]["DraftThreadDto"];
@@ -586,6 +643,7 @@ export interface components {
             blocked_reasons: ("CONTENT_MISSING" | "CONTENT_HASH_MISMATCH" | "BLOCKED_NUMBER_CHECK" | "RECIPIENT_NOT_ELIGIBLE" | "PLAN_SUPERSEDED" | "MESSAGE_SUPERSEDED" | "NOT_PENDING_APPROVAL" | "ALREADY_APPROVED")[];
             approval: components["schemas"]["DraftApprovalDto"];
             revision: components["schemas"]["DraftRevisionDto"];
+            dispatch: components["schemas"]["DraftDispatchDto"];
         };
         DraftListDto: {
             drafts: components["schemas"]["DraftDto"][];
@@ -625,6 +683,10 @@ export interface components {
         };
         RevokeApprovalRequestDto: {
             reason?: string;
+        };
+        SendDraftRequestDto: {
+            /** @description content_hash of the approved content the operator asks to send */
+            content_hash: string;
         };
         RunSummaryDto: {
             /** Format: uuid */
@@ -1173,6 +1235,71 @@ export interface operations {
                 };
             };
             /** @description NOT_AN_APPROVAL · ALREADY_SENT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    SendController_send: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Requesting operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendDraftRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The draft with its dispatch state (QUEUED, or the current state if already queued / sent) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · RECIPIENT_NOT_ELIGIBLE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DRAFT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description CONTENT_CHANGED · NOT_APPROVED · APPROVAL_MISSING · APPROVAL_EXPIRED · APPROVAL_REVOKED · APPROVAL_INVALIDATED · APPROVAL_CONTENT_MISMATCH · APPROVAL_RECIPIENT_MISMATCH · APPROVAL_COPY_INVALID · CONTENT_HASH_MISMATCH · PLAN_SUPERSEDED · MESSAGE_SUPERSEDED · SIMULATION_MISMATCH · CHANNEL_UNAVAILABLE */
             409: {
                 headers: {
                     [name: string]: unknown;

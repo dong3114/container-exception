@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CHANNEL_TYPE, DRAFTED_BY, MESSAGE_STATUS, THREAD_PURPOSE, THREAD_STATUS } from '../db/schema/codes.js';
 import { GateReasonDto } from '../registry/dto.js';
 import { APPROVAL_BLOCK_REASONS } from './approval-rules.js';
+import { SEND_BLOCK_REASONS } from './send-rules.js';
 import { INQUIRY_INTENTS } from './inquiry-intents.js';
 
 /**
@@ -381,6 +382,70 @@ export class DraftRevisionDto {
   previous_approval_invalidated!: (typeof INVALIDATION_CAUSES)[number] | null;
 }
 
+export const DISPATCH_STATES = ['NOT_REQUESTED', 'QUEUED', 'SENDING', 'RETRY_WAIT', 'SENT', 'FAILED'] as const;
+export const SEND_RESULTS = ['SUCCESS', 'RETRYABLE_FAILURE', 'PERMANENT_FAILURE', 'UNKNOWN'] as const;
+
+export class SendDraftRequestDto {
+  @ApiProperty({ type: String, pattern: '^sha256:[0-9a-f]{64}$', description: 'content_hash of the approved content the operator asks to send' })
+  content_hash!: string;
+}
+
+export class SendAttemptSummaryDto {
+  @ApiProperty({ type: Number, example: 1 })
+  attempt_no!: number;
+
+  @ApiProperty({ type: String })
+  started_at!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  finished_at!: string | null;
+
+  @ApiProperty({ enum: SEND_RESULTS, nullable: true, description: 'null = in progress (no result recorded yet)' })
+  result!: (typeof SEND_RESULTS)[number] | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Failure reason code (no secrets, no raw content)' })
+  error_code!: string | null;
+
+  @ApiProperty({ type: Boolean, description: 'The result was settled by reconciliation (looked up in the channel) rather than by the send call' })
+  reconciled!: boolean;
+}
+
+export class DraftDispatchDto {
+  @ApiProperty({
+    enum: DISPATCH_STATES,
+    description:
+      'NOT_REQUESTED · QUEUED (waiting for the worker) · SENDING (an attempt has no settled result) · RETRY_WAIT (temporary failure, will retry) · SENT · FAILED',
+  })
+  state!: (typeof DISPATCH_STATES)[number];
+
+  @ApiProperty({ type: Boolean, description: 'A send can be requested now (approved, every send check passes, not yet queued)' })
+  can_request_send!: boolean;
+
+  @ApiProperty({ type: [String], enum: SEND_BLOCK_REASONS, description: 'Why it cannot be sent now (re-checked on every read, by the worker before every attempt)' })
+  blocked_reasons!: (typeof SEND_BLOCK_REASONS)[number][];
+
+  @ApiProperty({ type: String, nullable: true })
+  queued_at!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  sent_at!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The approval the (last) attempt used' })
+  approval_id_used!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'When the next retry may start (RETRY_WAIT)' })
+  next_attempt_at!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Why the worker took it off the queue (policy check failed right before sending — not retried)' })
+  dequeued_reason!: string | null;
+
+  @ApiProperty({ type: Boolean, description: 'Sending is paused by the kill switch — requests queue but nothing is sent' })
+  sending_paused!: boolean;
+
+  @ApiProperty({ type: [SendAttemptSummaryDto] })
+  attempts!: SendAttemptSummaryDto[];
+}
+
 export class DraftDto {
   @ApiProperty({ type: DraftMessageDto })
   message!: DraftMessageDto;
@@ -417,6 +482,9 @@ export class DraftDto {
 
   @ApiProperty({ type: DraftRevisionDto })
   revision!: DraftRevisionDto;
+
+  @ApiProperty({ type: DraftDispatchDto })
+  dispatch!: DraftDispatchDto;
 }
 
 export class DraftListDto {
