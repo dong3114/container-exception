@@ -1,0 +1,26 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail",
+  "message_text": "대당 18만원이면 가능합니다.",
+  "match": {
+    "message_text_sha256": "cc5667f09d22456d941eb39a1096efebf9705ae012975dc9e384e58f7f40c0b6"
+  },
+  "output": {
+    "outcome": "VALUES",
+    "answers": [
+      {
+        "ask_id": "Q1",
+        "field": "quantity",
+        "raw_value": "18만원",
+        "value": "180000",
+        "unit": "KRW",
+        "evidence": {
+          "quote": "18만원"
+        },
+        "confidence": 0.9
+      }
+    ],
+    "unmapped_statements": [],
+    "ambiguity_flags": []
+  }
+}

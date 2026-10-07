@@ -52,6 +52,12 @@ export const envSchema = z.object({
   CERA_SEND_RETRY_BASE_MS: z.coerce.number().int().min(0).max(600_000).default(30_000),
   // 결과 없는 시도를 화해하기 전 기다리는 시간 — 다른 워커가 아직 보내는 중일 수 있다(재기동 직후에는 이 시간이 지난 시도만 본다)
   CERA_SEND_RECONCILE_AFTER_MS: z.coerce.number().int().min(0).max(3_600_000).default(60_000),
+  // ── 회신 추출(T-092 U7) — Python AI Server(ADR-033). Main Backend 만 부른다(브라우저에 노출하지 않는다) ──
+  CERA_AI_SERVER_URL: z.string().url().default('http://127.0.0.1:8100'),
+  // LLM 은 느릴 수 있다 — 넘으면 이번 시도는 실패(재시도 가능), 원문 · 회신은 그대로
+  CERA_AI_TIMEOUT_MS: z.coerce.number().int().min(500).max(300_000).default(20_000),
+  // 같은 회신의 추출 시도 한도(기술 실패 기준) [ASSUMPTION]
+  CERA_EXTRACTION_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
 }).refine((e) => e.APP_ENV !== 'production' || e.CERA_MOCK_CHANNEL_FAULT === 'none', {
   path: ['CERA_MOCK_CHANNEL_FAULT'],
   message: 'fault injection is not allowed in production',

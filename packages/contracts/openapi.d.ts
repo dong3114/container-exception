@@ -647,6 +647,49 @@ export interface components {
             counterparty_name: string;
             contact_name: string;
         };
+        ExtractionCandidateDto: {
+            /** Format: uuid */
+            extraction_id: string;
+            /** @description Which question (ask) the candidate answers */
+            ask_id: string | null;
+            /** @description The asked field the AI claims to answer (quantity, available_from, ...) */
+            field: string;
+            /** @description Candidate value as the AI normalized it. A suggestion, not a fact */
+            value: string;
+            unit: string | null;
+            /** @description Verbatim quote the AI gave as evidence (null when the stored quote is gone) */
+            evidence_quote: string | null;
+            /**
+             * @description Backend validation result. AI confidence is not used
+             * @enum {string}
+             */
+            validation: "PASSED" | "REJECTED";
+            /** @description Failed checks: QUOTE_NOT_IN_SOURCE, FIELD_NOT_ASKED, UNIT_MISMATCH:x, VALUE_NOT_IN_QUOTE, CONFLICTING_CANDIDATES, ... */
+            failed_reasons: string[];
+            /**
+             * @description PENDING = passed and waiting to become an event (next step). Nothing is a fact yet
+             * @enum {string}
+             */
+            review_status: "PENDING" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
+            /**
+             * @description RECORDED_REPLAY = recorded response, no LLM was run
+             * @enum {string}
+             */
+            generated_by: "RECORDED_REPLAY" | "LLM";
+        };
+        InboundExtractionDto: {
+            /**
+             * @description WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry), FAILED (retry limit)
+             * @enum {string}
+             */
+            state: "WAITING" | "DONE" | "NO_CANDIDATE" | "SKIPPED" | "RETRYING" | "FAILED";
+            /** @description NO_CHANGE, REFUSAL, UNPARSEABLE or VALUES when nothing was extracted */
+            no_candidate_outcome: string | null;
+            candidates: components["schemas"]["ExtractionCandidateDto"][];
+            /** @description Technical failures so far */
+            failed_attempts: number;
+            last_error_code: string | null;
+        };
         InboundItemDto: {
             /**
              * Format: uuid
@@ -689,6 +732,8 @@ export interface components {
             is_simulated: boolean;
             /** @description The original is still in the content store */
             content_available: boolean;
+            /** @description AI suggestions for a NORMAL reply, validated by the backend. Null for held mail (never sent to AI) */
+            extraction: components["schemas"]["InboundExtractionDto"] | null;
         };
         DraftDto: {
             message: components["schemas"]["DraftMessageDto"];

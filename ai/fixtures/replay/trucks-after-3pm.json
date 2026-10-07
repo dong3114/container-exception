@@ -1,0 +1,37 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail",
+  "message_text": "오후 3시 이후 차량 4대 가능합니다.",
+  "match": {
+    "message_text_sha256": "73bf8eb66bc7abf649b367ce082d2de598b06640421746ea6f1382641f712ed9"
+  },
+  "output": {
+    "outcome": "VALUES",
+    "answers": [
+      {
+        "ask_id": "Q1",
+        "field": "quantity",
+        "raw_value": "4대",
+        "value": "4",
+        "unit": "TRUCK",
+        "evidence": {
+          "quote": "차량 4대 가능합니다"
+        },
+        "confidence": 0.9
+      },
+      {
+        "ask_id": "Q1",
+        "field": "available_from",
+        "raw_value": "오후 3시 이후",
+        "value": "15:00",
+        "unit": null,
+        "evidence": {
+          "quote": "오후 3시 이후"
+        },
+        "confidence": 0.9
+      }
+    ],
+    "unmapped_statements": [],
+    "ambiguity_flags": []
+  }
+}

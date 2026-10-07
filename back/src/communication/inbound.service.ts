@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { readInboundSurface } from '../channel/inbound-raw.js';
 import { ABSENT, CONTENT_STORE, type ContentStore } from '../content/content-store.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import { BusinessRuleError } from '../shared/errors/cera-error.js';
 import { Instant } from '../shared/time/instant.js';
-import type { InboundItemDto, InboundListDto } from './dto.js';
+import type { InboundExtractionDto, InboundItemDto, InboundListDto } from './dto.js';
+import { ExtractionRepository } from './extraction.repository.js';
+import { type Check, failedCodes } from './extraction-rules.js';
 import { InboundRepository } from './inbound.repository.js';
 import { type DateRejectReason, type HoldReason, normalizeAddress } from './inbound-rules.js';
 
@@ -20,7 +24,13 @@ export class InboundService {
   constructor(
     @Inject(InboundRepository) private readonly inbound: InboundRepository,
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
-  ) {}
+    @Inject(ExtractionRepository) private readonly extractions: ExtractionRepository,
+    @Inject(ENV) env: Env,
+  ) {
+    this.maxAttempts = env.CERA_EXTRACTION_MAX_ATTEMPTS;
+  }
+
+  private readonly maxAttempts: number;
 
   async list(status: string | undefined): Promise<InboundListDto> {
     if (status !== undefined && status !== 'NORMAL' && status !== 'HOLD') {
@@ -34,10 +44,56 @@ export class InboundService {
     return this.items(await this.inbound.listInbound(LIMIT, threadId));
   }
 
+  /** 정상 회신의 AI 제안 — 추출 행(검증 결과 포함) · 완료 감사 · 기술 실패에서 상태를 만든다. 인용은 내용 저장소에서. */
+  private async extractionView(messageIds: string[]): Promise<Map<string, InboundExtractionDto>> {
+    const out = new Map<string, InboundExtractionDto>();
+    if (messageIds.length === 0) return out;
+    const rows = await this.extractions.forMessages(messageIds);
+    const done = await this.extractions.completions(messageIds);
+    const failures = await this.extractions.failures(messageIds);
+    for (const id of messageIds) {
+      const candidates: InboundExtractionDto['candidates'] = [];
+      for (const x of rows.filter((row) => row.messageId === id)) {
+        const checks = x.validatorResult as unknown as Check[];
+        const bytes = await this.store.get(x.sourceQuoteRef as Parameters<ContentStore['get']>[0]);
+        const failed = failedCodes(checks);
+        candidates.push({
+          extraction_id: x.extractionId,
+          ask_id: x.askId,
+          field: checks.find((c) => c.check === 'FIELD')?.detail_code ?? '',
+          value: x.candidateValueText,
+          unit: x.candidateUnit,
+          evidence_quote: bytes === ABSENT ? null : new TextDecoder().decode(bytes),
+          validation: failed.length === 0 ? 'PASSED' : 'REJECTED',
+          failed_reasons: failed,
+          review_status: x.reviewStatus as InboundExtractionDto['candidates'][number]['review_status'],
+          generated_by: x.modelVersion.startsWith('replay:') ? 'RECORDED_REPLAY' : 'LLM',
+        });
+      }
+      const fail = failures.get(id);
+      const action = done.get(id) ?? null;
+      const noCandidate = action?.startsWith('EXTRACTION_NO_CANDIDATE_') ?? false;
+      let state: InboundExtractionDto['state'] = 'WAITING';
+      if (candidates.length > 0) state = 'DONE';
+      else if (noCandidate) state = 'NO_CANDIDATE';
+      else if (action?.startsWith('EXTRACTION_SKIPPED_')) state = 'SKIPPED';
+      else if (fail) state = fail.count >= this.maxAttempts ? 'FAILED' : 'RETRYING';
+      out.set(id, {
+        state,
+        no_candidate_outcome: noCandidate && action ? action.slice('EXTRACTION_NO_CANDIDATE_'.length) : null,
+        candidates,
+        failed_attempts: fail?.count ?? 0,
+        last_error_code: fail?.lastCode ?? null,
+      });
+    }
+    return out;
+  }
+
   private async items(rows: Awaited<ReturnType<InboundRepository['listInbound']>>): Promise<InboundItemDto[]> {
     const reasons = await this.inbound.holdReasons(rows.filter((r) => !r.messageId).map((r) => r.rawInputId));
     // 근거 시각 · 기준 · 거부 사유는 수신 순간 서버가 정해 영속한 값만 쓴다(원문 재계산이 아니다)
     const dateRejections = await this.inbound.dateRejections(rows.map((r) => r.rawInputId));
+    const extractionView = await this.extractionView(rows.map((r) => r.messageId).filter((m): m is string => m !== null));
     const labels = await this.inbound.threadLabels([...new Set(rows.map((r) => r.threadId).filter((t): t is string => t !== null))]);
     const out: InboundItemDto[] = [];
     for (const r of rows) {
@@ -65,6 +121,7 @@ export class InboundService {
         thread_counterparty_name: r.threadId ? (labels.get(r.threadId)?.counterpartyName ?? null) : null,
         is_simulated: r.isSimulated,
         content_available: surface !== null,
+        extraction: r.messageId ? (extractionView.get(r.messageId) ?? null) : null,
       });
     }
     return out;

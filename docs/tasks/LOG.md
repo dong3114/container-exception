@@ -21,6 +21,15 @@
 
 ---
 
+## 2026-10-07 · T-092 DONE — U7 회신 추출 파이프라인 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add AI reply extraction pipeline`, 이 항목과 같은 커밋). 기준 HEAD `4f78fec`. push 없음. T-099 · T-093 시작 안 함. T-098 은 건드리지 않음
+- 한 일: 정상 회신만 → Backend 가 물은 질문 · 기준일 · 정확한 원문 텍스트를 Python AI Server 에 보냄(트랜잭션 밖 · 시간 제한) → AI 는 값 후보 + 원문 인용만(녹화 재생) → 결정론 검증기(질문 범위 · 인용 원문 대조 · 형식 · 단위 · 값-인용 · 상충) → `extraction`(통과 PENDING · 탈락 REJECTED · SYSTEM). 기술 실패는 `system_error` + 재시도 한도. 화면 "AI 제안"(확정 아님 표시). 사건 · 현재 사실 생성 없음
+- 발견 · 처리: AI Server 가 요청을 거부한 경우(422)를 출력 오류로 분류하던 것 → `EXTRACTION_REQUEST_REJECTED` 로 분리 · 시험의 SYSTEM 행위자 가정 수정 · 정본 D.3 `slot` 대신 답할 칸(`field`)을 써서 `validator_result` 의 `FIELD` 에 남김(U7-7 — U8 에서 판단)
+- 검증: Backend `npm test` **266**(247 + 19) · Python `pytest` **7** · Front `npm test` **39** · typecheck · build · lint 오류 0 · `drizzle-kit check` · OpenAPI 최신 · smoke · E2E(초안 → 승인 → 발송 → Mock 회신 → 수신 → AI 추출 → 검증 → 화면, 묻지 않은 단가 탈락, 사건 0, 보류 회신 AI 호출 0, 콘솔 오류 0)
+- 실제 LLM 공급자는 호출하지 않았다(공급자 미정 — ADR-033). 녹화 재생(Recorded) 공급자로 E2E 검증, 사용자 승인으로 완료 인정(2026-10-07). 후속: 답 칸 이름의 정식 위치(U7-7, U8 에서 판단) · 재추출(SUPERSEDED) 명령 · `unmapped_statements` 미저장 · Gmail RFC822 텍스트 추출(Slice 2)
+- 다음(사용자 결정 2026-10-07): **T-099** 실제 AI 공급자 검증 + CERA 평가셋(값 · 근거 정확도 · 범위 위반 · 스키마 실패 · 조건부 표현 · 지연 · 비용 비교, Jev 는 판정 후보로) → 그 뒤 **T-093**(U8 사건 · PROVISIONAL)
+- 큐 변경: T-092 `DONE` · **T-099 추가** · T-093 의존에 T-099 추가
+
 ## 2026-10-07 · T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add inbound reply processing`, 이 항목과 같은 커밋). 기준 HEAD `cd0565f`. push 없음. T-092 시작 안 함. T-098 은 건드리지 않음
 - 한 일: Mock 수신함 → Worker 수신 주기 → 원문 바이트를 내용 저장소에 먼저(저장 후 지문 확인) → 한 트랜잭션 `raw_input`(ON CONFLICT — 중복이면 전체 건너뜀) → 정상이면 INBOUND 메시지(상태 · 초안 주체 NULL) + 보낸 메시지 `REPLIED` + 스레드 `ANSWERED`, 보류면 원문만 남기고 사유를 감사 기록. 스레드 연결 = 회신 헤더(성공한 발송 시도의 외부 id) · 외부 스레드 id, 어긋나면 보류. 발신자 = 등록부만(LLM 없음). Q-44 근거 시각. 화면 회신 · 보류함

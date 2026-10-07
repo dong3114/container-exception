@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { type Draft, type InboundItem, getDraft, listInbound } from "@/api/drafts";
 import { useAsyncAction } from "@/state/async";
 import { AsyncStatus } from "../workflow/AsyncStatus";
+import { ExtractionView } from "./ExtractionView";
 
 /** 보류 사유(docs/19 15.5 실패표의 말) — Backend 가 수신 순간 정한 코드를 그대로 옮긴다. */
 const HOLD_LABEL: Record<InboundItem["hold_reasons"][number], string> = {
@@ -41,6 +42,7 @@ function InboundCard({ item, compact = false }: { item: InboundItem; compact?: b
           {item.content_available ? item.preview : "(원문을 찾을 수 없음)"}
         </div>
       )}
+      {item.extraction && !compact && <ExtractionView extraction={item.extraction} />}
       <div className="muted" style={{ fontSize: 11 }}>
         받은 시각 {time(item.channel_received_at)} · 근거 시각 {time(item.evidence_time)} (
         {item.evidence_basis === "DATE_HEADER" ? "Date 헤더" : `채널 수신 시각${item.date_header_reject_reason ? ` — ${REJECT_LABEL[item.date_header_reject_reason]}` : ""}`})
@@ -57,13 +59,16 @@ function InboundCard({ item, compact = false }: { item: InboundItem; compact?: b
 export function RepliesPanel({ draft, onChanged }: { draft: Draft; onChanged: (d: Draft) => void }) {
   const waiting = draft.message.status === "SENT" || draft.message.status === "REPLIED";
   const count = draft.replies.length;
+  // 회신 수 · 상태 · AI 추출 진행이 바뀌면 다시 그린다(추출은 Worker 가 뒤에서 한다)
+  const signature = JSON.stringify(draft.replies.map((r) => [r.raw_input_id, r.extraction?.state, r.extraction?.candidates.length, r.extraction?.failed_attempts]));
   useEffect(() => {
     if (!waiting) return;
     const controller = new AbortController();
     const timer = setInterval(() => {
       getDraft(draft.message.message_id, controller.signal).then(
         (res) => {
-          if (res.data.replies.length !== count || res.data.message.status !== draft.message.status) onChanged(res.data);
+          const next = JSON.stringify(res.data.replies.map((r) => [r.raw_input_id, r.extraction?.state, r.extraction?.candidates.length, r.extraction?.failed_attempts]));
+          if (next !== signature || res.data.message.status !== draft.message.status) onChanged(res.data);
         },
         () => undefined,
       );
@@ -72,7 +77,7 @@ export function RepliesPanel({ draft, onChanged }: { draft: Draft; onChanged: (d
       clearInterval(timer);
       controller.abort();
     };
-  }, [waiting, count, draft.message.message_id, draft.message.status, onChanged]);
+  }, [waiting, signature, draft.message.message_id, draft.message.status, onChanged]);
 
   if (!waiting && count === 0) return null;
   return (
@@ -80,7 +85,7 @@ export function RepliesPanel({ draft, onChanged }: { draft: Draft; onChanged: (d
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <b style={{ fontSize: 12.5 }}>받은 회신</b>
         <span className="muted" style={{ fontSize: 11.5 }}>
-          {count === 0 ? "아직 회신 없음 — 회신이 오면 여기에 나타납니다" : `${count}통 · 내용 해석(값 추출)은 다음 단계`}
+          {count === 0 ? "아직 회신 없음 — 회신이 오면 여기에 나타납니다" : `${count}통 · AI 가 값 후보를 제안하고 Backend 가 검증합니다(확정 아님)`}
         </span>
       </div>
       {draft.replies.map((r) => (

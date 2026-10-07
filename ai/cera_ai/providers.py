@@ -1,0 +1,100 @@
+"""LLM provider port (ADR-033: the AI Server's only external client is an LLM provider).
+
+* ``ReplayProvider`` — **recorded responses**, no LLM call. Recordings are matched by the sha256 of the exact
+  request document (reply-extract/1), so the same input always gets the same recorded answer. Used for the Slice 1
+  mock loop and tests (T-069 7.1). Its model_version is ``replay:<fixture version>`` (docs/24 22.22) — the screen
+  shows it as "recorded replay — LLM not run".
+* ``LiveProviderSlot`` — the place a real provider adapter goes. **The provider/model is not decided**
+  (ADR-033 open item), so it refuses to run until an adapter is added and selected. It never invents a vendor.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Protocol
+
+from .contracts import ExtractionRequest, ProviderOutput, Usage
+
+
+class ProviderError(Exception):
+    """A provider could not produce an output. ``code`` is safe to log; no source text inside."""
+
+    def __init__(self, code: str, message: str, retryable: bool) -> None:
+        super().__init__(message)
+        self.code = code
+        self.retryable = retryable
+
+
+@dataclass(frozen=True)
+class ProviderResult:
+    output: ProviderOutput
+    model_version: str
+    usage: Usage | None
+
+
+class LlmProvider(Protocol):
+    name: str
+
+    def extract(self, request: ExtractionRequest, prompt: str) -> ProviderResult: ...
+
+
+def request_fingerprint(request: ExtractionRequest) -> str:
+    """sha256 of the canonical request document (sorted keys, no whitespace) — the recording key."""
+    doc = request.model_dump(by_alias=True, mode="json")
+    text = json.dumps(doc, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def message_text_fingerprint(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+class ReplayProvider:
+    """Recorded responses from ``<dir>/*.json``: ``{"version", "match": {"message_text_sha256"}, "output": {...}}``.
+
+    Matching on the message text keeps recordings stable when request ids differ (each reply has its own id).
+    The output still goes through the same strict schema and, on the Backend, the same validators.
+    """
+
+    name = "replay"
+
+    def __init__(self, directory: Path) -> None:
+        self._dir = directory
+
+    def extract(self, request: ExtractionRequest, prompt: str) -> ProviderResult:  # noqa: ARG002 — replay ignores the prompt
+        key = message_text_fingerprint(request.message_text)
+        for path in sorted(self._dir.glob("*.json")) if self._dir.is_dir() else []:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            if record.get("match", {}).get("message_text_sha256") == key:
+                raw = record.get("output")
+                if isinstance(raw, str):  # a recording of a malformed provider answer
+                    raise ProviderError("PROVIDER_OUTPUT_NOT_JSON", "recorded output is not a JSON object", retryable=False)
+                try:
+                    output = ProviderOutput.model_validate(raw)
+                except Exception as error:  # pydantic.ValidationError
+                    raise ProviderError("PROVIDER_OUTPUT_INVALID", f"recorded output does not match the schema: {type(error).__name__}", retryable=False) from None
+                return ProviderResult(output=output, model_version=f"replay:{record.get('version', 'fixtures-1')}", usage=None)
+        raise ProviderError("NO_RECORDING", "no recorded response for this message text", retryable=False)
+
+
+class LiveProviderSlot:
+    """Placeholder for a real LLM adapter. Selecting a vendor is a decision (ADR-033) — not made here."""
+
+    name = "live"
+
+    def extract(self, request: ExtractionRequest, prompt: str) -> ProviderResult:  # noqa: ARG002
+        raise ProviderError("PROVIDER_NOT_CONFIGURED", "no live LLM provider adapter is selected (ADR-033 open item)", retryable=False)
+
+
+def provider_from_env() -> LlmProvider:
+    mode = os.environ.get("CERA_LLM_MODE", "replay")
+    if mode == "replay":
+        default_dir = Path(__file__).resolve().parent.parent / "fixtures" / "replay"
+        return ReplayProvider(Path(os.environ.get("CERA_AI_REPLAY_DIR", str(default_dir))))
+    if mode == "live":
+        return LiveProviderSlot()
+    raise ValueError(f"CERA_LLM_MODE must be replay or live, got {mode!r}")

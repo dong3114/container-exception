@@ -1,0 +1,26 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail",
+  "message_text": "확인 후 다시 연락드리겠습니다.",
+  "match": {
+    "message_text_sha256": "2e319f0ae6d2e60529c5e3b17557d725d3503af8a67e55fb5059243ed28a6809"
+  },
+  "output": {
+    "outcome": "VALUES",
+    "answers": [
+      {
+        "ask_id": "Q1",
+        "field": "quantity",
+        "raw_value": "4대",
+        "value": "4",
+        "unit": "TRUCK",
+        "evidence": {
+          "quote": "차량 4대 가능합니다"
+        },
+        "confidence": 0.95
+      }
+    ],
+    "unmapped_statements": [],
+    "ambiguity_flags": []
+  }
+}

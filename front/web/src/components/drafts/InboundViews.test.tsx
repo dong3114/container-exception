@@ -21,6 +21,7 @@ const item = (over: Partial<InboundItem> = {}): InboundItem => ({
   thread_counterparty_name: "K운송 (가상)",
   is_simulated: true,
   content_available: true,
+  extraction: null,
   ...over,
 });
 
@@ -65,7 +66,7 @@ describe("received mail — shown as received, not interpreted", () => {
     expect(renderToStaticMarkup(<RepliesPanel draft={draft("APPROVED", [])} onChanged={() => undefined} />)).toBe("");
     expect(renderToStaticMarkup(<RepliesPanel draft={draft("SENT", [])} onChanged={() => undefined} />)).toContain("아직 회신 없음");
     const replied = renderToStaticMarkup(<RepliesPanel draft={draft("REPLIED", [item()])} onChanged={() => undefined} />);
-    expect(replied).toContain("1통 · 내용 해석(값 추출)은 다음 단계");
+    expect(replied).toContain("1통 · AI 가 값 후보를 제안하고 Backend 가 검증합니다(확정 아님)");
     expect(replied).toContain("15:00~17:00 2대 가능합니다.");
   });
 });

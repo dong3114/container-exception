@@ -1,0 +1,52 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import type { InboundItem } from "@/api/drafts";
+import { ExtractionView } from "./ExtractionView";
+
+type Extraction = NonNullable<InboundItem["extraction"]>;
+const candidate = (over: Partial<Extraction["candidates"][number]>): Extraction["candidates"][number] => ({
+  extraction_id: "01a11040-0000-7000-8000-0000000000f1",
+  ask_id: "Q1",
+  field: "quantity",
+  value: "4",
+  unit: "TRUCK",
+  evidence_quote: "차량 4대까지 가능합니다",
+  validation: "PASSED",
+  failed_reasons: [],
+  review_status: "PENDING",
+  generated_by: "RECORDED_REPLAY",
+  ...over,
+});
+const view = (e: Partial<Extraction>) =>
+  renderToStaticMarkup(<ExtractionView extraction={{ state: "DONE", no_candidate_outcome: null, candidates: [], failed_attempts: 0, last_error_code: null, ...e }} />);
+
+describe("AI suggestions — candidates with evidence, never facts", () => {
+  it("shows AI 제안, the value, the verbatim evidence and the validation result", () => {
+    const html = view({
+      candidates: [
+        candidate({}),
+        candidate({ extraction_id: "x2", field: "available_from", value: "15:00", unit: null, evidence_quote: "오후 3시 이후" }),
+        candidate({ extraction_id: "x3", field: "rate_per_truck", value: "180000", unit: "KRW", evidence_quote: "단가는 대당 18만원입니다", validation: "REJECTED", failed_reasons: ["FIELD_NOT_ASKED"], review_status: "REJECTED" }),
+        candidate({ extraction_id: "x4", evidence_quote: "차량 4대 가능합니다", validation: "REJECTED", failed_reasons: ["QUOTE_NOT_IN_SOURCE"], review_status: "REJECTED" }),
+      ],
+    });
+    expect(html).toContain("AI 제안");
+    expect(html).toContain("녹화 재생 — LLM 미실행");
+    expect(html).toContain("후보일 뿐 — 확정되지 않았고 업무에 반영되지 않았습니다");
+    expect(html).toContain("가능 수량:");
+    expect(html).toContain("<b class=\"num\">4대</b>");
+    expect(html).toContain("가능 시작 시각:");
+    expect(html).toContain("근거: “차량 4대까지 가능합니다”");
+    expect(html).toContain("검증 통과");
+    expect(html).toContain("업무에 반영되지 않음 — 문의하지 않은 항목");
+    expect(html).toContain("근거 문장이 회신 원문에 없음");
+    for (const word of ["확정됨", "CONFIRMED", "현재 사실", "운영 사실"]) expect(html).not.toContain(word);
+  });
+
+  it("waiting, retrying, failed and no-candidate states are told apart", () => {
+    expect(view({ state: "WAITING" })).toContain("AI 추출 대기 중");
+    expect(view({ state: "RETRYING", failed_attempts: 1, last_error_code: "EXTRACTION_TIMEOUT" })).toContain("자동으로 다시 시도합니다 · EXTRACTION_TIMEOUT");
+    expect(view({ state: "FAILED", failed_attempts: 3, last_error_code: "AI_SERVER_UNAVAILABLE" })).toContain("재시도 한도에 도달(회신 원문은 그대로 보관)");
+    expect(view({ state: "NO_CANDIDATE", no_candidate_outcome: "UNPARSEABLE" })).toContain("질문에 대한 값을 찾지 못함 (UNPARSEABLE)");
+  });
+});

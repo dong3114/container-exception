@@ -1,0 +1,48 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail",
+  "message_text": "내일 오후 3시 이후 차량 4대까지 가능합니다.\n단가는 대당 18만원입니다.",
+  "match": {
+    "message_text_sha256": "14bb01538db2a3494b20f75c65f82cb73c725c0f258052db50a9b42bb8a0aefc"
+  },
+  "output": {
+    "outcome": "VALUES",
+    "answers": [
+      {
+        "ask_id": "Q1",
+        "field": "quantity",
+        "raw_value": "4대",
+        "value": "4",
+        "unit": "TRUCK",
+        "evidence": {
+          "quote": "차량 4대까지 가능합니다"
+        },
+        "confidence": 0.9
+      },
+      {
+        "ask_id": "Q1",
+        "field": "available_from",
+        "raw_value": "오후 3시 이후",
+        "value": "15:00",
+        "unit": null,
+        "evidence": {
+          "quote": "오후 3시 이후"
+        },
+        "confidence": 0.9
+      },
+      {
+        "ask_id": "Q1",
+        "field": "rate_per_truck",
+        "raw_value": "대당 18만원",
+        "value": "180000",
+        "unit": "KRW",
+        "evidence": {
+          "quote": "단가는 대당 18만원입니다"
+        },
+        "confidence": 0.8
+      }
+    ],
+    "unmapped_statements": [],
+    "ambiguity_flags": []
+  }
+}

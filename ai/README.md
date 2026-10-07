@@ -1,20 +1,31 @@
-# ai/ — CERA AI 영역 (LLM·비정형 처리)
+# ai/ — CERA AI Server (LLM·비정형 처리)
 
-**현재 구현 전.** 코드, 런타임, LLM SDK는 아직 없다.
+**이 영역은 LLM·비정형 처리만 맡는다** (ADR-029 · ADR-033 Accepted). 위험·비용·Tariff·Reconciliation·최적화·Solver 같은 **결정론 엔진은 `back/`에 있다** — "숫자는 결정론 엔진에서만 나온다"(`docs/01_project-rules.md` 3절).
 
-**이 영역은 LLM·비정형 처리만 맡는다** (ADR-029, 2026-09-16 Accepted). 위험·비용·Tariff·Reconciliation·최적화·Solver 같은 **결정론 엔진은 여기 있지 않고 `back/`에 있다** — "숫자는 결정론 엔진에서만 나온다"(`docs/01_project-rules.md` 3절).
+## 지금 있는 것 (T-092 U7 · 2026-10-07)
 
-| 맡는 것 | 결과의 성격 |
+| 무엇 | 파일 |
 | --- | --- |
-| 메일 초안의 **문장**(숫자는 계획에서 주입되고 AI는 문장만 쓴다) | 사람이 발송 승인하기 전에는 나가지 않는다 |
-| 메일 회신·계약서의 **구조화 추출**(값 후보 + 원문 인용) | **후보**다. Backend 검증을 통과해야 사건이 된다(ADR-008·026) |
-| 결과 **설명 문장** | 엔진이 계산한 값을 설명할 뿐 값을 만들지 않는다 |
+| 회신 추출 계약 v1 (`docs/18` D.3) — 요청: 물은 질문(`ask_id` · 답할 칸 · 단위 · 시간창) · 기준일 · 정확한 원문 텍스트 / 응답: 값 **후보** + 원문 그대로의 인용 | `cera_ai/contracts.py` (pydantic, 모르는 키 거부) · 공유 견본과 JSON Schema `packages/contracts/ai/` |
+| HTTP 서버(FastAPI) — `GET /health` · `POST /v1/extractions/reply` | `cera_ai/app.py` · 실행 `python -m cera_ai` |
+| 프롬프트 — 물은 질문에만 답하게 하고, 회신을 데이터로 다룬다(회신 안의 지시를 따르지 않음), 인용은 글자 그대로 | `cera_ai/extraction.py` |
+| LLM 공급자 **포트** + **녹화 재생**(Recorded replay — LLM 호출 없음) + **실제 공급자 자리** | `cera_ai/providers.py` · 녹화 `fixtures/replay/*.json`(합성 문장 — 실제 메일 아님) |
 
-**하지 않는 것** (`docs/18` O절): 발신자 신원·권한 판정, 사실 키·적용 범위 결정, 현재 상태 확정, 비용·위험 계산, 최적화 결과, 외부 발송. 구조화 입력(폼·포털·CSV)은 AI를 거치지 않는다.
+- **LLM 공급자·모델은 아직 정하지 않았다**(ADR-033 미결). `CERA_LLM_MODE=live` 는 어댑터가 선택될 때까지 `PROVIDER_NOT_CONFIGURED` 로 거부한다. 공급자를 고를 때 `LlmProvider` 를 구현하는 어댑터 하나를 더하고 그 결정을 ADR 로 남긴다. 비밀값(API 키)은 서버 환경변수로만 — 저장소 · 프론트에 두지 않는다
+- 녹화 재생은 요청의 `message_text` sha256 으로 녹화를 찾는다. 응답의 `model_version` 은 `replay:<판>` — 화면은 "녹화 재생 — LLM 미실행"으로 보여준다
+- **stateless**: 요청 사이에 아무것도 기억하지 않는다. 여러 인스턴스로 띄워도 같은 입력 → 같은 출력
+- 로그: 요청 id · 메시지 id · 결과 · 지연 · 사용량만. 원문 · 인용 · 비밀값은 남기지 않는다
 
-- `ai/` 는 **DB 커넥션·ORM·채널·업무 외부 API 클라이언트를 갖지 않는다.** 가진 외부 클라이언트는 **LLM 공급자 호출뿐**이다(`docs/07` 6절 · ADR-033).
-- **별도 Python AI Server 런타임이다**(ADR-033 Accepted, 2026-09-21). Main Backend(NestJS)가 **HTTP/JSON** 으로 호출하고, 결과는 언제나 후보다 — 검증·반영은 Main Backend 가 한다. 구체 Python 패키지(FastAPI 또는 동등)는 구현 시점에 정한다.
+## 하지 않는 것 (`docs/18` O절 · ADR-033)
 
-미확정 사항: LLM 공급자·모델(구현 시점 선택, `docs/07` 3절), LLM 추출 계약 세부(T-034).
+DB 접근(커넥션 · ORM 없음) · 채널 · 메일 · 발송 · 발신자 신원 · 거래처 권한 · 사실 키 · 적용 범위 · 근거 강도 · 사건 · 현재 사실 · 승인 · 비용 · 위험 · 솔버. **출력은 언제나 후보**이고, Main Backend(`back/`)의 결정론 검증기가 인용 · 형식 · 단위 · 질문 범위를 확인한 뒤에만 다음 단계로 간다. 브라우저는 이 서버를 부르지 않는다(Main Backend 만).
 
-지금 화면의 위험·비용·계획 v1·v2와 회신 추출값은 이 영역의 결과가 아니라 `data/scenarios/`에 적어 둔 시나리오 값이다.
+## 명령 (ai 폴더에서, Python ≥ 3.12)
+
+```text
+설치:      pip install -e ".[dev]"            # fastapi · pydantic · uvicorn (+ pytest · httpx)
+실행:      python -m cera_ai                  # 127.0.0.1:8100 (CERA_AI_PORT · CERA_AI_HOST)
+시험:      python -m pytest -q
+계약:      python -m cera_ai.emit_schema      # → packages/contracts/ai/reply-extract.v1.schema.json (시험이 최신인지 검사)
+환경변수:  CERA_LLM_MODE=replay|live (기본 replay) · CERA_AI_REPLAY_DIR(기본 fixtures/replay)
+```

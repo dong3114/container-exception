@@ -1,0 +1,18 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail",
+  "message_text": "확인했습니다. 요청하신 대로 가능합니다.",
+  "match": {
+    "message_text_sha256": "44e499157bfd2a1ea29b55a3a01783b2f710fd18ee0c0e57513565de4951e47d"
+  },
+  "output": {
+    "outcome": "UNPARSEABLE",
+    "answers": [],
+    "unmapped_statements": [
+      "확인했습니다. 요청하신 대로 가능합니다."
+    ],
+    "ambiguity_flags": [
+      "IMPLICIT_REFERENCE"
+    ]
+  }
+}

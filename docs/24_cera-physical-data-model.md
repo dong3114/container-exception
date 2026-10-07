@@ -736,6 +736,24 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | U6-6 | 워터마크는 저장하지 않는다(저장할 표가 없다) — 매 주기 Mock 수신함 전체를 받고 외부 id UNIQUE 로 걸러 낸다. Gmail(`history_id`)은 Slice 2 에서 저장 위치를 정한다 |
 | U6-7 | 사건(Event) · 추출 · 현재 사실은 만들지 않는다 — 회신의 수량 · 시각 해석은 U7(AI 추출 = 후보) |
 
+### 18.8 U7 구현 확인 결과 (T-092 · 2026-10-07)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **없음**(M13 그대로) — `extraction` 표 · 내용 저장소(`EXTRACTION_SOURCE_QUOTE`) · `audit_log` · `system_error` 로 충분하다 |
+| AI Server | `ai/` Python(FastAPI — ADR-033 "FastAPI 또는 동등") · `POST /v1/extractions/reply` · DB · 채널 없음 · stateless · LLM 공급자 **포트** + 녹화 재생 + 실제 어댑터 자리(**공급자 미정 — 정하지 않음**) · 계약 견본 · JSON Schema `packages/contracts/ai/`(양쪽 시험이 같은 견본을 읽는다) |
+| Backend | `back/src/ai/ai-client.ts`(HTTP · 시간 제한 `CERA_AI_TIMEOUT_MS` · 응답 엄격 스키마 · 기술 실패 분류) · `extraction-rules.ts`(순수 — 질문 만들기 · 검증기) · `ExtractionProcessor`(Worker — 잠금 `cera.extraction.worker`) · `ExtractionRepository` · `InboundItemDto.extraction` |
+
+| # | 구현 메모 |
+| --- | --- |
+| U7-1 | **대상**: 정상 회신(INBOUND 메시지 — 스레드 연결 · 등록 발신자 판정 통과)만. 보류 메일은 메시지가 없어 대상이 될 수 없다(AI 호출 0회). 원문이 없거나 질문이 없으면 시작하지 않고 감사 `EXTRACTION_SKIPPED_<사유>` |
+| U7-2 | **AI 입력**: Backend 가 확정한 것만 — 물은 질문(`question_item` 의 `ask_id` · 질문 문장 · 답할 칸 · 기대 단위, 보낸 메시지의 날짜 · 시간창) · 기준일(질문의 날짜 — 시스템 현재 시각 아님) · 거래처 이름 · **원문 텍스트**(원문 바이트에서 `readInboundSurface` 로 — 검증기가 인용을 찾는 텍스트와 같은 문자열). `input_hash` = `extract-input/1`(요청 문서 전체) |
+| U7-3 | **검증기**(`docs/05` 4.6 안에서): `FIELD`(답이 말한 칸 — 표에 칸 열이 없어 첫 검사의 `detail_code` 로 남긴다) · `QUESTION_SCOPE`(없는 질문 · 묻지 않은 칸 탈락) · `QUOTE_IN_SOURCE`(원문 그대로의 부분 문자열 — 요약 · 의역 불인정) · `VALUE_FORMAT` · `UNIT` · `VALUE_IN_QUOTE`(값이 인용 안에 숫자 · 한글 수 · 시각 표현으로 실제로 있음) · `CONSISTENCY`(같은 질문 · 칸의 상충 값 → 모두 탈락) · `AMBIGUITY`(모호 표시 — 탈락 아님, U8 입력 신뢰도 재료). AI 자기 점수는 판정에 쓰지 않는다(`model_confidence` 는 기록만) |
+| U7-4 | **저장(T8)**: 인용을 내용 저장소에 먼저(트랜잭션 밖) → 한 트랜잭션(회신 단위 advisory lock · 이미 끝났으면 아무것도 안 함): 후보 1개 = `extraction` 1행. 통과 = `PENDING`(사건 후보 — U8 이 사건을 만들면 `ACCEPTED`), 탈락 = `REJECTED`(결정론 규칙의 판정 — SYSTEM 주체, `docs/22` 15.9.1 규칙 4. 처음부터 종료 상태로 넣는다) + 감사 `EXTRACTION_COMPLETED`. 후보가 없으면 행 없이 감사 `EXTRACTION_NO_CANDIDATE_<outcome>`. **사건 · 현재 사실을 만들지 않는다** |
+| U7-5 | **기술 실패**(`docs/22` 15.9.2 — 검증기 결과가 아니다): `system_error`(`AI_SERVER_UNAVAILABLE` · `EXTRACTION_TIMEOUT` · `EXTRACTION_PROVIDER_FAILED` · `EXTRACTION_OUTPUT_INVALID` · `EXTRACTION_REQUEST_REJECTED`, 관련 개체 = 회신 메시지). 다음 주기에 재시도, `CERA_EXTRACTION_MAX_ATTEMPTS`(기본 3 [ASSUMPTION]) 에 닿으면 멈춘다. 회신 · 원문은 그대로 |
+| U7-6 | **멱등**: 대상 = 추출 행 · 완료 감사가 없는 회신. 저장 트랜잭션이 회신 단위로 줄 서고 다시 확인하므로 재시도 · 동시 Worker 에도 행이 한 벌. 정책이 바뀌어 다시 추출하면 새 행 + 이전 `SUPERSEDED`(15.9.1 규칙 6) — 그 명령은 아직 없다 |
+| U7-7 | **정본과 다른 점 / 남은 판단**: `docs/18` D.3 의 답에는 `slot` 이 있는데 이번 질문은 시간창이 질문에 이미 고정돼 있어 `slot` 대신 답할 칸(`field` — `quantity` · `available_from` · `available_until`)으로 했다. 칸 이름은 `extraction` 표에 열이 없어 `validator_result` 의 `FIELD` 검사에 남긴다 — U8 에서 사건의 `fact_key` · 범위로 옮길 때 정식 위치를 다시 판단한다. `unmapped_statements` 는 저장하지 않는다(사건이 아니다 — 필요하면 U8 의 확인 요청) |
+
 
 
 ```

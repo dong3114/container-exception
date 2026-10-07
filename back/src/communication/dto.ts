@@ -457,6 +457,57 @@ export class InboundSenderLabelDto {
   contact_name!: string;
 }
 
+export const EXTRACTION_STATES = ['WAITING', 'DONE', 'NO_CANDIDATE', 'SKIPPED', 'RETRYING', 'FAILED'] as const;
+
+export class ExtractionCandidateDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  extraction_id!: string;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Which question (ask) the candidate answers' })
+  ask_id!: string | null;
+
+  @ApiProperty({ type: String, description: 'The asked field the AI claims to answer (quantity, available_from, ...)' })
+  field!: string;
+
+  @ApiProperty({ type: String, description: 'Candidate value as the AI normalized it. A suggestion, not a fact' })
+  value!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  unit!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Verbatim quote the AI gave as evidence (null when the stored quote is gone)' })
+  evidence_quote!: string | null;
+
+  @ApiProperty({ enum: ['PASSED', 'REJECTED'], description: 'Backend validation result. AI confidence is not used' })
+  validation!: 'PASSED' | 'REJECTED';
+
+  @ApiProperty({ type: [String], description: 'Failed checks: QUOTE_NOT_IN_SOURCE, FIELD_NOT_ASKED, UNIT_MISMATCH:x, VALUE_NOT_IN_QUOTE, CONFLICTING_CANDIDATES, ...' })
+  failed_reasons!: string[];
+
+  @ApiProperty({ enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'SUPERSEDED'], description: 'PENDING = passed and waiting to become an event (next step). Nothing is a fact yet' })
+  review_status!: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'SUPERSEDED';
+
+  @ApiProperty({ enum: ['RECORDED_REPLAY', 'LLM'], description: 'RECORDED_REPLAY = recorded response, no LLM was run' })
+  generated_by!: 'RECORDED_REPLAY' | 'LLM';
+}
+
+export class InboundExtractionDto {
+  @ApiProperty({ enum: EXTRACTION_STATES, description: 'WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry), FAILED (retry limit)' })
+  state!: (typeof EXTRACTION_STATES)[number];
+
+  @ApiProperty({ type: String, nullable: true, description: 'NO_CHANGE, REFUSAL, UNPARSEABLE or VALUES when nothing was extracted' })
+  no_candidate_outcome!: string | null;
+
+  @ApiProperty({ type: [ExtractionCandidateDto] })
+  candidates!: ExtractionCandidateDto[];
+
+  @ApiProperty({ type: Number, description: 'Technical failures so far' })
+  failed_attempts!: number;
+
+  @ApiProperty({ type: String, nullable: true })
+  last_error_code!: string | null;
+}
+
 export class InboundItemDto {
   @ApiProperty({ type: String, format: 'uuid', description: 'The preserved original (raw_input)' })
   raw_input_id!: string;
@@ -508,6 +559,9 @@ export class InboundItemDto {
 
   @ApiProperty({ type: Boolean, description: 'The original is still in the content store' })
   content_available!: boolean;
+
+  @ApiProperty({ type: InboundExtractionDto, nullable: true, description: 'AI suggestions for a NORMAL reply, validated by the backend. Null for held mail (never sent to AI)' })
+  extraction!: InboundExtractionDto | null;
 }
 
 export class InboundListDto {

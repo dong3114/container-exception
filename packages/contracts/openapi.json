@@ -2078,6 +2078,125 @@
           "contact_name"
         ]
       },
+      "ExtractionCandidateDto": {
+        "type": "object",
+        "properties": {
+          "extraction_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ask_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Which question (ask) the candidate answers"
+          },
+          "field": {
+            "type": "string",
+            "description": "The asked field the AI claims to answer (quantity, available_from, ...)"
+          },
+          "value": {
+            "type": "string",
+            "description": "Candidate value as the AI normalized it. A suggestion, not a fact"
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "evidence_quote": {
+            "type": "string",
+            "nullable": true,
+            "description": "Verbatim quote the AI gave as evidence (null when the stored quote is gone)"
+          },
+          "validation": {
+            "type": "string",
+            "enum": [
+              "PASSED",
+              "REJECTED"
+            ],
+            "description": "Backend validation result. AI confidence is not used"
+          },
+          "failed_reasons": {
+            "description": "Failed checks: QUOTE_NOT_IN_SOURCE, FIELD_NOT_ASKED, UNIT_MISMATCH:x, VALUE_NOT_IN_QUOTE, CONFLICTING_CANDIDATES, ...",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REJECTED",
+              "SUPERSEDED"
+            ],
+            "description": "PENDING = passed and waiting to become an event (next step). Nothing is a fact yet"
+          },
+          "generated_by": {
+            "type": "string",
+            "enum": [
+              "RECORDED_REPLAY",
+              "LLM"
+            ],
+            "description": "RECORDED_REPLAY = recorded response, no LLM was run"
+          }
+        },
+        "required": [
+          "extraction_id",
+          "ask_id",
+          "field",
+          "value",
+          "unit",
+          "evidence_quote",
+          "validation",
+          "failed_reasons",
+          "review_status",
+          "generated_by"
+        ]
+      },
+      "InboundExtractionDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "WAITING",
+              "DONE",
+              "NO_CANDIDATE",
+              "SKIPPED",
+              "RETRYING",
+              "FAILED"
+            ],
+            "description": "WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry), FAILED (retry limit)"
+          },
+          "no_candidate_outcome": {
+            "type": "string",
+            "nullable": true,
+            "description": "NO_CHANGE, REFUSAL, UNPARSEABLE or VALUES when nothing was extracted"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractionCandidateDto"
+            }
+          },
+          "failed_attempts": {
+            "type": "number",
+            "description": "Technical failures so far"
+          },
+          "last_error_code": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "state",
+          "no_candidate_outcome",
+          "candidates",
+          "failed_attempts",
+          "last_error_code"
+        ]
+      },
       "InboundItemDto": {
         "type": "object",
         "properties": {
@@ -2187,6 +2306,16 @@
           "content_available": {
             "type": "boolean",
             "description": "The original is still in the content store"
+          },
+          "extraction": {
+            "nullable": true,
+            "description": "AI suggestions for a NORMAL reply, validated by the backend. Null for held mail (never sent to AI)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InboundExtractionDto"
+              }
+            ]
           }
         },
         "required": [
@@ -2206,7 +2335,8 @@
           "thread_id",
           "thread_counterparty_name",
           "is_simulated",
-          "content_available"
+          "content_available",
+          "extraction"
         ]
       },
       "DraftDto": {

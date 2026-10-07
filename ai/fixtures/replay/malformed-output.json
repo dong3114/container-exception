@@ -1,0 +1,9 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail",
+  "message_text": "시험용 — 깨진 응답",
+  "match": {
+    "message_text_sha256": "7909100ec9fe2f90dd05bde1943211a57acb70f226e030fe5bcf3f253ba96f65"
+  },
+  "output": "this is not json {"
+}
