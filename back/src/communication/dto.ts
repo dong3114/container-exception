@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CHANNEL_TYPE, DRAFTED_BY, MESSAGE_STATUS, THREAD_PURPOSE, THREAD_STATUS } from '../db/schema/codes.js';
 import { GateReasonDto } from '../registry/dto.js';
 import { APPROVAL_BLOCK_REASONS } from './approval-rules.js';
+import { HOLD_REASONS } from './inbound-rules.js';
 import { SEND_BLOCK_REASONS } from './send-rules.js';
 import { INQUIRY_INTENTS } from './inquiry-intents.js';
 
@@ -446,6 +447,74 @@ export class DraftDispatchDto {
   attempts!: SendAttemptSummaryDto[];
 }
 
+export const INBOUND_STATUSES = ['NORMAL', 'HOLD'] as const;
+
+export class InboundSenderLabelDto {
+  @ApiProperty({ type: String })
+  counterparty_name!: string;
+
+  @ApiProperty({ type: String })
+  contact_name!: string;
+}
+
+export class InboundItemDto {
+  @ApiProperty({ type: String, format: 'uuid', description: 'The preserved original (raw_input)' })
+  raw_input_id!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The INBOUND message on the thread — null when held' })
+  message_id!: string | null;
+
+  @ApiProperty({ enum: INBOUND_STATUSES, description: 'NORMAL = attached to its inquiry thread · HOLD = kept (never discarded) but not attached' })
+  status!: (typeof INBOUND_STATUSES)[number];
+
+  @ApiProperty({ type: [String], enum: HOLD_REASONS, description: 'Why it was held, decided at receipt (registry · thread correlation — no AI)' })
+  hold_reasons!: (typeof HOLD_REASONS)[number][];
+
+  @ApiProperty({ type: String, nullable: true, description: 'Sender address as received' })
+  from_address!: string | null;
+
+  @ApiProperty({ type: InboundSenderLabelDto, nullable: true, description: 'Who that address belongs to in the registry, if anyone (display only)' })
+  sender_label!: InboundSenderLabelDto | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  subject!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Plain-text preview (first 300 characters). Not interpreted.' })
+  preview!: string | null;
+
+  @ApiProperty({ type: String, description: 'When the channel received it' })
+  channel_received_at!: string;
+
+  @ApiProperty({ type: String, description: 'When CERA stored it' })
+  received_at!: string;
+
+  @ApiProperty({ type: String, description: 'Evidence time (docs/22 11.2e): the Date header when valid, else the channel time' })
+  evidence_time!: string;
+
+  @ApiProperty({ enum: ['DATE_HEADER', 'CHANNEL_RECEIVED'] })
+  evidence_basis!: 'DATE_HEADER' | 'CHANNEL_RECEIVED';
+
+  @ApiProperty({ enum: ['MISSING', 'UNPARSEABLE', 'AFTER_CHANNEL_RECEIVED'], nullable: true })
+  date_header_reject_reason!: 'MISSING' | 'UNPARSEABLE' | 'AFTER_CHANNEL_RECEIVED' | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  thread_id!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Counterparty of the thread it was attached to' })
+  thread_counterparty_name!: string | null;
+
+  @ApiProperty({ type: Boolean })
+  is_simulated!: boolean;
+
+  @ApiProperty({ type: Boolean, description: 'The original is still in the content store' })
+  content_available!: boolean;
+}
+
+export class InboundListDto {
+  @ApiProperty({ type: [InboundItemDto] })
+  items!: InboundItemDto[];
+}
+
 export class DraftDto {
   @ApiProperty({ type: DraftMessageDto })
   message!: DraftMessageDto;
@@ -485,6 +554,9 @@ export class DraftDto {
 
   @ApiProperty({ type: DraftDispatchDto })
   dispatch!: DraftDispatchDto;
+
+  @ApiProperty({ type: [InboundItemDto], description: 'Replies received on this thread (NORMAL only — held mail is in GET /communication/inbound)' })
+  replies!: InboundItemDto[];
 }
 
 export class DraftListDto {

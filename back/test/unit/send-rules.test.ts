@@ -149,4 +149,17 @@ describe('MockChannelAdapter — a local "mail server" with a sent box (no netwo
     await expect(crashing.send(message('m-4'))).rejects.toThrow('process died');
     expect(await crashing.lookupSent('m-4')).not.toBeNull();
   });
+
+  it('inbox: a simulated reply comes back from fetchInbound with the raw bytes, reply headers and channel time (watermark filters)', async () => {
+    const a = new MockChannelAdapter(dir, new UuidV7Generator(), new FakeClock(NOW));
+    const receipt = await a.send(message('m-10'));
+    const r = await a.simulateReply({ replyToCeraMessageId: 'm-10', body: '가능합니다' });
+    expect(r.headers).toMatchObject({ From: 'dispatch@example.invalid', Subject: 'Re: s', 'In-Reply-To': receipt.externalMessageId });
+    const { messages, nextWatermark } = await a.fetchInbound(null);
+    const got = messages.find((m) => m.externalMessageId === r.external_message_id);
+    expect(got).toMatchObject({ externalThreadId: 'mock-thread-t-1', inReplyTo: receipt.externalMessageId, bodyText: '가능합니다', channelReceivedAt: NOW.toIsoUtc() });
+    expect(JSON.parse(new TextDecoder().decode(got?.raw)).external_message_id).toBe(r.external_message_id);
+    expect((await a.fetchInbound(nextWatermark)).messages).toEqual([]);
+    await expect(a.simulateReply({ replyToCeraMessageId: 'never-sent' })).rejects.toThrow();
+  });
 });

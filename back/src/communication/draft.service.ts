@@ -16,6 +16,7 @@ import { Instant } from '../shared/time/instant.js';
 import { CHANNEL_ADAPTERS, type ChannelAdapter, type ChannelType as AdapterChannel, type OutboundMessage } from '../channel/channel-adapter.js';
 import type { ChannelAdapters } from '../channel/channel.module.js';
 import { type ApprovalRecord, ApprovalRepository } from './approval.repository.js';
+import { InboundService } from './inbound.service.js';
 import { SendRepository } from './send.repository.js';
 import { type AttemptRow, RECONCILED_FOUND, RECONCILED_NOT_SENT, type SendBlockReason, dispatchState, nextAttemptAt, sendBlocks } from './send-rules.js';
 import { approvalBlocks, isUsableForSend, liveApproval, summarizeApprovals } from './approval-rules.js';
@@ -123,6 +124,7 @@ export class DraftService {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(SendRepository) private readonly sends: SendRepository,
+    @Inject(InboundService) private readonly inboundReads: InboundService,
     @Inject(CHANNEL_ADAPTERS) private readonly adapters: ChannelAdapters,
     @Inject(ENV) env: Env,
   ) {
@@ -434,6 +436,7 @@ export class DraftService {
       approval: await this.approvalView(i, asOf),
       revision: await this.revisionView(message.messageId, thread.threadId),
       dispatch: await this.dispatchView(i, asOf),
+      replies: await this.inboundReads.forThread(thread.threadId),
     };
   }
 

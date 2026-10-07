@@ -21,6 +21,15 @@
 
 ---
 
+## 2026-10-07 · T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add inbound reply processing`, 이 항목과 같은 커밋). 기준 HEAD `cd0565f`. push 없음. T-092 시작 안 함. T-098 은 건드리지 않음
+- 한 일: Mock 수신함 → Worker 수신 주기 → 원문 바이트를 내용 저장소에 먼저(저장 후 지문 확인) → 한 트랜잭션 `raw_input`(ON CONFLICT — 중복이면 전체 건너뜀) → 정상이면 INBOUND 메시지(상태 · 초안 주체 NULL) + 보낸 메시지 `REPLIED` + 스레드 `ANSWERED`, 보류면 원문만 남기고 사유를 감사 기록. 스레드 연결 = 회신 헤더(성공한 발송 시도의 외부 id) · 외부 스레드 id, 어긋나면 보류. 발신자 = 등록부만(LLM 없음). Q-44 근거 시각. 화면 회신 · 보류함
+- 사용자 검토로 고친 것: **Q-44 거부 사유가 영속되지 않았다**(서버가 읽을 때 원문으로 다시 계산 — 원문 파기 뒤 재현 불가) → 수신 트랜잭션에서 감사 `INBOUND_DATE_REJECTED_<사유>` 로 남기고 API 는 영속 값만 읽게 함(원문 파일을 지운 뒤에도 같은 값 — 시험)
+- 검증: Backend `npm test` **247**(232 + 15) · typecheck · build · `drizzle-kit check` · Front `npm test` **37** · lint 오류 0 · build · smoke · 헤드리스 Edge(발송 → Mock 회신 → 수신 → 화면 · 같은 회신 반복 1건 · 미등록 발신자 보류 · 스레드 밖 보류, 콘솔 오류 0)
+- 후속(사용자 결정 2026-10-07, blocker 아님): 보류 회신을 사람이 문의에 연결하는 명령(`LinkHeldInbound`) 없음 · 수신 워터마크 미저장(Mock 은 매 주기 전체 + UNIQUE) · 원문 읽기는 MOCK 형식만(Gmail RFC822 는 Slice 2) · 반송 · 전달 · 자동 회신 판별 없음. **채널은 Mock 이다 — 실제 메일 수신이라고 쓰지 않는다**
+- 다음: **T-092(U7)** — 정상 회신 원문에서 AI 가 값 후보 + 원문 인용만 내고 결정론 검증기가 거른다(발신자 · 스레드 · 근거 시각은 이번 판정을 그대로)
+- 큐 변경: T-091 `DONE`
+
 ## 2026-10-07 · T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add outbox mock send workflow`, 이 항목과 같은 커밋). 기준 HEAD `6dd6a3c`. push 없음. T-091 시작 안 함. T-098 은 건드리지 않음(큐에 유지)
 - 한 일: 발송 요청 API(검증 → `APPROVED → QUEUED` 만, 외부 호출 없음) · Worker(`OutboxDispatcher` — 화해 → `FOR UPDATE SKIP LOCKED` 픽업 → 같은 발송 판정 → 시도 선커밋 → 트랜잭션 밖 Mock 발송 → 결과 한 번 · 백오프 · 정책 거부 시 대기 해제) · 세션 advisory lock 단일 Worker · `ChannelAdapter` 포트 + `MockChannelAdapter`(파일 보낸 편지함, 네트워크 없음, 장애 주입) · M13 상태 전이 가드 · 화면 발송 상태

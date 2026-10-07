@@ -717,6 +717,25 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | U5-8 | **kill switch**(FR-SND-12): `CERA_SENDING_PAUSED=true` 면 요청 · 승인은 되고 Worker 가 보내지 않는다(대기열에 머묾, 화면 표시). 실행 중 전환 명령(`SetKillSwitch`)은 아직 없다 — 설정값 |
 | U5-9 | 기존 시험 조정: M13 이 "승인 뒤 DRAFTED 로 되돌리기"를 막아 T-089 때 남긴 두 시험(되돌린 뒤 값 추가 → CE006)은 이제 CE005 를 확인한다 — 커밋 시 사본 검사(M08 CE006)는 앱 역할로는 닿지 않는 마지막 방어선으로 남는다. 프로세스 시험의 Worker `--once` 는 Mock 보낸 편지함을 임시 디렉터리로 |
 
+### 18.7 U6 구현 확인 결과 (T-091 · 2026-10-07)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **없음**(M13 그대로) — `raw_input` · INBOUND `comm_message` · `audit_log` 로 충분하다. 새 표 · 열 · 상태 코드 0 |
+| 채널 | `ChannelAdapter.fetchInbound(watermark)`(J.1 `fetch_inbound`) · `InboundRawMessage`(원문 바이트 + 외부 메시지 · 스레드 id · `Date` 원문 · `In-Reply-To`/`References` · 채널 수신 시각). `MockChannelAdapter` 수신함 = `CERA_MOCK_CHANNEL_DIR/inbox/`(한 통 = JSON 봉투 파일 — 이 바이트가 원문). 개발 · 시험용 회신 주입 `simulateReply` 는 CLI `npm run mock:reply`(production 거부)와 시험만 쓴다 — 제품 API 에 없다 |
+| Worker | `InboundProcessor.runCycle()` — 발송 주기 다음에. 세션 잠금 `cera.inbound.poller`(docs/24 14 키 목록). 발송 · 수신은 서로의 실패와 무관하다 |
+| API | `GET /communication/inbound?status=NORMAL|HOLD`(수신 기록 · 보류함 — 읽기 전용) · `DraftDto.replies`(그 스레드에 붙은 회신) |
+
+| # | 구현 메모 |
+| --- | --- |
+| U6-1 | **저장(T7)**: 원문 바이트 → 내용 저장소(`RAW_INPUT_PAYLOAD`, 저장 후 지문 확인) → 한 트랜잭션 `raw_input`(`source_type = EMAIL` · `source_name = 채널 코드` · `source_record_key = 외부 메시지 id` · `payload_hash` · `source_recorded_at` = Q-44 근거 시각 · `received_at` = CERA 수신 시각) `ON CONFLICT DO NOTHING` — 충돌이면 전체 건너뜀. 정상이면 INBOUND `comm_message`(같은 외부 id · `from_address` · `content_hash` = 원문 지문 · `message_content_ref` NULL — 원문이 정본 · `drafted_by` · `current_status` NULL · 전이 없음, F-5) + 답한 보낸 메시지 `SENT → REPLIED` + 스레드 `ANSWERED`. 두 표는 (채널, 외부 id)로 이어진다 — 연결 열을 새로 만들지 않았다 |
+| U6-2 | **스레드 연결**: `In-Reply-To`/`References` → 그 외부 id 로 **성공한** 발송 시도 → 보낸 메시지 → 스레드, 그리고 외부 스레드 id → 스레드. 두 근거가 서로 다른 스레드면 `AMBIGUOUS_THREAD`, 근거가 없으면 `NO_MATCHING_THREAD` — 추측하지 않는다. T-069 11.6 의 "CERA 스레드 밖 메일은 저장하지 않음"은 Gmail 에서 수집 범위(라벨)로 지킨다. Mock 수신함에 들어온 스레드 밖 메일은 버리지 않고 보류한다(사용자 지시) |
+| U6-3 | **발신자(등록부만, LLM 없음)**: 같은 채널의 정규화 주소(`이름 <주소>` → 주소 · 소문자) → 주소 → 연락처 → 거래처. 사유: `UNKNOWN_SENDER` · `AMBIGUOUS_SENDER`(채널 안 주소 UNIQUE 라 DB 로는 생기지 않음 — 규칙에만) · `SENDER_INACTIVE` · `SENDER_UNVERIFIED` · `SENDER_NOT_APPROVED` · `OTHER_COUNTERPARTY`(스레드 상대와 다른 거래처) · `DIFFERENT_CONTACT`(같은 거래처의 다른 주소 — "다른 담당자 회신") · `SIMULATION_MISMATCH`(어댑터가 고정한 가상 여부 ≠ 스레드). 개발 안전장치(allowlist)는 보내는 쪽 규칙이라 수신에 쓰지 않는다 |
+| U6-4 | **보류 = 버리지 않음**: 원문 · `raw_input` 은 남고 스레드에 붙지 않는다(INBOUND 메시지를 만들지 않는다 — 메시지는 스레드가 필수). 사유는 **수신 순간의 판정**을 감사 기록 `INBOUND_HELD_<사유>`(대상 `RAW_INPUT`)로 남긴다 — 나중에 등록부가 바뀌어도 그때 왜 보류했는지가 남는다. 사람이 문의에 연결하는 명령(`LinkHeldInbound`)은 후속 |
+| U6-5 | **Q-44**(`docs/22` 11.2e): RFC 5322 `Date`(오프셋 필수 — 시각대를 추측하지 않는다)가 있고 · 파싱되고 · 채널 수신 시각보다 미래가 아니면 `Date`, 아니면 채널 수신 시각 + `MISSING` · `UNPARSEABLE` · `AFTER_CHANNEL_RECEIVED`. 허용 오차 없음. 선택 결과는 `raw_input.source_recorded_at`, **거부 사유는 수신 트랜잭션에서 감사 기록 `INBOUND_DATE_REJECTED_<사유>`(대상 `RAW_INPUT`)로 영속**한다(사용자 검토 2026-10-07 — 처음 구현은 읽을 때 원문으로 다시 계산해 원문 파기 뒤 재현할 수 없었다). 화면 · API 의 기준 · 사유 · 근거 시각은 이 영속 값만 쓴다(원문 재계산 아님). 원래 두 시각을 사건 `payload` 에 남기는 것은 사건이 생기는 U8 |
+| U6-6 | 워터마크는 저장하지 않는다(저장할 표가 없다) — 매 주기 Mock 수신함 전체를 받고 외부 id UNIQUE 로 걸러 낸다. Gmail(`history_id`)은 Slice 2 에서 저장 위치를 정한다 |
+| U6-7 | 사건(Event) · 추출 · 현재 사실은 만들지 않는다 — 회신의 수량 · 시각 해석은 U7(AI 추출 = 후보) |
+
 
 
 ```

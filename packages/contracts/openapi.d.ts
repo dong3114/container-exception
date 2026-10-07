@@ -224,6 +224,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/communication/inbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Received mail, newest first: attached replies (NORMAL) and the hold box (HOLD) with the reason decided at receipt */
+        get: operations["InboundController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planning/runs": {
         parameters: {
             query?: never;
@@ -626,6 +643,53 @@ export interface components {
             sending_paused: boolean;
             attempts: components["schemas"]["SendAttemptSummaryDto"][];
         };
+        InboundSenderLabelDto: {
+            counterparty_name: string;
+            contact_name: string;
+        };
+        InboundItemDto: {
+            /**
+             * Format: uuid
+             * @description The preserved original (raw_input)
+             */
+            raw_input_id: string;
+            /**
+             * Format: uuid
+             * @description The INBOUND message on the thread — null when held
+             */
+            message_id: string | null;
+            /**
+             * @description NORMAL = attached to its inquiry thread · HOLD = kept (never discarded) but not attached
+             * @enum {string}
+             */
+            status: "NORMAL" | "HOLD";
+            /** @description Why it was held, decided at receipt (registry · thread correlation — no AI) */
+            hold_reasons: ("NO_MATCHING_THREAD" | "AMBIGUOUS_THREAD" | "UNKNOWN_SENDER" | "AMBIGUOUS_SENDER" | "SENDER_INACTIVE" | "SENDER_UNVERIFIED" | "SENDER_NOT_APPROVED" | "OTHER_COUNTERPARTY" | "DIFFERENT_CONTACT" | "SIMULATION_MISMATCH")[];
+            /** @description Sender address as received */
+            from_address: string | null;
+            /** @description Who that address belongs to in the registry, if anyone (display only) */
+            sender_label: components["schemas"]["InboundSenderLabelDto"] | null;
+            subject: string | null;
+            /** @description Plain-text preview (first 300 characters). Not interpreted. */
+            preview: string | null;
+            /** @description When the channel received it */
+            channel_received_at: string;
+            /** @description When CERA stored it */
+            received_at: string;
+            /** @description Evidence time (docs/22 11.2e): the Date header when valid, else the channel time */
+            evidence_time: string;
+            /** @enum {string} */
+            evidence_basis: "DATE_HEADER" | "CHANNEL_RECEIVED";
+            /** @enum {string|null} */
+            date_header_reject_reason: "MISSING" | "UNPARSEABLE" | "AFTER_CHANNEL_RECEIVED" | null;
+            /** Format: uuid */
+            thread_id: string | null;
+            /** @description Counterparty of the thread it was attached to */
+            thread_counterparty_name: string | null;
+            is_simulated: boolean;
+            /** @description The original is still in the content store */
+            content_available: boolean;
+        };
         DraftDto: {
             message: components["schemas"]["DraftMessageDto"];
             thread: components["schemas"]["DraftThreadDto"];
@@ -644,6 +708,8 @@ export interface components {
             approval: components["schemas"]["DraftApprovalDto"];
             revision: components["schemas"]["DraftRevisionDto"];
             dispatch: components["schemas"]["DraftDispatchDto"];
+            /** @description Replies received on this thread (NORMAL only — held mail is in GET /communication/inbound) */
+            replies: components["schemas"]["InboundItemDto"][];
         };
         DraftListDto: {
             drafts: components["schemas"]["DraftDto"][];
@@ -687,6 +753,9 @@ export interface components {
         SendDraftRequestDto: {
             /** @description content_hash of the approved content the operator asks to send */
             content_hash: string;
+        };
+        InboundListDto: {
+            items: components["schemas"]["InboundItemDto"][];
         };
         RunSummaryDto: {
             /** Format: uuid */
@@ -1301,6 +1370,36 @@ export interface operations {
             };
             /** @description CONTENT_CHANGED · NOT_APPROVED · APPROVAL_MISSING · APPROVAL_EXPIRED · APPROVAL_REVOKED · APPROVAL_INVALIDATED · APPROVAL_CONTENT_MISMATCH · APPROVAL_RECIPIENT_MISMATCH · APPROVAL_COPY_INVALID · CONTENT_HASH_MISMATCH · PLAN_SUPERSEDED · MESSAGE_SUPERSEDED · SIMULATION_MISMATCH · CHANNEL_UNAVAILABLE */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    InboundController_list: {
+        parameters: {
+            query?: {
+                status?: "NORMAL" | "HOLD";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundListDto"];
+                };
+            };
+            /** @description INVALID_STATUS */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

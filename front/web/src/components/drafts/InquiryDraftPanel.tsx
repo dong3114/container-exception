@@ -5,6 +5,7 @@ import type { IsoDateTime, RecoveryPlanView } from "@/contracts/cera";
 import { useAsyncAction } from "@/state/async";
 import { AsyncStatus } from "../workflow/AsyncStatus";
 import { DraftView } from "./DraftView";
+import { InboundLog } from "./InboundViews";
 
 type Intent = CreateDraftRequest["intent"];
 interface Form {
@@ -256,6 +257,8 @@ export function InquiryDraftPanel({ plan, asOf }: { plan: RecoveryPlanView | nul
             }}
           />
         )}
+
+        <InboundLog />
 
         <div>
           <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>최근 초안 (Backend)</div>

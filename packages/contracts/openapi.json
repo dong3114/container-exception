@@ -764,6 +764,51 @@
         ]
       }
     },
+    "/communication/inbound": {
+      "get": {
+        "operationId": "InboundController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "NORMAL",
+                "HOLD"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundListDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Received mail, newest first: attached replies (NORMAL) and the hold box (HOLD) with the reason decided at receipt",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
     "/planning/runs": {
       "get": {
         "operationId": "PlanningRunController_list",
@@ -2018,6 +2063,152 @@
           "attempts"
         ]
       },
+      "InboundSenderLabelDto": {
+        "type": "object",
+        "properties": {
+          "counterparty_name": {
+            "type": "string"
+          },
+          "contact_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "counterparty_name",
+          "contact_name"
+        ]
+      },
+      "InboundItemDto": {
+        "type": "object",
+        "properties": {
+          "raw_input_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The preserved original (raw_input)"
+          },
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The INBOUND message on the thread — null when held"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "HOLD"
+            ],
+            "description": "NORMAL = attached to its inquiry thread · HOLD = kept (never discarded) but not attached"
+          },
+          "hold_reasons": {
+            "type": "array",
+            "description": "Why it was held, decided at receipt (registry · thread correlation — no AI)",
+            "items": {
+              "type": "string",
+              "enum": [
+                "NO_MATCHING_THREAD",
+                "AMBIGUOUS_THREAD",
+                "UNKNOWN_SENDER",
+                "AMBIGUOUS_SENDER",
+                "SENDER_INACTIVE",
+                "SENDER_UNVERIFIED",
+                "SENDER_NOT_APPROVED",
+                "OTHER_COUNTERPARTY",
+                "DIFFERENT_CONTACT",
+                "SIMULATION_MISMATCH"
+              ]
+            }
+          },
+          "from_address": {
+            "type": "string",
+            "nullable": true,
+            "description": "Sender address as received"
+          },
+          "sender_label": {
+            "nullable": true,
+            "description": "Who that address belongs to in the registry, if anyone (display only)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InboundSenderLabelDto"
+              }
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "nullable": true
+          },
+          "preview": {
+            "type": "string",
+            "nullable": true,
+            "description": "Plain-text preview (first 300 characters). Not interpreted."
+          },
+          "channel_received_at": {
+            "type": "string",
+            "description": "When the channel received it"
+          },
+          "received_at": {
+            "type": "string",
+            "description": "When CERA stored it"
+          },
+          "evidence_time": {
+            "type": "string",
+            "description": "Evidence time (docs/22 11.2e): the Date header when valid, else the channel time"
+          },
+          "evidence_basis": {
+            "type": "string",
+            "enum": [
+              "DATE_HEADER",
+              "CHANNEL_RECEIVED"
+            ]
+          },
+          "date_header_reject_reason": {
+            "type": "string",
+            "enum": [
+              "MISSING",
+              "UNPARSEABLE",
+              "AFTER_CHANNEL_RECEIVED"
+            ],
+            "nullable": true
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "thread_counterparty_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Counterparty of the thread it was attached to"
+          },
+          "is_simulated": {
+            "type": "boolean"
+          },
+          "content_available": {
+            "type": "boolean",
+            "description": "The original is still in the content store"
+          }
+        },
+        "required": [
+          "raw_input_id",
+          "message_id",
+          "status",
+          "hold_reasons",
+          "from_address",
+          "sender_label",
+          "subject",
+          "preview",
+          "channel_received_at",
+          "received_at",
+          "evidence_time",
+          "evidence_basis",
+          "date_header_reject_reason",
+          "thread_id",
+          "thread_counterparty_name",
+          "is_simulated",
+          "content_available"
+        ]
+      },
       "DraftDto": {
         "type": "object",
         "properties": {
@@ -2103,6 +2294,13 @@
           },
           "dispatch": {
             "$ref": "#/components/schemas/DraftDispatchDto"
+          },
+          "replies": {
+            "description": "Replies received on this thread (NORMAL only — held mail is in GET /communication/inbound)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InboundItemDto"
+            }
           }
         },
         "required": [
@@ -2118,7 +2316,8 @@
           "blocked_reasons",
           "approval",
           "revision",
-          "dispatch"
+          "dispatch",
+          "replies"
         ]
       },
       "DraftListDto": {
@@ -2269,6 +2468,20 @@
         },
         "required": [
           "content_hash"
+        ]
+      },
+      "InboundListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InboundItemDto"
+            }
+          }
+        },
+        "required": [
+          "items"
         ]
       },
       "RunSummaryDto": {

@@ -59,14 +59,42 @@ export class ChannelSendError extends Error {
   }
 }
 
+/**
+ * 받은 메일 한 통(T-069 8.1): **원문 그대로의 바이트** + 채널 메타. 해석하지 않는다 — 헤더는 원문에서 읽어 둔 값일 뿐이고
+ * 원문이 정본이다. Q-44 의 입력(`Date` 원문 · 채널 수신 시각)을 함께 준다.
+ */
+export interface InboundRawMessage {
+  externalMessageId: string;
+  externalThreadId: string | null;
+  /** 원문(Gmail 은 RFC822, Mock 은 JSON 봉투). 내용 저장소에 이 바이트를 그대로 넣는다. */
+  raw: Uint8Array;
+  mediaType: string;
+  from: string;
+  to: string[];
+  subject: string;
+  /** `Date` 헤더 원래 문자열 — 없으면 null. 파싱은 CERA 가 한다(Q-44). */
+  dateHeader: string | null;
+  inReplyTo: string | null;
+  references: string[];
+  /** 채널이 받은 시각(Gmail `internalDate`) — 발신자가 바꿀 수 없다. ISO 8601. */
+  channelReceivedAt: string;
+  /** 본문 텍스트(안전한 미리보기 · 나중의 추출 입력). 원문 안에도 있다. */
+  bodyText: string;
+}
+
 export interface ChannelAdapter {
   readonly channelType: ChannelType;
-  /** true = 가상 채널(시나리오 · 시드 메시지를 받을 수 있다). false = 실채널 — 가상 메시지는 보낼 수 없다(J.3 · G-06). */
+  /** true = 가상 채널(시나리오 · 시드 메시지를 받을 수 있다). false = 실채널 — 가상 메시지는 보낼 수 없다(J.3 · G-06). 수신 메시지의 `is_simulated` 도 이 값으로 고정된다(G-07). */
   readonly declaresSimulated: boolean;
   capabilities(): ChannelCapabilities;
   send(message: OutboundMessage): Promise<SentReceipt>;
   /** 이 CERA 메시지가 이미 채널에 나갔으면 그 외부 id, 없음이 확인되면 null. 확인할 수 없으면 던진다. */
   lookupSent(ceraMessageId: string): Promise<string | null>;
+  /**
+   * 워터마크 이후 받은 메일(`fetch_inbound(watermark) -> [InboundRawMessage], next_watermark`). 같은 메일이 다시 나와도 된다 —
+   * 중복은 CERA 가 외부 메시지 id UNIQUE 로 막는다(워터마크는 최적화일 뿐 정확성의 근거가 아니다).
+   */
+  fetchInbound(watermark: string | null): Promise<{ messages: InboundRawMessage[]; nextWatermark: string | null }>;
 }
 
 export const CHANNEL_ADAPTERS = Symbol('CERA_CHANNEL_ADAPTERS');

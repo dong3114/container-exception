@@ -10,15 +10,15 @@
 
 ## Status
 
-**IDLE** — **T-090 (U5 Outbox · Mock 발송 · 멱등 · 화해) DONE** (2026-10-07 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-091(U6 — 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 정상/보류 분리, LLM 없음)** 이고 실행 가능하다. **아직 시작하지 않았다.**
+**IDLE** — **T-091 (U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함) DONE** (2026-10-07 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-092(U7 — 추출 · 검증기)** 이고 실행 가능하다. **아직 시작하지 않았다.**
 
-T-090 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.6(U5-1~9).
+T-091 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.7(U6-1~7).
 
-- **순서(사용자 결정 2026-10-07)**: T-091 수신 → 추출(T-092) 쪽 → 적절한 시점에 T-098(역할별 실제 화면 · 인증). T-098 은 큐에 유지
-- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(232 통과) · `cd front/web && npm test`(34 통과) ④ T-091 Brief
-- **마지막 migration: M13**. 다음 DB 변경은 그때의 다음 번호(M14)
-- 기술 부채 4건(사용자 결정 2026-10-07, T-090 blocker 아님 — 후속 Task): ① `X-CERA-Actor-Id` 임시 인증(인증 구현에서 교체) ② kill switch 실행 중 전환 명령 없음(설정값만) ③ `DELIVERY_FAILED` 수동 재시도 명령 없음 ④ 장시간 채널 호출 + 향후 다중 Worker 에서 화해 대기 시간(60초) 위험. **채널은 Mock 이다 — 실제 Gmail 발송이 되었다고 문서 · 화면에 쓰지 않는다**
-- 로컬 실행: API(`npm run dev:api`) · **Worker(`npm run dev:worker`)** · 화면(`front/web` `npm run dev`). Worker 를 안 켜면 발송 요청은 "발송 대기"에 머문다(정상)
+- **순서(사용자 결정 2026-10-07)**: T-092 추출 → 그 뒤 단위들 → 적절한 시점에 T-098(역할별 실제 화면 · 인증). T-098 은 큐에 유지
+- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(247 통과) · `cd front/web && npm test`(37 통과) ④ T-092 Brief
+- **마지막 migration: M13**(T-091 은 DB 변경 없음). 다음 DB 변경은 그때의 다음 번호
+- 기술 부채(blocker 아님): `X-CERA-Actor-Id` 임시 인증 · kill switch 실행 중 전환 명령 없음 · `DELIVERY_FAILED` 수동 재시도 없음 · 장시간 채널 호출 + 다중 Worker 화해 대기 위험 · 후속(사용자 결정 2026-10-07, blocker 아님): 보류 회신을 사람이 문의에 연결하는 명령(`LinkHeldInbound`) 없음 · 수신 워터마크 미저장(Mock 은 매 주기 전체 + UNIQUE) · 원문 읽기는 MOCK 형식만(Gmail RFC822 는 Slice 2) · 반송 · 전달 · 자동 회신 판별 없음. **채널은 Mock 이다 — 실제 메일 수신이라고 쓰지 않는다**
+- 로컬 실행: API(`npm run dev:api`) · Worker(`npm run dev:worker` — 발송 · 수신) · 화면(`front/web` `npm run dev`) · Mock 회신 주입(`back` `npm run mock:reply -- --reply-to <메시지 id>`, 개발 전용)
 - 계약 갱신 순서: `back` `npm run openapi:emit` → `front/web` `npm run openapi:types` → 둘 다 커밋
 - 서버를 끈 뒤 node 자식 프로세스가 3100/3000 을 잡고 남을 수 있다 — 확인 전 포트를 본다
 
@@ -53,11 +53,11 @@ T-090 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.6(U5-1~9).
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-090 커밋(`feat: add outbox mock send workflow`, 해시는 `git log -1`) — 그 전 `6dd6a3c`(T-098 큐잉) · `fb8321e`(T-089) |
+| 최신 커밋 | T-091 커밋(`feat: add inbound reply processing`, 해시는 `git log -1`) — 그 전 `cd0565f`(T-090) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
-| last updated | 2026-10-07 (T-090 DONE · 커밋, CURRENT IDLE) |
-| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-090 |
+| last updated | 2026-10-07 (T-091 DONE · 커밋, CURRENT IDLE) |
+| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-091 |
 
 ## 다음 한 걸음
 
@@ -70,7 +70,8 @@ T-090 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.6(U5-1~9).
 7. ~~T-088 — U3 초안 · 구조화 값 · 숫자 검사~~ **DONE (2026-10-06, 커밋)**
 8. ~~T-089 — U4 승인 · 무효화~~ **DONE (2026-10-07, 커밋)**
 9. ~~T-090 — U5 Outbox · Mock 발송~~ **DONE (2026-10-07, 커밋)**
-10. **T-091 — U6 수신** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-092 ~ T-096 (U7 ~ U11) · T-098(역할별 실제 화면)은 적절한 시점에. Q-65(솔버)는 어느 단계도 막지 않는다
+10. ~~T-091 — U6 수신~~ **DONE (2026-10-07, 커밋)**
+11. **T-092 — U7 추출** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-093 ~ T-096 (U8 ~ U11) · T-098(역할별 실제 화면)은 적절한 시점에. Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 

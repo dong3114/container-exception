@@ -22,6 +22,7 @@
     "db:check": "drizzle-kit check --config drizzle.config.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/seed/run-seed.ts",
+    "mock:reply": "tsx src/dev/mock-reply.ts",
     "openapi:emit": "tsx src/openapi/emit-openapi.ts"
   },
   "dependencies": {

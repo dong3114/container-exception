@@ -89,3 +89,11 @@ export function sendDraft(messageId: string, contentHash: string, actorId: strin
 export function getDraft(messageId: string, signal?: AbortSignal) {
   return apiRequest<Draft>(`/communication/drafts/${encodeURIComponent(messageId)}`, { signal });
 }
+
+/** Received mail (T-091): attached replies and the hold box. Read-only — the worker fetches mail; the screen never creates any. */
+export type InboundItem = components["schemas"]["InboundItemDto"];
+export type InboundList = components["schemas"]["InboundListDto"];
+
+export function listInbound(status?: "NORMAL" | "HOLD", signal?: AbortSignal) {
+  return apiRequest<InboundList>(`/communication/inbound${status ? `?status=${status}` : ""}`, { signal });
+}

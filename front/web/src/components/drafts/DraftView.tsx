@@ -4,6 +4,7 @@ import { describeApiError } from "@/api/errors";
 import { useAsyncAction } from "@/state/async";
 import { AsyncStatus } from "../workflow/AsyncStatus";
 import { DispatchPanel } from "./DispatchPanel";
+import { RepliesPanel } from "./InboundViews";
 import { GateBlockers } from "../workflow/GateBlockers";
 import { MessageLifecycle } from "../workflow/MessageLifecycle";
 import { INVALIDATION_LABEL } from "../workflow/lifecycle";
@@ -291,6 +292,7 @@ export function DraftView({ draft, approverId, onChanged }: { draft: Draft; appr
       </section>
 
       <DispatchPanel draft={draft} approverId={approverId} onChanged={onChanged} />
+      <RepliesPanel draft={draft} onChanged={onChanged} />
 
       {editable && !editing && (
         <button type="button" className="act-btn" style={{ justifySelf: "start" }} onClick={() => setEditing(true)} data-testid="btn-edit-draft">

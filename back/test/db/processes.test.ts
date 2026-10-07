@@ -20,6 +20,14 @@ describe('process entry points', () => {
     expect(`${stdout}${stderr}`).toContain('worker bootstrapped');
   });
 
+  it('the mock reply tool (dev only) refuses to run in production', async () => {
+    const error = await run(process.execPath, [TSX, 'src/dev/mock-reply.ts', '--from', 'x@example.invalid'], {
+      env: childEnv({ APP_ENV: 'production' }),
+    }).catch((e: { code: number; stderr: string }) => e);
+    expect((error as { code: number }).code).toBe(1);
+    expect((error as { stderr: string }).stderr).toContain('disabled in production');
+  });
+
   it('worker refuses to start with an invalid configuration and does not echo secret values', async () => {
     const secret = 'super-secret-password-123';
     const error = await run(process.execPath, [TSX, 'src/worker.ts', '--once'], {

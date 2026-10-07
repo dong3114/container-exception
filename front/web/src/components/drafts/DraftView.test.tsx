@@ -67,6 +67,7 @@ const base: Draft = {
     sending_paused: false,
     attempts: [],
   },
+  replies: [],
 };
 
 const OPERATOR = "01a11040-0000-7000-8000-0000000000aa";
