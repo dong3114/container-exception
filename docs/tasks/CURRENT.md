@@ -17,6 +17,7 @@ T-089 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.5(U4-1~9).
 - **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(211 통과) · `cd front/web && npm test`(27 통과) ④ T-090 Brief → 사용자 승인
 - **마지막 migration: M12**. 다음 DB 변경은 M13
 - 기술 부채 2건(사용자 결정 2026-10-07, T-089 blocker 아님): ① `X-CERA-Actor-Id` 승인자 헤더는 인증 전 임시 장치 — 인증 구현에서 교체 ② 메시지 상태 전이 순서는 DB 가 완전히 강제하지 않음 — T-090 발송 lifecycle 구현 때 실제 전이 규칙과 함께 검토
+- **방향 결정(2026-10-07, 사용자)**: T-090 뒤에 **T-098 — 실제 서비스 화면**(운영자 · 관리자 완전히 다른 화면 · 현장 담당자, 로그인 · 페이지 분리, 투자 · 공모전 시연 영상용 — 시나리오 · 더미 표현 최소화, 남길 표시 범위는 Plan 에서 결정). 결정 전문은 `QUEUE.md` T-098
 - 계약 갱신 순서: `back` `npm run openapi:emit` → `front/web` `npm run openapi:types` → 둘 다 커밋
 - 서버를 끈 뒤 node 자식 프로세스가 3100/3000 을 잡고 남을 수 있다 — 확인 전 포트를 본다
 
