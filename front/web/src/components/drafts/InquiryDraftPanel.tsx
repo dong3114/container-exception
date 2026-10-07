@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { type CreateDraftRequest, type Draft, type StructuredValueInput, createDraft, listDrafts, listFacilities, listRuns } from "@/api/drafts";
+import { type CreateDraftRequest, type Draft, type StructuredValueInput, createDraft, listApprovers, listDrafts, listFacilities, listRuns } from "@/api/drafts";
 import { getCounterparties } from "@/api/registry";
 import type { IsoDateTime, RecoveryPlanView } from "@/contracts/cera";
 import { useAsyncAction } from "@/state/async";
@@ -27,18 +27,22 @@ interface PlanSource {
 /**
  * 문의 초안 — **실제 Backend**(PostgreSQL 에 저장). 나머지 Control Tower 는 시나리오 재생(Mock) 그대로다.
  * 화면은 값(계획 부족분 또는 운영자 입력)을 보내고, Contact Gate · 질문 대상 · 숫자 검사 · 승인 가능 여부는 Backend 가 정한다.
- * 발송 · 승인 버튼은 아직 없다(다음 단계).
+ * 승인 · 반려 · 승인 취소는 Backend API 를 부른다(T-089). 실제 발송은 아직 없다(다음 단계).
+ * 승인자는 인증이 생기기 전까지 Backend 의 활성 운영자 목록에서 고른다 — Backend 가 다시 확인한다.
  */
 export function InquiryDraftPanel({ plan, asOf }: { plan: RecoveryPlanView | null; asOf: IsoDateTime }) {
   const registry = useAsyncAction((signal) => getCounterparties(signal));
   const runs = useAsyncAction((signal) => listRuns(signal));
   const facilities = useAsyncAction((signal) => listFacilities(signal));
   const drafts = useAsyncAction((signal) => listDrafts(signal));
+  const approvers = useAsyncAction((signal) => listApprovers(signal));
   const [current, setCurrent] = useState<Draft | null>(null);
+  const [approverChoice, setApproverChoice] = useState<string | null>(null);
   const { run: loadRegistry } = registry;
   const { run: loadRuns } = runs;
   const { run: loadFacilities } = facilities;
   const { run: loadDrafts } = drafts;
+  const { run: loadApprovers } = approvers;
   // 만든 초안을 바로 보여주고 목록을 새로 읽는다(요청이 끝난 그 자리에서 — effect 로 상태를 옮기지 않는다)
   const create = useAsyncAction(async (signal, body: CreateDraftRequest) => {
     const res = await createDraft(body, signal);
@@ -54,7 +58,10 @@ export function InquiryDraftPanel({ plan, asOf }: { plan: RecoveryPlanView | nul
     loadRuns();
     loadFacilities();
     loadDrafts();
-  }, [loadRegistry, loadRuns, loadFacilities, loadDrafts]);
+    loadApprovers();
+  }, [loadRegistry, loadRuns, loadFacilities, loadDrafts, loadApprovers]);
+  const approverList = approvers.state.status === "SUCCESS" ? approvers.state.data.approvers : [];
+  const approverId = approverChoice ?? approverList[0]?.actor_id ?? null;
 
   const addresses = useMemo(
     () =>
@@ -124,7 +131,7 @@ export function InquiryDraftPanel({ plan, asOf }: { plan: RecoveryPlanView | nul
       <div className="card-head">
         <span className="card-title">문의 초안</span>
         <span className="badge b-blue">Backend · 실제 저장</span>
-        <span className="badge b-sim">MOCK 채널 · 발송 · 승인 없음</span>
+        <span className="badge b-sim">MOCK 채널 · 실제 발송 없음</span>
         <span className="card-meta">
           <AsyncStatus state={registry.state} onRetry={registry.run} loadingLabel="등록부 불러오는 중…" />
         </span>
@@ -223,10 +230,32 @@ export function InquiryDraftPanel({ plan, asOf }: { plan: RecoveryPlanView | nul
           </div>
         </form>
 
-        {current && <DraftView key={current.message.message_id} draft={current} onRevised={(d) => {
+        <div style={row}>
+          <label style={label}>
+            승인자 (개발용 — 인증 전)
+            <select value={approverId ?? ""} onChange={(e) => setApproverChoice(e.target.value || null)} style={input} data-testid="select-approver">
+              {approverList.length === 0 && <option value="">등록된 운영자 없음</option>}
+              {approverList.map((a) => (
+                <option key={a.actor_id} value={a.actor_id}>
+                  {a.display_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <AsyncStatus state={approvers.state} onRetry={approvers.run} loadingLabel="운영자 불러오는 중…" />
+        </div>
+
+        {current && (
+          <DraftView
+            key={`${current.message.message_id}:${current.approval.history.length}`}
+            draft={current}
+            approverId={approverId}
+            onChanged={(d) => {
               setCurrent(d);
               loadDrafts();
-            }} />}
+            }}
+          />
+        )}
 
         <div>
           <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>최근 초안 (Backend)</div>
@@ -235,7 +264,10 @@ export function InquiryDraftPanel({ plan, asOf }: { plan: RecoveryPlanView | nul
             {recent.map((d) => (
               <li key={d.message.message_id}>
                 <button type="button" className="act-btn row" onClick={() => setCurrent(d)}>
-                  <span className={`badge ${d.approval_ready ? "b-green" : "b-red"}`}>{d.approval_ready ? "승인 가능" : "승인 불가"}</span> {d.thread.counterparty_name} · {d.question?.question_text}
+                  <span className={`badge ${d.approval.state === "ACTIVE" ? "b-teal" : d.approval_ready ? "b-green" : "b-red"}`}>
+                    {d.approval.state === "ACTIVE" ? "승인됨" : d.approval_ready ? "승인 가능" : "승인 불가"}
+                  </span>{" "}
+                  {d.thread.counterparty_name} · {d.question?.question_text}
                 </button>
               </li>
             ))}

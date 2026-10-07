@@ -131,8 +131,76 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Operator edits the text: a new message (content is immutable) with the same structured values, re-checked */
+        /** Operator edits the text (and optionally the structured values): a new message (content is immutable), re-checked. A live approval of the old message is invalidated (CONTENT_CHANGED) — the new text needs approval again */
         post: operations["DraftController_revise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/approvers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Operators who may decide approvals (active HUMAN actors) */
+        get: operations["ApprovalController_approvers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/drafts/{messageId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the exact content the operator reviewed: re-checks revision · content hash · number check · Contact Gate · plan, then freezes subject · body · structured values · recipient · plan run */
+        post: operations["ApprovalController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/drafts/{messageId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a draft awaiting approval (reason required). Fix it by revising — a revision is a new message. */
+        post: operations["ApprovalController_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communication/approvals/{approvalId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an approval that has not been used for sending (a new REVOKED row — the approval row is never edited) */
+        post: operations["ApprovalController_revoke"];
         delete?: never;
         options?: never;
         head?: never;
@@ -428,6 +496,79 @@ export interface components {
             eligible: boolean;
             reasons: components["schemas"]["GateReasonDto"][];
         };
+        ApprovalSnapshotDto: {
+            /** Format: uuid */
+            approval_id: string;
+            /** @enum {string} */
+            state: "ACTIVE" | "EXPIRED" | "REVOKED" | "INVALIDATED";
+            /** Format: uuid */
+            approver_actor_id: string;
+            approver_name: string;
+            /** @example 2026-10-07T10:00:00.000+09:00 */
+            decided_at: string;
+            expires_at: string | null;
+            /** @description msg-content/1 of recipient + subject + body + structured values at approval time */
+            approved_content_hash: string;
+            /** Format: uuid */
+            approved_to_address_id: string;
+            /**
+             * Format: uuid
+             * @description Recovery run the approval was based on (plan-based inquiry)
+             */
+            approved_plan_run_id: string | null;
+            /** @description Frozen subject (approval copy); null when the copy is missing */
+            subject: string | null;
+            body: string | null;
+            /** @description Frozen structured values (approval copy) */
+            structured_values: components["schemas"]["StructuredValueDto"][];
+            /** @description The frozen copy re-hashes to approved_content_hash (the approval copy is intact) */
+            copy_verified: boolean;
+        };
+        ApprovalDecisionDto: {
+            /** Format: uuid */
+            approval_id: string;
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED" | "REVISION_REQUESTED" | "REVOKED" | "INVALIDATED";
+            /** @enum {string|null} */
+            invalidation_cause: "USER_REVOKED" | "PLAN_SUPERSEDED" | "CONTENT_CHANGED" | null;
+            /** Format: uuid */
+            invalidates_approval_id: string | null;
+            actor_name: string;
+            /** @description HUMAN · SYSTEM */
+            actor_type: string;
+            decided_at: string;
+            reason: string | null;
+        };
+        DraftApprovalDto: {
+            /**
+             * @description NONE · ACTIVE (live approval) · EXPIRED · REVOKED (operator withdrew) · INVALIDATED (content or plan changed) · REJECTED. Decided by the backend from the approval rows.
+             * @enum {string}
+             */
+            state: "NONE" | "ACTIVE" | "EXPIRED" | "REVOKED" | "INVALIDATED" | "REJECTED";
+            /** @description The six conditions of a valid approval hold now (docs/22 15.5.1) — the only thing a send may rely on */
+            usable_for_send: boolean;
+            /** @description Latest APPROVED decision with its frozen copy */
+            current: components["schemas"]["ApprovalSnapshotDto"] | null;
+            /** @description The REVOKED / INVALIDATED row that ended the current approval */
+            ended_by: components["schemas"]["ApprovalDecisionDto"] | null;
+            rejection: components["schemas"]["ApprovalDecisionDto"] | null;
+            /** @description Every decision on this message, oldest first (append-only) */
+            history: components["schemas"]["ApprovalDecisionDto"][];
+        };
+        DraftRevisionDto: {
+            /** Format: uuid */
+            previous_message_id: string | null;
+            /**
+             * Format: uuid
+             * @description Set when this message was replaced by a newer revision
+             */
+            next_message_id: string | null;
+            /**
+             * @description CONTENT_CHANGED when the previous revision had an approval that this edit invalidated — the new text needs approval again
+             * @enum {string|null}
+             */
+            previous_approval_invalidated: "USER_REVOKED" | "PLAN_SUPERSEDED" | "CONTENT_CHANGED" | null;
+        };
         DraftDto: {
             message: components["schemas"]["DraftMessageDto"];
             thread: components["schemas"]["DraftThreadDto"];
@@ -440,16 +581,50 @@ export interface components {
             number_check: components["schemas"]["NumberCheckDto"] | null;
             /** @description Contact Gate re-evaluated on read */
             contact_gate: components["schemas"]["DraftGateDto"] | null;
-            /** @description May go to the approval step (U4) — PENDING_APPROVAL, number check passed, recipient eligible */
+            /** @description Can be approved now — no blocked_reasons (all checks recomputed on read) */
             approval_ready: boolean;
-            blocked_reasons: ("BLOCKED_NUMBER_CHECK" | "RECIPIENT_NOT_ELIGIBLE" | "CONTENT_MISSING" | "NOT_PENDING_APPROVAL")[];
+            blocked_reasons: ("CONTENT_MISSING" | "CONTENT_HASH_MISMATCH" | "BLOCKED_NUMBER_CHECK" | "RECIPIENT_NOT_ELIGIBLE" | "PLAN_SUPERSEDED" | "MESSAGE_SUPERSEDED" | "NOT_PENDING_APPROVAL" | "ALREADY_APPROVED")[];
+            approval: components["schemas"]["DraftApprovalDto"];
+            revision: components["schemas"]["DraftRevisionDto"];
         };
         DraftListDto: {
             drafts: components["schemas"]["DraftDto"][];
         };
+        ReviseValueInputDto: {
+            /** @example quantity */
+            key: string;
+            /** @example 3 */
+            value_number?: number | null;
+            value_text?: string | null;
+            /** @example TRUCK */
+            unit?: string | null;
+        };
         ReviseDraftRequestDto: {
             subject: string;
             body: string;
+            /** @description Optional full set of structured values. A value that differs from the previous one loses its plan source (it is no longer a plan number). Values that define the question (date · window · size type) cannot change — create a new inquiry instead. */
+            values?: components["schemas"]["ReviseValueInputDto"][];
+        };
+        ApproverDto: {
+            /** Format: uuid */
+            actor_id: string;
+            display_name: string;
+        };
+        ApproverListDto: {
+            /** @description Active HUMAN actors who may decide approvals (development stand-in until authentication exists) */
+            approvers: components["schemas"]["ApproverDto"][];
+        };
+        ApproveDraftRequestDto: {
+            /** @description content_hash of the exact content the operator reviewed */
+            content_hash: string;
+        };
+        RejectDraftRequestDto: {
+            reason: string;
+            /** @description content_hash of the content the operator reviewed */
+            content_hash: string;
+        };
+        RevokeApprovalRequestDto: {
+            reason?: string;
         };
         RunSummaryDto: {
             /** Format: uuid */
@@ -767,7 +942,237 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description DRAFT_NOT_EDITABLE — already approved, sent or superseded */
+            /** @description DRAFT_NOT_EDITABLE — queued, sent or already superseded */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description QUESTION_TARGET_CHANGED — date · window · size type define the question */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ApprovalController_approvers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApproverListDto"];
+                };
+            };
+        };
+    };
+    ApprovalController_approve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveDraftRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The draft with its approval. Approving the same content again returns the same approval. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · RECIPIENT_NOT_ELIGIBLE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DRAFT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description CONTENT_CHANGED · MESSAGE_SUPERSEDED · NOT_PENDING_APPROVAL · ALREADY_APPROVED · PLAN_SUPERSEDED · CONTENT_MISSING · CONTENT_HASH_MISMATCH */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NUMBER_CHECK_FAILED */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ApprovalController_reject: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectDraftRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DRAFT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description CONTENT_CHANGED · MESSAGE_SUPERSEDED · NOT_PENDING_APPROVAL */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ApprovalController_revoke: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                approvalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RevokeApprovalRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description APPROVAL_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_AN_APPROVAL · ALREADY_SENT */
             409: {
                 headers: {
                     [name: string]: unknown;

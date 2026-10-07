@@ -5,17 +5,21 @@ import type { Env } from '../config/env.js';
 import { ContentService } from '../content/content-service.js';
 import { ABSENT, CONTENT_STORE, type ContentStore } from '../content/content-store.js';
 import { TransactionRunner } from '../db/transaction.js';
+import { AuditRecorder } from '../persistence/audit-recorder.js';
+import { AUDIT_ACTION } from '../persistence/catalog.js';
 import { RegistryReader } from '../persistence/registry-reader.js';
 import { type ChannelType, type DevSafetyPolicy, type GateResult, evaluateContactGate } from '../registry/contact-gate.js';
 import { BusinessRuleError, SystemError, ValidationError } from '../shared/errors/cera-error.js';
-import { sha256Bytes } from '../shared/hash/hash.js';
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
+import { type ApprovalRecord, ApprovalRepository } from './approval.repository.js';
+import { approvalBlocks, isUsableForSend, liveApproval, summarizeApprovals } from './approval-rules.js';
 import { type DraftProse, TemplateDraftProse, askTag } from './draft-prose.js';
-import { DraftRepository, type FieldInsert, type RunRow, type TargetRow } from './draft.repository.js';
-import type { DraftDto, DraftListDto, RunListDto } from './dto.js';
+import { DraftRepository, type FieldInsert, type TargetRow } from './draft.repository.js';
+import type { ApprovalDecisionDto, ApprovalSnapshotDto, DraftDto, DraftListDto, RunListDto, StructuredValueDto } from './dto.js';
 import { INQUIRY_INTENTS, INTENTS, type InquiryIntent, type StructuredValue, targetFactKey, validateIntentValues } from './inquiry-intents.js';
+import { type ContentField, type MessageText, canonicalDecimal, messageContentHash, messageTextBytes, parseMessageText } from './message-content.js';
 import { type NumberCheckResult, checkDraftNumbers } from './number-check.js';
 
 const uuid = z.string().uuid();
@@ -38,18 +42,52 @@ const createSchema = z
     values: z.array(valueSchema).min(1).max(20),
   })
   .strict();
-const revisionSchema = z.object({ subject: z.string().min(1).max(200), body: z.string().min(1).max(4000) }).strict();
+const revisionSchema = z
+  .object({
+    subject: z.string().min(1).max(200),
+    body: z.string().min(1).max(4000),
+    // 출처는 받지 않는다 — 수정본의 값이 계획 값과 같으면 출처를 이어받고, 다르면 사람 입력 값이 된다.
+    values: z.array(valueSchema.omit({ source_path: true })).min(1).max(20).optional(),
+  })
+  .strict();
 
 const ASK_ID = 'Q1';
 const LIST_LIMIT = 20;
+/** 수정본을 만들 수 있는 상태 — 아직 발송 단계(QUEUED 이후)로 넘어가지 않은 메시지. */
+const REVISABLE = new Set(['DRAFTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED']);
+/** 질문의 대상(사실 키)을 정하는 값 — 수정본에서 바꾸면 다른 질문이 된다(새 문의로). */
+const QUESTION_DEFINING_KEYS: Record<InquiryIntent, readonly string[]> = {
+  TRUCK_SLOT: ['date', 'window_from', 'window_to'],
+  FACILITY_CAPACITY: ['date', 'size_type'],
+};
+const PURPOSE_INTENT: Record<string, InquiryIntent> = { SLOT_REQUEST: 'TRUCK_SLOT', CAPACITY_CHECK: 'FACILITY_CAPACITY' };
+
+type LoadedDraft = NonNullable<Awaited<ReturnType<DraftRepository['loadDraft']>>>;
+
+/** 초안 한 건을 판정하는 데 필요한 사실(읽기 · 승인 명령이 같은 판정을 쓴다). */
+export interface DraftInspection {
+  loaded: LoadedDraft;
+  values: StructuredValue[];
+  targetName: string;
+  text: MessageText | null;
+  /** 꺼낸 내용 + 구조화 값 + 수신자로 다시 계산한 `msg-content/1` = 행의 `content_hash`. */
+  contentHashMatches: boolean;
+  check: NumberCheckResult | null;
+  gate: GateResult | null;
+  sourceRunId: string | null;
+  /** 값의 출처 실행을 대체한 새 실행(있으면 계획이 바뀌었다). */
+  successorRunId: string | null;
+  approvals: ApprovalRecord[];
+}
 
 /**
- * 문의 초안 만들기(T-088 U3 · T-069 `CreateInquiryDraft` · docs/19 FR-COM-04~13).
+ * 문의 초안(T-088 U3 · T-069 `CreateInquiryDraft` · docs/19 FR-COM-04~13) + 승인 상태 읽기(T-089 U4).
  *
  * 순서: Contact Gate → 값 형식 · 출처 확인 → 문장(템플릿 포트) → 숫자 검사(순수) → 내용 저장(트랜잭션 밖 —
  * 외부 I/O) → **한 트랜잭션**: 스레드 · 질문 · 메시지 · 구조화 값 · 상태 전이. 숫자 검사를 통과한 초안만
  * `PENDING_APPROVAL`(승인 화면에 올라갈 수 있음), 실패하면 `DRAFTED` 에 머문다(`BLOCKED_NUMBER_CHECK`).
  *
+ * 메시지 지문은 `msg-content/1`(수신자 · 제목 · 본문 · 구조화 값, docs/24 8.2) — 승인은 이 지문에 대한 승인이다.
  * Contact Gate 는 여기서 한 번 통과했다고 끝이 아니다 — U4 승인 시점 · U5 발송 직전에 다시 부른다(FR-ELG-03).
  * 상태는 모두 DB 에 있다. 이 서비스는 요청 사이에 아무것도 기억하지 않는다(LB 뒤 여러 인스턴스 가능).
  */
@@ -60,10 +98,12 @@ export class DraftService {
 
   constructor(
     @Inject(DraftRepository) private readonly drafts: DraftRepository,
+    @Inject(ApprovalRepository) private readonly approvals: ApprovalRepository,
     @Inject(RegistryReader) private readonly registry: RegistryReader,
     @Inject(ContentService) private readonly content: ContentService,
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
+    @Inject(AuditRecorder) private readonly audit: AuditRecorder,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(ENV) env: Env,
@@ -90,10 +130,7 @@ export class DraftService {
       unit: v.unit ?? null,
       sourcePath: v.source_path ?? null,
     }));
-    const issues = validateIntentValues(req.intent, values);
-    if (issues.length > 0) {
-      throw new ValidationError('INVALID_DRAFT_VALUES', `Invalid values: ${issues.map((i) => `${i.field} ${i.problem}`).join(', ')}`, issues.map((i) => i.field));
-    }
+    assertIntentValues(req.intent, values);
     const run = req.source_run_id ? await this.drafts.findRun(req.source_run_id) : null;
     if (req.source_run_id && !run) throw new BusinessRuleError('RUN_NOT_FOUND', 'No recovery run with this id', 404);
     if (!run && values.some((v) => v.sourcePath)) {
@@ -124,16 +161,20 @@ export class DraftService {
     const text = this.prose.compose(ctx);
     const check = checkDraftNumbers({ texts: [text.subject, text.body], fields: values, literals: text.literals });
 
+    const messageId = this.ids.newId();
+    const sourceRunId = run?.runId ?? null;
+    const fields = values.map((v) => toFieldRow(messageId, v, v.sourcePath ? sourceRunId : null));
+
     // 6. 내용 저장(트랜잭션 밖). 4단계(참조 + 지문을 행에 넣기)가 실패하면 고아 내용만 남는다(docs/24 16.2).
-    const stored = await this.storeContent(text.subject, text.body);
+    const messageText = { subject: text.subject, bodyText: text.body };
+    const ref = await this.storeText('COMM_MESSAGE_CONTENT', messageText);
+    const contentHash = messageContentHash({ toAddressId: address.addressId, text: messageText, fields: fields.map(toContentField) });
 
     // 7. 한 트랜잭션
     const now = this.clock.now().toDb();
     const actorId = await this.systemActor();
     const threadId = this.ids.newId();
     const questionItemId = this.ids.newId();
-    const messageId = this.ids.newId();
-    const sourceRunId = run?.runId ?? null;
     await this.tx.run(async (tx) => {
       await this.drafts.insertThread(tx, {
         threadId,
@@ -170,9 +211,9 @@ export class DraftService {
         address,
         isSimulated,
         scenarioId,
-        stored,
+        stored: { ref, contentHash },
         draftedBy: this.prose.draftedBy,
-        fields: values.map((v) => toFieldRow(messageId, v, v.sourcePath ? sourceRunId : null)),
+        fields,
         questionItemId,
         check,
         actorId,
@@ -183,18 +224,17 @@ export class DraftService {
   }
 
   /**
-   * 사람이 고친 본문(FR-COM-12). **새 메시지**를 만든다(내용 불변) — 구조화 값 · 질문 연결은 그대로 옮기고 숫자 검사를 다시 한다.
-   * 이전 초안은 `CLOSED`(대체됨). 승인 · 발송 단계로 넘어간 메시지는 고칠 수 없다.
+   * 사람이 고친 본문(FR-COM-12) · 구조화 값(T-089). **새 메시지**를 만든다(내용 불변) — 질문 연결은 그대로 옮기고 숫자 검사를
+   * 다시 한다. 이전 메시지는 `CLOSED`(대체됨). 이전 메시지에 살아 있는 승인이 있으면 같은 트랜잭션에서
+   * `INVALIDATED(CONTENT_CHANGED)` 행을 남긴다 — 고친 내용은 다시 승인해야 한다(FR-APV-04 · docs/22 15.5.1).
+   * 발송 단계(QUEUED 이후)로 넘어간 메시지는 고칠 수 없다.
    */
   async revise(messageId: string, body: unknown): Promise<DraftDto> {
     assertUuid(messageId, 'messageId');
     const req = parse(revisionSchema, body);
     const loaded = await this.drafts.loadDraft(messageId);
     if (!loaded) throw new BusinessRuleError('DRAFT_NOT_FOUND', 'No outbound draft with this id', 404);
-    const status = loaded.message.currentStatus;
-    if (status !== 'DRAFTED' && status !== 'PENDING_APPROVAL') {
-      throw new BusinessRuleError('DRAFT_NOT_EDITABLE', `A ${status} message cannot be revised`, 409);
-    }
+    assertRevisable(loaded.message.currentStatus);
     const addressId = loaded.message.toAddressId;
     const address = addressId ? await this.registry.findAddress(addressId) : null;
     if (!address) throw new SystemError('DRAFT_ADDRESS_MISSING', 'The draft has no registry address');
@@ -204,30 +244,66 @@ export class DraftService {
     }
     const question = loaded.questions[0];
     if (!question) throw new SystemError('DRAFT_QUESTION_MISSING', 'The draft has no question item');
-    const values = loaded.fields.map(fromFieldRow);
+
+    const newId = this.ids.newId();
+    const fields = req.values ? this.revisedFields(loaded, req.values, newId) : loaded.fields.map((f) => ({ ...f, messageId: newId }));
+    const values = fields.map(fromFieldRow);
     const target = await this.targetName(question.targetEntityType, question.targetEntityId);
     const literals = draftLiterals(address.counterpartyName, address.personName, target, question.askId, values);
     const check = checkDraftNumbers({ texts: [req.subject, req.body], fields: values, literals });
-    const stored = await this.storeContent(req.subject, req.body);
+    const messageText = { subject: req.subject, bodyText: req.body };
+    const ref = await this.storeText('COMM_MESSAGE_CONTENT', messageText);
+    const contentHash = messageContentHash({ toAddressId: address.addressId, text: messageText, fields: fields.map(toContentField) });
 
-    const now = this.clock.now().toDb();
+    const nowInstant = this.clock.now();
+    const now = nowInstant.toDb();
     const actorId = await this.systemActor();
-    const newId = this.ids.newId();
     await this.tx.run(async (tx) => {
+      // 같은 메시지의 승인 · 반려와 줄을 선다 — 잠근 뒤 다시 본 상태로 판정한다.
+      const locked = await this.approvals.lockMessage(tx, messageId);
+      if (!locked) throw new BusinessRuleError('DRAFT_NOT_FOUND', 'No outbound draft with this id', 404);
+      assertRevisable(locked.currentStatus);
       await this.writeMessage(tx, {
         messageId: newId,
         threadId: loaded.thread.threadId,
         address,
         isSimulated: loaded.message.isSimulated,
         scenarioId: loaded.message.scenarioId,
-        stored,
+        stored: { ref, contentHash },
         draftedBy: 'HUMAN',
-        fields: loaded.fields.map((f) => ({ ...f, messageId: newId })),
+        fields,
         questionItemId: question.questionItemId,
         check,
         actorId,
         now,
       });
+      const live = liveApproval(await this.approvals.listForMessage(messageId, tx), nowInstant);
+      if (live) {
+        const invalidationId = this.ids.newId();
+        await this.approvals.insertApproval(
+          tx,
+          {
+            approvalId: invalidationId,
+            messageId,
+            decision: 'INVALIDATED',
+            invalidatesApprovalId: live.approvalId,
+            invalidationCause: 'CONTENT_CHANGED',
+            actorId,
+            decidedAt: now,
+            reason: `content revised as message ${newId}`,
+          },
+          [],
+        );
+        await this.approvals.setCurrentApproval(tx, messageId, null);
+        await this.audit.record(tx, {
+          actorId,
+          action: AUDIT_ACTION.APPROVAL_INVALIDATED,
+          targetType: 'MESSAGE_APPROVAL',
+          targetId: invalidationId,
+          result: 'SUCCESS',
+          isSimulated: loaded.message.isSimulated,
+        });
+      }
       await this.drafts.insertTransition(tx, {
         id: this.ids.newId(),
         messageId,
@@ -242,27 +318,46 @@ export class DraftService {
     return this.get(newId);
   }
 
-  async get(messageId: string): Promise<DraftDto> {
+  /** 초안 한 건의 판정 재료 — 내용 · 지문 대조 · 숫자 검사 · Contact Gate · 계획 교체 · 승인 행. 읽을 때마다 다시 계산한다. */
+  async inspect(messageId: string): Promise<DraftInspection> {
     assertUuid(messageId, 'messageId');
     const loaded = await this.drafts.loadDraft(messageId);
     if (!loaded) throw new BusinessRuleError('DRAFT_NOT_FOUND', 'No outbound draft with this id', 404);
-    const { message, thread, fields, questions } = loaded;
+    const { message, fields, questions } = loaded;
     const values = fields.map(fromFieldRow);
     const question = questions[0] ?? null;
     const targetName = question ? await this.targetName(question.targetEntityType, question.targetEntityId) : '';
-    const contentText = await this.readContent(message.messageContentRef);
+    const text = await this.readText(message.messageContentRef);
     const literals = draftLiterals(loaded.counterpartyName, loaded.contactName ?? '', targetName, question?.askId ?? ASK_ID, values);
-    const check = contentText ? checkDraftNumbers({ texts: [contentText.subject, contentText.body], fields: values, literals }) : null;
+    const check = text ? checkDraftNumbers({ texts: [text.subject, text.bodyText], fields: values, literals }) : null;
+    const contentHashMatches =
+      text !== null &&
+      message.toAddressId !== null &&
+      messageContentHash({ toAddressId: message.toAddressId, text, fields: fields.map(toContentField) }) === message.contentHash;
     const address = message.toAddressId ? await this.registry.findAddress(message.toAddressId) : null;
     const gate = address ? this.gate(address) : null;
     const sourceRunId = fields.find((f) => f.sourceRunId)?.sourceRunId ?? null;
-    const run = sourceRunId ? await this.drafts.findRun(sourceRunId) : null;
+    const successorRunId = sourceRunId ? await this.approvals.findSuccessorRun(sourceRunId) : null;
+    const approvals = await this.approvals.listForMessage(messageId);
+    return { loaded, values, targetName, text, contentHashMatches, check, gate, sourceRunId, successorRunId, approvals };
+  }
 
-    const blocked: DraftDto['blocked_reasons'] = [];
-    if (!check) blocked.push('CONTENT_MISSING');
-    else if (!check.passed) blocked.push('BLOCKED_NUMBER_CHECK');
-    if (gate && !gate.eligible) blocked.push('RECIPIENT_NOT_ELIGIBLE');
-    if (message.currentStatus !== 'PENDING_APPROVAL') blocked.push('NOT_PENDING_APPROVAL');
+  async get(messageId: string): Promise<DraftDto> {
+    const i = await this.inspect(messageId);
+    const { message, thread, fields, questions } = i.loaded;
+    const question = questions[0] ?? null;
+    const run = i.sourceRunId ? await this.drafts.findRun(i.sourceRunId) : null;
+    const asOf = this.clock.now();
+
+    const blocked = approvalBlocks({
+      status: message.currentStatus ?? '',
+      contentPresent: i.text !== null,
+      contentHashMatches: i.contentHashMatches,
+      numberCheckPassed: i.check?.passed ?? false,
+      recipientEligible: i.gate?.eligible ?? false,
+      planSuperseded: i.successorRunId !== null,
+      hasLiveApproval: liveApproval(i.approvals, asOf) !== null,
+    });
 
     return {
       message: {
@@ -273,8 +368,8 @@ export class DraftService {
         channel_type: message.channelType as DraftDto['message']['channel_type'],
         is_simulated: message.isSimulated,
         content_hash: message.contentHash,
-        subject: contentText?.subject ?? null,
-        body: contentText?.body ?? null,
+        subject: i.text?.subject ?? null,
+        body: i.text?.bodyText ?? null,
         created_at: Instant.fromDb(message.createdAt).toSeoulIso(),
       },
       thread: {
@@ -282,11 +377,11 @@ export class DraftService {
         purpose: thread.purpose as DraftDto['thread']['purpose'],
         thread_status: thread.threadStatus as DraftDto['thread']['thread_status'],
         counterparty_id: thread.counterpartyId,
-        counterparty_name: loaded.counterpartyName,
+        counterparty_name: i.loaded.counterpartyName,
         contact_id: thread.contactId,
-        contact_name: loaded.contactName,
+        contact_name: i.loaded.contactName,
         address_id: message.toAddressId,
-        normalized_address: loaded.normalizedAddress,
+        normalized_address: i.loaded.normalizedAddress,
         related_run_id: thread.relatedRunId,
         opened_at: Instant.fromDb(thread.openedAt).toSeoulIso(),
       },
@@ -297,32 +392,27 @@ export class DraftService {
         question_text: question.questionText,
         target_entity_type: question.targetEntityType,
         target_entity_id: question.targetEntityId,
-        target_name: targetName,
+        target_name: i.targetName,
         target_fact_key: question.targetFactKey,
         expected_value_type: question.expectedValueType,
         expected_unit: question.expectedUnit,
         question_status: question.questionStatus,
       },
-      structured_values: fields.map((f) => ({
-        key: f.fieldKey,
-        value_number: f.valueNumber === null ? null : normalizeDecimal(f.valueNumber),
-        value_text: f.valueText,
-        unit: f.unit,
-        source_run_id: f.sourceRunId,
-        source_path: f.sourcePath,
-      })),
-      plan_based: sourceRunId !== null,
+      structured_values: fields.map(toValueDto),
+      plan_based: i.sourceRunId !== null,
       source_run: run && { run_id: run.runId, trigger_ref: run.triggerRef, contains_simulated: run.containsSimulated },
-      number_check: check && {
-        status: check.status,
-        passed: check.passed,
-        tokens: check.tokens.map(toTokenDto),
-        unmatched: check.unmatched.map(toTokenDto),
-        not_mentioned: check.notMentioned,
+      number_check: i.check && {
+        status: i.check.status,
+        passed: i.check.passed,
+        tokens: i.check.tokens.map(toTokenDto),
+        unmatched: i.check.unmatched.map(toTokenDto),
+        not_mentioned: i.check.notMentioned,
       },
-      contact_gate: gate && { eligible: gate.eligible, reasons: gate.reasons },
+      contact_gate: i.gate && { eligible: i.gate.eligible, reasons: i.gate.reasons },
       approval_ready: blocked.length === 0,
       blocked_reasons: blocked,
+      approval: await this.approvalView(i, asOf),
+      revision: await this.revisionView(message.messageId, thread.threadId),
     };
   }
 
@@ -346,6 +436,129 @@ export class DraftService {
     };
   }
 
+  /** 내용 문서 저장(트랜잭션 밖) — 메시지 · 승인 사본이 같은 모양(JCS `{subject, body_text}`). */
+  async storeText(category: 'COMM_MESSAGE_CONTENT' | 'MESSAGE_APPROVAL_CONTENT', text: MessageText): Promise<string> {
+    const stored = await this.content.storeVerified(category, messageTextBytes(text), 'application/json');
+    return stored.ref;
+  }
+
+  async readText(ref: string | null): Promise<MessageText | null> {
+    if (!ref) return null;
+    const bytes = await this.store.get(ref as Parameters<ContentStore['get']>[0]);
+    if (bytes === ABSENT) return null;
+    return parseMessageText(bytes);
+  }
+
+  async systemActor(): Promise<string> {
+    const id = await this.drafts.findSystemActorId();
+    if (!id) throw new SystemError('SYSTEM_ACTOR_MISSING', 'No active SYSTEM actor is registered');
+    return id;
+  }
+
+  /** 승인 축(docs/22 15.8.1) — 승인 행들로 지금 상태 · 사본 · 이력을 만든다. 사본은 다시 해시해 온전한지 본다. */
+  private async approvalView(i: DraftInspection, asOf: Instant): Promise<DraftDto['approval']> {
+    const summary = summarizeApprovals(i.approvals, asOf);
+    const { message } = i.loaded;
+    const latest = summary.latestApproved ? (i.approvals.find((a) => a.approvalId === summary.latestApproved?.approvalId) ?? null) : null;
+    let current: ApprovalSnapshotDto | null = null;
+    if (latest && summary.latestApprovedState) {
+      const copies = await this.approvals.copiesFor(latest.approvalId);
+      const copyText = await this.readText(latest.approvedContentRef);
+      const copyFields: ContentField[] = copies.map((c) => ({
+        fieldKey: c.fieldKey,
+        valueText: c.approvedValueText,
+        valueNumber: c.approvedValueNumber,
+        unit: c.approvedUnit,
+      }));
+      const copyVerified =
+        copyText !== null &&
+        latest.approvedToAddressId !== null &&
+        messageContentHash({ toAddressId: latest.approvedToAddressId, text: copyText, fields: copyFields }) === latest.approvedContentHash;
+      current = {
+        approval_id: latest.approvalId,
+        state: summary.latestApprovedState,
+        approver_actor_id: latest.actorId,
+        approver_name: latest.actorName,
+        decided_at: latest.decidedAt.toSeoulIso(),
+        expires_at: latest.expiresAt?.toSeoulIso() ?? null,
+        approved_content_hash: latest.approvedContentHash ?? '',
+        approved_to_address_id: latest.approvedToAddressId ?? '',
+        approved_plan_run_id: latest.approvedPlanRunId,
+        subject: copyText?.subject ?? null,
+        body: copyText?.bodyText ?? null,
+        structured_values: copies.map((c) =>
+          toValueDto({
+            fieldKey: c.fieldKey,
+            valueNumber: c.approvedValueNumber,
+            valueText: c.approvedValueText,
+            unit: c.approvedUnit,
+            sourceRunId: c.approvedSourceRunId,
+            sourcePath: c.approvedSourcePath,
+          }),
+        ),
+        copy_verified: copyVerified,
+      };
+    }
+    const endedBy = summary.invalidatedBy ? i.approvals.find((a) => a.approvalId === summary.invalidatedBy?.approvalId) : undefined;
+    const rejection = summary.rejection ? i.approvals.find((a) => a.approvalId === summary.rejection?.approvalId) : undefined;
+    return {
+      state: summary.state,
+      usable_for_send:
+        latest !== null && current?.copy_verified === true && isUsableForSend(latest, i.approvals, { contentHash: message.contentHash, toAddressId: message.toAddressId }, asOf),
+      current,
+      ended_by: endedBy ? toDecisionDto(endedBy) : null,
+      rejection: rejection ? toDecisionDto(rejection) : null,
+      history: i.approvals.map(toDecisionDto),
+    };
+  }
+
+  /** 수정 사슬 — 같은 스레드의 이전 · 다음 메시지. 이전 메시지의 승인을 이 수정이 무효화했으면 "내용 변경으로 재승인 필요". */
+  private async revisionView(messageId: string, threadId: string): Promise<DraftDto['revision']> {
+    const ids = await this.approvals.threadMessageIds(threadId);
+    const at = ids.indexOf(messageId);
+    const previous = at > 0 ? (ids[at - 1] ?? null) : null;
+    const next = at >= 0 && at < ids.length - 1 ? (ids[at + 1] ?? null) : null;
+    let invalidated: DraftDto['revision']['previous_approval_invalidated'] = null;
+    if (previous) {
+      const rows = await this.approvals.listForMessage(previous);
+      if (rows.some((r) => r.decision === 'INVALIDATED' && r.invalidationCause === 'CONTENT_CHANGED')) invalidated = 'CONTENT_CHANGED';
+    }
+    return { previous_message_id: previous, next_message_id: next, previous_approval_invalidated: invalidated };
+  }
+
+  /**
+   * 수정본의 구조화 값. 질문 대상을 정하는 값은 그대로여야 하고, 바뀐 값은 계획 출처를 잃는다(계획 숫자로 위장하지 않는다 —
+   * docs/01 3절 · docs/03 2.6.1). 같은 값은 출처를 이어받는다.
+   */
+  private revisedFields(loaded: LoadedDraft, input: NonNullable<z.infer<typeof revisionSchema>['values']>, newId: string): FieldInsert[] {
+    const intent = PURPOSE_INTENT[loaded.thread.purpose];
+    if (!intent) throw new BusinessRuleError('VALUES_NOT_REVISABLE', `Values of a ${loaded.thread.purpose} inquiry cannot be revised`, 422);
+    const values: StructuredValue[] = input.map((v) => ({
+      key: v.key,
+      valueNumber: v.value_number ?? null,
+      valueText: v.value_text ?? null,
+      unit: v.unit ?? null,
+      sourcePath: null,
+    }));
+    assertIntentValues(intent, values);
+    const before = new Map(loaded.fields.map((f) => [f.fieldKey, f]));
+    for (const key of QUESTION_DEFINING_KEYS[intent]) {
+      const old = before.get(key);
+      const now = values.find((v) => v.key === key);
+      if ((old?.valueText ?? null) !== (now?.valueText ?? null)) {
+        throw new BusinessRuleError('QUESTION_TARGET_CHANGED', `"${key}" defines what is asked — create a new inquiry instead of revising this one`, 422);
+      }
+    }
+    return values.map((v) => {
+      const row = toFieldRow(newId, v, null);
+      const old = before.get(v.key);
+      if (old && sameValue(old, row)) {
+        return { ...row, sourceRunId: old.sourceRunId ?? null, sourceQuestionItemId: old.sourceQuestionItemId ?? null, sourcePath: old.sourcePath ?? null };
+      }
+      return row;
+    });
+  }
+
   private async writeMessage(
     tx: Parameters<Parameters<TransactionRunner['run']>[0]>[0],
     m: {
@@ -354,7 +567,7 @@ export class DraftService {
       address: { addressId: string; channelType: string };
       isSimulated: boolean;
       scenarioId: string | null;
-      stored: { ref: string; sha256: string };
+      stored: { ref: string; contentHash: string };
       draftedBy: 'TEMPLATE' | 'AI_DRAFT' | 'HUMAN';
       fields: FieldInsert[];
       questionItemId: string;
@@ -373,7 +586,7 @@ export class DraftService {
         channelType: m.address.channelType,
         toAddressId: m.address.addressId,
         messageContentRef: m.stored.ref,
-        contentHash: m.stored.sha256,
+        contentHash: m.stored.contentHash,
         currentStatus: 'DRAFTED',
         draftedBy: m.draftedBy,
         createdAt: m.now,
@@ -398,7 +611,7 @@ export class DraftService {
     }
   }
 
-  private gate(address: NonNullable<Awaited<ReturnType<RegistryReader['findAddress']>>>): GateResult {
+  gate(address: NonNullable<Awaited<ReturnType<RegistryReader['findAddress']>>>): GateResult {
     return evaluateContactGate(
       {
         counterparty: { isActive: address.counterpartyIsActive },
@@ -448,32 +661,25 @@ export class DraftService {
     if (entityType === 'FACILITY') return (await this.drafts.findFacility(entityId))?.name ?? '';
     return '';
   }
-
-  private async systemActor(): Promise<string> {
-    const id = await this.drafts.findSystemActorId();
-    if (!id) throw new SystemError('SYSTEM_ACTOR_MISSING', 'No active SYSTEM actor is registered');
-    return id;
-  }
-
-  private async storeContent(subject: string, body: string): Promise<{ ref: string; sha256: string }> {
-    const bytes = new TextEncoder().encode(JSON.stringify({ subject, body }));
-    const stored = await this.content.storeVerified('COMM_MESSAGE_CONTENT', bytes, 'application/json');
-    return { ref: stored.ref, sha256: sha256Bytes(bytes) };
-  }
-
-  private async readContent(ref: string | null): Promise<{ subject: string; body: string } | null> {
-    if (!ref) return null;
-    const bytes = await this.store.get(ref as Parameters<ContentStore['get']>[0]);
-    if (bytes === ABSENT) return null;
-    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { subject?: unknown; body?: unknown };
-    return typeof parsed.subject === 'string' && typeof parsed.body === 'string' ? { subject: parsed.subject, body: parsed.body } : null;
-  }
 }
 
 /** 숫자 검사가 보지 않는 고정 문구 — 템플릿과 같은 규칙으로 DB 행에서 다시 만든다(초안을 다시 읽을 때 같은 판정). */
 export function draftLiterals(counterpartyName: string, contactName: string, targetName: string, askId: string, values: readonly StructuredValue[]): string[] {
   const textValues = values.filter((v) => v.valueText && !/^\d{4}-\d{2}-\d{2}$/.test(v.valueText) && !/^\d{2}:\d{2}$/.test(v.valueText));
   return [counterpartyName, contactName, targetName, askTag(askId), ...textValues.map((v) => v.valueText as string)];
+}
+
+function assertRevisable(status: string | null): void {
+  if (!status || !REVISABLE.has(status)) {
+    throw new BusinessRuleError('DRAFT_NOT_EDITABLE', `A ${status} message cannot be revised`, 409);
+  }
+}
+
+function assertIntentValues(intent: InquiryIntent, values: readonly StructuredValue[]): void {
+  const issues = validateIntentValues(intent, values);
+  if (issues.length > 0) {
+    throw new ValidationError('INVALID_DRAFT_VALUES', `Invalid values: ${issues.map((i) => `${i.field} ${i.problem}`).join(', ')}`, issues.map((i) => i.field));
+  }
 }
 
 function toFieldRow(messageId: string, v: StructuredValue, sourceRunId: string | null): FieldInsert {
@@ -498,19 +704,55 @@ function fromFieldRow(f: FieldInsert): StructuredValue {
   };
 }
 
-function normalizeDecimal(text: string): string {
-  return text.includes('.') ? text.replace(/0+$/, '').replace(/\.$/, '') : text;
+function toContentField(f: FieldInsert): ContentField {
+  return { fieldKey: f.fieldKey, valueText: f.valueText ?? null, valueNumber: f.valueNumber ?? null, unit: f.unit ?? null };
+}
+
+function sameValue(a: FieldInsert, b: FieldInsert): boolean {
+  const num = (v: string | null | undefined) => (v === null || v === undefined ? null : canonicalDecimal(v));
+  return (a.valueText ?? null) === (b.valueText ?? null) && num(a.valueNumber) === num(b.valueNumber) && (a.unit ?? null) === (b.unit ?? null);
+}
+
+function toValueDto(f: {
+  fieldKey: string;
+  valueNumber?: string | null;
+  valueText?: string | null;
+  unit?: string | null;
+  sourceRunId?: string | null;
+  sourcePath?: string | null;
+}): StructuredValueDto {
+  return {
+    key: f.fieldKey,
+    value_number: f.valueNumber === null || f.valueNumber === undefined ? null : canonicalDecimal(f.valueNumber),
+    value_text: f.valueText ?? null,
+    unit: f.unit ?? null,
+    source_run_id: f.sourceRunId ?? null,
+    source_path: f.sourcePath ?? null,
+  };
+}
+
+function toDecisionDto(a: ApprovalRecord): ApprovalDecisionDto {
+  return {
+    approval_id: a.approvalId,
+    decision: a.decision,
+    invalidation_cause: a.invalidationCause,
+    invalidates_approval_id: a.invalidatesApprovalId,
+    actor_name: a.actorName,
+    actor_type: a.actorType,
+    decided_at: a.decidedAt.toSeoulIso(),
+    reason: a.reason,
+  };
 }
 
 function toTokenDto(t: { text: string; kind: string; matchedField: string | null }) {
   return { text: t.text, kind: t.kind as 'DATE' | 'TIME' | 'MONEY' | 'QUANTITY', matched_field: t.matchedField };
 }
 
-function assertUuid(value: string, field: string): void {
+export function assertUuid(value: string, field: string): void {
   if (!uuid.safeParse(value).success) throw new ValidationError('INVALID_ID', `${field} must be a UUID`, [field]);
 }
 
-function parse<T>(schema: z.ZodType<T>, body: unknown): T {
+export function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
     const fields = result.error.issues.map((i) => i.path.join('.') || '(body)');

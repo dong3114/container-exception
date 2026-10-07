@@ -198,6 +198,8 @@ describe('plan-based approval (docs/22 15.5 · docs/19 FR-COM-10 · FR-APV-06)',
       inTx(app, async (c) => {
         const approvalId = await approve(c, r, m, { planRunId: run1 });
         await approvedCopy(c, approvalId, 'teu', 4, run1);
+        // 값은 DRAFTED 에만 붙는다(M08). 전이 순서는 DB 가 강제하지 않으므로 되돌린 경우에도 커밋 검사가 잡는지 본다.
+        await transition(c, m.messageId, 'DRAFTED', r.systemId);
         await structuredValue(c, m.messageId, 'slots', 2, run2);
         await approvedCopy(c, approvalId, 'slots', 2, run2);
       }),
@@ -297,6 +299,7 @@ describe('message approval guards', () => {
     await approve(app, r, m); // 구조화 값 0건 — 사본 0건과 같다
     await expect(
       inTx(app, async (c) => {
+        await transition(c, m.messageId, 'DRAFTED', r.systemId); // 되돌린 경우(위 시험과 같은 이유)
         await c.query("INSERT INTO cera.comm_message_structured_field (message_id, field_key, value_text) VALUES ($1, 'late', 'x')", [
           m.messageId,
         ]);
@@ -334,17 +337,17 @@ describe('send_attempt — idempotency, U-6 · U-7 and UNKNOWN reconciliation', 
     const { r, m, approvalId } = await approvedMessage();
     await expectSqlState(attempt(app, m, null, 1), 'CE005');
     await expectSqlState(attempt(app, m, approvalId, 1, { sentContentHash: hashOf('tampered') }), 'CE005');
-    const expiring = await approve(app, r, m, { expiresAt: T2 });
-    await expectSqlState(attempt(app, m, expiring, 1, { startedAt: T2 }), 'CE005');
     await revoke(app, r, m, approvalId);
     await expectSqlState(attempt(app, m, approvalId, 1), 'CE005');
+    // 살아 있는 승인은 메시지당 하나(M12) — 취소한 뒤에야 새(만료되는) 승인을 붙일 수 있다
+    const expiring = await approve(app, r, m, { expiresAt: T2 });
+    await expectSqlState(attempt(app, m, expiring, 1, { startedAt: T2 }), 'CE005');
   });
 
-  it('a BUSINESS attempt must also match the composed message content hash (docs/22 15.7.2)', async () => {
-    const { r, m } = await approvedMessage();
-    const other = hashOf('other content');
-    const approvalOfOther = await approve(app, r, m, { contentHash: other });
-    await expectSqlState(attempt(app, m, approvalOfOther, 1, { sentContentHash: other }), 'CE005');
+  it('an approval of other content is refused at the approval itself (M12) — the send guard never sees it (docs/22 15.7.2)', async () => {
+    const r = await registry(app);
+    const m = await outboundMessage(app, r, await thread(app, r));
+    await expectSqlState(approve(app, r, m, { contentHash: hashOf('other content') }), 'CE005');
   });
 
   it('an attempt starts without a result and attempt_no is previous max + 1', async () => {

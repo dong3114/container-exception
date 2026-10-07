@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CHANNEL_TYPE, DRAFTED_BY, MESSAGE_STATUS, THREAD_PURPOSE, THREAD_STATUS } from '../db/schema/codes.js';
 import { GateReasonDto } from '../registry/dto.js';
+import { APPROVAL_BLOCK_REASONS } from './approval-rules.js';
 import { INQUIRY_INTENTS } from './inquiry-intents.js';
 
 /**
@@ -51,12 +52,51 @@ export class CreateDraftRequestDto {
   values!: StructuredValueInputDto[];
 }
 
+export class ReviseValueInputDto {
+  @ApiProperty({ type: String, pattern: '^[a-z][a-z0-9_]*$', example: 'quantity' })
+  key!: string;
+
+  @ApiPropertyOptional({ type: Number, nullable: true, example: 3 })
+  value_number?: number | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  value_text?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'TRUCK' })
+  unit?: string | null;
+}
+
 export class ReviseDraftRequestDto {
   @ApiProperty({ type: String, maxLength: 200 })
   subject!: string;
 
   @ApiProperty({ type: String, maxLength: 4000 })
   body!: string;
+
+  @ApiPropertyOptional({
+    type: [ReviseValueInputDto],
+    description:
+      'Optional full set of structured values. A value that differs from the previous one loses its plan source (it is no longer a plan number). Values that define the question (date · window · size type) cannot change — create a new inquiry instead.',
+  })
+  values?: ReviseValueInputDto[];
+}
+
+export class ApproveDraftRequestDto {
+  @ApiProperty({ type: String, pattern: '^sha256:[0-9a-f]{64}$', description: 'content_hash of the exact content the operator reviewed' })
+  content_hash!: string;
+}
+
+export class RejectDraftRequestDto {
+  @ApiProperty({ type: String, minLength: 1, maxLength: 500 })
+  reason!: string;
+
+  @ApiProperty({ type: String, pattern: '^sha256:[0-9a-f]{64}$', description: 'content_hash of the content the operator reviewed' })
+  content_hash!: string;
+}
+
+export class RevokeApprovalRequestDto {
+  @ApiPropertyOptional({ type: String, maxLength: 500 })
+  reason?: string;
 }
 
 export class DraftMessageDto {
@@ -228,7 +268,118 @@ export class DraftSourceRunDto {
   contains_simulated!: boolean;
 }
 
-export const DRAFT_BLOCK_REASONS = ['BLOCKED_NUMBER_CHECK', 'RECIPIENT_NOT_ELIGIBLE', 'CONTENT_MISSING', 'NOT_PENDING_APPROVAL'] as const;
+export const DRAFT_BLOCK_REASONS = APPROVAL_BLOCK_REASONS;
+
+export const APPROVAL_STATES = ['NONE', 'ACTIVE', 'EXPIRED', 'REVOKED', 'INVALIDATED', 'REJECTED'] as const;
+export const APPROVAL_ROW_STATES = ['ACTIVE', 'EXPIRED', 'REVOKED', 'INVALIDATED'] as const;
+export const APPROVAL_DECISIONS = ['APPROVED', 'REJECTED', 'REVISION_REQUESTED', 'REVOKED', 'INVALIDATED'] as const;
+export const INVALIDATION_CAUSES = ['USER_REVOKED', 'PLAN_SUPERSEDED', 'CONTENT_CHANGED'] as const;
+
+export class ApprovalSnapshotDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  approval_id!: string;
+
+  @ApiProperty({ enum: APPROVAL_ROW_STATES })
+  state!: (typeof APPROVAL_ROW_STATES)[number];
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  approver_actor_id!: string;
+
+  @ApiProperty({ type: String })
+  approver_name!: string;
+
+  @ApiProperty({ type: String, example: '2026-10-07T10:00:00.000+09:00' })
+  decided_at!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  expires_at!: string | null;
+
+  @ApiProperty({ type: String, pattern: '^sha256:[0-9a-f]{64}$', description: 'msg-content/1 of recipient + subject + body + structured values at approval time' })
+  approved_content_hash!: string;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  approved_to_address_id!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'Recovery run the approval was based on (plan-based inquiry)' })
+  approved_plan_run_id!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Frozen subject (approval copy); null when the copy is missing' })
+  subject!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  body!: string | null;
+
+  @ApiProperty({ type: [StructuredValueDto], description: 'Frozen structured values (approval copy)' })
+  structured_values!: StructuredValueDto[];
+
+  @ApiProperty({ type: Boolean, description: 'The frozen copy re-hashes to approved_content_hash (the approval copy is intact)' })
+  copy_verified!: boolean;
+}
+
+export class ApprovalDecisionDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  approval_id!: string;
+
+  @ApiProperty({ enum: APPROVAL_DECISIONS })
+  decision!: (typeof APPROVAL_DECISIONS)[number];
+
+  @ApiProperty({ enum: INVALIDATION_CAUSES, nullable: true })
+  invalidation_cause!: (typeof INVALIDATION_CAUSES)[number] | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  invalidates_approval_id!: string | null;
+
+  @ApiProperty({ type: String })
+  actor_name!: string;
+
+  @ApiProperty({ type: String, description: 'HUMAN · SYSTEM' })
+  actor_type!: string;
+
+  @ApiProperty({ type: String })
+  decided_at!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  reason!: string | null;
+}
+
+export class DraftApprovalDto {
+  @ApiProperty({
+    enum: APPROVAL_STATES,
+    description:
+      'NONE · ACTIVE (live approval) · EXPIRED · REVOKED (operator withdrew) · INVALIDATED (content or plan changed) · REJECTED. Decided by the backend from the approval rows.',
+  })
+  state!: (typeof APPROVAL_STATES)[number];
+
+  @ApiProperty({ type: Boolean, description: 'The six conditions of a valid approval hold now (docs/22 15.5.1) — the only thing a send may rely on' })
+  usable_for_send!: boolean;
+
+  @ApiProperty({ type: ApprovalSnapshotDto, nullable: true, description: 'Latest APPROVED decision with its frozen copy' })
+  current!: ApprovalSnapshotDto | null;
+
+  @ApiProperty({ type: ApprovalDecisionDto, nullable: true, description: 'The REVOKED / INVALIDATED row that ended the current approval' })
+  ended_by!: ApprovalDecisionDto | null;
+
+  @ApiProperty({ type: ApprovalDecisionDto, nullable: true })
+  rejection!: ApprovalDecisionDto | null;
+
+  @ApiProperty({ type: [ApprovalDecisionDto], description: 'Every decision on this message, oldest first (append-only)' })
+  history!: ApprovalDecisionDto[];
+}
+
+export class DraftRevisionDto {
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  previous_message_id!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'Set when this message was replaced by a newer revision' })
+  next_message_id!: string | null;
+
+  @ApiProperty({
+    enum: INVALIDATION_CAUSES,
+    nullable: true,
+    description: 'CONTENT_CHANGED when the previous revision had an approval that this edit invalidated — the new text needs approval again',
+  })
+  previous_approval_invalidated!: (typeof INVALIDATION_CAUSES)[number] | null;
+}
 
 export class DraftDto {
   @ApiProperty({ type: DraftMessageDto })
@@ -255,11 +406,17 @@ export class DraftDto {
   @ApiProperty({ type: DraftGateDto, nullable: true, description: 'Contact Gate re-evaluated on read' })
   contact_gate!: DraftGateDto | null;
 
-  @ApiProperty({ type: Boolean, description: 'May go to the approval step (U4) — PENDING_APPROVAL, number check passed, recipient eligible' })
+  @ApiProperty({ type: Boolean, description: 'Can be approved now — no blocked_reasons (all checks recomputed on read)' })
   approval_ready!: boolean;
 
   @ApiProperty({ type: [String], enum: DRAFT_BLOCK_REASONS })
   blocked_reasons!: (typeof DRAFT_BLOCK_REASONS)[number][];
+
+  @ApiProperty({ type: DraftApprovalDto })
+  approval!: DraftApprovalDto;
+
+  @ApiProperty({ type: DraftRevisionDto })
+  revision!: DraftRevisionDto;
 }
 
 export class DraftListDto {
@@ -287,4 +444,17 @@ export class RunSummaryDto {
 export class RunListDto {
   @ApiProperty({ type: [RunSummaryDto] })
   runs!: RunSummaryDto[];
+}
+
+export class ApproverDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  actor_id!: string;
+
+  @ApiProperty({ type: String })
+  display_name!: string;
+}
+
+export class ApproverListDto {
+  @ApiProperty({ type: [ApproverDto], description: 'Active HUMAN actors who may decide approvals (development stand-in until authentication exists)' })
+  approvers!: ApproverDto[];
 }

@@ -338,7 +338,17 @@
             }
           },
           "409": {
-            "description": "DRAFT_NOT_EDITABLE — already approved, sent or superseded",
+            "description": "DRAFT_NOT_EDITABLE — queued, sent or already superseded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "QUESTION_TARGET_CHANGED — date · window · size type define the question",
             "content": {
               "application/json": {
                 "schema": {
@@ -348,7 +358,315 @@
             }
           }
         },
-        "summary": "Operator edits the text: a new message (content is immutable) with the same structured values, re-checked",
+        "summary": "Operator edits the text (and optionally the structured values): a new message (content is immutable), re-checked. A live approval of the old message is invalidated (CONTENT_CHANGED) — the new text needs approval again",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/communication/approvers": {
+      "get": {
+        "operationId": "ApprovalController_approvers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproverListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Operators who may decide approvals (active HUMAN actors)",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/communication/drafts/{messageId}/approve": {
+      "post": {
+        "operationId": "ApprovalController_approve",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveDraftRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The draft with its approval. Approving the same content again returns the same approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · RECIPIENT_NOT_ELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "DRAFT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONTENT_CHANGED · MESSAGE_SUPERSEDED · NOT_PENDING_APPROVAL · ALREADY_APPROVED · PLAN_SUPERSEDED · CONTENT_MISSING · CONTENT_HASH_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "NUMBER_CHECK_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Approve the exact content the operator reviewed: re-checks revision · content hash · number check · Contact Gate · plan, then freezes subject · body · structured values · recipient · plan run",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/communication/drafts/{messageId}/reject": {
+      "post": {
+        "operationId": "ApprovalController_reject",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDraftRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "DRAFT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONTENT_CHANGED · MESSAGE_SUPERSEDED · NOT_PENDING_APPROVAL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reject a draft awaiting approval (reason required). Fix it by revising — a revision is a new message.",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
+    "/communication/approvals/{approvalId}/revoke": {
+      "post": {
+        "operationId": "ApprovalController_revoke",
+        "parameters": [
+          {
+            "name": "approvalId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeApprovalRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_DRAFT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "APPROVAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "NOT_AN_APPROVAL · ALREADY_SENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Withdraw an approval that has not been used for sending (a new REVOKED row — the approval row is never edited)",
         "tags": [
           "communication"
         ]
@@ -1237,6 +1555,242 @@
           "reasons"
         ]
       },
+      "ApprovalSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "EXPIRED",
+              "REVOKED",
+              "INVALIDATED"
+            ]
+          },
+          "approver_actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "approver_name": {
+            "type": "string"
+          },
+          "decided_at": {
+            "type": "string",
+            "example": "2026-10-07T10:00:00.000+09:00"
+          },
+          "expires_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "approved_content_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "msg-content/1 of recipient + subject + body + structured values at approval time"
+          },
+          "approved_to_address_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "approved_plan_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Recovery run the approval was based on (plan-based inquiry)"
+          },
+          "subject": {
+            "type": "string",
+            "nullable": true,
+            "description": "Frozen subject (approval copy); null when the copy is missing"
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "structured_values": {
+            "description": "Frozen structured values (approval copy)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StructuredValueDto"
+            }
+          },
+          "copy_verified": {
+            "type": "boolean",
+            "description": "The frozen copy re-hashes to approved_content_hash (the approval copy is intact)"
+          }
+        },
+        "required": [
+          "approval_id",
+          "state",
+          "approver_actor_id",
+          "approver_name",
+          "decided_at",
+          "expires_at",
+          "approved_content_hash",
+          "approved_to_address_id",
+          "approved_plan_run_id",
+          "subject",
+          "body",
+          "structured_values",
+          "copy_verified"
+        ]
+      },
+      "ApprovalDecisionDto": {
+        "type": "object",
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "REVISION_REQUESTED",
+              "REVOKED",
+              "INVALIDATED"
+            ]
+          },
+          "invalidation_cause": {
+            "type": "string",
+            "enum": [
+              "USER_REVOKED",
+              "PLAN_SUPERSEDED",
+              "CONTENT_CHANGED"
+            ],
+            "nullable": true
+          },
+          "invalidates_approval_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "actor_name": {
+            "type": "string"
+          },
+          "actor_type": {
+            "type": "string",
+            "description": "HUMAN · SYSTEM"
+          },
+          "decided_at": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "approval_id",
+          "decision",
+          "invalidation_cause",
+          "invalidates_approval_id",
+          "actor_name",
+          "actor_type",
+          "decided_at",
+          "reason"
+        ]
+      },
+      "DraftApprovalDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ACTIVE",
+              "EXPIRED",
+              "REVOKED",
+              "INVALIDATED",
+              "REJECTED"
+            ],
+            "description": "NONE · ACTIVE (live approval) · EXPIRED · REVOKED (operator withdrew) · INVALIDATED (content or plan changed) · REJECTED. Decided by the backend from the approval rows."
+          },
+          "usable_for_send": {
+            "type": "boolean",
+            "description": "The six conditions of a valid approval hold now (docs/22 15.5.1) — the only thing a send may rely on"
+          },
+          "current": {
+            "nullable": true,
+            "description": "Latest APPROVED decision with its frozen copy",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalSnapshotDto"
+              }
+            ]
+          },
+          "ended_by": {
+            "nullable": true,
+            "description": "The REVOKED / INVALIDATED row that ended the current approval",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalDecisionDto"
+              }
+            ]
+          },
+          "rejection": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalDecisionDto"
+              }
+            ]
+          },
+          "history": {
+            "description": "Every decision on this message, oldest first (append-only)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApprovalDecisionDto"
+            }
+          }
+        },
+        "required": [
+          "state",
+          "usable_for_send",
+          "current",
+          "ended_by",
+          "rejection",
+          "history"
+        ]
+      },
+      "DraftRevisionDto": {
+        "type": "object",
+        "properties": {
+          "previous_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "next_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Set when this message was replaced by a newer revision"
+          },
+          "previous_approval_invalidated": {
+            "type": "string",
+            "enum": [
+              "USER_REVOKED",
+              "PLAN_SUPERSEDED",
+              "CONTENT_CHANGED"
+            ],
+            "nullable": true,
+            "description": "CONTENT_CHANGED when the previous revision had an approval that this edit invalidated — the new text needs approval again"
+          }
+        },
+        "required": [
+          "previous_message_id",
+          "next_message_id",
+          "previous_approval_invalidated"
+        ]
+      },
       "DraftDto": {
         "type": "object",
         "properties": {
@@ -1296,19 +1850,29 @@
           },
           "approval_ready": {
             "type": "boolean",
-            "description": "May go to the approval step (U4) — PENDING_APPROVAL, number check passed, recipient eligible"
+            "description": "Can be approved now — no blocked_reasons (all checks recomputed on read)"
           },
           "blocked_reasons": {
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
+                "CONTENT_MISSING",
+                "CONTENT_HASH_MISMATCH",
                 "BLOCKED_NUMBER_CHECK",
                 "RECIPIENT_NOT_ELIGIBLE",
-                "CONTENT_MISSING",
-                "NOT_PENDING_APPROVAL"
+                "PLAN_SUPERSEDED",
+                "MESSAGE_SUPERSEDED",
+                "NOT_PENDING_APPROVAL",
+                "ALREADY_APPROVED"
               ]
             }
+          },
+          "approval": {
+            "$ref": "#/components/schemas/DraftApprovalDto"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/DraftRevisionDto"
           }
         },
         "required": [
@@ -1321,7 +1885,9 @@
           "number_check",
           "contact_gate",
           "approval_ready",
-          "blocked_reasons"
+          "blocked_reasons",
+          "approval",
+          "revision"
         ]
       },
       "DraftListDto": {
@@ -1338,6 +1904,33 @@
           "drafts"
         ]
       },
+      "ReviseValueInputDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "example": "quantity"
+          },
+          "value_number": {
+            "type": "number",
+            "nullable": true,
+            "example": 3
+          },
+          "value_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "example": "TRUCK"
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
       "ReviseDraftRequestDto": {
         "type": "object",
         "properties": {
@@ -1348,12 +1941,91 @@
           "body": {
             "type": "string",
             "maxLength": 4000
+          },
+          "values": {
+            "description": "Optional full set of structured values. A value that differs from the previous one loses its plan source (it is no longer a plan number). Values that define the question (date · window · size type) cannot change — create a new inquiry instead.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviseValueInputDto"
+            }
           }
         },
         "required": [
           "subject",
           "body"
         ]
+      },
+      "ApproverDto": {
+        "type": "object",
+        "properties": {
+          "actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor_id",
+          "display_name"
+        ]
+      },
+      "ApproverListDto": {
+        "type": "object",
+        "properties": {
+          "approvers": {
+            "description": "Active HUMAN actors who may decide approvals (development stand-in until authentication exists)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApproverDto"
+            }
+          }
+        },
+        "required": [
+          "approvers"
+        ]
+      },
+      "ApproveDraftRequestDto": {
+        "type": "object",
+        "properties": {
+          "content_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "content_hash of the exact content the operator reviewed"
+          }
+        },
+        "required": [
+          "content_hash"
+        ]
+      },
+      "RejectDraftRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "content_hash of the content the operator reviewed"
+          }
+        },
+        "required": [
+          "reason",
+          "content_hash"
+        ]
+      },
+      "RevokeApprovalRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
       },
       "RunSummaryDto": {
         "type": "object",

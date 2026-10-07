@@ -72,6 +72,7 @@ flowchart LR
 - **Mock ↔ Real 교체**: 화면은 계속 `CeraDataProvider` 만 본다. T-087 부터 엔드포인트가 생기는 화면부터 `ApiProvider` 메서드가 `src/api/*` 를 부른다. 없는 Backend API 를 프론트에서 미리 지어내지 않는다.
 - **연결 후보 위치**: 거래처 · 연락처 · Contact Gate → `Communications` 스레드 머리 + `GateBlockers` · 초안 · 승인 → `MessageLifecycle`(지금 `MessageView.lifecycle` 을 MockProvider 가 시나리오 상태에서 매핑) · 활동 → `ActivityTimeline`.
 - **첫 실제 연결(T-088)**: `src/components/drafts/`(`InquiryDraftPanel` · `DraftView`) — "문의 초안" 카드만 Backend(`src/api/drafts.ts`, 생성 타입)를 쓴다. 계획 부족분(시나리오 RP-001)을 구조화 값으로 불러와 `POST /communication/drafts` · 본문 고치기는 `POST /communication/drafts/{id}/revisions`. 숫자 검사 · 승인 가능 여부 · Contact Gate 는 Backend 판정을 그대로 표시. 나머지 카드는 MockProvider. 밝은 카드 버튼은 `.act-btn`(`.pb-btn` 은 어두운 상단 바 전용).
+- **발송 승인 연결(T-089)**: 같은 카드의 `DraftView` 에 "발송 승인" 영역 — [이 내용으로 승인] · [반려](사유 필수) · [승인 취소] 버튼이 NestJS API(`approveDraft` · `rejectDraft` · `revokeApproval`)를 부른다. 화면은 **지금 보고 있는 `content_hash` 와 승인자만** 보내고 승인 여부를 정하거나 저장하지 않는다. 승인 상태 · 승인자 · 승인 시각 · 유효 기한 · 승인 사본 확인 · 승인 불가 이유 · "내용 변경으로 재승인 필요" · "새 수정본으로 대체된 초안"은 `DraftDto.approval` · `revision` · `blocked_reasons` 를 그대로 보여준다. 승인자는 `GET /communication/approvers` 에서 고른다(인증 전 개발용 — 헤더 `X-CERA-Actor-Id`, Backend 가 다시 확인). 수정 화면은 본문과 수량을 고칠 수 있다(날짜 · 시간창은 질문 대상이라 못 고친다). 실제 발송은 없다(U5).
 - 브라우저는 Main Backend 만 부른다. AI Server · LLM 공급자 · DB 직접 호출, 비밀값 보관 금지(`docs/23` 7.1).
 
 ## 5. Frontend Data Contract (v0.1)

@@ -102,6 +102,9 @@ export async function approve(
   m: OutboundMessage,
   options: { actorId?: string; expiresAt?: string | null; contentHash?: string; planRunId?: string | null } = {},
 ): Promise<string> {
+  // M12: 승인은 승인 대기(PENDING_APPROVAL) · 재승인(APPROVED) 메시지에만. 초안(DRAFTED)이면 먼저 승인 대기로 옮긴다.
+  const { rows } = await db.query<{ current_status: string }>('SELECT current_status FROM cera.comm_message WHERE message_id = $1', [m.messageId]);
+  if (rows[0]?.current_status === 'DRAFTED') await transition(db, m.messageId, 'PENDING_APPROVAL', r.systemId);
   const approvalId = v7();
   await db.query(
     `INSERT INTO cera.message_approval (approval_id, message_id, decision, actor_id, decided_at, expires_at,
@@ -170,14 +173,23 @@ export async function attempt(
   m: OutboundMessage,
   approvalId: string | null,
   attemptNo: number,
-  options: { startedAt?: string; sentContentHash?: string } = {},
+  options: { startedAt?: string; sentContentHash?: string; isSimulated?: boolean } = {},
 ): Promise<string> {
   const id = v7();
   await db.query(
     `INSERT INTO cera.send_attempt (send_attempt_id, message_id, approval_id, attempt_no, idempotency_key, sent_content_hash,
        started_at, is_simulated)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, false)`,
-    [id, m.messageId, approvalId, attemptNo, hashOf(`sak-${m.messageId}-${attemptNo}`), options.sentContentHash ?? m.contentHash, options.startedAt ?? T2],
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      id,
+      m.messageId,
+      approvalId,
+      attemptNo,
+      hashOf(`sak-${m.messageId}-${attemptNo}`),
+      options.sentContentHash ?? m.contentHash,
+      options.startedAt ?? T2,
+      options.isSimulated ?? false,
+    ],
   );
   return id;
 }

@@ -14,6 +14,8 @@ export interface ApiRequestOptions {
   signal?: AbortSignal;
   /** Client time limit. Default 15 s — long AI work must not hold one request open (docs/23 7.1). */
   timeoutMs?: number;
+  /** Extra request headers (e.g. the deciding operator for approval commands). */
+  headers?: Record<string, string>;
 }
 
 export const DEFAULT_TIMEOUT_MS = 15_000;
@@ -39,7 +41,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     try {
       res = await fetchImpl(apiUrl(path), {
         method: options.method ?? "GET",
-        headers: { Accept: "application/json", ...(options.body === undefined ? {} : { "Content-Type": "application/json" }) },
+        headers: { Accept: "application/json", ...(options.body === undefined ? {} : { "Content-Type": "application/json" }), ...options.headers },
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         credentials: "same-origin",
         cache: "no-store",

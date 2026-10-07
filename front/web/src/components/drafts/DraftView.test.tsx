@@ -53,9 +53,64 @@ const base: Draft = {
   contact_gate: { eligible: true, reasons: [] },
   approval_ready: true,
   blocked_reasons: [],
+  approval: { state: "NONE", usable_for_send: false, current: null, ended_by: null, rejection: null, history: [] },
+  revision: { previous_message_id: null, next_message_id: null, previous_approval_invalidated: null },
 };
 
-const render = (draft: Draft) => renderToStaticMarkup(<DraftView draft={draft} onRevised={() => undefined} />);
+const OPERATOR = "01a11040-0000-7000-8000-0000000000aa";
+const render = (draft: Draft, approverId: string | null = OPERATOR) =>
+  renderToStaticMarkup(<DraftView draft={draft} approverId={approverId} onChanged={() => undefined} />);
+
+const snapshot: NonNullable<Draft["approval"]["current"]> = {
+  approval_id: "01a11040-0000-7000-8000-0000000000b1",
+  state: "ACTIVE",
+  approver_actor_id: OPERATOR,
+  approver_name: "운영자 (가상)",
+  decided_at: "2026-10-07T10:15:00.000+09:00",
+  expires_at: "2026-10-08T10:15:00.000+09:00",
+  approved_content_hash: base.message.content_hash,
+  approved_to_address_id: "01a11040-0000-7000-8000-000000000005",
+  approved_plan_run_id: "01a11040-0000-7000-8000-000000000006",
+  subject: base.message.subject,
+  body: base.message.body,
+  structured_values: base.structured_values,
+  copy_verified: true,
+};
+const approvedDraft: Draft = {
+  ...base,
+  message: { ...base.message, status: "APPROVED" },
+  approval_ready: false,
+  blocked_reasons: ["ALREADY_APPROVED"],
+  approval: {
+    state: "ACTIVE",
+    usable_for_send: true,
+    current: snapshot,
+    ended_by: null,
+    rejection: null,
+    history: [
+      {
+        approval_id: snapshot.approval_id,
+        decision: "APPROVED",
+        invalidation_cause: null,
+        invalidates_approval_id: null,
+        actor_name: "운영자 (가상)",
+        actor_type: "HUMAN",
+        decided_at: snapshot.decided_at,
+        reason: null,
+      },
+    ],
+  },
+};
+const endedBy = (cause: "USER_REVOKED" | "PLAN_SUPERSEDED" | "CONTENT_CHANGED") => ({
+  approval_id: "01a11040-0000-7000-8000-0000000000b2",
+  decision: cause === "USER_REVOKED" ? ("REVOKED" as const) : ("INVALIDATED" as const),
+  invalidation_cause: cause,
+  invalidates_approval_id: snapshot.approval_id,
+  actor_name: cause === "USER_REVOKED" ? "운영자 (가상)" : "CERA System",
+  actor_type: cause === "USER_REVOKED" ? "HUMAN" : "SYSTEM",
+  decided_at: "2026-10-07T10:30:00.000+09:00",
+  reason: cause === "USER_REVOKED" ? "거래처 사정" : null,
+});
 
 describe("DraftView", () => {
   it("shows target, question, message, structured values with their source, and a passed number check", () => {
@@ -67,7 +122,6 @@ describe("DraftView", () => {
     expect(html).toContain("계획 RP-001 · resource_gaps[0].needed");
     expect(html).toContain("직접 입력");
     expect(html).toContain('data-status="PASSED"');
-    expect(html).toContain("승인 단계로 넘길 수 있음");
     expect(html).toContain("템플릿 초안 · AI 미사용");
     expect(html).not.toContain("AI 제안");
   });
@@ -83,8 +137,9 @@ describe("DraftView", () => {
     expect(html).toContain('data-status="BLOCKED_NUMBER_CHECK"');
     expect(html).toContain("숫자 검사 실패");
     expect(html).toContain("본문의 수량 <b class=\"mono\">8</b> — 구조화 값에 없음");
-    expect(html).toContain("승인 단계로 넘길 수 없음");
+    expect(html).toContain("지금 승인할 수 없는 이유");
     expect(html).toContain("본문의 숫자 · 날짜가 구조화 값과 다름");
+    expect(html).toMatch(/data-testid="btn-approve" disabled=""/);
     expect(html).toContain("운영자 수정본");
   });
 
@@ -97,5 +152,98 @@ describe("DraftView", () => {
     });
     expect(html).toContain("발송 불가");
     expect(html).toContain("통신 중지 · 비활성");
+  });
+
+  it("a ready draft can be approved or rejected by the chosen operator; without an operator the buttons stay off", () => {
+    const html = render(base);
+    expect(html).toContain('data-approval-state="NONE"');
+    expect(html).toContain("승인 전");
+    expect(html).toMatch(/data-testid="btn-approve">이 내용으로 승인</);
+    expect(html).toContain('data-testid="btn-reject"');
+    expect(html).not.toContain('data-testid="btn-revoke"');
+    expect(html).not.toContain("지금 승인할 수 없는 이유");
+
+    const noOperator = render(base, null);
+    expect(noOperator).toMatch(/data-testid="btn-approve" disabled=""/);
+    expect(noOperator).toContain("승인자를 먼저 고르세요");
+  });
+
+  it("an approved draft shows who approved, when, until when, the frozen content and a revoke button", () => {
+    const html = render(approvedDraft);
+    expect(html).toContain('data-approval-state="ACTIVE"');
+    expect(html).toContain("승인됨");
+    expect(html).toContain("발송에 쓸 수 있는 승인 (실제 발송은 다음 단계)");
+    expect(html).toContain('data-testid="approver-name">운영자 (가상)<');
+    expect(html).toContain("2026-10-07 10:15");
+    expect(html).toContain("2026-10-08 10:15");
+    expect(html).toContain("지금 내용과 같음");
+    expect(html).toContain("승인 사본 확인됨");
+    expect(html).toContain('data-testid="btn-revoke"');
+    // 살아 있는 승인이 있으면 승인 버튼 · 승인 불가 목록을 보이지 않는다(취소만 할 수 있다)
+    expect(html).not.toContain('data-testid="btn-approve"');
+    expect(html).not.toContain("지금 승인할 수 없는 이유");
+  });
+
+  it("a revoked approval says so and can be approved again", () => {
+    const html = render({
+      ...approvedDraft,
+      approval_ready: true,
+      blocked_reasons: [],
+      approval: { ...approvedDraft.approval, state: "REVOKED", usable_for_send: false, current: { ...snapshot, state: "REVOKED" }, ended_by: endedBy("USER_REVOKED") },
+    });
+    expect(html).toContain("운영자가 승인을 취소했습니다");
+    expect(html).toContain("거래처 사정");
+    expect(html).toMatch(/data-testid="btn-approve">이 내용으로 다시 승인</);
+    expect(html).not.toContain('data-testid="btn-revoke"');
+  });
+
+  it("a plan replacement shows why the approval was lifted and why it cannot be approved", () => {
+    const html = render({
+      ...approvedDraft,
+      approval_ready: false,
+      blocked_reasons: ["PLAN_SUPERSEDED"],
+      approval: { ...approvedDraft.approval, state: "INVALIDATED", usable_for_send: false, current: { ...snapshot, state: "INVALIDATED" }, ended_by: endedBy("PLAN_SUPERSEDED") },
+    });
+    expect(html).toContain("근거 계획이 바뀌어 승인이 풀렸습니다");
+    expect(html).toContain("시스템");
+    expect(html).toContain("근거 계획이 새 실행으로 바뀜");
+  });
+
+  it("a revision of an approved draft says it needs approval again; the old one says it was replaced", () => {
+    const revised = render({
+      ...base,
+      message: { ...base.message, message_id: "01a11040-0000-7000-8000-0000000000c1", drafted_by: "HUMAN" },
+      revision: { previous_message_id: base.message.message_id, next_message_id: null, previous_approval_invalidated: "CONTENT_CHANGED" },
+    });
+    expect(revised).toContain('data-testid="reapproval-required"');
+    expect(revised).toContain("내용 변경으로 재승인 필요");
+
+    const old = render({
+      ...approvedDraft,
+      message: { ...approvedDraft.message, status: "CLOSED" },
+      approval_ready: false,
+      blocked_reasons: ["MESSAGE_SUPERSEDED"],
+      approval: { ...approvedDraft.approval, state: "INVALIDATED", usable_for_send: false, current: { ...snapshot, state: "INVALIDATED" }, ended_by: endedBy("CONTENT_CHANGED") },
+      revision: { previous_message_id: null, next_message_id: "01a11040-0000-7000-8000-0000000000c1", previous_approval_invalidated: null },
+    });
+    expect(old).toContain('data-testid="superseded"');
+    expect(old).toContain("승인 뒤 내용이 바뀌어 다시 승인해야 합니다");
+    expect(old).toContain("새 수정본으로 대체된 초안 — 최신 수정본을 승인해야 함");
+  });
+
+  it("a rejected draft shows the reason and offers no approval", () => {
+    const html = render({
+      ...base,
+      message: { ...base.message, status: "REJECTED" },
+      approval_ready: false,
+      blocked_reasons: ["NOT_PENDING_APPROVAL"],
+      approval: {
+        ...base.approval,
+        state: "REJECTED",
+        rejection: { ...endedBy("USER_REVOKED"), decision: "REJECTED", invalidation_cause: null, invalidates_approval_id: null, reason: "시간대가 맞지 않음" },
+      },
+    });
+    expect(html).toContain("반려 사유: 시간대가 맞지 않음");
+    expect(html).not.toContain('data-testid="btn-reject"');
   });
 });

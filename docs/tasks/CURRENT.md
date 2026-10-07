@@ -10,12 +10,13 @@
 
 ## Status
 
-**IDLE** — **T-088 (U3 문의 초안 · 구조화 값 · 숫자 검사) DONE** (2026-10-06 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-089(U4 — 승인 · 무효화)** 이고 실행 가능하다. **아직 시작하지 않았다.**
+**IDLE** — **T-089 (U4 발송 승인 · 반려 · 승인 취소 · 무효화) DONE** (2026-10-07 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-090(U5 — Outbox · Mock 발송)** 이고 실행 가능하다. **아직 시작하지 않았다.**
 
-T-088 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.4(U3-1~U3-6).
+T-089 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.5(U4-1~9).
 
-- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(184 통과) · `cd front/web && npm test`(20 통과) ④ T-089 Brief → 사용자 승인
-- **마지막 migration: M11**(T-088 은 DB 변경 없음). 다음 DB 변경은 M12
+- **다음 세션 시작 순서**: ① Docker Desktop 켜기 ② `docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait` ③ `cd back && npm test`(211 통과) · `cd front/web && npm test`(27 통과) ④ T-090 Brief → 사용자 승인
+- **마지막 migration: M12**. 다음 DB 변경은 M13
+- 기술 부채 2건(사용자 결정 2026-10-07, T-089 blocker 아님): ① `X-CERA-Actor-Id` 승인자 헤더는 인증 전 임시 장치 — 인증 구현에서 교체 ② 메시지 상태 전이 순서는 DB 가 완전히 강제하지 않음 — T-090 발송 lifecycle 구현 때 실제 전이 규칙과 함께 검토
 - 계약 갱신 순서: `back` `npm run openapi:emit` → `front/web` `npm run openapi:types` → 둘 다 커밋
 - 서버를 끈 뒤 node 자식 프로세스가 3100/3000 을 잡고 남을 수 있다 — 확인 전 포트를 본다
 
@@ -29,7 +30,7 @@ T-088 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.4(U3-1~U3-6).
 
 ## 다른 PC 로 옮길 때 (Google Drive 복사 — remote 없음)
 
-**이 저장소는 remote 가 없다. Google Drive 폴더 복사가 유일한 이전 수단이다.** `node_modules`(back · front/web)와 `back/dist` 는 복사하지 않고 새 PC 에서 `npm install` · `npm run build`. `back/.env` · `infra/local/.env`(gitignore)와 `.git/` 은 **반드시 함께 복사**(author `dong3114` 설정이 `.git` 안에 있다). Docker 볼륨은 따라가지 않는다 — 새 PC 에서 `up -d --wait` → `cd back && npm run db:migrate && npm run db:seed`. 미커밋 작업(`front/web/` 12 · `data/Proposal/` · `scripts/` · **T-086 전체**)은 폴더째 복사하면 따라간다. 준비물: Node ≥ 22.12 · Docker Desktop · 포트 55442.
+**이 저장소는 remote 가 없다. Google Drive 폴더 복사가 유일한 이전 수단이다.** `node_modules`(back · front/web)와 `back/dist` 는 복사하지 않고 새 PC 에서 `npm install` · `npm run build`. `back/.env` · `infra/local/.env`(gitignore)와 `.git/` 은 **반드시 함께 복사**(author `dong3114` 설정이 `.git` 안에 있다). Docker 볼륨은 따라가지 않는다 — 새 PC 에서 `up -d --wait` → `cd back && npm run db:migrate && npm run db:seed`. 미커밋 작업(`data/Proposal/` · `scripts/`)은 폴더째 복사하면 따라간다. 준비물: Node ≥ 22.12 · Docker Desktop · 포트 55442.
 
 ## 지금 확정된 상태
 
@@ -50,11 +51,11 @@ T-088 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.4(U3-1~U3-6).
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-086 커밋(`feat: add CERA persistence foundation`, 해시는 `LOG.md` 맨 위) — 그 전 `b7103de`(T-085) |
+| 최신 커밋 | T-089 커밋(`feat: add human approval workflow`, 해시는 `git log -1`) — 그 전 `36ae8b2`(T-088) |
 | remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
 | working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
-| last updated | 2026-10-06 (T-088 DONE · 커밋, CURRENT IDLE) |
-| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-088 |
+| last updated | 2026-10-07 (T-089 DONE · 커밋, CURRENT IDLE) |
+| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-089 |
 
 ## 다음 한 걸음
 
@@ -65,7 +66,8 @@ T-088 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.4(U3-1~U3-6).
 5. ~~T-086 — U1 영속 기반~~ **DONE (2026-10-06, 커밋)**
 6. ~~T-087 — U2 등록부 · Contact Gate~~ **DONE (2026-10-06, 커밋)**
 7. ~~T-088 — U3 초안 · 구조화 값 · 숫자 검사~~ **DONE (2026-10-06, 커밋)**
-8. **T-089 — U4 승인 · 무효화** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-090 ~ T-096 (U5 ~ U11). Q-65(솔버)는 어느 단계도 막지 않는다
+8. ~~T-089 — U4 승인 · 무효화~~ **DONE (2026-10-07, 커밋)**
+9. **T-090 — U5 Outbox · Mock 발송** ← 다음(실행 가능, 아직 시작 안 함). 그 뒤 T-091 ~ T-096 (U6 ~ U11). Q-65(솔버)는 어느 단계도 막지 않는다
 
 ## 다음 Orchestrator 가 먼저 알아야 할 것
 

@@ -212,7 +212,7 @@
 
 | 컬럼 | 재료 종류 · 판 | 재료 | 바이트/JCS | UNIQUE |
 | --- | --- | --- | --- | --- |
-| `comm_message.content_hash` | `msg-content/1` | `to_address_id` · 제목 · 안전한 텍스트 본문 · 구조화 값 목록(`field_key` 정렬, 값·단위) | JCS | 아니오 |
+| `comm_message.content_hash` | `msg-content/1` | `to_address_id` · 제목 · 안전한 텍스트 본문 · 구조화 값 목록(`field_key` 정렬, 값·단위) — **구현 `back/src/communication/message-content.ts`(T-089, 18.5 U4-1)** | JCS | 아니오 |
 | `message_approval.approved_content_hash` | `msg-content/1` | 승인 사본으로 같은 함수 | JCS | 아니오 |
 | `send_attempt.sent_content_hash` | `msg-content/1` | BUSINESS = 유효 승인의 값 · CV = 메시지 `content_hash`(I-3 · I-3b) | JCS | 아니오 |
 | `raw_input.payload_hash` | 바이트 | 원문 바이트(RFC822 등) | 바이트 | **아니오**(11.1) |
@@ -367,6 +367,7 @@ evk/1 = sha256(JCS({
 | `fn_cera_guard_extraction_review()` — `BEFORE UPDATE` | `extraction` | `PENDING` → 종료 한 번 |
 | `fn_cera_guard_send_attempt_insert()` — `BEFORE INSERT` | `send_attempt` | **I-9 · I-3 · I-3b**(BUSINESS: 유효한 승인 여섯 조건을 `NEW.started_at` 기준으로 · 지문 = `approved_content_hash` · 수신자 일치 / CV: 승인 NULL · 지문 = 메시지 `content_hash`) + **새 시도 조건**: 그 메시지에 `SUCCESS` · `PERMANENT_FAILURE` 시도가 있으면 거부 · `attempt_no` = 이전 최대 + 1 |
 | `fn_cera_guard_approval_insert()` — `BEFORE INSERT` | `message_approval` | 무효화 대상이 APPROVED · CV 메시지 승인 금지(I-10) · 결정 주체 `HUMAN`(`INVALIDATED` 는 `SYSTEM` 허용 — AI 는 승인하지 않는다) · 계획 기반이면 `approved_plan_run_id` · 내용이 있으면 `approved_content_ref` |
+| **`fn_cera_guard_approval_decision()`** — `BEFORE INSERT`(**M12**, T-089) | `message_approval` | 메시지 행 `FOR UPDATE`(결정 줄 세움) · `APPROVED`: 메시지 `PENDING_APPROVAL`/`APPROVED` · 승인 지문 = 메시지 지문 · 그 시각 살아 있는 승인 없음 · 계획 기반이면 근거 실행 미교체(`fn_cera_lock_plan_run` advisory lock 뒤 확인) · `REJECTED`/`REVISION_REQUESTED`: 메시지 `PENDING_APPROVAL` · `REVOKED`/`INVALIDATED`: 성공 · 미확정 발송 시도 없음(18.5 U4-2) |
 | `fn_cera_check_approval_copies()` — **지연 제약 트리거**(커밋 시) | `message_approval` · `message_approval_structured_field` · `comm_message_structured_field` | APPROVED 의 구조화 값 사본 = 메시지 구조화 값 · **계획 기반 승인: 메시지 값의 `source_run_id` 는 한 실행뿐이고 `approved_plan_run_id` = 그 실행**(`source_run_id` 없는 값만 있으면 계획 무관 승인) |
 | `fn_cera_guard_message_children_insert()` — `BEFORE INSERT` | `comm_message_structured_field` · `comm_message_question` | 메시지 `BUSINESS` · `current_status = DRAFTED` · 같은 스레드(I-10 규칙 4·5) |
 | `fn_cera_guard_approval_copy_insert()` — `BEFORE INSERT` | `message_approval_structured_field` | 부모 decision ∈ (APPROVED, REJECTED, REVISION_REQUESTED) |
@@ -672,6 +673,27 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | U3-4 | 인증이 아직 없어 상태 전이 행위자는 시드 SYSTEM actor 다(운영자 수정도). 사람 행위자 기록은 인증이 생기는 단위에서 |
 | U3-5 | 값의 출처: `source_path` 가 있는 값만 `source_run_id` 를 받는다(나머지는 계획 무관). 실행은 메시지당 하나(T-086 U1-11 과 같은 규칙). **값이 그 실행의 부족분과 실제로 같은지는 아직 대조하지 않는다** — 실행의 부족분이 DB 에 없다(계획 결과 저장은 Solver · 계획 단위) |
 | U3-6 | `TRUCK_SLOT` 에서 대상을 주지 않으면 그 운송사 소유 트럭 풀(정확히 하나)을 Backend 가 고른다. 다른 운송사의 트럭은 물을 수 없다(422) |
+
+### 18.5 U4 구현 확인 결과 (T-089 · 2026-10-07)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **M12 = `0011_m12_approval_guards.sql`**(custom) — 함수 **19**(+2: `fn_cera_guard_approval_decision` · `fn_cera_lock_plan_run`) · 트리거 **73**(+1) · 이력 12행 · 표 29 그대로 · 재실행 안전. **새 표 · 새 열 · 새 상태 코드 0** — P0 승인 표 2개(`message_approval` · `message_approval_structured_field`)를 그대로 쓴다 |
+| API | `POST /communication/drafts/{messageId}/approve`(요청 = 운영자가 본 `content_hash`) · `POST /communication/drafts/{messageId}/reject`(사유 필수) · `POST /communication/approvals/{approvalId}/revoke` · `GET /communication/approvers`. 결정 명령은 헤더 `X-CERA-Actor-Id`(활성 HUMAN actor 인지 서버가 확인) |
+| 읽기 | `DraftDto.approval`(상태 `NONE · ACTIVE · EXPIRED · REVOKED · INVALIDATED · REJECTED` · `usable_for_send` = 15.5.1 여섯 조건 · 승인 사본 · 끝낸 행 · 반려 · 이력) · `DraftDto.revision`(이전 · 다음 수정본 · "내용 변경으로 재승인 필요") · `blocked_reasons` 8종 |
+| 판정 | 순수 모듈 `communication/approval-rules.ts`(유효한 승인 · 승인 불가 이유) · `communication/message-content.ts`(`msg-content/1` · 내용 문서) — import 는 시간 타입뿐 |
+
+| # | 구현 메모 |
+| --- | --- |
+| U4-1 | **T-088 의 `content_hash` 가 8.2 와 달랐다** — 제목 · 본문 바이트만 해시했다. 8.2 `msg-content/1`(받는 주소 · 제목 · 본문 · 구조화 값 `field_key` 정렬, 값 · 단위, JCS)로 고쳤다. 내용 문서도 JCS `{subject, body_text}`(16절). T-088 때 만든 로컬 초안은 읽을 수 있지만(옛 `{subject, body}` 도 읽음) 다시 계산한 지문과 맞지 않아 승인할 수 없다(`CONTENT_HASH_MISMATCH`) |
+| U4-2 | **M12 메시지 단위 가드**(`BEFORE INSERT message_approval`, M08 가드보다 먼저): 메시지 행 `FOR UPDATE` 로 같은 메시지의 결정을 줄 세움 · `APPROVED` 는 메시지가 `PENDING_APPROVAL` 또는 `APPROVED`(재승인)일 때만, 승인 지문 = 메시지 지문, 그 시각(`NEW.decided_at`)에 살아 있는 승인이 없을 때만(FR-APV-10) · 계획 기반이면 근거 실행이 새 실행으로 교체되지 않았을 때만 · `REJECTED` 는 승인 대기 메시지에만 · `REVOKED` · `INVALIDATED` 는 성공 · 미확정 발송 시도가 없을 때만(FR-APV-08 · 12) |
+| U4-3 | **승인 = 그 순간의 내용**: 요청이 `content_hash` 를 가져오고, 행에 지문 · 수신자 · `approved_plan_run_id` · 제목 · 본문 사본(`MESSAGE_APPROVAL_CONTENT`, 트랜잭션 밖에서 먼저 저장 — 12절 T2) · 구조화 값 사본을 고정한다. 읽을 때 사본을 다시 해시해 `copy_verified` 로 보여준다. 유효 기한 = `CERA_APPROVAL_TTL_MINUTES`(기본 1440, [ASSUMPTION]) |
+| U4-4 | **승인 직전 재검증**(트랜잭션 밖 → 잠근 뒤 다시): 대체된 수정본(`MESSAGE_SUPERSEDED`) · 지문(`CONTENT_CHANGED`) · 살아 있는 승인(같은 지문이면 그 승인을 돌려준다 — 멱등) · 내용 부재 · 지문 재계산 · 숫자 검사(422 `NUMBER_CHECK_FAILED`) · Contact Gate(403) · 계획 교체(`PLAN_SUPERSEDED`) · 상태. 동시 요청은 메시지 행 잠금 뒤 다시 본 승인 행으로 하나만 남는다(API 인스턴스 2개로 시험) |
+| U4-5 | **상태 코드는 늘리지 않았다**(`docs/22` 15.8.1). 반려 = `PENDING_APPROVAL → REJECTED`. 승인 취소 · 무효화는 새 행이고 메시지 상태는 `APPROVED` 그대로(`PENDING_APPROVAL` 로 돌아가지 않는다) — 재승인은 같은 메시지에 새 `APPROVED` 행 + `APPROVED` 전이 한 줄(이력). 수정본이 생기면 이전 메시지는 `CLOSED`(T-088 U3-3 규칙을 `APPROVED` · `REJECTED` 에서도 씀 — `docs/18` E.1 상태도에 없는 화살표 `APPROVED → CLOSED` · `REJECTED → CLOSED`) |
+| U4-6 | **변경 후 재승인**: 수정(본문 · 구조화 값)은 새 메시지 + 같은 트랜잭션에서 이전 메시지의 살아 있는 승인에 `INVALIDATED(CONTENT_CHANGED)`(SYSTEM) + 이전 메시지 `CLOSED` + `current_approval_id = NULL`. 값 수정: 질문 대상을 정하는 값(날짜 · 시간창 · 규격)은 바꿀 수 없다(422 `QUESTION_TARGET_CHANGED` — 새 문의로). 바꾼 값은 계획 출처를 잃는다(계획 숫자로 위장하지 않는다), 같은 값은 출처를 이어받는다 |
+| U4-7 | **계획 교체**(FR-APV-06): `PlanSupersessionService.invalidateForNewRun(tx, newRunId, systemActorId)` — 새 실행 등록 트랜잭션 안에서 부른다(HTTP 없음 — 실행 등록은 Solver · 계획 단위). 옛 실행 근거의 살아 있는 · 미발송 승인에 `INVALIDATED(PLAN_SUPERSEDED)`. 승인 쪽과 같은 advisory lock(`fn_cera_lock_plan_run` — `recovery_run` 은 앱 역할에 UPDATE 가 없어 행 잠금 불가)으로 줄 세운다. 승인 전 초안은 승인 시점 검사가 막는다 |
+| U4-8 | **승인자**: 인증 전 개발용 헤더 `X-CERA-Actor-Id`. 서버가 활성 HUMAN actor 인지 확인하고, DB 가드(M08)가 다시 HUMAN 을 강제한다. **누구나 헤더로 다른 운영자를 사칭할 수 있다** — 인증 단위에서 교체해야 하는 남은 위험. 시스템 무효화(내용 변경 · 계획 교체)와 상태 전이 일부는 SYSTEM actor(U3-4 그대로) |
+| U4-9 | 기존 시험 조정: M12 가 `DRAFTED` 메시지 승인 · 살아 있는 승인 위 승인 · 다른 지문 승인을 거부하게 되어 fixture `approve()` 가 먼저 `PENDING_APPROVAL` 전이를 넣고, "승인 뒤 값 추가 → CE006" 두 시험은 상태를 `DRAFTED` 로 되돌린 뒤 값을 넣는다(전이 순서는 아직 DB 가 강제하지 않는다 — 그래도 커밋 검사가 잡는지 확인). OpenAPI 매개변수 순서를 경로 → 쿼리 → 헤더로 고정(tsx · vitest 의 decorator 순서 차이) |
 
 
 

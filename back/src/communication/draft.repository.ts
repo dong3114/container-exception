@@ -74,7 +74,7 @@ export class DraftRepository {
       })
       .from(recoveryRun)
       .innerJoin(planningSnapshot, eq(planningSnapshot.snapshotId, recoveryRun.snapshotId))
-      .orderBy(desc(recoveryRun.executedAt))
+      .orderBy(desc(recoveryRun.executedAt), desc(recoveryRun.runId))
       .limit(limit);
   }
 

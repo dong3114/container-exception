@@ -21,6 +21,16 @@
 
 ---
 
+## 2026-10-07 · T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add human approval workflow`, 이 항목과 같은 커밋). 기준 HEAD `36ae8b2`. push 없음. T-090 시작 안 함
+- 사용자 결정(2026-10-07): ① 승인자 = 헤더 `X-CERA-Actor-Id`(서버가 활성 HUMAN 확인) ② 구조화 값 변경 = 수정 API `values`(바뀐 값은 계획 출처를 뗀다) ③ 계획 교체 = 도메인 함수 + 승인 시 검사(HTTP 없음) ④ 승인 유효 기한 기본 24시간
+- 한 일: 승인은 운영자가 본 `content_hash` 에 대한 것 — 지문 · 수신자 · 계획 실행 · 제목 · 본문 · 구조화 값 사본 · 승인자 · 시각 고정. 승인 직전 재검증(최신 수정본 · 지문 · 숫자 검사 · Contact Gate · 계획 교체). 수정 = 새 메시지 + 옛 승인 `INVALIDATED(CONTENT_CHANGED)`. 반려(사유 필수) · 취소(`REVOKED`) · 재승인. **M12**(메시지 행 잠금 · 살아 있는 승인 1건 · 지문 일치 · 상태 · 계획 교체 거부 · 나간 메시지 취소 불가). 프론트 승인 영역
+- 발견 · 처리: **T-088 `content_hash` 가 `docs/24` 8.2 와 달랐다**(제목 · 본문만) → 정본 `msg-content/1` 로 수정(T-088 로컬 초안은 승인 불가 — 새로 만들면 됨) · OpenAPI 매개변수 순서가 tsx/vitest 에서 달라 고정 · M12 에 맞게 기존 시험 4곳 조정(`docs/24` 18.5 U4-9)
+- 검증: Backend `npm test` **211**(184 + 27) · typecheck · build · `drizzle-kit check` · Front `npm test` **27** · typecheck · lint 오류 0 · build · validate · smoke · 헤드리스 Edge 승인 흐름 · `git diff --check`
+- 기술 부채 2건(사용자 결정 2026-10-07, T-089 blocker 아님): ① `X-CERA-Actor-Id` 승인자 헤더는 인증 전 임시 장치 — 인증 구현에서 교체 ② 메시지 상태 전이 순서는 DB 가 완전히 강제하지 않음 — T-090 발송 lifecycle 구현 때 실제 전이 규칙과 함께 검토
+- 다음: **T-090(U5)** — Outbox · Mock 발송 · 발송 직전 `isUsableForSend`(15.5.1) + Contact Gate 재확인 · 새 실행 등록 경로에서 `invalidateForNewRun` 호출
+- 큐 변경: T-089 `DONE`
+
 ## 2026-10-06 · T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add communication draft validation flow`, 이 항목과 같은 커밋). 기준 HEAD `c7cdb5b`. push 없음. T-089 시작 안 함
 - 한 일: `POST /communication/drafts` — Contact Gate → 값 형식 · 출처 → Backend 가 질문 대상 확정 → 템플릿 문장(AI 없음) → 순수 숫자 검사 → 내용 저장소(트랜잭션 밖) → 한 트랜잭션(스레드 · 질문 · 메시지 · 구조화 값 · 상태 전이). 통과한 초안만 `PENDING_APPROVAL`. 본문 수정 = 새 메시지 + 재검사(이전 `CLOSED`). 읽기 · 목록 · 계획 실행 · 시설 목록 endpoint. OpenAPI + 생성 타입. 프론트 "문의 초안" 카드(이 영역만 실제 API) · `.act-btn`

@@ -6,12 +6,17 @@ import { CONTENT_CATEGORIES, type ContentCategory } from '../db/schema/_common.j
  */
 export const AUDIT_ACTION = {
   CONTENT_PURGED: 'CONTENT_PURGED',
+  // T-089 U4 발송 승인(G4 — Event 가 아니라 결정 기록 + 감사, docs/18 E.4)
+  MESSAGE_APPROVED: 'MESSAGE_APPROVED',
+  MESSAGE_REJECTED: 'MESSAGE_REJECTED',
+  APPROVAL_REVOKED: 'APPROVAL_REVOKED',
+  APPROVAL_INVALIDATED: 'APPROVAL_INVALIDATED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];
 
-/** 감사 대상 종류. 내용 파기 감사는 내용 범주를 그대로 쓴다(docs/24 16.3 · 17절). */
-export const AUDIT_TARGET_TYPES: readonly ContentCategory[] = CONTENT_CATEGORIES;
-export type AuditTargetType = ContentCategory;
+/** 감사 대상 종류. 내용 파기 감사는 내용 범주를 그대로 쓴다(docs/24 16.3 · 17절). 승인 결정은 승인 행을 가리킨다. */
+export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL')[] = [...CONTENT_CATEGORIES, 'MESSAGE_APPROVAL'];
+export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL';
 
 export const SYSTEM_ERROR_CATEGORY = {
   UNEXPECTED: 'UNEXPECTED',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { apiRequest } from "./client";
 import { DEFAULT_API_BASE, apiUrl, resolveApiBase } from "./config";
+import { approveDraft } from "./drafts";
 import { ApiError } from "./errors";
 
 describe("API base URL (no hard-coded backend host)", () => {
@@ -84,5 +85,23 @@ describe("apiRequest", () => {
   it("an error status without the common body still becomes an HTTP ApiError", async () => {
     const call = apiRequest("/x", {}, fakeFetch(async () => new Response("<html>bad gateway</html>", { status: 502 })));
     await expect(call).rejects.toMatchObject({ kind: "HTTP", status: 502, code: "HTTP_502", retryable: true });
+  });
+});
+
+describe("approval command (T-089)", () => {
+  it("sends only the reviewed content hash and the operator header — the screen never claims approval itself", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = ((url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return Promise.resolve(jsonResponse(200, { ok: true }));
+    }) as unknown as typeof fetch;
+    const hash = `sha256:${"c".repeat(64)}`;
+    await approveDraft("msg-1", hash, "actor-1", undefined, fetchImpl);
+    expect(calls).toHaveLength(1);
+    const { url, init } = calls[0] as { url: string; init: RequestInit };
+    expect(url).toMatch(/\/communication\/drafts\/msg-1\/approve$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ content_hash: hash });
+    expect((init.headers as Record<string, string>)["X-CERA-Actor-Id"]).toBe("actor-1");
   });
 });
