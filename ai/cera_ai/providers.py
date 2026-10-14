@@ -4,8 +4,9 @@
   request document (reply-extract/1), so the same input always gets the same recorded answer. Used for the Slice 1
   mock loop and tests (T-069 7.1). Its model_version is ``replay:<fixture version>`` (docs/24 22.22) — the screen
   shows it as "recorded replay — LLM not run".
-* ``LiveProviderSlot`` — the place a real provider adapter goes. **The provider/model is not decided**
-  (ADR-033 open item), so it refuses to run until an adapter is added and selected. It never invents a vendor.
+* ``LiveProviderSlot`` — what ``live`` mode returns when no adapter is selected. **The provider/model is not decided**
+  (ADR-033 open item), so it refuses to run. Adapters (T-099 evaluation) live in ``llm_adapters.py`` and run only when
+  ``CERA_LLM_PROVIDER`` and ``CERA_LLM_MODEL`` are both set. It never invents a vendor.
 """
 
 from __future__ import annotations
@@ -96,5 +97,11 @@ def provider_from_env() -> LlmProvider:
         default_dir = Path(__file__).resolve().parent.parent / "fixtures" / "replay"
         return ReplayProvider(Path(os.environ.get("CERA_AI_REPLAY_DIR", str(default_dir))))
     if mode == "live":
+        # T-099: an adapter runs only when both are set explicitly; choosing them for production is an ADR decision.
+        vendor, model = os.environ.get("CERA_LLM_PROVIDER"), os.environ.get("CERA_LLM_MODEL")
+        if vendor and model:
+            from .llm_adapters import make_provider
+
+            return make_provider(vendor, model)
         return LiveProviderSlot()
     raise ValueError(f"CERA_LLM_MODE must be replay or live, got {mode!r}")

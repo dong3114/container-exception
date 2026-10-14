@@ -10,9 +10,27 @@
 
 ## Status
 
-**IDLE** — **T-092 (U7 회신 추출 파이프라인) DONE** (2026-10-07 사용자 승인 · 커밋, Claude Code claude-opus-5-5). 진행 중인 Task 는 없다. **다음은 T-099(실제 AI 공급자 검증 + CERA 추출 평가셋)** — 그 뒤 T-093(U8). **아직 시작하지 않았다.**
+**IMPLEMENTING — T-099 (실제 AI 공급자 검증 + CERA 평가셋)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-12 세션 중단(사용자 요청). **커밋 · staging 없음.** T-093 시작 안 함.
 
-T-092 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.8(U7-1~7), AI Server 는 `ai/README.md`.
+### T-099 인계 (2026-10-12)
+
+- 원칙(사용자 지시): 모델 평가가 목적 — AI 권한 추가 없음 · Backend · DB · 화면 변경 없음 · Generative(값 + 원문 근거)와 Decision(의미 판단)을 분리 · 임계값은 결과를 보고 정하고 이번에 확정하지 않음 · LangChain · Agent framework · RAG 금지
+- **한 일 (미커밋, 모두 `ai/` 안)**:
+  - 평가셋 `ai/evals/datasets/cera-reply-eval-v1/` — `source.py`(사람이 고치는 원본, 루브릭 일관성 검사 포함) → `cases.jsonl`(생성, 141건 · A~N 14범주 · ko 128 / en 9 / mixed 4 · 정답 추출값 138 · 검토 필요 59). 정답은 Orchestrator 가 루브릭으로 작성 — 모델 출력에서 가져오지 않았다. **전부 `DRAFT_NEEDS_HUMAN_REVIEW`**(Claude 계열이 후보이므로 사람 검토 필요). **README.md(루브릭 R1~R6 설명)는 아직 안 씀**
+  - 생성형 어댑터 `ai/cera_ai/llm_adapters.py`(Anthropic `output_config.format` · OpenAI Responses `json_schema` strict · Gemini `response_json_schema`, SDK 지연 import, 키는 환경변수만). `providers.py` 의 live 모드는 `CERA_LLM_PROVIDER` + `CERA_LLM_MODEL` 둘 다 있을 때만 어댑터 사용(기본 replay 그대로)
+  - Decision `ai/cera_ai/decision.py` — 질문 4개(answer_type · commitment · answers_question · needs_human_review) · Jev(OpenRouter `POST /api/alpha/decisions`, `typesafe/jev-1.13`) · LLM 판정 · HF NLI · 기저율 · 녹화 재생
+  - 실행기 `ai/cera_ai/evals/`(`python -m cera_ai.evals validate|estimate|extract|decide|rescore|report`) — 실행 결과는 `ai/evals/runs/<id>/`(run.json · outputs.jsonl · metrics.json · per_case.csv). Backend 검증기 Python 포팅으로 "맞은 값을 Backend 가 통과시키는가"도 측정. 가격표 `evals/pricing.py`(공식 페이지 2026-10-12 확인)
+  - `ai/.env.example`(변수명만) · 평가 CLI 는 `ai/.env`(gitignore) 를 읽는다 · 시험 `ai/tests/test_evals.py` → **pytest 26 통과**(7 + 19). 이 PC 에서 pytest 는 `--basetemp <scratch>` 필요(Temp 권한)
+- **실제 호출: 0건.** 환경에 키 없음(ANTHROPIC · OPENAI · GEMINI · OPENROUTER 모두 unset)
+- **Blocker**: ① 키 — 사용자가 `ai/.env` 를 채워야 한다(대화창에 붙이지 않음). 키 질문 · 비용 상한 질문에 사용자가 "먼저 확인하고 싶다"고 해서 답을 받지 못했다 — 다음 세션에서 사용자가 무엇을 확인하려 했는지부터 묻는다 ② HF NLI — 모델(`MoritzLaurer/bge-m3-zeroshot-v2.0-c`) 다운로드는 됐으나 Windows 애플리케이션 제어 정책이 scipy DLL(`_vode`)을 차단해 실행 불가(우회하지 않음)
+- 조사 결과(공식 문서, 2026-10-12): 후보 쌍 Anthropic `claude-opus-5-5`($4/$20) ↔ `claude-haiku-5-5`($0.10/$0.50) · OpenAI `gpt-6.1-sol`($2/$10) ↔ `gpt-6-luna`($0.10/$0.50) · Gemini `gemini-3.8-flash`($0.75/$3.75) ↔ `gemini-3.1-flash-lite`($0.25/$1.50) · Jev 입력 $0.042/1M · 출력 무료(2차 출처 — `[TO VERIFY]`), 독점 모델(가중치 비공개). HF 상용 후보 `bge-m3-zeroshot-v2.0-c`(MIT · 상업 친화 데이터 · 다국어) · 연구용만 `mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`(MIT 표기지만 XNLI · ANLI 비상업 데이터 학습). 141건 추정 비용: 저가 모델 ~$0.1~0.4 · 강한 모델 ~$2~4 · Jev ~$0.02
+- 이미 보인 발견(후속 Task 후보, 아직 큐 미등록): 계약 `reply-extract/1` 에 답의 **날짜 칸이 없다**(다른 날짜 값 I05 · I08 · I11 을 표현 못 함) · Backend 검증기가 `after 3 PM` · `오후 세 시` · `15~17시`의 시작 · `3시`(오전/오후 없음)를 VALUE_NOT_IN_QUOTE 로 거른다
+- **다음 한 걸음**: ① 사용자 확인 사항 듣기 → 키 · 비용 상한 확정 ② 모델마다 5건 표본 → 전체 141건 ③ Decision(Jev · LLM 판정, HF 는 실행 환경 결정 후) ④ `report` 로 비교표 · 데이터셋 README · `ai/README.md` 갱신 · 공급자 선택 ADR(Proposed) ⑤ 사용자에게 보고(staging 0 · commit 없음). **최종 보고 형식은 사용자 지시 21절(1~20 항목 + 마지막 줄 `CERA T-099 MODEL EVAL REVIEW READY`)**
+- 건드리지 않음: `data/Proposal/` · `scripts/` · T-098
+
+---
+
+(이전 상태) T-092 경과는 `LOG.md` 맨 위, 구현 메모는 `docs/24` 18.8(U7-1~7), AI Server 는 `ai/README.md`.
 
 - **순서(사용자 결정 2026-10-07)**: T-099 공급자 검증(평가셋으로 값 · 근거 정확도 · 범위 위반 · 스키마 실패 · 조건부 표현 · 지연 · 비용 비교 — 감으로 고르지 않는다) → T-093(사건 · PROVISIONAL) → … · T-098(역할별 실제 화면 · 인증)은 큐에 유지
 - **실제 LLM 은 아직 호출하지 않았다**(공급자 미정, ADR-033). 지금 AI Server 는 녹화 재생(`CERA_LLM_MODE=replay`)
