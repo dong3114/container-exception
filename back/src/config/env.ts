@@ -65,7 +65,7 @@ export const envSchema = z.object({
   CERA_AI_TIMEOUT_MS: z.coerce.number().int().min(500).max(300_000).default(20_000),
   // 같은 회신의 추출 시도 한도(기술 실패 기준) [ASSUMPTION]
   CERA_EXTRACTION_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
-  // ── 공공 데이터(docs/11 3절 · T-102 예정) — Main Backend 의 Public Data Adapter 만 부른다. Agent 는 직접 부르지 않는다(ADR-036 Proposed) ──
+  // ── 공공 데이터(docs/11 3절 · T-102 예정) — Main Backend 의 Public Data Adapter 만 부른다. Agent 는 직접 부르지 않는다(ADR-036) ──
   // off = 호출 없음(기본) · replay = 마스킹 fixture 재생(네트워크 없음) · live = 실제 API(키가 있는 출처만, 없으면 그 출처 호출이 PUBLIC_DATA_KEY_MISSING)
   CERA_PUBLIC_DATA_MODE: z.enum(['off', 'replay', 'live']).default('off'),
   // DS-01 UNI-PASS 인증키(crkyCn) — unipass.customs.go.kr 에서 발급. 비밀값: 로그 · 오류에 남기지 않는다
@@ -73,11 +73,13 @@ export const envSchema = z.object({
   // DS-02 · DS-03 공공데이터포털 serviceKey(디코딩 값을 넣는다 — URL 인코딩은 어댑터가 한다)
   DATA_GO_KR_SERVICE_KEY: optionalSecret,
   CERA_PUBLIC_DATA_TIMEOUT_MS: z.coerce.number().int().min(500).max(120_000).default(10_000),
+  // 조회 한 번에 받는 최대 페이지 수(한 페이지 50행). 개발계정 일일 한도(DS-02 1,000 · DS-03 10,000)를 지키는 상한 [ASSUMPTION]
+  CERA_PUBLIC_DATA_MAX_PAGES: z.coerce.number().int().min(1).max(200).default(20),
   // 원본 응답 보존 위치(gitignore 된 data/raw/ 아래). 실제 B/L · 원본 응답은 커밋하지 않는다(규칙 5 · Q-17)
   CERA_PUBLIC_DATA_RAW_DIR: z.string().min(1).default('../data/raw/public-data'),
   // replay 모드가 읽는 마스킹 fixture 위치(커밋 가능한 합성 · 마스킹본만)
   CERA_PUBLIC_DATA_REPLAY_DIR: z.string().min(1).default('../data/fixtures/public-data'),
-  // ── Agent Tool API(T-103 예정 · ADR-036 Proposed) — Python Agent Runtime 이 Backend 의 typed Tool 을 부를 때만 쓴다 ──
+  // ── Agent Tool API(T-103 예정 · ADR-036) — Python Agent Runtime 이 Backend 의 typed Tool 을 부를 때만 쓴다 ──
   // false(기본)면 Tool 엔드포인트를 열지 않는다. Agent 는 권한 주체가 아니다 — Tool 이 Backend 권한 검사를 그대로 거친다
   CERA_AGENT_TOOLS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // Agent Runtime → Backend 서비스 토큰(32자 이상). 사람 사용자 권한을 대신하지 않는다(승인 · 확인은 사람만)

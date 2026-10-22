@@ -258,6 +258,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public-data/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public data mode (OFF · REPLAY · LIVE) and which datasets are callable now — never shows keys */
+        get: operations["PublicDataController_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public-data/vessel-calls/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** DS-03: fetch Busan vessel calls for a date range (arrival basis), keep the raw response, register vessel calls and record PUBLIC_API events */
+        post: operations["PublicDataController_fetchVesselCalls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public-data/vessel-calls/{vesselCallId}/manifest/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** DS-02: fetch the import container manifest of one registered vessel call (B/L ↔ container · ISO size type) */
+        post: operations["PublicDataController_fetchManifest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public-data/vessel-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Registered vessel calls with their latest public observations (not reconciled current facts) */
+        get: operations["PublicDataController_listVesselCalls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public-data/vessel-calls/{vesselCallId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One vessel call and its manifest containers, each with provenance */
+        get: operations["PublicDataController_vesselCall"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public-data/fetches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public API call ledger — what was asked, when, and what came back (including failures). No keys. */
+        get: operations["PublicDataController_fetches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -813,6 +915,212 @@ export interface components {
         };
         RunListDto: {
             runs: components["schemas"]["RunSummaryDto"][];
+        };
+        PublicDataDatasetStatusDto: {
+            /** @enum {string} */
+            dataset: "MOF_VESSEL_CALL" | "MOF_CONTAINER_MANIFEST";
+            operation: string;
+            /** @description Callable now (key configured for LIVE, fixtures present for REPLAY) */
+            available: boolean;
+        };
+        PublicDataStatusDto: {
+            /** @enum {string} */
+            mode: "OFF" | "REPLAY" | "LIVE";
+            max_pages: number;
+            datasets: components["schemas"]["PublicDataDatasetStatusDto"][];
+        };
+        FetchVesselCallsRequestDto: {
+            /**
+             * Format: date
+             * @description Search start (Asia/Seoul calendar date, arrival basis)
+             * @example 2026-10-20
+             */
+            from: string;
+            /**
+             * Format: date
+             * @description Search end (inclusive, at most 31 days after from)
+             * @example 2026-10-21
+             */
+            to: string;
+            /**
+             * @description Call sign — one vessel only
+             * @example D7AB1
+             */
+            call_sign?: string | null;
+        };
+        FetchPageDto: {
+            /** Format: uuid */
+            fetch_id: string;
+            page_no: number;
+            /** @enum {string} */
+            outcome: "SUCCESS" | "NO_DATA" | "UPSTREAM_ERROR" | "TRANSPORT_ERROR" | "PARSE_ERROR";
+            http_status: number | null;
+            result_code: string | null;
+            item_count: number | null;
+            /** Format: uuid */
+            raw_input_id: string | null;
+        };
+        NormalizationIssueDto: {
+            item_index: number | null;
+            /** @example CONTAINER_CHECK_DIGIT_MISMATCH */
+            code: string;
+        };
+        FetchSummaryDto: {
+            /** @enum {string} */
+            dataset: "MOF_VESSEL_CALL" | "MOF_CONTAINER_MANIFEST";
+            /** @enum {string} */
+            mode: "LIVE" | "REPLAY";
+            /** @enum {string} */
+            outcome: "SUCCESS" | "NO_DATA" | "UPSTREAM_ERROR" | "TRANSPORT_ERROR" | "PARSE_ERROR";
+            total_count: number | null;
+            pages: components["schemas"]["FetchPageDto"][];
+            /** @description Stopped at CERA_PUBLIC_DATA_MAX_PAGES before all rows */
+            truncated: boolean;
+            issues: components["schemas"]["NormalizationIssueDto"][];
+        };
+        ArrivalValueDto: {
+            /**
+             * Format: date-time
+             * @description Declared arrival time (port entry declaration) — not a confirmed berthing or discharge
+             */
+            at: string;
+            /** @description Declaration stage as the source writes it (e.g. 최초 · 변경 · 최종) */
+            request_kind: string | null;
+            /**
+             * @description Whether the declared time was before or after the moment CERA received it
+             * @enum {string}
+             */
+            relative_to_received: "PAST" | "FUTURE";
+        };
+        ProvenanceDto: {
+            /** @enum {string} */
+            source_type: "PUBLIC_API";
+            /** @enum {string} */
+            provider: "DATA_GO_KR";
+            /** @enum {string} */
+            dataset: "MOF_VESSEL_CALL" | "MOF_CONTAINER_MANIFEST";
+            /**
+             * @description LIVE = real public API response · REPLAY = synthetic / masked fixture
+             * @enum {string}
+             */
+            mode: "LIVE" | "REPLAY";
+            is_simulated: boolean;
+            /** @enum {string} */
+            result_kind: "PUBLIC_DATA" | "SCENARIO_RESULT";
+            /** Format: uuid */
+            fetch_id: string;
+            /** Format: uuid */
+            raw_input_id: string;
+            payload_hash: string;
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            received_at: string;
+        };
+        ArrivalObservationDto: {
+            value: components["schemas"]["ArrivalValueDto"];
+            /** Format: uuid */
+            event_id: string;
+            provenance: components["schemas"]["ProvenanceDto"];
+        };
+        BerthValueDto: {
+            /**
+             * @description Null when the source facility code is non-standard (e.g. starts with *) — the name is kept
+             * @example MBR_E2
+             */
+            code: string | null;
+            name: string | null;
+        };
+        BerthObservationDto: {
+            value: components["schemas"]["BerthValueDto"];
+            /** Format: uuid */
+            event_id: string;
+            provenance: components["schemas"]["ProvenanceDto"];
+        };
+        VesselCallDto: {
+            /** Format: uuid */
+            vessel_call_id: string;
+            /** @example 020 */
+            port_authority_code: string;
+            call_year: number;
+            /**
+             * @description Call sequence as the source writes it (zero padded)
+             * @example 003
+             */
+            call_seq: string;
+            call_sign: string;
+            vessel_name: string | null;
+            is_simulated: boolean;
+            declared_arrival: components["schemas"]["ArrivalObservationDto"] | null;
+            latest_berth: components["schemas"]["BerthObservationDto"] | null;
+            /** @description Import manifest number (MOF) */
+            manifest_no: string | null;
+            container_count: number;
+            registered_from: components["schemas"]["ProvenanceDto"];
+        };
+        VesselCallFetchResultDto: {
+            summary: components["schemas"]["FetchSummaryDto"];
+            vessel_calls: components["schemas"]["VesselCallDto"][];
+        };
+        ManifestContainerDto: {
+            /** Format: uuid */
+            container_id: string;
+            /** @example ZZZU0000017 */
+            container_no: string;
+            /** @enum {string|null} */
+            size_type: "20DRY" | "40DRY" | "40HC" | "20RF" | "40RF" | "OTHER" | null;
+            /** @example 22G1 */
+            iso_size_type: string | null;
+            bl_no: string | null;
+            /** @enum {string|null} */
+            bl_type: "MASTER" | "HOUSE" | "UNKNOWN" | null;
+            msn: string | null;
+            /** @description ISO 6346 check digit */
+            check_digit_valid: boolean;
+            is_simulated: boolean;
+            registered_from: components["schemas"]["ProvenanceDto"];
+        };
+        ManifestFetchResultDto: {
+            summary: components["schemas"]["FetchSummaryDto"];
+            vessel_call: components["schemas"]["VesselCallDto"];
+            containers: components["schemas"]["ManifestContainerDto"][];
+        };
+        VesselCallListDto: {
+            vessel_calls: components["schemas"]["VesselCallDto"][];
+        };
+        VesselCallDetailDto: {
+            vessel_call: components["schemas"]["VesselCallDto"];
+            containers: components["schemas"]["ManifestContainerDto"][];
+        };
+        FetchLedgerEntryDto: {
+            /** Format: uuid */
+            fetch_id: string;
+            /** @enum {string} */
+            dataset: "MOF_VESSEL_CALL" | "MOF_CONTAINER_MANIFEST";
+            operation: string;
+            /** @description Safe request parameters (never the service key) */
+            request_params: {
+                [key: string]: string;
+            };
+            page_no: number;
+            /** @enum {string} */
+            mode: "LIVE" | "REPLAY";
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            received_at: string | null;
+            http_status: number | null;
+            result_code: string | null;
+            /** @enum {string} */
+            outcome: "SUCCESS" | "NO_DATA" | "UPSTREAM_ERROR" | "TRANSPORT_ERROR" | "PARSE_ERROR";
+            total_count: number | null;
+            item_count: number | null;
+            /** Format: uuid */
+            raw_input_id: string | null;
+            is_simulated: boolean;
+        };
+        FetchLedgerDto: {
+            fetches: components["schemas"]["FetchLedgerEntryDto"][];
         };
         ErrorResponse: {
             /** @description Stable error code */
@@ -1469,6 +1777,255 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunListDto"];
+                };
+            };
+        };
+    };
+    PublicDataController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicDataStatusDto"];
+                };
+            };
+        };
+    };
+    PublicDataController_fetchVesselCalls: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who triggers the public API call (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FetchVesselCallsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VesselCallFetchResultDto"];
+                };
+            };
+            /** @description INVALID_DATE · INVALID_DATE_RANGE · INVALID_CALL_SIGN · ACTOR_REQUIRED · INVALID_REQUEST */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PUBLIC_DATA_DISABLED · PUBLIC_DATA_KEY_MISSING · PUBLIC_DATA_REPLAY_UNAVAILABLE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description REPLAY_FIXTURE_NOT_FOUND */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PublicDataController_fetchManifest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who triggers the public API call (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                vesselCallId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManifestFetchResultDto"];
+                };
+            };
+            /** @description INVALID_ID · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description VESSEL_CALL_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PUBLIC_DATA_DISABLED · PUBLIC_DATA_KEY_MISSING · PUBLIC_DATA_REPLAY_UNAVAILABLE · PUBLIC_DATA_SIMULATION_MISMATCH */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description REPLAY_FIXTURE_NOT_FOUND */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PublicDataController_listVesselCalls: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VesselCallListDto"];
+                };
+            };
+            /** @description INVALID_LIMIT */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PublicDataController_vesselCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vesselCallId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VesselCallDetailDto"];
+                };
+            };
+            /** @description INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description VESSEL_CALL_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PublicDataController_fetches: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FetchLedgerDto"];
+                };
+            };
+            /** @description INVALID_LIMIT */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

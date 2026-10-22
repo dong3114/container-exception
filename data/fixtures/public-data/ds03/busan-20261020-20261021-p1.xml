@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <header>
+    <resultCode>00</resultCode>
+    <resultMsg>NORMAL_SERVICE</resultMsg>
+  </header>
+  <body>
+    <items>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>041</etryptCo><clsgn>D7CR01</clsgn><vsslNm>CERA SYNTH EXPRESS</vsslNm><vsslNltyCd>KR</vsslNltyCd><vsslNltyNm>대한민국</vsslNltyNm><vsslKndCd>41</vsslKndCd><vsslKndNm>풀컨테이너선</vsslKndNm><etryptPurpsCd>01</etryptPurpsCd><etryptPurpsNm>양적하</etryptPurpsNm><frstDpmprtNatPrtCd>XXSYN</frstDpmprtNatPrtCd><frstDpmprtPrtNm>SYNTH PORT</frstDpmprtPrtNm><details>
+          <detail><reqstSeNm>최종</reqstSeNm><etryndNm>입항</etryndNm><etryptDt>2026-10-20T06:30:00+09:00</etryptDt><ibobprtNm>외항</ibobprtNm><laidupFcltyCd>SYA</laidupFcltyCd><laidupFcltySubCd>02</laidupFcltySubCd><laidupFcltyNm>합성 터미널 A 2선석</laidupFcltyNm><grtg>50000</grtg><crewCo>20</crewCo><mrNum>26SYNT0041I</mrNum><tkoffPrrrnDt>2026-10-21 22:00:00</tkoffPrrrnDt></detail>
+          <detail><reqstSeNm>최종</reqstSeNm><etryndNm>출항</etryndNm><tkoffDt>2026-10-21T22:00:00+09:00</tkoffDt><ibobprtNm>외항</ibobprtNm><laidupFcltyCd>SYA</laidupFcltyCd><laidupFcltySubCd>02</laidupFcltySubCd><laidupFcltyNm>합성 터미널 A 2선석</laidupFcltyNm><mrNum>26SYNT0041E</mrNum></detail>
+        </details></item>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>017</etryptCo><clsgn>D7CR02</clsgn><vsslNm>CERA SYNTH BRIDGE</vsslNm><vsslNltyCd>KR</vsslNltyCd><vsslNltyNm>대한민국</vsslNltyNm><vsslKndCd>41</vsslKndCd><vsslKndNm>풀컨테이너선</vsslKndNm><etryptPurpsCd>01</etryptPurpsCd><etryptPurpsNm>양적하</etryptPurpsNm><frstDpmprtNatPrtCd>XXSYN</frstDpmprtNatPrtCd><frstDpmprtPrtNm>SYNTH PORT</frstDpmprtPrtNm><details>
+          <detail><reqstSeNm>최초</reqstSeNm><etryndNm>입항</etryndNm><etryptDt>2026-10-21T13:00:00+09:00</etryptDt><ibobprtNm>외항</ibobprtNm><laidupFcltyCd>SYB</laidupFcltyCd><laidupFcltySubCd>05</laidupFcltySubCd><laidupFcltyNm>합성 터미널 B 5선석</laidupFcltyNm><mrNum>26SYNT0017I</mrNum></detail>
+        </details></item>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>009</etryptCo><clsgn>D7CR03</clsgn><vsslNm>CERA SYNTH FUTURE</vsslNm><vsslNltyCd>KR</vsslNltyCd><vsslNltyNm>대한민국</vsslNltyNm><vsslKndCd>41</vsslKndCd><vsslKndNm>풀컨테이너선</vsslKndNm><etryptPurpsCd>01</etryptPurpsCd><etryptPurpsNm>양적하</etryptPurpsNm><frstDpmprtNatPrtCd>XXSYN</frstDpmprtNatPrtCd><frstDpmprtPrtNm>SYNTH PORT</frstDpmprtPrtNm><details>
+          <detail><reqstSeNm>최종</reqstSeNm><etryndNm>입항</etryndNm><etryptDt>2026-10-30T09:00:00+09:00</etryptDt><ibobprtNm>외항</ibobprtNm><laidupFcltyCd>SYA</laidupFcltyCd><laidupFcltySubCd>01</laidupFcltySubCd><laidupFcltyNm>합성 터미널 A 1선석</laidupFcltyNm><mrNum>26SYNT0009I</mrNum></detail>
+        </details></item>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>002</etryptCo><clsgn>D7CR04</clsgn><vsslNm>CERA SYNTH BULK</vsslNm><vsslNltyCd>KR</vsslNltyCd><vsslNltyNm>대한민국</vsslNltyNm><vsslKndCd>21</vsslKndCd><vsslKndNm>산물선(벌크선)</vsslKndNm><etryptPurpsCd>01</etryptPurpsCd><etryptPurpsNm>양적하</etryptPurpsNm><frstDpmprtNatPrtCd>XXSYN</frstDpmprtNatPrtCd><frstDpmprtPrtNm>SYNTH PORT</frstDpmprtPrtNm><details>
+          <detail><reqstSeNm>변경</reqstSeNm><etryndNm>입항</etryndNm><etryptDt>2026-10-20 18:00:00</etryptDt><ibobprtNm>외항</ibobprtNm><laidupFcltyCd>*SC</laidupFcltyCd><laidupFcltySubCd>03</laidupFcltySubCd><laidupFcltyNm>합성 묘박지 3</laidupFcltyNm></detail>
+        </details></item>
+      <item><prtAgCd>020</prtAgCd><etryptYear>2026</etryptYear><etryptCo>050</etryptCo><vsslNm>CERA SYNTH BROKEN</vsslNm></item>
+    </items>
+    <numOfRows>50</numOfRows>
+    <pageNo>1</pageNo>
+    <totalCount>5</totalCount>
+  </body>
+</response>

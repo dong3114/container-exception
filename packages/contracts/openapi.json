@@ -830,6 +830,343 @@
           "planning"
         ]
       }
+    },
+    "/public-data/status": {
+      "get": {
+        "operationId": "PublicDataController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Public data mode (OFF · REPLAY · LIVE) and which datasets are callable now — never shows keys",
+        "tags": [
+          "public-data"
+        ]
+      }
+    },
+    "/public-data/vessel-calls/fetch": {
+      "post": {
+        "operationId": "PublicDataController_fetchVesselCalls",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who triggers the public API call (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchVesselCallsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VesselCallFetchResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_DATE · INVALID_DATE_RANGE · INVALID_CALL_SIGN · ACTOR_REQUIRED · INVALID_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PUBLIC_DATA_DISABLED · PUBLIC_DATA_KEY_MISSING · PUBLIC_DATA_REPLAY_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "REPLAY_FIXTURE_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "DS-03: fetch Busan vessel calls for a date range (arrival basis), keep the raw response, register vessel calls and record PUBLIC_API events",
+        "tags": [
+          "public-data"
+        ]
+      }
+    },
+    "/public-data/vessel-calls/{vesselCallId}/manifest/fetch": {
+      "post": {
+        "operationId": "PublicDataController_fetchManifest",
+        "parameters": [
+          {
+            "name": "vesselCallId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who triggers the public API call (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestFetchResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "VESSEL_CALL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PUBLIC_DATA_DISABLED · PUBLIC_DATA_KEY_MISSING · PUBLIC_DATA_REPLAY_UNAVAILABLE · PUBLIC_DATA_SIMULATION_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "REPLAY_FIXTURE_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "DS-02: fetch the import container manifest of one registered vessel call (B/L ↔ container · ISO size type)",
+        "tags": [
+          "public-data"
+        ]
+      }
+    },
+    "/public-data/vessel-calls": {
+      "get": {
+        "operationId": "PublicDataController_listVesselCalls",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VesselCallListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_LIMIT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Registered vessel calls with their latest public observations (not reconciled current facts)",
+        "tags": [
+          "public-data"
+        ]
+      }
+    },
+    "/public-data/vessel-calls/{vesselCallId}": {
+      "get": {
+        "operationId": "PublicDataController_vesselCall",
+        "parameters": [
+          {
+            "name": "vesselCallId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VesselCallDetailDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "VESSEL_CALL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One vessel call and its manifest containers, each with provenance",
+        "tags": [
+          "public-data"
+        ]
+      }
+    },
+    "/public-data/fetches": {
+      "get": {
+        "operationId": "PublicDataController_fetches",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FetchLedgerDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_LIMIT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Public API call ledger — what was asked, when, and what came back (including failures). No keys.",
+        "tags": [
+          "public-data"
+        ]
+      }
     }
   },
   "info": {
@@ -2657,6 +2994,694 @@
         },
         "required": [
           "runs"
+        ]
+      },
+      "PublicDataDatasetStatusDto": {
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "MOF_VESSEL_CALL",
+              "MOF_CONTAINER_MANIFEST"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Callable now (key configured for LIVE, fixtures present for REPLAY)"
+          }
+        },
+        "required": [
+          "dataset",
+          "operation",
+          "available"
+        ]
+      },
+      "PublicDataStatusDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "OFF",
+              "REPLAY",
+              "LIVE"
+            ]
+          },
+          "max_pages": {
+            "type": "number"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicDataDatasetStatusDto"
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "max_pages",
+          "datasets"
+        ]
+      },
+      "FetchVesselCallsRequestDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "description": "Search start (Asia/Seoul calendar date, arrival basis)",
+            "example": "2026-10-20"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "Search end (inclusive, at most 31 days after from)",
+            "example": "2026-10-21"
+          },
+          "call_sign": {
+            "type": "string",
+            "nullable": true,
+            "description": "Call sign — one vessel only",
+            "example": "D7AB1"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "FetchPageDto": {
+        "type": "object",
+        "properties": {
+          "fetch_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "page_no": {
+            "type": "number"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "NO_DATA",
+              "UPSTREAM_ERROR",
+              "TRANSPORT_ERROR",
+              "PARSE_ERROR"
+            ]
+          },
+          "http_status": {
+            "type": "number",
+            "nullable": true
+          },
+          "result_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "item_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "raw_input_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "required": [
+          "fetch_id",
+          "page_no",
+          "outcome",
+          "http_status",
+          "result_code",
+          "item_count",
+          "raw_input_id"
+        ]
+      },
+      "NormalizationIssueDto": {
+        "type": "object",
+        "properties": {
+          "item_index": {
+            "type": "number",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "example": "CONTAINER_CHECK_DIGIT_MISMATCH"
+          }
+        },
+        "required": [
+          "item_index",
+          "code"
+        ]
+      },
+      "FetchSummaryDto": {
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "MOF_VESSEL_CALL",
+              "MOF_CONTAINER_MANIFEST"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "LIVE",
+              "REPLAY"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "NO_DATA",
+              "UPSTREAM_ERROR",
+              "TRANSPORT_ERROR",
+              "PARSE_ERROR"
+            ]
+          },
+          "total_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FetchPageDto"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Stopped at CERA_PUBLIC_DATA_MAX_PAGES before all rows"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NormalizationIssueDto"
+            }
+          }
+        },
+        "required": [
+          "dataset",
+          "mode",
+          "outcome",
+          "total_count",
+          "pages",
+          "truncated",
+          "issues"
+        ]
+      },
+      "ArrivalValueDto": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Declared arrival time (port entry declaration) — not a confirmed berthing or discharge"
+          },
+          "request_kind": {
+            "type": "string",
+            "nullable": true,
+            "description": "Declaration stage as the source writes it (e.g. 최초 · 변경 · 최종)"
+          },
+          "relative_to_received": {
+            "type": "string",
+            "enum": [
+              "PAST",
+              "FUTURE"
+            ],
+            "description": "Whether the declared time was before or after the moment CERA received it"
+          }
+        },
+        "required": [
+          "at",
+          "request_kind",
+          "relative_to_received"
+        ]
+      },
+      "ProvenanceDto": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "PUBLIC_API"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "DATA_GO_KR"
+            ]
+          },
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "MOF_VESSEL_CALL",
+              "MOF_CONTAINER_MANIFEST"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "LIVE",
+              "REPLAY"
+            ],
+            "description": "LIVE = real public API response · REPLAY = synthetic / masked fixture"
+          },
+          "is_simulated": {
+            "type": "boolean"
+          },
+          "result_kind": {
+            "type": "string",
+            "enum": [
+              "PUBLIC_DATA",
+              "SCENARIO_RESULT"
+            ]
+          },
+          "fetch_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "raw_input_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "source_type",
+          "provider",
+          "dataset",
+          "mode",
+          "is_simulated",
+          "result_kind",
+          "fetch_id",
+          "raw_input_id",
+          "payload_hash",
+          "requested_at",
+          "received_at"
+        ]
+      },
+      "ArrivalObservationDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/ArrivalValueDto"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ProvenanceDto"
+          }
+        },
+        "required": [
+          "value",
+          "event_id",
+          "provenance"
+        ]
+      },
+      "BerthValueDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true,
+            "example": "MBR_E2",
+            "description": "Null when the source facility code is non-standard (e.g. starts with *) — the name is kept"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "BerthObservationDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/BerthValueDto"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ProvenanceDto"
+          }
+        },
+        "required": [
+          "value",
+          "event_id",
+          "provenance"
+        ]
+      },
+      "VesselCallDto": {
+        "type": "object",
+        "properties": {
+          "vessel_call_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "port_authority_code": {
+            "type": "string",
+            "example": "020"
+          },
+          "call_year": {
+            "type": "number"
+          },
+          "call_seq": {
+            "type": "string",
+            "example": "003",
+            "description": "Call sequence as the source writes it (zero padded)"
+          },
+          "call_sign": {
+            "type": "string"
+          },
+          "vessel_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_simulated": {
+            "type": "boolean"
+          },
+          "declared_arrival": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArrivalObservationDto"
+              }
+            ]
+          },
+          "latest_berth": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BerthObservationDto"
+              }
+            ]
+          },
+          "manifest_no": {
+            "type": "string",
+            "nullable": true,
+            "description": "Import manifest number (MOF)"
+          },
+          "container_count": {
+            "type": "number"
+          },
+          "registered_from": {
+            "$ref": "#/components/schemas/ProvenanceDto"
+          }
+        },
+        "required": [
+          "vessel_call_id",
+          "port_authority_code",
+          "call_year",
+          "call_seq",
+          "call_sign",
+          "vessel_name",
+          "is_simulated",
+          "declared_arrival",
+          "latest_berth",
+          "manifest_no",
+          "container_count",
+          "registered_from"
+        ]
+      },
+      "VesselCallFetchResultDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/FetchSummaryDto"
+          },
+          "vessel_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VesselCallDto"
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "vessel_calls"
+        ]
+      },
+      "ManifestContainerDto": {
+        "type": "object",
+        "properties": {
+          "container_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "container_no": {
+            "type": "string",
+            "example": "ZZZU0000017"
+          },
+          "size_type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "20DRY",
+              "40DRY",
+              "40HC",
+              "20RF",
+              "40RF",
+              "OTHER"
+            ]
+          },
+          "iso_size_type": {
+            "type": "string",
+            "nullable": true,
+            "example": "22G1"
+          },
+          "bl_no": {
+            "type": "string",
+            "nullable": true
+          },
+          "bl_type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "MASTER",
+              "HOUSE",
+              "UNKNOWN"
+            ]
+          },
+          "msn": {
+            "type": "string",
+            "nullable": true
+          },
+          "check_digit_valid": {
+            "type": "boolean",
+            "description": "ISO 6346 check digit"
+          },
+          "is_simulated": {
+            "type": "boolean"
+          },
+          "registered_from": {
+            "$ref": "#/components/schemas/ProvenanceDto"
+          }
+        },
+        "required": [
+          "container_id",
+          "container_no",
+          "size_type",
+          "iso_size_type",
+          "bl_no",
+          "bl_type",
+          "msn",
+          "check_digit_valid",
+          "is_simulated",
+          "registered_from"
+        ]
+      },
+      "ManifestFetchResultDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/FetchSummaryDto"
+          },
+          "vessel_call": {
+            "$ref": "#/components/schemas/VesselCallDto"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestContainerDto"
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "vessel_call",
+          "containers"
+        ]
+      },
+      "VesselCallListDto": {
+        "type": "object",
+        "properties": {
+          "vessel_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VesselCallDto"
+            }
+          }
+        },
+        "required": [
+          "vessel_calls"
+        ]
+      },
+      "VesselCallDetailDto": {
+        "type": "object",
+        "properties": {
+          "vessel_call": {
+            "$ref": "#/components/schemas/VesselCallDto"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestContainerDto"
+            }
+          }
+        },
+        "required": [
+          "vessel_call",
+          "containers"
+        ]
+      },
+      "FetchLedgerEntryDto": {
+        "type": "object",
+        "properties": {
+          "fetch_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "MOF_VESSEL_CALL",
+              "MOF_CONTAINER_MANIFEST"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "request_params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Safe request parameters (never the service key)"
+          },
+          "page_no": {
+            "type": "number"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "LIVE",
+              "REPLAY"
+            ]
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "http_status": {
+            "type": "number",
+            "nullable": true
+          },
+          "result_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "NO_DATA",
+              "UPSTREAM_ERROR",
+              "TRANSPORT_ERROR",
+              "PARSE_ERROR"
+            ]
+          },
+          "total_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "item_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "raw_input_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "is_simulated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fetch_id",
+          "dataset",
+          "operation",
+          "request_params",
+          "page_no",
+          "mode",
+          "requested_at",
+          "received_at",
+          "http_status",
+          "result_code",
+          "outcome",
+          "total_count",
+          "item_count",
+          "raw_input_id",
+          "is_simulated"
+        ]
+      },
+      "FetchLedgerDto": {
+        "type": "object",
+        "properties": {
+          "fetches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FetchLedgerEntryDto"
+            }
+          }
+        },
+        "required": [
+          "fetches"
         ]
       },
       "ErrorResponse": {

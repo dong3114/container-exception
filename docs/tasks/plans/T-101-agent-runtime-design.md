@@ -260,7 +260,7 @@ Decision 점수를 "사람 확인 필요"로 바꾸는 **임계값은 Backend �
 ## 12. Observability · Evals
 
 ### 12.1 기록
-- Backend 소유 표(M15 예상): `agent_run`(그래프 버전 · 대상 · 상태 · 시작/종료 · `trace_id` · 사유) · `agent_step`(노드 시작/종료 · 소요 · 모델 · 토큰 · 비용 · 판정 요약 코드 · 오류 코드 · interrupt/resume) · `agent_tool_call`(6.1) · `agent_checkpoint`(8절).
+- Backend 소유 표(M16 예상 — M14 · M15 는 T-102 가 썼다): `agent_run`(그래프 버전 · 대상 · 상태 · 시작/종료 · `trace_id` · 사유) · `agent_step`(노드 시작/종료 · 소요 · 모델 · 토큰 · 비용 · 판정 요약 코드 · 오류 코드 · interrupt/resume) · `agent_tool_call`(6.1) · `agent_checkpoint`(8절).
 - Python 은 노드 이벤트를 실행 끝 · interrupt 때 묶어 Backend 에 보고(`report_steps` Tool). 구조화 로그에는 id · 코드 · 수치만.
 - `traceparent`(W3C) 를 지금부터 전파한다 — OpenTelemetry SDK 는 나중에 붙일 수 있게(`docs/23` 원칙 유지). LangSmith 같은 외부 추적 서비스는 데이터가 밖으로 나가므로 **기본 금지**, 쓰려면 별도 결정.
 - 실패: 기술 실패는 기존 `system_error`(boundary `BACKGROUND_JOB` 또는 신규 `AGENT_RUNTIME` 검토). 원문 · 비밀값은 일반 로그 금지(기존 규칙).
@@ -284,7 +284,7 @@ Decision 점수를 "사람 확인 필요"로 바꾸는 **임계값은 Backend �
 | 1 | **T-100** Runtime 설정 정리 | `.env` 가 코드에 뒤처지지 않게 | `npm run env:check` · `python -m cera_ai.config` · 기동 시 조합 검사 | `back/src/config/env.ts` · `back/.env.example` · `ai/cera_ai/config.py` · `ai/.env.example` · 시험 2개 | 없음 | 없음 | — (**이번 세션 완료, 미커밋**) |
 | 2 | **T-101** Agent Runtime 설계 승인 | 방향 · 경계 확정 | ADR-036 Accepted · 정본 문서 반영 | 이 문서 · `docs/14` · `docs/06` · `docs/18` O절 · `docs/23` | 없음 | 없음 | 사용자 승인(NEEDS_HUMAN) |
 | 3 | **T-102** Public Data Adapter v1 (DS-03 + DS-02) | 실제 부산 입항 · 컨테이너 데이터 수집 | 실제 입항 건과 컨테이너 목록을 원문 · 출처와 함께 저장 · 조회 | `back/src/public-data/*` · `data/fixtures/public-data/` | **M14** 엔티티 표 + `vessel_call` 승격 | **data.go.kr serviceKey** | T-100 · T-101 · `docs/22` rev.2.6 결정 |
-| 4 | **T-103** Agent Tool Layer v1 | Agent 가 쓸 수 있는 손 | Tool 계약 · 감사 · 실행 범위 · READ/PUBLIC/COMMUNICATION Tool | `back/src/agent-tools/*` · `packages/contracts/agent-tools.json` | **M15** `agent_run` · `agent_step` · `agent_tool_call` · `agent_checkpoint` | 없음(토큰은 로컬 생성) | T-101 · (PUBLIC Tool 은 T-102) |
+| 4 | **T-103** Agent Tool Layer v1 | Agent 가 쓸 수 있는 손 | Tool 계약 · 감사 · 실행 범위 · READ/PUBLIC/COMMUNICATION Tool | `back/src/agent-tools/*` · `packages/contracts/agent-tools.json` | **M16** `agent_run` · `agent_step` · `agent_tool_call` · `agent_checkpoint` | 없음(토큰은 로컬 생성) | T-101 · (PUBLIC Tool 은 T-102) |
 | 5 | **T-104** Agent Runtime 기반 (LangGraph) | 그래프 실행 뼈대 | 실행 시작 · interrupt · resume · 상한 · 추적 | `ai/cera_ai/agent/*` · `pyproject.toml`(langgraph) | 없음 | 없음(replay) | T-103 |
 | 6 | **T-105** 첫 Vertical Slice | 정보 공백 하나를 Agent 가 메운다(9.3) | 실행 타임라인 · 승인 대기 · 회신 반영까지 한 흐름 | 그래프 노드 · Coordinator · `/dev` 화면 | 없음 예상 | 없음(replay) / 선택: LLM 키 | T-104 · T-102 |
 | 7 | **T-106** DS-01 UNI-PASS Adapter | 통관 · 반출입 이력 | 실제 B/L 의 통관 진행 | `back/src/public-data/adapters/customs-progress*` | 작음(필요 시) | **UNI-PASS 키 + 실제 B/L 5~20건** | T-102 |

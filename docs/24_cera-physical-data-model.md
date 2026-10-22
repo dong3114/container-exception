@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
+- 상태: T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -754,6 +754,30 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | U7-6 | **멱등**: 대상 = 추출 행 · 완료 감사가 없는 회신. 저장 트랜잭션이 회신 단위로 줄 서고 다시 확인하므로 재시도 · 동시 Worker 에도 행이 한 벌. 정책이 바뀌어 다시 추출하면 새 행 + 이전 `SUPERSEDED`(15.9.1 규칙 6) — 그 명령은 아직 없다 |
 | U7-7 | **정본과 다른 점 / 남은 판단**: `docs/18` D.3 의 답에는 `slot` 이 있는데 이번 질문은 시간창이 질문에 이미 고정돼 있어 `slot` 대신 답할 칸(`field` — `quantity` · `available_from` · `available_until`)으로 했다. 칸 이름은 `extraction` 표에 열이 없어 `validator_result` 의 `FIELD` 검사에 남긴다 — U8 에서 사건의 `fact_key` · 범위로 옮길 때 정식 위치를 다시 판단한다. `unmapped_statements` 는 저장하지 않는다(사건이 아니다 — 필요하면 U8 의 확인 요청) |
 
+### 18.9 T-102 공공데이터 구현 확인 결과 (2026-10-22)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **M14 = `0013_m14_public_data.sql`**(drizzle-kit 생성, 사람 검토) — 표 6(`vessel_call` · `bl` · `container` · `container_bl` · `external_identifier` · `public_data_fetch`) · 컬럼 57 · FK 12(복합 5). **M15 = `0014_m15_public_data_guards.sql`**(custom) — append-only 3표 · 삭제 금지 3표 · 열 가드 3표 · TRUNCATE 금지 1 · `fn_cera_guard_entity_link_insert` 를 같은 이름으로 교체(CONTAINER · BL · VESSEL_CALL 허용) · 외부 식별자 소유자 존재 가드(함수 +1 = **21**) · GRANT. 트리거 **85**. M01~M13 은 고치지 않았다 |
+| Backend | `back/src/public-data/` — `adapters/`(전송 포트 · 실제 HTTP · 녹화 재생 · 데이터셋 정보) · `parsing/`(XML 봉투 · 결과 판정, 순수) · `normalization/`(DS-03 · DS-02 · 시각 · ISO 6346, 순수) · `public-data.repository.ts`(원장 · 원문 · 개체 · 사건) · `public-data.service.ts`(페이지 흐름) · 개발 API 6개(`/public-data/*`) |
+| 설정 | `CERA_PUBLIC_DATA_MODE`(off · replay · live) · `DATA_GO_KR_SERVICE_KEY` · `CERA_PUBLIC_DATA_TIMEOUT_MS` · `CERA_PUBLIC_DATA_MAX_PAGES` · `CERA_PUBLIC_DATA_RAW_DIR`(예약) · `CERA_PUBLIC_DATA_REPLAY_DIR` |
+
+| # | 구현 메모 |
+| --- | --- |
+| P-1 | **한 페이지 = 한 흐름**: 전송(트랜잭션 밖) → 원문 바이트를 내용 저장소(`RAW_INPUT_PAYLOAD`)에 먼저 · 저장 후 지문 확인 → 한 트랜잭션에 `raw_input`(PUBLIC_API · `source_record_key = fetch_id`) · `public_data_fetch` · 감사 `PUBLIC_DATA_FETCHED` · 정규화 결과. 응답이 오지 않은 전송 실패는 원장 행만(원문 없음). 상대 오류 · 해석 실패는 원문까지 남기고 `system_error`(`PUBLIC_DATA_INTEGRATION`) |
+| P-2 | **인증키**: 실제 전송 구현 생성자만 받는다. URL 에만 붙고(한 번 URL 인코딩), 원장 `request_params` · `raw_input.request_ref` · 감사 · `system_error` · 로그에 없다 — fetch 오류 메시지도 URL 을 담을 수 있어 버리고 종류(`TIMEOUT` · `NETWORK`)만 남긴다. DB 시험이 모든 기록 표를 문자열 검색한다 |
+| P-3 | **봉투 판정**(field-dictionary 8절): 게이트웨이 봉투(`OpenAPI_ServiceResponse`)는 HTTP 200 이어도 `UPSTREAM_ERROR`(`GW_<코드>`) · `resultCode 03` 또는 0건 = `NO_DATA` · XML 아님 = `PARSE_ERROR`(HTTP 실패면 `UPSTREAM_ERROR`). 값은 문자열 그대로(입항횟수 `003`) |
+| P-4 | **정규화(결정론 · 원문에서 다시 돌릴 수 있다)**: DS-03 → 입항 건 키 · 선명 · 입항 상세(`reqstSeNm = 최종` 우선)의 `etryptDt` = **입항 신고 일시** `ARRIVAL_DECLARED`(`declared_arrival`, payload 에 신청구분 · 받은 시각 기준 PAST/FUTURE) — **실제 입항 마일스톤(`milestone.arrived`)으로 쓰지 않는다**(2026-10-22 live 검토: 받은 시각보다 뒤인 신고 35/181 · 신청구분 최초 · 변경 · 최종) · 계선 시설 `LOCATION_REPORTED`(`location`, 값 코드 `<시설>_<서브>` — 비표준 `*` 코드는 이름만) · 수입 `mrNum` → 외부 식별자. DS-02 → 수입(`II`)만 · ISO 6346 모양 · 체크 숫자 불일치는 받되 신뢰도 LOW · B/L 종류 `UNKNOWN` · 사건 `VESSEL_CALL_LINKED` · `BL_LINKED` · `EQUIPMENT_REPORTED`(ISO 코드). 출항 일시 · 선종은 응답에만 |
+| P-5 | **신뢰도**: 공공 API 상한(`docs/05` 3.3)에 맞춰 MEDIUM. 최종이 아닌 입항 신고 · 비표준 시설 코드 · 체크 숫자 불일치는 LOW. 이유 코드 `PUBLIC_API_DECLARATION` · `DECLARATION_NOT_FINAL` · `NONSTANDARD_FACILITY_CODE` · `PUBLIC_API_MANIFEST` · `TZ_ASSUMED` · `CONTAINER_CHECK_DIGIT_MISMATCH` · 사건 `payload.basis = PORT_MIS_ENTRY_DECLARATION` |
+| P-6 | **실제 / 녹화 분리**: replay = `mode REPLAY` = `is_simulated` = 시나리오 `public-data-replay`(고정 id) 의 사건. 실제 응답이 녹화로 등록된 개체를 가리키면 쓰지 않고 `*_SIMULATION_MISMATCH` 로 알린다. 녹화로 등록된 입항 건에 실제 적하목록을 붙이지 않는다(409) |
+| P-7 | **반복 조회**: 같은 조건을 다시 물으면 새 원문 · 새 사건(`docs/05` 4.5 — 새 근거)이지만 개체 · 외부 식별자는 늘지 않는다. 컨테이너가 이미 다른 입항 건에 걸려 있으면 바꾸지 않고 `CONTAINER_ON_OTHER_VESSEL_CALL`(이력은 사건), 다른 B/L 이 PRIMARY 면 `CONTAINER_ON_OTHER_BL` — Reconciliation(T-093)에서 다룬다 |
+| P-8 | **읽기 모양**: 개발 API 의 `latest_arrival` · `latest_berth` 는 **최신 공공 관측**이지 현재 사실(`canonical_fact`)이 아니다. 값마다 provenance(호출 · 원문 · 지문 · 요청/받은 시각 · LIVE/REPLAY · `result_kind`) |
+| P-9 | **조회 주체**: 지금은 활성 HUMAN(`X-CERA-Actor-Id` — T-089 기술 부채 ①). Agent(`AI_AGENT`)는 T-103 Tool 경로에서 연다. 기간은 31일 이내, 페이지 상한 `CERA_PUBLIC_DATA_MAX_PAGES`(기본 20 = 1,000행) |
+| P-11 | **live 검증(2026-10-22)**: 실제 DS-03 · DS-02 응답으로 전체 흐름 확인. 차이를 최소 수정했다 — `*` 비표준 계선 시설 코드(이름만 남김) · 신청구분 `최초 · 변경 · 최종`(최종 아니면 LOW) · **입항 신고 일시를 `ARRIVED` 마일스톤에서 `ARRIVAL_DECLARED` 로**(실제 접안 확정이 아니다) · **데이터 없음 = `00` + 0건만**(`03` 은 관측되지 않아 데이터 없음 규칙에서 뺐다 — 오면 UPSTREAM_ERROR 로 남겨 확인). 상세 field-dictionary 9절 |
+| P-10 | **남은 판단**: `CERA_PUBLIC_DATA_RAW_DIR` 는 예약값(원문은 지금 내용 저장소 `CERA_CONTENT_DIR` 에 있다 — 둘 다 `data/raw/` gitignore) · `bl` 유일(L-16)은 잠정 · 원문 보관 기간은 Q-45 · 실제 응답에서 응답 크기 · 결과 코드 `03` 확인 필요 |
+
+
+
 
 
 ```
@@ -780,6 +804,10 @@ M05 수신·사건       raw_input (actor)
 M06 파생·사람 처리   canonical_fact (event, scenario) · conflict (scenario)
                     verification_request (conflict, scenario)
                     verification_request_handling (actor, question_item, event)
+M14 공공데이터(T-102) vessel_call (raw_input) ─ container (vessel_call, raw_input)
+                    bl (counterparty, raw_input, 자기참조) ─ container_bl (container, bl)
+                    external_identifier (event, raw_input) · public_data_fetch (raw_input, actor)
+M15 가드 · 권한(T-102 custom — 트리거 · 함수 교체 · GRANT, 표 없음)
 ```
 
 **순환 분석 — 둘 다 "NULL 먼저, FK 나중"으로 풀리고 설계 오류가 아니다**
@@ -793,6 +821,7 @@ M06 파생·사람 처리   canonical_fact (event, scenario) · conflict (scenar
 - **다형 참조**(`event_entity_link` → 마스터들)는 FK 가 아니므로 그래프 밖이다. 삽입 가드 트리거는 M02 의 표가 있어야 동작한다 — M05 뒤에 트리거를 만들므로 문제없다.
 
 ---
+
 
 ## 20. migration 전략
 
@@ -848,7 +877,7 @@ M06 파생·사람 처리   canonical_fact (event, scenario) · conflict (scenar
 
 ---
 
-## 22. 표별 물리 명세 (29표)
+## 22. 표별 물리 명세 (29표 + T-102 공공데이터 6표 = 35표)
 
 > **읽는 법** — 컬럼 표는 `docs/22` 작업표의 논리 컬럼 순서 그대로다. "FK / CHECK / 메모" 칸의 FK 는 **참조 대상**이고, **복합 FK 로 구현되는 곳은 표 아래 "FK(표 수준)" 목록이 정본**이다. `IN (…)` = CLOSED CHECK, `CATALOG` = 형식 CHECK + 앱 카탈로그(3절). 해시 형식 = `^sha256:[0-9a-f]{64}$`. 모든 표의 PK 는 `NOT NULL` 이다. **S-2** = `CHECK (is_simulated = (scenario_id IS NOT NULL))`(`docs/22` 20절). 표 수준 FK 목록의 단일 FK 가 복합 FK 와 같은 컬럼을 쓰면 **복합 FK 하나로 만든다**(존재 검사가 포함된다). 이 절과 짝 작업표(`docs/24_…xlsx`)는 같은 생성기로 만들었다.
 
@@ -1828,6 +1857,181 @@ M06 파생·사람 처리   canonical_fact (event, scenario) · conflict (scenar
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**:
   - (request_key, handled_at)
 
+
+### 22.30 `vessel_call` — 입항 건(공공 API 식별 정보) **(M14 · T-102 — Next → P0 승격)**
+
+- 논리: `MASTER` · `CONTROLLED_UPDATE` · 그룹 **P 공공데이터** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.6 8.5
+- PK: `vessel_call_id`
+- 변경 방식: CONTROLLED_UPDATE — 바뀔 수 있는 열 `vessel_name` · `is_active`(M15 열 가드). 삭제 없음
+- migration 의존: raw_input · T-102 사용: DS-03 수집 · DS-02 조회 키
+- **사실은 열이 아니다**: 입항 신고 일시 · 선석은 PUBLIC_API 사건(`ARRIVAL_DECLARED` · `LOCATION_REPORTED`)이다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `vessel_call_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `port_authority_code` | STRING(3) | `varchar(3)` | NOT NULL | — | `varchar({ length: 3 })` | 형식 `^[0-9]{3}$` — 항만청 코드(부산 020) |
+| 3 | `call_year` | INTEGER | `integer` | NOT NULL | — | `integer()` | 1990~2999 |
+| 4 | `call_seq` | INTEGER | `integer` | NOT NULL | — | `integer()` | 0~999 — 원천은 0 채움 3자리 문자열(`003`). API 응답에서 다시 채운다 |
+| 5 | `call_sign` | STRING(10) | `varchar(10)` | NOT NULL | — | `varchar({ length: 10 })` | 형식 `^[A-Z0-9]{1,10}$` |
+| 6 | `vessel_name` | STRING(40) | `varchar(40)` | NULL | — | `varchar({ length: 40 })` | 신고마다 바뀔 수 있다(가이드 크기 40) |
+| 7 | `first_raw_input_id` | REF(raw_input) | `uuid` | NOT NULL | — | `uuid()` | FK (first_raw_input_id, is_simulated) → raw_input · RESTRICT — 처음 알게 된 원문 |
+| 8 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | — |
+| 9 | `registered_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 10 | `is_active` | BOOLEAN | `boolean` | NOT NULL | `true` | `boolean()` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - (first_raw_input_id, is_simulated) → raw_input (raw_input_id, is_simulated)
+- **UNIQUE / 부분 유일**:
+  - (port_authority_code, call_year, call_seq, call_sign)
+- **CHECK(컬럼 CHECK 외)**: —
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: —
+
+### 22.31 `bl` — 선하증권 **(M14 · T-102)**
+
+- 논리: `MASTER` · `CONTROLLED_UPDATE` · 그룹 **P 공공데이터** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.6 8.2
+- PK: `bl_id`
+- 변경 방식: CONTROLLED_UPDATE — 바뀔 수 있는 열 `carrier_counterparty_id`(M15 열 가드). 삭제 없음
+- migration 의존: counterparty · raw_input · T-102 사용: DS-02 수집
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `bl_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `bl_no` | STRING(40) | `varchar(40)` | NOT NULL | — | `varchar({ length: 40 })` | 형식 `^[A-Z0-9-]{1,40}$` |
+| 3 | `bl_type` | CODE | `text` | NOT NULL | — | `text()` | IN (MASTER, HOUSE, UNKNOWN) — DS-02 는 MBL/HBL 을 말하지 않는다 → UNKNOWN(rev.2.6) |
+| 4 | `parent_bl_id` | REF(bl) | `uuid` | NULL | — | `uuid()` | FK bl · RESTRICT — HOUSE → MASTER |
+| 5 | `bl_year` | INTEGER | `integer` | NULL | — | `integer()` | DS-02 에는 없다 |
+| 6 | `carrier_counterparty_id` | REF(counterparty) | `uuid` | NULL | — | `uuid()` | FK counterparty · RESTRICT |
+| 7 | `first_raw_input_id` | REF(raw_input) | `uuid` | NOT NULL | — | `uuid()` | FK (first_raw_input_id, is_simulated) → raw_input · RESTRICT |
+| 8 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | — |
+| 9 | `registered_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - parent_bl_id → bl
+  - carrier_counterparty_id → counterparty
+  - (first_raw_input_id, is_simulated) → raw_input (raw_input_id, is_simulated)
+- **UNIQUE / 부분 유일**:
+  - (bl_type, bl_no, bl_year) **NULLS NOT DISTINCT** — L-16 물리 잠정안(rev.2.6)
+- **CHECK(컬럼 CHECK 외)**:
+  - `bl_type = 'HOUSE' OR parent_bl_id IS NULL` · `parent_bl_id <> bl_id`
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: —
+
+### 22.32 `container` — 컨테이너(식별 정보) **(M14 · T-102)**
+
+- 논리: `MASTER` · `CONTROLLED_UPDATE` · 그룹 **P 공공데이터** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.6 8.1
+- PK: `container_id`
+- 변경 방식: CONTROLLED_UPDATE — 바뀔 수 있는 열 `size_type` · `vessel_call_id` · `is_active`(M15 열 가드). 삭제 없음
+- migration 의존: vessel_call · raw_input · T-102 사용: DS-02 수집
+- 운영자 열(선사 · 목적지 · 화물 설명 · 업무 우선순위)은 **쓰는 Task 에서 더한다**(rev.2.6 — 공공데이터가 채우는 열만 먼저)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `container_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `container_no` | STRING(11) | `varchar(11)` | NOT NULL | — | `varchar({ length: 11 })` | 형식 `^[A-Z]{3}[UJZ][0-9]{7}$`(ISO 6346 모양). 체크 숫자 불일치는 거부하지 않고 사건 신뢰도 LOW |
+| 3 | `size_type` | CODE | `text` | NULL | — | `text()` | IN (20DRY, 40DRY, 40HC, 20RF, 40RF, OTHER) — ISO 원래 코드는 `EQUIPMENT_REPORTED` 사건 값 |
+| 4 | `vessel_call_id` | REF(vessel_call) | `uuid` | NULL | — | `uuid()` | FK vessel_call · RESTRICT — 처음 등록된 입항 건(이력은 `VESSEL_CALL_LINKED` 사건) |
+| 5 | `first_raw_input_id` | REF(raw_input) | `uuid` | NOT NULL | — | `uuid()` | FK (first_raw_input_id, is_simulated) → raw_input · RESTRICT |
+| 6 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | — |
+| 7 | `registered_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 8 | `is_active` | BOOLEAN | `boolean` | NOT NULL | `true` | `boolean()` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - vessel_call_id → vessel_call
+  - (first_raw_input_id, is_simulated) → raw_input (raw_input_id, is_simulated)
+- **UNIQUE / 부분 유일**:
+  - (container_no)
+- **CHECK(컬럼 CHECK 외)**: —
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (vessel_call_id) WHERE vessel_call_id IS NOT NULL
+
+### 22.33 `container_bl` — 컨테이너 ↔ B/L **(M14 · T-102)**
+
+- 논리: `MASTER` · 물리 **APPEND_ONLY**(rev.2.6 — 정정은 사건) · 그룹 **P 공공데이터** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` 8.3
+- PK: `(container_id, bl_id)`
+- 변경 방식: APPEND_ONLY(M15)
+- migration 의존: container · bl
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `container_id` | REF(container) | `uuid` | NOT NULL | — | `uuid()` | FK container · RESTRICT |
+| 2 | `bl_id` | REF(bl) | `uuid` | NOT NULL | — | `uuid()` | FK bl · RESTRICT |
+| 3 | `link_role` | CODE | `text` | NOT NULL | — | `text()` | IN (PRIMARY, CONSOLIDATED) |
+
+- **FK(표 수준 · 복합 포함)**:
+  - container_id → container
+  - bl_id → bl
+- **UNIQUE / 부분 유일**:
+  - (container_id) WHERE link_role = 'PRIMARY' — 컨테이너당 PRIMARY 1건까지
+- **CHECK(컬럼 CHECK 외)**: —
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (bl_id)
+
+### 22.34 `external_identifier` — 외부 시스템 식별자 **(M14 · T-102)**
+
+- 논리: `EVIDENCE` · `APPEND_ONLY` · 그룹 **P 공공데이터** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` 8.4
+- PK: `external_identifier_id`
+- 변경 방식: APPEND_ONLY + 삽입 가드: 다형 소유자(`owner_type`, `owner_id`) 존재(M15)
+- migration 의존: event · raw_input
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `external_identifier_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `owner_type` | CODE | `text` | NOT NULL | — | `text()` | IN (BL, CONTAINER, VESSEL_CALL) |
+| 3 | `owner_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | 다형 참조 — FK 없음, 삽입 가드가 존재 검사 |
+| 4 | `issuing_system` | CODE | `text` | NOT NULL | — | `text()` | IN (KCS, MOF) |
+| 5 | `id_type` | CODE | `text` | NOT NULL | — | `text()` | IN (CARGO_MGMT_NO, MANIFEST_NO, MSN) |
+| 6 | `id_value` | STRING(40) | `varchar(40)` | NOT NULL | — | `varchar({ length: 40 })` | MSN 은 적하목록 안에서만 유일 → 값 = `<적하목록관리번호>-<MSN>` |
+| 7 | `source_event_id` | REF(event) | `uuid` | NULL | — | `uuid()` | FK event · RESTRICT |
+| 8 | `source_raw_input_id` | REF(raw_input) | `uuid` | NOT NULL | — | `uuid()` | FK (source_raw_input_id, is_simulated) → raw_input · RESTRICT — rev.2.6 추가(근거 원문) |
+| 9 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | rev.2.6 추가 |
+
+- **FK(표 수준 · 복합 포함)**:
+  - source_event_id → event
+  - (source_raw_input_id, is_simulated) → raw_input (raw_input_id, is_simulated)
+- **UNIQUE / 부분 유일**:
+  - (issuing_system, id_type, id_value)
+- **CHECK(컬럼 CHECK 외)**: —
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (owner_type, owner_id)
+
+### 22.35 `public_data_fetch` — 공공 API 호출 원장 **(M14 · T-102 — rev.2.6 신설)**
+
+- 논리: `EVIDENCE` · `APPEND_ONLY` · 그룹 **P 공공데이터** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.6 8.6
+- PK: `fetch_id`
+- 변경 방식: APPEND_ONLY · TRUNCATE 금지(M15)
+- migration 의존: raw_input · actor
+- 무엇을 언제 어떤 조건으로 물었고 무엇이 왔나(실패 포함). **인증키는 어느 열에도 없다**(`request_params` 는 안전한 조회 조건만)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `fetch_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `provider` | CODE | `text` | NOT NULL | — | `text()` | IN (DATA_GO_KR, UNIPASS) |
+| 3 | `dataset` | CODE | `text` | NOT NULL | — | `text()` | IN (MOF_VESSEL_CALL, MOF_CONTAINER_MANIFEST) |
+| 4 | `operation` | STRING(100) | `varchar(100)` | NOT NULL | — | `varchar({ length: 100 })` | 예: `1192000/VsslEtrynd5/Info5` |
+| 5 | `request_params` | JSON | `jsonb` | NOT NULL | — | `jsonb().$type<…>()` | jsonb 객체 — 안전한 조회 조건(키 없음) |
+| 6 | `page_no` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 1 |
+| 7 | `mode` | CODE | `text` | NOT NULL | — | `text()` | IN (LIVE, REPLAY) |
+| 8 | `requested_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 9 | `received_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | `>= requested_at` |
+| 10 | `http_status` | INTEGER | `integer` | NULL | — | `integer()` | — |
+| 11 | `result_code` | STRING(20) | `varchar(20)` | NULL | — | `varchar({ length: 20 })` | 정상 봉투 resultCode · 게이트웨이 `GW_<returnReasonCode>` · 전송 실패 종류 |
+| 12 | `outcome` | CODE | `text` | NOT NULL | — | `text()` | IN (SUCCESS, NO_DATA, UPSTREAM_ERROR, TRANSPORT_ERROR, PARSE_ERROR) |
+| 13 | `total_count` | INTEGER | `integer` | NULL | — | `integer()` | — |
+| 14 | `item_count` | INTEGER | `integer` | NULL | — | `integer()` | — |
+| 15 | `raw_input_id` | REF(raw_input) | `uuid` | NULL | — | `uuid()` | FK (raw_input_id, is_simulated) → raw_input · RESTRICT · UNIQUE |
+| 16 | `requested_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT — 호출을 일으킨 주체 |
+| 17 | `trace_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | — |
+| 18 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - (raw_input_id, is_simulated) → raw_input (raw_input_id, is_simulated)
+  - requested_by_actor_id → actor
+- **UNIQUE / 부분 유일**:
+  - (raw_input_id)
+- **CHECK(컬럼 CHECK 외)**:
+  - `(mode = 'REPLAY') = is_simulated` — 녹화 재생은 시뮬레이션(규칙 9)
+  - `(outcome = 'TRANSPORT_ERROR') = (raw_input_id IS NULL AND received_at IS NULL)` — 응답이 왔으면 원문이 있다
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (requested_at)
 
 ---
 

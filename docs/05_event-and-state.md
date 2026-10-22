@@ -292,6 +292,7 @@ Reconciliation은 출처 순위가 아니라 Event별 **근거 강도**(0~3)를 
 | --- | --- | --- |
 | `CONTAINER_REGISTERED`, `BL_LINKED`, `EQUIPMENT_REPORTED`, `VESSEL_CALL_LINKED` | OBSERVATION | identity 계열 |
 | `ETA_REPORTED` | OBSERVATION | `forecast.eta` (예상값을 "알렸다"는 관측. 도착했다는 관측이 아님) |
+| `ARRIVAL_DECLARED` | OBSERVATION | `declared_arrival` (VESSEL_CALL) — 입출항 **신고**의 입항 일시(공공 API DS-03, T-102). 지난 일시여도 실제 입항(`milestone.arrived`)이 아니다. `payload.request_kind` = 신청구분(최초 · 변경 · 최종) · `relative_to_received` = PAST · FUTURE |
 | `ARRIVED`, `DISCHARGED`, `CUSTOMS_DECLARED`, `CUSTOMS_CLEARED`, `DO_RELEASED`, `GATE_OUT`, `ODCY_IN`, `ODCY_OUT`, `WAREHOUSE_IN`, `DEVANNED`, `EMPTY_RETURNED` | OBSERVATION | 해당 `milestone.*` |
 | `CUSTOMS_STATUS_REPORTED` | OBSERVATION | `customs.status` |
 | `LOCATION_REPORTED` | OBSERVATION | `location` |

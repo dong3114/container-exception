@@ -21,6 +21,12 @@
 
 ---
 
+## 2026-10-22 · T-102 DONE — DS-03 + DS-02 Public Data Adapter (live 검증) · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인(구현) + live 검증**(`feat: add public logistics data adapters`). push 없음
+- 한 일: `back/src/public-data/`(전송 포트 · 실제 HTTP · 녹화 재생 · XML 봉투 · 정규화 · 원장 · 원문 · 개체 · PUBLIC_API 사건 · 개발 API 6개) · M14(6표) · M15(가드 · GRANT) · 합성 fixture · `docs/22` rev.2.6 · `docs/24` 22.30~22.35 · 18.9 · 필드 사전 정정
+- live 검증(사용자 키 입력 뒤): DS-03 부산 181건(4쪽) · 91건(2쪽), DS-02 1,227행(상한 20쪽에서 truncated) · 291행 · 데이터 없음 2건. 실제 응답 기준 최소 수정: `*` 비표준 계선 시설 코드(이름만 남김, LOW) · 신청구분 최초 · 변경 · 최종(최종 아니면 LOW) · **입항 신고 일시 = `ARRIVAL_DECLARED`(`declared_arrival`) — 실제 입항 마일스톤(`milestone.arrived`)으로 쓰지 않는다** · **데이터 없음 = `00` + 0건만**(`03` 미관측 → 데이터 없음 규칙에서 제외, 오면 UPSTREAM_ERROR). `tkinTkoutSe` 4값 → Q-18 CLOSED. 상세 field-dictionary 9절 · `docs/05` 4.4 `ARRIVAL_DECLARED` 추가
+- 검증: Backend 전체 시험 통과 · typecheck · build · `drizzle-kit check`
+
 ## 2026-10-22 · T-101 DONE — Agent Runtime 설계 (ADR-036 Accepted) · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(이 항목과 같은 커밋 `docs: define CERA agent runtime architecture`). push 없음
 - 한 일: 두 오케스트레이션(NestJS 권한 · 업무 사실 / Python + LangGraph 추론) · Tool Layer(부작용 등급 5종, COMMIT 등급 미노출) · 공공데이터는 Backend Adapter 경유 · checkpoint = 실행 상태 · Graph State = ref 만 · `CeraRecoveryGraph` 하나로 시작 · 평가 4층(single-call vs graph) · 작업 순서 T-102~T-107. 공공 API 공식 재확인(DS-01~03 정상 · 무료, DS-02/03 가이드 새 PDF 2026-10-06, DS-02 `entrpsCd` 크기 차이 7 vs 9)

@@ -46,6 +46,8 @@
 | S-05 | 공공데이터포털 `해양수산부_선박운항정보` 상세 페이지 + Swagger 2.0 | https://www.data.go.kr/data/15006353/openapi.do | DS-03 후보. 등록 2018-07-17, 수정 2025-11-03 |
 | S-06 | `DAT211_오픈API활용가이드_선박운항정보.docx` | S-05의 참고문서 (포털 첨부 `FILE_000000003107653`) | 파일 수정일 2025-03-10, SHA-256 `200dbc831dce2af3100854998ed8fc0ad864c0696d26abe3d9ec6f0fc54e8a82` |
 | S-07 | 공공데이터포털 `해양수산부_컨테이너반출입정보_20230112` 파일데이터 페이지 | https://www.data.go.kr/data/15011649/fileData.do | 4.1절 정정 근거 |
+| S-09 | **새** `해양수산부_외항화물컨테이너정보` 오픈API 활용가이드(PDF) | S-03 페이지 참고문서 (포털 첨부 `FILE_000000007709092`, 포털 수정 2026-10-06) | 확인일 2026-10-22, SHA-256 `758037193394676b87478e1387e21684155705477d16f2709747f6163a7b1fa2`. S-04 를 대체한다 |
+| S-10 | **새** `해양수산부_선박운항정보` 오픈API 활용가이드(PDF) | S-05 페이지 참고문서 (포털 첨부 `FILE_000000007708406`, 포털 수정 2026-10-06) | 확인일 2026-10-22, SHA-256 `be41b0d4dc657aae584143c03c3fc7834e478f6d5a8cbdad86183512b50801df`. S-06 을 대체한다 |
 | S-08 | **인증키 없이** 보낸 GET 1회씩에 대한 각 API의 실제 응답 (2026-09-11) | 3개 엔드포인트 | 엔드포인트가 살아 있다는 것과 오류 응답 형식만 확인. 데이터는 받지 않음 |
 
 - 포털 첨부 파일은 `https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=<ID>&fileDetailSn=1`로 받을 수 있었다(2026-09-11). 공식 문서가 바뀌었는지는 SHA-256을 비교해 확인한다.
@@ -198,6 +200,8 @@ cargCsclPrgsInfoQryRtnVo            (루트)
 
 ### 3.1 기본 정보
 
+> **2026-10-22 재확인(T-102)**: DS-02 · DS-03 포털 수정일이 2026-10-06 으로 바뀌고 참고문서가 새 PDF(S-09 · S-10)로 교체됐다. 필드 구성은 같다. **크기가 다른 필드**(새 가이드가 정본): `entrpsCd` 9 → **7**(요청 · 응답) · `vsslNm` 20 → **40** · `mrNum` 40 → **11** · `blNo` 40 → **20** · `entrpsNm` 30 → **40**. 옛 docx(S-04)를 보관하지 않아 옛 가이드가 달랐는지 이 사전이 잘못 옮겼는지는 확인할 수 없다. 아래 표는 새 가이드 값으로 고쳤다. CERA 저장 크기는 여유를 둔다(`bl.bl_no` 40 · `vessel_call.vessel_name` 40).
+
 | 항목 | 내용 | 태그 |
 | --- | --- | --- |
 | 공식 데이터셋 ID / API명 | 15131742 / `해양수산부_외항화물컨테이너정보`, API 영문명 `CargFrghtContnOut`, 상세기능 `ContnInfo`(외항화물컨테이너정보 조회) | `[VERIFIED S-03, S-04]` |
@@ -227,7 +231,7 @@ cargCsclPrgsInfoQryRtnVo            (루트)
 | `etryptYear` | 입항연도 | string(4) | **필수** | `2021` | 선박의 입항연도 | DS-03 응답 `etryptYear` | `[VERIFIED S-03, S-04]` |
 | `etryptCo` | 입항횟수 | string(3) | **필수** | `001` | 선박의 입항횟수(0 채움 3자리) | DS-03 응답 `etryptCo` | `[VERIFIED S-03, S-04]` |
 | `clsgn` | 호출부호 | string(10) | **필수** | (샘플 호출부호) | 선박 호출부호 | DS-03 응답 `clsgn` | `[VERIFIED S-03, S-04]` |
-| `entrpsCd` | 업체코드 | string(9) | 옵션 | (샘플 업체코드) | 조회 업체코드 필터 | 선사·대리점 코드 매핑표 `[TO VERIFY]` | `[VERIFIED S-03, S-04]` |
+| `entrpsCd` | 업체코드 | string(7) | 옵션 | (샘플 업체코드) | 조회 업체코드 필터 | 선사·대리점 코드 매핑표 `[TO VERIFY]` | `[VERIFIED S-03, S-04]` |
 | `numOfRows` | 한 페이지 결과 수 | string(4) | 옵션 | `10` | 최대 50 | 50 고정 `[ASSUMPTION]` | `[VERIFIED S-03, S-04]` |
 | `pageNo` | 페이지 번호 | string(4) | 옵션 | `1` | 페이지 번호 | 파서가 `totalCount`로 반복 | `[VERIFIED S-03, S-04]` |
 
@@ -244,15 +248,15 @@ cargCsclPrgsInfoQryRtnVo            (루트)
 | `etryptYear` | 입항년도 | 4 | 1 | N | `call_year` | `VesselCall` | 조회 키 | `[VERIFIED S-03, S-04]` |
 | `etryptCo` | 입항횟수 | 3 | 1 | N | `call_seq` | `VesselCall` | 조회 키 | `[VERIFIED S-03, S-04]` |
 | `clsgn` | 호출부호 | 10 | 1 | N | `call_sign` | `ContainerState.vessel.call_sign` | 조회 키, 선박 식별 | `[VERIFIED S-03, S-04]` |
-| `vsslNm` | 선박명 | 20 | 0 | Y | `vessel_name` | `ContainerState.vessel.name` | DS-01 `shipNm` 대조 | `[VERIFIED S-03, S-04]` |
-| `mrNum` | 적하목록관리번호 | 40 | 1 | N | `manifest_no` | `ContainerState.bl.manifest_no`(제안) | DS-01 화물관리번호 조인 후보(5절) | `[VERIFIED S-03, S-04]` |
-| `blNo` | BL번호 | 40 | 1 | N | `bl_no` → `mbl_no` 후보 | `ContainerState.bl` | **Watchlist 매칭 키**: 이 행이 감시 대상 B/L의 컨테이너인지 판정. MBL인지 HBL인지 `[TO VERIFY]` | `[VERIFIED S-03, S-04]` 필드 |
+| `vsslNm` | 선박명 | 40 | 0 | Y | `vessel_name` | `ContainerState.vessel.name` | DS-01 `shipNm` 대조 | `[VERIFIED S-03, S-04]` |
+| `mrNum` | 적하목록관리번호 | 11 | 1 | N | `manifest_no` | `ContainerState.bl.manifest_no`(제안) | DS-01 화물관리번호 조인 후보(5절) | `[VERIFIED S-03, S-04]` |
+| `blNo` | BL번호 | 20 | 1 | N | `bl_no` → `mbl_no` 후보 | `ContainerState.bl` | **Watchlist 매칭 키**: 이 행이 감시 대상 B/L의 컨테이너인지 판정. MBL인지 HBL인지 `[TO VERIFY]` | `[VERIFIED S-03, S-04]` 필드 |
 | `msnNo` | MSN번호 | 4 | 1 | N | `msn` | `ContainerState.bl.msn`(제안) | 조인 보조 | `[VERIFIED S-03, S-04]` |
 | `etryndDt` | 입출항일시 | 25 | 0 | Y | `vessel_call_at` | `VesselCall` / `milestones.ata` 후보 | LFD 기산 대체값 후보. **컨테이너 이벤트 일시가 아니라 선박 입출항 일시다** | `[VERIFIED S-03, S-04]` 필드, 형식 ISO 8601 `+09:00`(샘플). 입항인지 출항인지 `[TO VERIFY]` |
 | `tkinTkoutSe` | 반입반출구분 | 2 | 1 | N | `manifest_direction` | 원본 → 범위 필터 | ADR-010 수입 필터 후보. 샘플 `II` = `수입` | `[VERIFIED S-04 샘플]`. 전체 코드와 의미(수출입 구분인지 게이트 반출입인지) `[TO VERIFY]` Q-18 |
 | `tkinTkoutNm` | 반입반출구분명 | 4 | 0 | Y | — | 원본 | 표시 | `[VERIFIED S-03, S-04]` |
-| `entrpsCd` | 업체코드 | 9 | 0 | Y | `company_code` | `ContainerState.carrier` 후보 | Tariff 선택 후보(업체 → 선사). 샘플 업체명은 선사 한국법인 | `[VERIFIED S-03, S-04]` 필드. 선사 매핑 `[TO VERIFY]` |
-| `entrpsNm` | 업체명 | 30 | 0 | Y | `company_name` | 원본 | 표시 | `[VERIFIED S-03, S-04]` |
+| `entrpsCd` | 업체코드 | 7 | 0 | Y | `company_code` | `ContainerState.carrier` 후보 | Tariff 선택 후보(업체 → 선사). 샘플 업체명은 선사 한국법인 | `[VERIFIED S-03, S-04]` 필드. 선사 매핑 `[TO VERIFY]` |
+| `entrpsNm` | 업체명 | 40 | 0 | Y | `company_name` | 원본 | 표시 | `[VERIFIED S-03, S-09]` |
 | `contnNo` | 컨테이너번호 | 25 | 1 | N | `container_no` | `ContainerState.container_no` | **Watchlist 보강**: B/L → 컨테이너 목록. ISO 6346 체크디지트 검증 | `[VERIFIED S-03, S-04]` |
 | `contnStndrd` | 컨테이너규격 | 5 | 0 | Y | `iso_size_type` | `ContainerState.equipment.type` | **Tariff 선택**(장비 종류별 요율), 경로 적합성(Reefer 등). 샘플 `22GP` | `[VERIFIED S-04 샘플]`. ISO 6346 사이즈·타입 코드인지 `[TO VERIFY]` |
 | `contnSize` | 컨테이너사이즈 | 2 | 0 | Y | `size_ft` | `ContainerState.equipment.size` | Tariff 선택, TEU 환산(ODCY 용량) | `[VERIFIED S-03, S-04]`. 샘플 `20` |
@@ -323,6 +327,7 @@ DS-02를 호출하려면 입항 건 키가 필요해서 조사했다. 여기서�
 | CERA 용도 | ① DS-02 조회 키 확보 ② `milestones.ata` 후보(`etryptDt`) ③ 선석 → 터미널 추정(`laidupFcltyNm`) `[TO VERIFY]` | 용도는 `[ASSUMPTION]` |
 | 한도 | 개발계정 10,000, 운영 자동승인, 30 tps | `[VERIFIED S-05, S-06]` |
 | 갱신주기 | 가이드 표기 "실시간" | `[VERIFIED S-06]` 표기 |
+| 2026-10-22 재확인(S-10) | 응답 `details > detail` 마다 `reqstSeNm`(신청구분, 예: 최종) · `etryndNm`(입항/출항) · `mrNum`(입항 상세 = 수입 적하목록 `…I`, 출항 상세 = 수출 `…E`). `etryptDt` · `tkoffDt` 는 ISO 8601 + `+09:00`, **`tkoffPrrrnDt`(출항예정) · `dstnEtryptDt` 는 오프셋 없는 `YYYY-MM-DD HH:mm:ss`** → CERA 는 Asia/Seoul 로 보고 `tz_assumed` 를 남긴다. CERA 사용(T-102): 입항 건 키 · 선명 · 입항 상세의 `etryptDt`(→ `ARRIVAL_DECLARED` 입항 신고 일시 — 실제 입항 마일스톤 아님) · 계선 시설(`LOCATION_REPORTED`) · 수입 `mrNum`(외부 식별자). 나머지는 원문에만 | `[VERIFIED S-10]` |
 | 미확인 | `etryptDt`가 실제 입항인지 신고상 예정인지, 입항 전 신고로 **ETA**를 얻을 수 있는지 | `[TO VERIFY]` |
 
 ### 4.3 DS-04 부산항 체인포털
@@ -434,7 +439,10 @@ v0.1 `05_domain-model.md` 3.2절(현 `../04_domain-model.md`, `../05_event-and-s
 
 ---
 
-## 8. 파서 구현 규칙 (T-005/T-006 입력)
+## 8. 파서 구현 규칙 (T-102 · T-106 입력 — 옛 T-005/T-006 은 DEPRECATED)
+
+> 구현: `back/src/public-data/parsing/` · `normalization/`(T-102). 규칙 1~6 을 따른다. 데이터 없음은 **`00` + 0건**만으로 판정한다(2026-10-22 live 관측). 포털 공통표의 `03` 은 관측되지 않아 데이터 없음 규칙으로 쓰지 않는다 — 오면 UPSTREAM_ERROR 로 남겨 확인한다.
+
 
 1. **오류 판정은 봉투로 한다.** UNI-PASS는 HTTP 200 + `tCnt=-1`로 오류를 알린다. 공공데이터포털은 게이트웨이 오류일 때 루트가 `OpenAPI_ServiceResponse`로 바뀐다 `[VERIFIED S-08]`. HTTP 상태코드만 보고 성공이라고 판단하지 않는다.
 2. **포털 에러코드는 숫자가 아니라 `errMsg` 문자열로 분기한다.** 가이드와 포털 표에서 같은 숫자가 다른 의미로 쓰인다(`code-tables.md` 3.2).
@@ -442,3 +450,21 @@ v0.1 `05_domain-model.md` 3.2절(현 `../04_domain-model.md`, `../05_event-and-s
 4. **타임존 없는 일시는 경계에서 거부**하는 것이 규칙이지만(`01_project-rules.md` 5절), UNI-PASS의 14자리 일시는 원래 타임존이 없다. 파서가 `Asia/Seoul`을 붙이고 provenance에 `tz_assumed: true`를 남긴다 `[ASSUMPTION]` Q-19.
 5. **페이지 반복**: DS-02·03은 `totalCount`로 끝을 판단한다. 호출 수는 수집 로그에 남긴다(Q-05).
 6. **테스트는 fixture로만** 한다. 실제 응답은 `data/raw/`에 두고 마스킹본만 `data/fixtures/`에 둔다.
+
+## 9. 실제 응답 확인 (T-102 live smoke · 2026-10-22)
+
+> `CERA_PUBLIC_DATA_MODE=live` · 부산(`020`) · DS-03 2026-10-21~22 · 2026-10-22, DS-02 입항 건 4개. 원문은 `data/raw/`(gitignore)에만 있다 — 아래는 **모양 통계**이고 식별자는 적지 않는다. `[VERIFIED live 2026-10-22]`
+
+| 항목 | 가이드 · 앞선 가정 | 실제 응답 | 처리 |
+| --- | --- | --- | --- |
+| 결과 코드 · 페이지 | `00` 정상, `numOfRows` 최대 50, `totalCount` | DS-03 181건 = 4쪽(50 · 50 · 50 · 31) · DS-02 1,227행 · 291행 — `numOfRows` · `pageNo` · `totalCount` 모두 있음, 모든 쪽 `00` | 그대로 |
+| 데이터 없음 | `03` = 데이터 없음 `[ASSUMPTION]` | **`00` + `totalCount 0` + 빈 `items`**(DS-02 두 입항 건). `03` 은 관측되지 않았다 | **`00` + 0건만 NO_DATA.** `03` 은 데이터 없음으로 보지 않고 UPSTREAM_ERROR 로 남긴다(의미 `[TO VERIFY]`) |
+| DS-03 신청구분 `reqstSeNm` | 샘플은 `최종` | **`최초` · `변경` · `최종`** 세 값. 입항 건마다 입항 상세 1건(+ 출항 상세 0~1건) | 신청구분을 사건 payload 에 남기고, `최종` 이 아니면 신뢰도 **LOW**(`DECLARATION_NOT_FINAL`) |
+| DS-03 계선 시설 코드 | 3자리 영숫자 | 320건 중 11건이 **`*` 로 시작**(조선소 · 묘박지 · 기타 등 이름) | 코드를 지어내지 않고 `LOCATION_REPORTED` 를 **이름만**(코드 null · 원래 코드는 payload), 신뢰도 LOW |
+| DS-03 일시 | `etryptDt` · `tkoffDt` ISO + `+09:00`, 예정 일시는 오프셋 없음 | 같다(`tkoffPrrrnDt` · `dstnEtryptDt` = `YYYY-MM-DD HH:mm:ss`) | 그대로(Asia/Seoul 가정 · `tz_assumed`) |
+| DS-03 입항 일시의 뜻 | 실제 입항인지 `[TO VERIFY]` | 181건 중 35건이 받은 시각보다 **미래** — 입항 **신고** 일시다(예정 포함) | **`ARRIVAL_DECLARED`** 하나(지난 · 앞은 payload `relative_to_received`). 실제 입항 마일스톤(`milestone.arrived`)으로 쓰지 않는다 |
+| DS-03 nullable | — | 출항지 · 차항지 · 목적지 · 입항목적 일부 빈 값, `mrNum` 은 상세 320건 중 94건 빈 값 | 그대로(null) |
+| DS-02 `tkinTkoutSe` (Q-18) | 샘플 `II = 수입` | **`II` 1:수입 · `IT` 3:수입환적 · `OO` 2:수출 · `OT` 4:수출환적**(이름 앞에 번호) — 적하목록의 수출입 · 환적 구분이다(게이트 반출입 아님) | 수입(`II`)만. 1,291행 중 409행 |
+| DS-02 규격 `contnStndrd` | ISO 6346 | 옛 ISO 그룹 표기 — `22GP` · `45GP` · `44GP` · `42RE` · `22RE` · `45RE` · `22TN` · `22PC` · `22UT` · `45U1` 등 | 변환 규칙 그대로(G = 일반 · R = 냉동 · 그 밖 OTHER). `44GP` 는 높이 4 → 40DRY `[TO VERIFY]`(현업에서 하이큐브로 쓰는지) |
+| DS-02 크기 · 길이 | 새 가이드 크기 | 관측 최대: `blNo` 16 · `entrpsCd` 7 · `vsslNm` 14 · `mrNum` 11 · `contnNo` 11 · `contnSize` 20 · 40 · 45 | 가이드 크기 안. 컨테이너 번호 모양 위반 0 · 체크 숫자 불일치 0 |
+| 큰 입항 건 | — | 1,227행 = 25쪽 — 페이지 상한 20(1,000행)에 걸려 `truncated` | 상한 그대로(개발 계정 DS-02 1,000건/일 보호). 큰 입항 건은 상한을 올리거나 나눠 받는 판단이 필요 |

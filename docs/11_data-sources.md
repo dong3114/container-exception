@@ -24,8 +24,8 @@
 | 메일 | 창고 메일 | `WAREHOUSE_CAPACITY_CHANGED`, `EXCEPTION_RAISED`(수령 거부) | `EMAIL` / WAREHOUSE + LLM 추출 | 검증기 결과 | 발신 시각 | 가상 메일함 |
 | 문서 | 선사·운송사·ODCY 계약서 | `CONTRACT_TERM_EXTRACTED` → TariffRule DRAFT | `DOCUMENT` + LLM 추출 (확인 전 강도 0) | 검증기 결과 | 계약 적용기간 | 합성 계약서 |
 | 공공 API | DS-01 UNI-PASS 화물통관진행정보 | 통관 상태, 처리이력(반출입 일시), 입항일자 | PUBLIC_API | MEDIUM | 응답 속 처리·반출입 일시 | 녹화 fixture (+ 키가 있으면 실호출) |
-| 공공 API | DS-03 해수부 선박운항정보 | `VESSEL_CALL_LINKED`, ATA | PUBLIC_API | MEDIUM | 입항 일시 | 녹화 fixture |
-| 공공 API | DS-02 해수부 외항화물컨테이너정보 | `BL_LINKED`, `EQUIPMENT_REPORTED` (적하목록 스냅샷) | PUBLIC_API | MEDIUM | **수신 시각**(컨테이너별 일시 없음) | 녹화 fixture |
+| 공공 API | DS-03 해수부 선박운항정보 | `ARRIVAL_DECLARED`(입항 **신고** 일시 — 실제 입항 확정 아님) · `LOCATION_REPORTED`(계선 시설) | PUBLIC_API | MEDIUM | 입항 일시 | **T-102 구현** — Backend 어댑터 · replay(합성 fixture) · live(키) |
+| 공공 API | DS-02 해수부 외항화물컨테이너정보 | `VESSEL_CALL_LINKED`, `BL_LINKED`, `EQUIPMENT_REPORTED` (적하목록 스냅샷 — **T-102 구현**) | PUBLIC_API | MEDIUM | **수신 시각**(컨테이너별 일시 없음) | 녹화 fixture |
 | 공공 API | DS-04 부산항 체인포털 | — | — | — | — | 공개 API 미확인, 사용 안 함 |
 | 파트너 | TMS, 터미널, 파트너 API | 마일스톤, 자원 | PARTNER_SYSTEM | HIGH | 시스템 시각 | Scale 단계 |
 | 시나리오 | 시나리오 스크립트 | 흉내 내는 출처의 Event | 흉내 내는 출처 + `is_simulated` | 시나리오 지정 | 시나리오 시각 | 실제 |
@@ -40,7 +40,9 @@
 
 공공 API 응답을 현실의 최신 상태로 쓰지 않는다. 판단에 쓰일 때는 신선도(`05_event-and-state.md` 5절)를 반드시 계산한다. 공공 API는 권한이 A여도 근거 강도가 최대 2이다. 신선도는 응답 속 발생·처리 시각으로만 판단하고, fetch(수신) 시각은 근거로 쓰지 않는다. 응답에 시각이 없으면 `RECEIVED_ONLY`로 표시하고 신선도를 `UNKNOWN`(STALE이 아님, `temporal_confidence = LOW`)으로 둔다. 중요 사실이면 STALE처럼 확인·재조회·승인 게이트가 걸린다(`05_event-and-state.md` 5.2, T-060).
 
-### 3.2 확인된 사실 요약 (T-004, 2026-09-11)
+### 3.2 확인된 사실 요약 (T-004, 2026-09-11 · 2026-10-22 재확인)
+
+> **2026-10-22 재확인(T-101 · T-102)**: DS-01 · DS-02 · DS-03 모두 정상 · 무료. DS-02/03 포털 수정 2026-10-06 · 가이드 새 PDF(field-dictionary S-09 · S-10, 필드 구성 같음 · 일부 크기 정정). DS-01 은 변동 없음(가이드 해시 같음), 호출 한도 공개 수치 없음(Q-05). 해수부 15057599(외항컨테이너반출입정보)는 입항 건 **집계**라 컨테이너별 근거가 아니다. UNI-PASS API048(보세구역 반출신고)이 컨테이너별 반출 시각 후보 — 단위 `[TO VERIFY]`(T-106). **구현**: 공공 API 는 Backend `back/src/public-data/` 만 부른다(ADR-036 결정 3). Agent · AI Server · 브라우저는 직접 부르지 않는다.
 
 필드 단위 정본은 `data/field-dictionary.md`다. 여기에는 결정에 필요한 요약만 둔다.
 

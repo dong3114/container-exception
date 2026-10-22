@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <header>
+    <resultCode>00</resultCode>
+    <resultMsg>NORMAL_SERVICE</resultMsg>
+  </header>
+  <body>
+    <items>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>041</etryptCo><clsgn>D7CR01</clsgn><vsslNm>CERA SYNTH EXPRESS</vsslNm><mrNum>26SYNT0041I</mrNum><blNo>SYNBL26000011</blNo><msnNo>0011</msnNo><etryndDt>2026-10-20T06:30:00+09:00</etryndDt><tkinTkoutSe>II</tkinTkoutSe><tkinTkoutNm>수입</tkinTkoutNm><entrpsCd>SYN0001</entrpsCd><entrpsNm>합성 선사</entrpsNm><contnNo>ZZZU0001505</contnNo><contnStndrd>22G1</contnStndrd><contnSize>20</contnSize></item>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>041</etryptCo><clsgn>D7CR01</clsgn><vsslNm>CERA SYNTH EXPRESS</vsslNm><mrNum>26SYNT0041I</mrNum><blNo>SYNBL26900001</blNo><msnNo>0900</msnNo><etryndDt>2026-10-20T06:30:00+09:00</etryndDt><tkinTkoutSe>OE</tkinTkoutSe><tkinTkoutNm>수출</tkinTkoutNm><entrpsCd>SYN0001</entrpsCd><entrpsNm>합성 선사</entrpsNm><contnNo>ZZZU0009506</contnNo><contnStndrd>22G1</contnStndrd><contnSize>20</contnSize></item>
+      <item><prtAgCd>020</prtAgCd><prtAgNm>부산</prtAgNm><etryptYear>2026</etryptYear><etryptCo>041</etryptCo><clsgn>D7CR01</clsgn><vsslNm>CERA SYNTH EXPRESS</vsslNm><mrNum>26SYNT0041I</mrNum><blNo>SYNBL26900002</blNo><msnNo>0901</msnNo><etryndDt>2026-10-20T06:30:00+09:00</etryndDt><tkinTkoutSe>II</tkinTkoutSe><tkinTkoutNm>수입</tkinTkoutNm><entrpsCd>SYN0001</entrpsCd><entrpsNm>합성 선사</entrpsNm><contnNo>BAD-NUMBER</contnNo><contnStndrd>22G1</contnStndrd><contnSize>20</contnSize></item>
+    </items>
+    <numOfRows>50</numOfRows>
+    <pageNo>2</pageNo>
+    <totalCount>53</totalCount>
+  </body>
+</response>

@@ -92,6 +92,20 @@
       "when": 1791349746585,
       "tag": "0012_m13_message_lifecycle_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792638958611,
+      "tag": "0013_m14_public_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792638968123,
+      "tag": "0014_m15_public_data_guards",
+      "breakpoints": true
     }
   ]
 }

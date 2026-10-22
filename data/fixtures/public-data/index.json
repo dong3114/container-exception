@@ -1,0 +1,49 @@
+{
+  "synthetic": true,
+  "entries": [
+    {
+      "dataset": "MOF_VESSEL_CALL",
+      "match": {
+        "prtAgCd": "020",
+        "deGb": "I",
+        "sde": "20261020",
+        "ede": "20261021",
+        "pageNo": "1"
+      },
+      "file": "ds03/busan-20261020-20261021-p1.xml"
+    },
+    {
+      "dataset": "MOF_CONTAINER_MANIFEST",
+      "match": {
+        "prtAgCd": "020",
+        "etryptYear": "2026",
+        "etryptCo": "041",
+        "clsgn": "D7CR01",
+        "pageNo": "1"
+      },
+      "file": "ds02/D7CR01-2026-041-p1.xml"
+    },
+    {
+      "dataset": "MOF_CONTAINER_MANIFEST",
+      "match": {
+        "prtAgCd": "020",
+        "etryptYear": "2026",
+        "etryptCo": "041",
+        "clsgn": "D7CR01",
+        "pageNo": "2"
+      },
+      "file": "ds02/D7CR01-2026-041-p2.xml"
+    },
+    {
+      "dataset": "MOF_CONTAINER_MANIFEST",
+      "match": {
+        "prtAgCd": "020",
+        "etryptYear": "2026",
+        "etryptCo": "017",
+        "clsgn": "D7CR02",
+        "pageNo": "1"
+      },
+      "file": "ds02/D7CR02-2026-017-p1.xml"
+    }
+  ]
+}

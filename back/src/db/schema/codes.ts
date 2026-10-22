@@ -73,3 +73,18 @@ export const CONFLICT_STATUS = ['NONE', 'DISSENT', 'OPEN'] as const;
 export const HOLD_STATUS = ['NONE', 'HELD'] as const;
 export const DECISION_USABILITY = ['USABLE', 'USABLE_WITH_WARNING', 'APPROVAL_BLOCKED', 'UNUSABLE'] as const;
 export const HANDLING_TYPE = ['ACKNOWLEDGED', 'ASSIGNED', 'ASKED_EXTERNAL', 'RESOLVED', 'DISMISSED', 'SNOOZED'] as const;
+
+// ── M14 공공데이터(T-102 · docs/24 22.30 ~ 22.35) ──
+// DS-02 는 blNo 가 MBL 인지 HBL 인지 알려 주지 않는다(field-dictionary 3.3 · Q-04) — 모르면 UNKNOWN 으로 둔다(지어내지 않는다).
+export const BL_TYPE = ['MASTER', 'HOUSE', 'UNKNOWN'] as const;
+// CERA 장비 분류(Tariff · 경로 판단용). ISO 6346 원래 코드는 EQUIPMENT_REPORTED 사건 값에 남는다.
+export const CONTAINER_SIZE_TYPE = ['20DRY', '40DRY', '40HC', '20RF', '40RF', 'OTHER'] as const;
+export const CONTAINER_BL_ROLE = ['PRIMARY', 'CONSOLIDATED'] as const;
+export const EXTERNAL_ID_OWNER_TYPE = ['BL', 'CONTAINER', 'VESSEL_CALL'] as const;
+export const ISSUING_SYSTEM = ['KCS', 'MOF'] as const;
+export const EXTERNAL_ID_TYPE = ['CARGO_MGMT_NO', 'MANIFEST_NO', 'MSN'] as const;
+export const PUBLIC_DATA_PROVIDER = ['DATA_GO_KR', 'UNIPASS'] as const;
+export const PUBLIC_DATA_DATASET = ['MOF_VESSEL_CALL', 'MOF_CONTAINER_MANIFEST'] as const;
+export const PUBLIC_DATA_MODE = ['LIVE', 'REPLAY'] as const;
+export const PUBLIC_DATA_OUTCOME = ['SUCCESS', 'NO_DATA', 'UPSTREAM_ERROR', 'TRANSPORT_ERROR', 'PARSE_ERROR'] as const;
+

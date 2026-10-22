@@ -1,6 +1,6 @@
 # 22. CERA 논리 데이터 모델 (Logical Data Model)
 
-- 상태: **rev.2.5 — T-080 물리 설계가 찾은 논리 모순 정리 (2026-09-22).** 표·컬럼 수 변화 없음(52 · 587). 발송 시도의 멱등·재시도·`UNKNOWN` 화해 · 한 번 채움(`sent_at` · `external_thread_id`) · 받은 메시지의 `drafted_by` · `current_status` · 표기 정정 4건 — 아래 rev.2.5 표. 이전: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
+- 상태: **rev.2.6 — T-102 공공데이터(DS-03 · DS-02) 실제 연동 (2026-10-22, 사용자 승인: `vessel_call` P0 승격).** MVP **54** · Next **0** · 만들지 않음 2 = **56**, 컬럼 **612**(+25). 물리는 `docs/24` 22.30~22.35 · M14/M15. 짝 작업표(xlsx)는 아직 rev.2.5 표기다 — 이 문서 rev.2.6 블록이 우선. 이전 상태: **rev.2.5 — T-080 물리 설계가 찾은 논리 모순 정리 (2026-09-22).** 표·컬럼 수 변화 없음(52 · 587). 발송 시도의 멱등·재시도·`UNKNOWN` 화해 · 한 번 채움(`sent_at` · `external_thread_id`) · 받은 메시지의 `drafted_by` · `current_status` · 표기 정정 4건 — 아래 rev.2.5 표. 이전: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
 - 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. rev.2.2 저장 커밋: `8d47a99`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
 - 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다. **rev.2.3 에서도 `docs/21` 변경 0건**
 - 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **53개**(MVP 52 + Next 1), 컬럼 **587개**(rev.2.4 — 내용 컬럼을 참조 + 지문으로 바꾸며 +1. rev.2.3 은 586, rev.2.2 는 52블록·557). 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
@@ -8,6 +8,19 @@
 - 런타임·오류 처리·관측성의 행동 규칙은 **`docs/23_runtime-platform-and-observability.md`** 가 정본이다. 이 문서는 그중 **DB 에 남는 `system_error` 표**만 다룬다
 - **2026-09-21 T-069: L-13 CLOSED** — 복구 맥락 = `recovery_run` 계보의 뿌리 실행 id(4절 L-13 · I-35 · I-36). **새 표·새 컬럼 없음**, 논리 테이블 수 52 그대로
 - **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절). **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다** — 11.2c. **Q-44 CLOSED · Q-45 구조 CLOSED(기간 OPEN)** — 2026-09-21 사용자 결정, 11.2e · 29절
+
+> **rev.2.6 (T-102 · 2026-10-22 사용자 승인) 에서 고친 것** — 실제 공공 API(DS-03 선박운항정보 · DS-02 외항화물컨테이너정보) 응답을 받으려고 물류 핵심 표를 처음 만든다. 개념 모델(`docs/21`) 변경 없음. **API 응답의 모든 필드를 열로 옮기지 않는다** — CERA 가 쓰는 식별 정보 + 원문 참조만 열이고, 시각 · 선석 · 규격 같은 사실은 PUBLIC_API 사건이다(안티패턴 1).
+>
+> | # | 고친 것 | 어디 |
+> | --- | --- | --- |
+> | **G-1** | **`vessel_call` Next → MVP**. DS-02 는 B/L 로 조회할 수 없고 입항 건 키(항만 · 연도 · 횟수 · 호출부호)로만 조회된다 — 키를 보관할 표가 필요하다. 원천 필드 중 선명만 열, 선종 · 국적 · 출항지 · 톤수 · 선원 수 · 신고업체는 원문에만 | 8.5 |
+> | **G-2** | 공공데이터로 등록되는 개체(`vessel_call` · `bl` · `container`)에 **처음 알게 된 원문 참조 `first_raw_input_id`** + `is_simulated` + `registered_at` | 8.1 · 8.2 · 8.5 |
+> | **G-3** | `bl.bl_type` 에 **`UNKNOWN`** — DS-02 `blNo` 가 MBL 인지 HBL 인지 원천이 말하지 않는다(Q-04). 지어내지 않는다 | 8.2 |
+> | **G-4** | **L-16 물리 잠정안**: `(bl_type, bl_no, bl_year)` NULLS NOT DISTINCT 유일. 다른 선사의 같은 번호가 실제로 보이면 다시 연다 | 8.2 |
+> | **G-5** | `container` 는 이번에 **공공데이터가 채우는 열만** 만든다(번호 · CERA 규격 · 처음 입항 건). 선사 · 목적지 · 화물 설명 · 업무 우선순위는 쓰는 Task 에서. `size_type` 값 = `20DRY` · `40DRY` · `40HC` · `20RF` · `40RF` · `OTHER`(ISO 6346 에서 결정론 변환, 원래 코드는 사건 값) | 8.1 |
+> | **G-6** | `external_identifier` 에 근거 원문 `source_raw_input_id` + `is_simulated`(근거 사건이 없는 식별자 — 적하목록관리번호). MSN 값 = `<적하목록관리번호>-<MSN>`(적하목록 안에서만 유일) | 8.4 |
+> | **G-7** | **`public_data_fetch` 신설**(EVIDENCE · APPEND_ONLY) — 공공 API 호출 원장. 요청 시각 · 받은 시각 · 안전한 조회 조건 · HTTP 상태 · 결과 코드 · 결과 종류(실패 포함) · 원문 참조 · 호출 주체 · 실제/녹화. `raw_input` 은 원문 한 건이고, 원문이 없는 실패(전송 실패)와 호출 한도(Q-05) 근거는 원장이 담는다. **인증키는 어느 열에도 없다** | 8.6 |
+> | **G-8** | `container_bl` 은 물리에서 **APPEND_ONLY**(정정은 사건) | 8.3 |
 
 > **rev.2.5 (T-080 물리 설계 검토 · 2026-09-22 사용자 결정) 에서 고친 것** — 새 표 **0개** · 새 컬럼 **0개**(52표 · 587컬럼 그대로). 개념 모델(`docs/21`) 변경 없음. 물리 설계는 `docs/24`.
 >
@@ -175,10 +188,10 @@
 
 | 구분 | 개수 | 바뀐 과정 |
 | --- | --- | --- |
-| **MVP 논리 테이블** | **52** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) → rev.2.4 **52** (변화 없음 — 보관 관리 내용은 표가 아니다, 29.1) |
-| Next (구조만 두고 MVP 에서 쓰지 않음) | **1** (`vessel_call`) | 변화 없음 |
+| **MVP 논리 테이블** | **54** | rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) → **rev.2.6 54** (**+2**: `vessel_call` 승격 · `public_data_fetch` 신설) · rev.2.4 **52** (변화 없음 — 보관 관리 내용은 표가 아니다, 29.1) |
+| Next (구조만 두고 MVP 에서 쓰지 않음) | **0** | rev.2.6 에서 `vessel_call` 이 MVP 로 |
 | **MVP 에서 만들지 않음** (요구가 생기면 다시 연다) | **2** (`exception_case` · `operational_plan_batch`) | rev.2 에서 **OPEN → 결정 완료**(D-4 · D-5) |
-| 표에 적은 것 전체 | **55** | 49 → 53 → 54 → 55 |
+| 표에 적은 것 전체 | **56** | 49 → 53 → 54 → 55 → 56 |
 
 **rev.2.3 에서 늘어난 표 1개** — `event_verification_target`(11.2a). 새 업무 개념이 아니라 **승인된 `docs/21` 9절의 확인 부류(`VERIFICATION`)가 무엇을 가리키는지**를 담는 관계 표다. 개념 모델을 다시 열지 않는다. 같은 rev 에서 **표가 줄어든 곳은 없다.**
 
@@ -197,7 +210,7 @@
 
 | 도메인 | 테이블 |
 | --- | --- |
-| A. 물류 핵심 (4 + Next 1) | `container` · `bl` · `container_bl` · `external_identifier` · `vessel_call`(Next) |
+| A. 물류 핵심 (6 — rev.2.6) | `container` · `bl` · `container_bl` · `external_identifier` · `vessel_call`(rev.2.6 MVP) · **`public_data_fetch`**(rev.2.6) |
 | B. 시설·자원 (5) | `facility` · `facility_warehouse` · `facility_terminal` · `facility_odcy` · `truck_pool` |
 | C. 거래처·연락처 (5) | `counterparty` · `counterparty_contact` · `contact_channel_address` · `contact_verification` · `channel_connection` |
 | D. 사건·현재 상태 (8) | `raw_input` · `event` · `event_entity_link` · **`event_verification_target`**(rev.2.3) · `canonical_fact` · `conflict` · `verification_request` · `verification_request_handling` |
@@ -577,7 +590,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 내부 식별자 | `bl_id` | `STRING(30)` | 예 | **PK** | |
 | **B/L 번호** | `bl_no` | `STRING(40)` | 예 | 업무 식별 후보 | **한 행에 번호는 하나**. MASTER 행이면 MBL 번호, HOUSE 행이면 HBL 번호 |
-| B/L 종류 | `bl_type` | `CODE` | 예 | 업무 식별 후보 | `MASTER` / `HOUSE` |
+| B/L 종류 | `bl_type` | `CODE` | 예 | 업무 식별 후보 | `MASTER` / `HOUSE` / **`UNKNOWN`**(rev.2.6 — 원천이 말하지 않을 때, G-3) |
 | 상위 B/L | `parent_bl_id` | `REF(bl)` | 아니오 | FK | HOUSE → MASTER (자기 참조). MASTER 행은 비어 있다 |
 | B/L 연도 | `bl_year` | `INTEGER` | 아니오 | 업무 식별 후보 | 공공 API 조회에서 번호와 짝으로 쓰인다 |
 | 선사 | `carrier_counterparty_id` | `REF(counterparty)` | 아니오 | FK | |
@@ -615,7 +628,7 @@
 - **MVP 제약**: 컨테이너당 `link_role = PRIMARY` 인 행이 **정확히 1건**(부분 유일 제약). 혼재(LCL)가 범위에 들어오면 이 제약만 푼다.
 - 이 테이블을 두는 이유: `container.bl_id` 컬럼으로 시작하면 LCL 도입 시 **스키마 변경 + 데이터 이관**이 필요하다.
 
-### 8.4 `external_identifier` — 외부 시스템 식별자
+### 8.4 `external_identifier` — 외부 시스템 식별자 (rev.2.6 — `source_raw_input_id` · `is_simulated` 추가, G-6)
 
 - 분류 **`EVIDENCE`** · 변경 **`APPEND_ONLY`** — 정정은 새 행 · MVP
 
@@ -629,12 +642,21 @@
 | 값 | `id_value` | `STRING(40)` | 예 | **UNIQUE**(issuing_system, id_type, id_value) | |
 | 근거 사건 | `source_event_id` | `REF(event)` | 아니오 | FK | 어디서 알게 됐나 |
 
-### 8.5 `vessel_call` — 입항 건 **(Next)**
+### 8.5 `vessel_call` — 입항 건 **(rev.2.6 — Next → MVP)**
 
-- 분류 **`MASTER`** · 변경 **`CONTROLLED_UPDATE`** · MVP **아님**. 구조만 정의하고 MVP 에서 채우지 않는다.
+- 분류 **`MASTER`** · 변경 **`CONTROLLED_UPDATE`** · **MVP(rev.2.6)**. DS-03 이 채우고 DS-02 조회 키로 쓴다. 물리 `docs/24` 22.30. 열 추가: `first_raw_input_id` · `is_simulated` · `registered_at`(G-2). 바뀔 수 있는 열 = `vessel_name` · `is_active`.
+- (rev.2.5 까지) MVP 아님 — 구조만 정의.
 - 키: `vessel_call_id` PK, `UNIQUE(port_authority_code, call_year, call_seq, call_sign)`.
 - 컬럼: `vessel_call_id` · `port_authority_code CODE` · `call_year INTEGER` · `call_seq INTEGER` · `call_sign STRING(20)` · `vessel_name STRING(100)` · `is_active` (rev.2.2 — 작업표와 맞춰 적음).
 - 이유: 같은 배로 온 컨테이너에 입항 지연이 공통으로 걸릴 때 필요하다. 지금은 컨테이너별 도착 사실로 충분하다.
+
+### 8.6 `public_data_fetch` — 공공 API 호출 원장 **(rev.2.6 신설, G-7)**
+
+- 분류 **`EVIDENCE`** · 변경 **`APPEND_ONLY`** · MVP · 물리 `docs/24` 22.35
+- 한 행 = 페이지 하나를 한 번 물어본 것. 성공 · 데이터 없음 · 상대 오류 · 전송 실패 · 해석 실패 모두 남는다. 응답 본문이 왔으면 `raw_input` 1건을 가리킨다(UNIQUE)
+- 열: `fetch_id` · `provider`(DATA_GO_KR · UNIPASS) · `dataset` · `operation` · `request_params`(안전한 조회 조건 — **키 없음**) · `page_no` · `mode`(LIVE · REPLAY) · `requested_at` · `received_at` · `http_status` · `result_code` · `outcome` · `total_count` · `item_count` · `raw_input_id` · `requested_by_actor_id` · `trace_id` · `is_simulated`
+- 규칙: `mode = REPLAY` ⇔ `is_simulated`(녹화 재생은 시뮬레이션 — 규칙 9). 전송 실패만 원문 · 받은 시각이 없다
+- 왜 `raw_input` 만으로 안 되나: `raw_input` 은 **원문 한 건**이다. 무엇을 언제 어떤 조건으로 물었는지(요청 시각 · 페이지 · 조건), 원문이 없는 실패, 호출 한도 사용량(Q-05)은 원문 행에 없다
 
 ---
 
