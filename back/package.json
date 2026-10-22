@@ -23,6 +23,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/seed/run-seed.ts",
     "mock:reply": "tsx src/dev/mock-reply.ts",
+    "env:check": "tsx src/dev/env-check.ts",
     "openapi:emit": "tsx src/openapi/emit-openapi.ts"
   },
   "dependencies": {

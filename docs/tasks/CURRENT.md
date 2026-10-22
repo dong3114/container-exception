@@ -10,12 +10,12 @@
 
 ## Status
 
-**IMPLEMENTING — T-099 (실제 AI 공급자 검증 + CERA 평가셋)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-12 세션 중단(사용자 요청). **커밋 · staging 없음.** T-093 시작 안 함.
+**IMPLEMENTING — T-099 (실제 AI 공급자 검증 + CERA 평가셋)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-12 세션 중단(사용자 요청). **중간 저장 커밋 `5ba83ab`(2026-10-14, T-099 WIP) · origin push 됨.** T-093 시작 안 함.
 
 ### T-099 인계 (2026-10-12)
 
 - 원칙(사용자 지시): 모델 평가가 목적 — AI 권한 추가 없음 · Backend · DB · 화면 변경 없음 · Generative(값 + 원문 근거)와 Decision(의미 판단)을 분리 · 임계값은 결과를 보고 정하고 이번에 확정하지 않음 · LangChain · Agent framework · RAG 금지
-- **한 일 (미커밋, 모두 `ai/` 안)**:
+- **한 일 (`5ba83ab` 에 커밋됨, 모두 `ai/` 안)**:
   - 평가셋 `ai/evals/datasets/cera-reply-eval-v1/` — `source.py`(사람이 고치는 원본, 루브릭 일관성 검사 포함) → `cases.jsonl`(생성, 141건 · A~N 14범주 · ko 128 / en 9 / mixed 4 · 정답 추출값 138 · 검토 필요 59). 정답은 Orchestrator 가 루브릭으로 작성 — 모델 출력에서 가져오지 않았다. **전부 `DRAFT_NEEDS_HUMAN_REVIEW`**(Claude 계열이 후보이므로 사람 검토 필요). **README.md(루브릭 R1~R6 설명)는 아직 안 씀**
   - 생성형 어댑터 `ai/cera_ai/llm_adapters.py`(Anthropic `output_config.format` · OpenAI Responses `json_schema` strict · Gemini `response_json_schema`, SDK 지연 import, 키는 환경변수만). `providers.py` 의 live 모드는 `CERA_LLM_PROVIDER` + `CERA_LLM_MODEL` 둘 다 있을 때만 어댑터 사용(기본 replay 그대로)
   - Decision `ai/cera_ai/decision.py` — 질문 4개(answer_type · commitment · answers_question · needs_human_review) · Jev(OpenRouter `POST /api/alpha/decisions`, `typesafe/jev-1.13`) · LLM 판정 · HF NLI · 기저율 · 녹화 재생
@@ -45,13 +45,13 @@
 
 | 무엇 | 파일 | 상태 |
 | --- | --- | --- |
-| 이 흐름 밖 untracked | `data/Proposal/` · `scripts/`(제안서 생성 — 문구에 "Next.js 관제탑 UI" 남음) | 손대지 않음 — 사용자가 정리 |
+| (해소) 제안서 | `data/Proposal/` · `scripts/` | `e8695a0`(2026-10-14) 로 커밋됨 — 문구의 "Next.js 관제탑 UI" 는 남아 있음 |
 
 **프론트 정리(2026-10-06, 사용자 직접 지시 — Task ID 없음)는 커밋 3개로 끝났다**: ① CSR 전환(ADR-035 · 정본 5곳 Next.js 표기 동기화) ② 기존 Antigravity 디자인 변경(09-17 작업, 그대로) ③ Backend 연결 준비(`docs/16` 4.1 — API base · `ApiError` · `AsyncState` · `GateBlockers` · `MessageLifecycle` · `CandidateBadge` · 데이터 출처 표시 · ②가 지운 시뮬레이션 표시 복구 · vitest 15 · `docs/23` 7.1 배포 원칙). 해시는 `LOG.md` 맨 위
 
-## 다른 PC 로 옮길 때 (Google Drive 복사 — remote 없음)
+## 다른 PC 로 옮길 때 (origin 클론 + gitignore 파일 따로)
 
-**이 저장소는 remote 가 없다. Google Drive 폴더 복사가 유일한 이전 수단이다.** `node_modules`(back · front/web)와 `back/dist` 는 복사하지 않고 새 PC 에서 `npm install` · `npm run build`. `back/.env` · `infra/local/.env`(gitignore)와 `.git/` 은 **반드시 함께 복사**(author `dong3114` 설정이 `.git` 안에 있다). Docker 볼륨은 따라가지 않는다 — 새 PC 에서 `up -d --wait` → `cd back && npm run db:migrate && npm run db:seed`. 미커밋 작업(`data/Proposal/` · `scripts/`)은 폴더째 복사하면 따라간다. 준비물: Node ≥ 22.12 · Docker Desktop · 포트 55442.
+**origin = `github.com/dong3114/container-exception`(2026-10-14 첫 push).** 코드는 클론으로 옮기고, gitignore 된 파일(`back/.env` · `infra/local/.env` · `ai/.env` · `data/raw/`)은 따로 옮긴다. git author 설정은 클론에 따라오지 않는다. 아래는 옛 Drive 복사 방식 메모다. `node_modules`(back · front/web)와 `back/dist` 는 복사하지 않고 새 PC 에서 `npm install` · `npm run build`. `back/.env` · `infra/local/.env`(gitignore)와 `.git/` 은 **반드시 함께 복사**(author `dong3114` 설정이 `.git` 안에 있다). Docker 볼륨은 따라가지 않는다 — 새 PC 에서 `up -d --wait` → `cd back && npm run db:migrate && npm run db:seed`. 미커밋 작업(`data/Proposal/` · `scripts/`)은 폴더째 복사하면 따라간다. 준비물: Node ≥ 22.12 · Docker Desktop · 포트 55442.
 
 ## 지금 확정된 상태
 
@@ -72,11 +72,11 @@
 | 항목 | 값 |
 | --- | --- |
 | branch | `main` |
-| 최신 커밋 | T-092 커밋(`feat: add AI reply extraction pipeline`, 해시는 `git log -1`) — 그 전 `4f78fec`(T-091) |
-| remote | 없음 (push 한 적 없음). **이 PC가 유일한 사본이다** |
+| 최신 커밋 | `e8695a0`(제안서 문서, 2026-10-14) ← `5ba83ab`(T-099 WIP) ← `d5a3c8b`(T-092) |
+| remote | `origin` = github.com/dong3114/container-exception · `main` 이 `origin/main` 과 같음(2026-10-22 확인) |
 | working tree 의 다른 작업 | 위 "커밋하지 않은 working tree" 표 |
-| last updated | 2026-10-07 (T-092 DONE · 커밋, CURRENT IDLE) |
-| current orchestrator | 없음(IDLE). 직전: Claude Code (claude-opus-5-5) — T-092 |
+| last updated | 2026-10-22 (Git/remote 표기 정정 · T-100 설정 정리) |
+| current orchestrator | Claude Code (claude-opus-5-5) — T-099 중단 상태에서 T-100 |
 
 ## 다음 한 걸음
 

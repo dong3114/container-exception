@@ -192,6 +192,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 
 [back — Main Backend (NestJS)]  (모든 명령은 back 폴더에서. 처음 한 번: back/.env.example → back/.env)
 설치:        npm install
+설정 점검:    npm run env:check        # 로컬 .env 가 .env.example 보다 뒤처졌는지(키 이름만). ai 는 python -m cera_ai.config
 타입 검사:    npm run typecheck
 시험:        npm test                 # unit + db(로컬 PostgreSQL 필요). 따로: npm run test:unit / npm run test:db
 빌드:        npm run build
