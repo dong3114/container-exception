@@ -121,7 +121,7 @@ describe('gateway: service auth, run scope, registry only', () => {
     const runId = await startRun(w.runId);
     const view = (await http.get(`/agent-runs/${runId}`).expect(200)).body;
     expect(view).toMatchObject({ recovery_run_id: w.runId, status: 'CREATED', agent_actor_id: agentId, created_by_actor_id: humanId, is_simulated: true });
-    expect((await http.get('/agent-runs/runtime').expect(200)).body).toMatchObject({ tools_enabled: true, tool_count: 9 });
+    expect((await http.get('/agent-runs/runtime').expect(200)).body).toMatchObject({ tools_enabled: true, tool_count: 10 });
   });
 
   it('I. only registered tools exist — approve / send are not reachable as tools', async () => {
@@ -130,7 +130,7 @@ describe('gateway: service auth, run scope, registry only', () => {
       expect((await tool(name, runId, {}).expect(404)).body.error.code).toBe('TOOL_NOT_FOUND');
     }
     const catalog = (await http.get('/internal/agent-tools').set('authorization', `Bearer ${TOKEN}`).expect(200)).body;
-    expect(catalog.tools.map((t: { name: string }) => t.name)).toHaveLength(9);
+    expect(catalog.tools.map((t: { name: string }) => t.name)).toHaveLength(10);
     expect(catalog.tools.every((t: { category: string }) => ['READ', 'EXTERNAL_READ', 'COMPUTE', 'PROPOSE', 'REQUEST'].includes(t.category))).toBe(true);
   });
 
@@ -161,7 +161,8 @@ describe('CERA read tools', () => {
     expect(ctx.body.output.snapshot.plan_date).toBe('2026-10-01');
     expect(ctx.body.output.limitations.join(' ')).toContain('NOT_RECONCILED');
     const gaps = (await tool('get_information_gaps', runId, {}).expect(200)).body.output;
-    expect(gaps.rule_version).toBe('gap-rules/0');
+    expect(gaps.rule_version).toBe('gap-rules/1');
+    expect(gaps.gaps.every((g: { candidate_state: string }) => g.candidate_state === 'NONE')).toBe(true); // nothing asked yet
     const ours = gaps.gaps.filter((g: { subject_id: string }) => g.subject_id === w.facilityId || g.subject_id === w.truckPoolId);
     expect(ours.map((g: { gap_kind: string; state: string; public_data_can_resolve: boolean }) => [g.gap_kind, g.state, g.public_data_can_resolve]).sort()).toEqual([
       ['FACILITY_CAPACITY', 'MISSING', false],

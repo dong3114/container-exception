@@ -1,13 +1,13 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-10-22 (**T-104 DONE — 사용자 승인 + durability 보강(재조정 · WAITING_RUNTIME · crash window 시험). 시험 Backend 328 · Python 53 · Front 39. T-105 IN_PROGRESS.**) 이전: 2026-10-22 (**T-104 구현 · 검증 끝 — 사용자 검토 대기(커밋 전).**) 이전: 2026-10-22 (**T-103 DONE — Agent Tool Layer(사용자 승인 · M16 · M17). 다음 T-104 LangGraph Runtime.**) 이전: 2026-10-22 (**T-102 DONE — live 검증(실제 DS-03 · DS-02 응답 확인, 차이 최소 수정: 비표준 시설 코드 · 신청구분 · 입항 신고 일시 = `ARRIVAL_DECLARED` · 데이터 없음 = `00` + 0건).**) 이전: 2026-10-22 (**T-100 DONE(`1c58f08` 설정 정리) · T-101 DONE(ADR-036 Accepted — Agent Runtime 설계) · T-102~T-107 등록 · T-005/T-006 DEPRECATED(→ T-106/T-102) · T-099 재배치(T-105 뒤) · T-102 IN_PROGRESS.**) 이전: 2026-10-07 (**T-092 DONE — U7 회신 추출 파이프라인(Python AI Server · 녹화 재생 · 결정론 검증기) · DB 변경 없음 · 시험 266 + Python 7 + 프론트 39. 다음: T-099(실제 AI 공급자 검증 + CERA 평가셋) → 그 뒤 T-093. 시작하지 않음.**) 이전: 2026-10-07 (**T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함 · DB 변경 없음 · 시험 247 + 프론트 37. 다음: T-092(U7 추출), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · M13 · 시험 232 + 프론트 34. 다음: T-091(U6 수신), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · M12 · 시험 211 + 프론트 27. 다음: T-090(U5), 시작하지 않음.**) 이전: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
+- 최종 수정: 2026-10-22 (**T-105 DONE(사용자 승인 — 업무 fact state 와 Agent candidate_state 분리 유지). T-099 재개(IN_PROGRESS) — 실제 CERA Runtime 에 넣을 AI 선정. T-093 은 T-099 뒤.**) 이전: 2026-10-22 (**T-105 구현 · 검증 끝 — 사용자 검토 대기(커밋 전). 승인 → 발송 → 회신 → 추출 → 재평가 한 그래프 · 실제 프로세스 E2E(LIVE 공공데이터) · Agent 진행 화면. 시험 Backend 329 · Python 56 · Front 42.**) 이전: 2026-10-22 (**T-104 DONE — 사용자 승인 + durability 보강(재조정 · WAITING_RUNTIME · crash window 시험). 시험 Backend 328 · Python 53 · Front 39. T-105 IN_PROGRESS.**) 이전: 2026-10-22 (**T-104 구현 · 검증 끝 — 사용자 검토 대기(커밋 전).**) 이전: 2026-10-22 (**T-103 DONE — Agent Tool Layer(사용자 승인 · M16 · M17). 다음 T-104 LangGraph Runtime.**) 이전: 2026-10-22 (**T-102 DONE — live 검증(실제 DS-03 · DS-02 응답 확인, 차이 최소 수정: 비표준 시설 코드 · 신청구분 · 입항 신고 일시 = `ARRIVAL_DECLARED` · 데이터 없음 = `00` + 0건).**) 이전: 2026-10-22 (**T-100 DONE(`1c58f08` 설정 정리) · T-101 DONE(ADR-036 Accepted — Agent Runtime 설계) · T-102~T-107 등록 · T-005/T-006 DEPRECATED(→ T-106/T-102) · T-099 재배치(T-105 뒤) · T-102 IN_PROGRESS.**) 이전: 2026-10-07 (**T-092 DONE — U7 회신 추출 파이프라인(Python AI Server · 녹화 재생 · 결정론 검증기) · DB 변경 없음 · 시험 266 + Python 7 + 프론트 39. 다음: T-099(실제 AI 공급자 검증 + CERA 평가셋) → 그 뒤 T-093. 시작하지 않음.**) 이전: 2026-10-07 (**T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함 · DB 변경 없음 · 시험 247 + 프론트 37. 다음: T-092(U7 추출), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · M13 · 시험 232 + 프론트 34. 다음: T-091(U6 수신), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · M12 · 시험 211 + 프론트 27. 다음: T-090(U5), 시작하지 않음.**) 이전: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
 
 ## 다음 추천 태스크
 
-**(2026-10-22 사용자 승인 — 이 순서가 위의 옛 순서보다 우선한다)** ~~T-100 설정 정리~~ → ~~T-101 Agent Runtime 설계(ADR-036)~~ → ~~T-102 DS-03 + DS-02 Public Data Adapter~~(DONE · live 검증) → ~~T-103 Agent Tool Layer~~(DONE) → ~~T-104 LangGraph Runtime~~(DONE) → **T-105 첫 Agent Vertical Slice(진행 중)** → T-106 UNI-PASS Adapter → T-107 Demo Scenario v2 → T-099 재개 → T-093(U8) → T-098. 설계 `docs/tasks/plans/T-101-agent-runtime-design.md` 13절.
+**(2026-10-22 사용자 승인 — 이 순서가 위의 옛 순서보다 우선한다)** ~~T-100 설정 정리~~ → ~~T-101 Agent Runtime 설계(ADR-036)~~ → ~~T-102 DS-03 + DS-02 Public Data Adapter~~(DONE · live 검증) → ~~T-103 Agent Tool Layer~~(DONE) → ~~T-104 LangGraph Runtime~~(DONE) → ~~T-105 첫 Agent Vertical Slice~~(DONE) → **T-099 재개(진행 중 — 사용자 지시 2026-10-22)** → T-093(U8) → T-106 UNI-PASS Adapter → T-107 Demo Scenario v2 → T-098. 설계 `docs/tasks/plans/T-101-agent-runtime-design.md` 13절.
 
 0. ~~**T-079-R**~~ (DONE 2026-09-18, 사용자 + ChatGPT) — **논리 DB 설계 rev.2.2 최종 승인.** `docs/22` rev.2.2 + 작업표 + `docs/23`(런타임·관측성) 검토 통과. MVP 51 · Next 1 · MVP 에서 만들지 않음 2 = 54. 사용자 결정 D-1~D-5 는 2026-09-17 에 이미 CLOSED. **기술 선택은 승인 대상이 아니었다**(Q-64). 상세는 아래 완료 섹션 T-079
 0-z. ~~**T-076**~~ (DONE 2026-09-17, 사용자 + ChatGPT) — **개념 모델 최종 승인.** rev.3 + T-078 정합성 정리를 통과했다. **`docs/21` 은 이제 승인된 기준이고 논리 설계에서 수정하지 않는다.** 원래 항목: **개념 모델 최종 승인 (rev.3 + T-078 정합성 정리).**
@@ -96,8 +96,7 @@
 
 ## 진행 중
 
-- **T-105** 첫 Agent Vertical Slice — IN_PROGRESS(Claude Code / 2026-10-22, 사용자 지시 — T-104 커밋 뒤 바로 시작). 상세 `CURRENT.md`
-- (재배치) **T-099** — 2026-10-12 중단 상태 그대로(WIP 커밋 `5ba83ab`). 2026-10-22 사용자 결정으로 T-105 뒤 재개 — 아래 T-099 항목
+- **T-099** 실제 AI 공급자 검증 + CERA Eval — IN_PROGRESS(Claude Code / 2026-10-22 재개). 목적: 실제 Agent Runtime(회신 → 추출 → 판정 → 공백 재평가)에 넣을 Generative · Decision 모델 선정. 상세 `CURRENT.md`
 
 ## 대기 — P0
 
@@ -224,7 +223,8 @@
 | **T-102** | DS-03 선박운항 + DS-02 컨테이너 Public Data Adapter | 실제 부산 입항 · 컨테이너 데이터를 원문 · 출처와 함께 수집 | 입항 건 · 컨테이너 목록 조회(개발 API) | `back/src/public-data/*` · `data/fixtures/public-data/` | **M14**(공공데이터 6표 — `vessel_call` 승격 · `public_data_fetch` 신설, `docs/22` rev.2.6) · **M15**(가드 · GRANT) | `DATA_GO_KR_SERVICE_KEY` | T-100 · T-101 | **DONE** — 사용자 승인 + live 검증(2026-10-22, DS-03 181건 · DS-02 1,227행 등) |
 | **T-103** | Agent Tool Layer v1 | Agent 가 쓸 수 있는 typed Tool | Tool 계약 · 서비스 토큰 · 실행 범위 · 부작용 등급 · 감사 | `back/src/agent-tools/*` · `packages/contracts/agent-tools.json` | **M16** `agent_run` · `agent_tool_call` + **M17** 가드(`agent_step` · `agent_checkpoint` 는 T-104 에서 필요할 때) | 없음(토큰 로컬 생성) | T-101 · ~~T-102~~ | **DONE**(2026-10-22 사용자 승인) |
 | **T-104** | Agent Runtime 기반 (LangGraph) | 그래프 실행 뼈대 | 실행 시작 · interrupt · resume · 상한 · 추적 | `ai/cera_ai/agent/*` · `ai/pyproject.toml` · `back/src/agent-tools/coordinator.ts` 외 | **M18** `agent_step` · `agent_checkpoint` · `agent_checkpoint_write` + `agent_run` 생애주기 · **M19** 가드 | 없음(replay) | T-103 | **DONE**(2026-10-22 사용자 승인) |
-| **T-105** | 첫 Agent Vertical Slice — "정보 공백 하나를 Agent 가 메운다" | 공공데이터로 풀 공백은 Tool 로, 안 되는 공백은 문의 초안 → 승인 interrupt → Mock 발송 → 회신 interrupt → 추출 · 판정 → Backend 검증 · 솔버 없음은 정직하게 표시(설계 9.3) | 실행 타임라인(노드 · Tool · interrupt · resume) — `/dev` 수준 | 그래프 노드 · Coordinator · `/dev` 화면 | 없음 예상 | 없음(replay) / 선택: LLM 키 | ~~T-104~~ · ~~T-102~~ | **IN_PROGRESS**(2026-10-22) |
+| **T-105** | 첫 Agent Vertical Slice — "정보 공백 하나를 Agent 가 메운다" | 공공데이터로 풀 공백은 Tool 로, 안 되는 공백은 문의 초안 → 승인 interrupt → Mock 발송 → 회신 interrupt → 추출 · 판정 → Backend 검증 · 솔버 없음은 정직하게 표시(설계 9.3) | 실행 타임라인(노드 · Tool · interrupt · resume) — `/dev` 수준 | 그래프 노드 · Coordinator · `/dev` 화면 | 없음 예상 | 없음(replay) / 선택: LLM 키 | ~~T-104~~ · ~~T-102~~ | **DONE**(2026-10-22 사용자 승인) |
+| **T-108** | Agent 실행 화면 계약 · 재조정 확장 (T-105 후속) | 화면 · 운영 규모 | Agent 실행 보기 OpenAPI DTO(지금은 느슨한 object — 화면이 자체 타입) · 재조정 페이지 넘김(기다리는 실행이 100건 넘으면 오래된 것만 보는 문제) · checkpoint 보관 · 정리 주기 | `back/src/agent-tools/` · `front/web/src/api/agentRuns.ts` | 없음 예상 | 없음 | T-105 | TODO · P2 |
 | **T-106** | UNI-PASS Adapter (DS-01) | 통관 진행 · 반출입 이력 | 실제 B/L 의 통관 진행 조회 | `back/src/public-data/` 아래 DS-01 어댑터 | 작음(필요 시 M16+) | `UNIPASS_API_KEY` + 실제 B/L 5~20건(T-002) | T-102 · T-002 | TODO |
 | **T-107** | Demo Scenario v2 (REAL 공공 + SYNTHETIC 사설) | 실제 부산 사건 기반 시연 | 실제 입항 · 컨테이너 + 합성 창고 · 트럭 · 요율 · 회신 | `data/scenarios/` v2 | 없음 | `DATA_GO_KR_SERVICE_KEY` | T-102 (T-106 있으면 더 좋음) | TODO |
 
@@ -538,6 +538,10 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-105 — 첫 Agent Vertical Slice · **DONE (2026-10-22, 사용자 승인)**
+
+- 한 그래프에서 공공데이터(LIVE) → 공백 → 초안 → 승인 interrupt → 사람의 발송 요청 → Worker 발송 → WAITING_EXTERNAL → 회신 · 추출(T-092) → `gap-rules/1` 재평가(업무 `state` vs `candidate_state`) → 결과. Tool `get_reply_candidates` · 수신 · 추출 알림 + 재조정 · Control Tower Agent 진행 화면 · 실제 프로세스 E2E. 기록 `docs/24` 18.12. 후속 T-108(P2)
 
 ### T-104 — LangGraph Agent Runtime · **DONE (2026-10-22, 사용자 승인)**
 

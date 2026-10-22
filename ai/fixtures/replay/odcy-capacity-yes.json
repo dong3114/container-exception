@@ -1,0 +1,26 @@
+{
+  "version": "fixtures-1",
+  "note": "synthetic text for tests and demo — not a real mail (T-105: a virtual ODCY answers a capacity inquiry)",
+  "message_text": "10월 13일에 ODCY A에서 컨테이너 2대 받을 수 있습니다.",
+  "match": {
+    "message_text_sha256": "d63d5618dfed62b779720213a5273b26aa13a863b1c41340feec5f50957d492a"
+  },
+  "output": {
+    "outcome": "VALUES",
+    "answers": [
+      {
+        "ask_id": "Q1",
+        "field": "quantity",
+        "raw_value": "컨테이너 2대",
+        "value": "2",
+        "unit": "CONTAINER",
+        "evidence": {
+          "quote": "컨테이너 2대 받을 수 있습니다"
+        },
+        "confidence": 0.9
+      }
+    ],
+    "unmapped_statements": [],
+    "ambiguity_flags": []
+  }
+}

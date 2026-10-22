@@ -1,16 +1,22 @@
-"""CeraRecoveryGraph (T-104 · ADR-036) — one LangGraph StateGraph, nodes by responsibility.
+"""CeraRecoveryGraph (T-104 · T-105 · ADR-036) — one LangGraph StateGraph, nodes by responsibility.
 
-    START → load_context → inspect_gaps → choose_next_action
+    START → load_context → observe_public_data (only when the human gave a window) → inspect_gaps → choose_next_action
       ├─ COMPLETE      → build_result → END
-      ├─ COMMUNICATION → prepare_inquiry → create_draft → request_approval → wait_for_human ⟲ INTERRUPT
-      │                    resume → refresh_status ─┬─ APPROVED  → build_result
-      │                                             ├─ REJECTED  → build_result
-      │                                             ├─ WITHDRAWN → build_result
-      │                                             └─ PENDING   → wait_for_human (wait again)
+      ├─ COMMUNICATION → prepare_inquiry → create_draft → request_approval → wait_for_human ⟲ INTERRUPT(HUMAN)
+      │     → track_message (authoritative status) ─┬─ PENDING            → wait_for_human
+      │                                             ├─ AWAIT_SEND_REQUEST → wait_send_request ⟲ INTERRUPT(HUMAN) → track_message
+      │                                             ├─ AWAIT_DELIVERY     → wait_delivery ⟲ INTERRUPT(EXTERNAL) → track_message
+      │                                             ├─ AWAIT_REPLY        → wait_reply ⟲ INTERRUPT(EXTERNAL) → track_message
+      │                                             ├─ REPLY_READY        → read_reply → reassess_gaps → build_result
+      │                                             └─ REJECTED · WITHDRAWN · DELIVERY_FAILED → build_result
       ├─ PUBLIC_DATA   → fetch_public_data → inspect_gaps (loop, bounded)
       ├─ WAIT_EXTERNAL → wait_external ⟲ INTERRUPT → refresh_context → inspect_gaps
       └─ FAIL          → build_result
-    every node: step / tool-call limits checked first → LOOP_LIMIT_REACHED · TOOL_CALL_LIMIT_REACHED → build_result
+    every node: step limit (whole run) / tool-call limit (per active stretch between waits) → LOOP_LIMIT_REACHED · TOOL_CALL_LIMIT_REACHED
+
+The agent never sends: after approval a person requests the send, the backend Outbox/Worker sends (T-090 rules),
+and the graph only observes the message status and waits. A reply's extraction candidates are suggestions —
+the run ends with "candidate received", never with a confirmed fact (T-093 promotes candidates).
 
 Rules this graph keeps (ADR-036):
 - the graph is **not** an authority: it never approves, sends or confirms; it calls Backend tools only
@@ -55,6 +61,10 @@ class RecoveryState(TypedDict, total=False):
     draft_message_id: str | None
     pending_human_action: dict[str, Any] | None
     approval_outcome: str | None
+    message_phase: str | None  # PENDING · AWAIT_SEND_REQUEST · AWAIT_DELIVERY · AWAIT_REPLY · REPLY_READY · REJECTED · WITHDRAWN · DELIVERY_FAILED
+    public_data: dict[str, Any] | None  # mode · outcome · counts · fetch ids — provenance refs, not facts
+    reply_summary: dict[str, Any] | None  # counts · fields · extraction ids · outcome — never the reply text
+    reassessment: dict[str, Any] | None  # business gap state vs candidate state after the reply
     last_tool_call: dict[str, Any] | None
     tool_results: list[dict[str, Any]]  # last calls: tool · status · code · tool_call_id
     decision_results: list[dict[str, Any]]
@@ -128,6 +138,8 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
                 except LimitReached as limit:
                     out = {"halt": limit.code}
             out = {**out, **session.updates(), "step_count": steps, "retry_count": state.get("retry_count", 0) + session.retries}
+            if name in WAIT_NODES:
+                out["tool_call_count"] = 0  # a new active stretch begins after a wait; the step limit still bounds the whole run
             if session.calls:
                 out["tool_results"] = (state.get("tool_results") or [])[-15:] + session.calls
             if "last_tool_call" in out and out["last_tool_call"] is None:
@@ -140,7 +152,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
                         {
                             "node": name,
                             "outcome": outcome,
-                            "detail_code": out.get("next_action") or out.get("approval_outcome"),
+                            "detail_code": out.get("next_action") or out.get("message_phase") or (out.get("reply_summary") or {}).get("outcome") or (out.get("reassessment") or {}).get("candidate_state"),
                             "tool_call_id": next((c["tool_call_id"] for c in reversed(session.calls) if c["tool_call_id"]), None),
                             "retry_count": session.retries,
                             "started_at": started.isoformat(timespec="milliseconds"),
@@ -167,8 +179,8 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         r = s.call("get_information_gaps", {})
         if not r.ok:
             return failed(r.error.code if r.error else "GAPS_UNAVAILABLE")
-        keep = ("gap_id", "gap_kind", "subject_type", "subject_id", "state", "public_data_can_resolve", "suggested_source", "suggested_intent", "suggested_counterparty_role", "owner_counterparty_id")
-        gaps = [{k: g[k] for k in keep} for g in r.output["gaps"]]
+        keep = ("gap_id", "gap_kind", "subject_type", "subject_id", "state", "public_data_can_resolve", "suggested_source", "suggested_intent", "suggested_counterparty_role", "owner_counterparty_id", "candidate_state")
+        gaps = [{k: g.get(k) for k in keep} for g in r.output["gaps"]]
         known = [k["evidence"]["event_id"] for k in r.output["known"]]
         return {"information_gaps": gaps, "known_fact_refs": sorted(set((state.get("known_fact_refs") or []) + known))[:100]}
 
@@ -238,12 +250,76 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         interrupt({"waiting": "HUMAN", "reason": pending.get("reason", "HUMAN_APPROVAL_REQUIRED"), "ref_type": pending.get("ref_type"), "ref_id": pending.get("ref_id")})
         return {}
 
-    def refresh_status(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+    def track_message(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        # the only source of what happened to the inquiry: the backend's current status (never the resume value)
         r = s.call("get_communication_status", {"message_id": state["draft_message_id"]})
         if not r.ok:
             return failed(r.error.code if r.error else "STATUS_UNAVAILABLE")
         m = r.output["messages"][0]
-        return {"approval_outcome": approval_outcome(m["status"], m["approval_state"])}
+        phase = message_phase(m)
+        return {"message_phase": phase, "approval_outcome": approval_outcome(m["status"], m["approval_state"])}
+
+    def _wait(waiting: str, reason: str) -> Callable[[RecoveryState, ToolSession], dict[str, Any]]:
+        def wait(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+            interrupt({"waiting": waiting, "reason": reason, "ref_type": "COMM_MESSAGE", "ref_id": state["draft_message_id"]})
+            return {}
+
+        return wait
+
+    def observe_public_data(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        # context only: real public observations with provenance. A failure is recorded, it does not end the run
+        window = (state.get("parameters") or {}).get("public_data") or {}
+        if not window.get("from_date"):
+            return {}
+        r = s.call("get_vessel_calls", {"from_date": window["from_date"], "to_date": window.get("to_date") or window["from_date"]})
+        if not r.ok:
+            return {"public_data": {"outcome": f"TOOL_{r.status}", "error_code": r.error.code if r.error else None}}
+        summary = r.output["summary"]
+        refs = sorted({p["fetch_id"] for p in summary["pages"]})
+        return {
+            "public_data": {"mode": summary.get("mode"), "outcome": summary.get("outcome"), "vessel_call_count": len(r.output.get("items") or []), "fetch_ids": refs[:20]},
+            "evidence_refs": ((state.get("evidence_refs") or []) + refs)[-50:],
+        }
+
+    def read_reply(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        r = s.call("get_reply_candidates", {"message_id": state["draft_message_id"]})
+        if not r.ok:
+            return failed(r.error.code if r.error else "REPLY_UNAVAILABLE")
+        replies = r.output["replies"]
+        candidates = [c for rep in replies for c in rep["candidates"]]
+        passed = [c for c in candidates if c["validation"] == "PASSED" and c["review_status"] == "PENDING"]
+        if passed:
+            outcome = "CANDIDATES_RECEIVED"
+        elif replies and all(rep["extraction_state"] == "FAILED" for rep in replies):
+            outcome = "EXTRACTION_FAILED"
+        else:
+            outcome = "NO_VALID_CANDIDATE"
+        return {
+            "reply_summary": {
+                "outcome": outcome,
+                "reply_count": len(replies),
+                "candidate_fields": sorted({c["field"] for c in passed}),
+                "extraction_ids": sorted(c["extraction_id"] for c in passed)[:50],
+                "rejected_count": sum(1 for c in candidates if c["validation"] == "REJECTED"),
+                "generated_by": sorted({c["generated_by"] for c in candidates}),
+            }
+        }
+
+    def reassess_gaps(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        # workflow vs truth: a validated candidate satisfies the inquiry for now, but the business gap stays open
+        # until a confirmed fact exists (T-093). The graph does not turn candidates into facts.
+        r = s.call("get_information_gaps", {})
+        if not r.ok:
+            return failed(r.error.code if r.error else "GAPS_UNAVAILABLE")
+        target = (state.get("target_gap") or {}).get("gap_id")
+        gap = next((g for g in r.output["gaps"] if g["gap_id"] == target), None)
+        return {
+            "reassessment": {
+                "business_gap_state": gap["state"] if gap else "KNOWN",
+                "candidate_state": gap.get("candidate_state", "NONE") if gap else "NONE",
+                "open_gap_count": len(r.output["gaps"]),
+            }
+        }
 
     def fetch_public_data(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
         day = state.get("plan_date")
@@ -258,23 +334,32 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         return {}
 
     def build_result(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        summary = result_summary(state)
         halt = state.get("halt")
         if halt:
-            return {"result": {"status": "FAILED", "result_code": None, "error_code": halt}}
-        action = state.get("next_action")
-        if action == "COMPLETE":
-            return {"result": {"status": "COMPLETED", "result_code": "NO_INFORMATION_GAPS", "error_code": None}}
-        outcome = state.get("approval_outcome")
-        code = {"APPROVED": "INQUIRY_APPROVED", "REJECTED": "INQUIRY_REJECTED", "WITHDRAWN": "APPROVAL_WITHDRAWN"}.get(outcome or "", None)
+            return {"result": {"status": "FAILED", "result_code": None, "error_code": halt, "summary": summary}}
+        if state.get("next_action") == "COMPLETE":
+            return {"result": {"status": "COMPLETED", "result_code": "NO_INFORMATION_GAPS", "error_code": None, "summary": summary}}
+        reply = state.get("reply_summary")
+        if reply:
+            code = "CANDIDATE_RECEIVED_PENDING_CONFIRMATION" if reply["outcome"] == "CANDIDATES_RECEIVED" else "REPLY_NEEDS_HUMAN_REVIEW"
+            return {"result": {"status": "COMPLETED", "result_code": code, "error_code": None, "summary": summary}}
+        phase = state.get("message_phase")
+        if phase == "DELIVERY_FAILED":
+            return {"result": {"status": "FAILED", "result_code": None, "error_code": "DELIVERY_FAILED", "summary": summary}}
+        code = {"REJECTED": "INQUIRY_REJECTED", "WITHDRAWN": "APPROVAL_WITHDRAWN"}.get(phase or "")
         if code:
-            return {"result": {"status": "COMPLETED", "result_code": code, "error_code": None}}
-        return {"result": {"status": "FAILED", "result_code": None, "error_code": "UNEXPECTED_END"}}
+            return {"result": {"status": "COMPLETED", "result_code": code, "error_code": None, "summary": summary}}
+        return {"result": {"status": "FAILED", "result_code": None, "error_code": "UNEXPECTED_END", "summary": summary}}
 
     for name, fn in [
         ("load_context", load_context), ("inspect_gaps", inspect_gaps), ("choose_next_action", choose_next_action),
         ("prepare_inquiry", prepare_inquiry), ("create_draft", create_draft), ("request_approval", request_approval),
-        ("wait_for_human", wait_for_human), ("refresh_status", refresh_status), ("fetch_public_data", fetch_public_data),
+        ("wait_for_human", wait_for_human), ("track_message", track_message), ("fetch_public_data", fetch_public_data),
         ("wait_external", wait_external), ("refresh_context", load_context), ("build_result", build_result),
+        ("observe_public_data", observe_public_data), ("wait_send_request", _wait("HUMAN", "AWAITING_SEND_REQUEST")),
+        ("wait_delivery", _wait("EXTERNAL", "AWAITING_DELIVERY")), ("wait_reply", _wait("EXTERNAL", "AWAITING_REPLY")),
+        ("read_reply", read_reply), ("reassess_gaps", reassess_gaps),
     ]:
         g.add_node(name, node(name, fn))
 
@@ -282,7 +367,8 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         return lambda state: "build_result" if state.get("halt") else next_node
 
     g.add_edge(START, "load_context")
-    g.add_conditional_edges("load_context", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
+    g.add_conditional_edges("load_context", ok("observe_public_data"), ["observe_public_data", "build_result"])
+    g.add_conditional_edges("observe_public_data", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
     g.add_conditional_edges("inspect_gaps", ok("choose_next_action"), ["choose_next_action", "build_result"])
     g.add_conditional_edges(
         "choose_next_action",
@@ -292,17 +378,68 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     g.add_conditional_edges("prepare_inquiry", ok("create_draft"), ["create_draft", "build_result"])
     g.add_conditional_edges("create_draft", ok("request_approval"), ["request_approval", "build_result"])
     g.add_conditional_edges("request_approval", ok("wait_for_human"), ["wait_for_human", "build_result"])
-    g.add_edge("wait_for_human", "refresh_status")
+    g.add_edge("wait_for_human", "track_message")
+    phase_next = {"PENDING": "wait_for_human", "AWAIT_SEND_REQUEST": "wait_send_request", "AWAIT_DELIVERY": "wait_delivery", "AWAIT_REPLY": "wait_reply", "REPLY_READY": "read_reply"}
     g.add_conditional_edges(
-        "refresh_status",
-        lambda state: "build_result" if state.get("halt") else ("wait_for_human" if state.get("approval_outcome") == "PENDING" else "build_result"),
-        ["wait_for_human", "build_result"],
+        "track_message",
+        lambda state: "build_result" if state.get("halt") else phase_next.get(state.get("message_phase") or "", "build_result"),
+        ["wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "read_reply", "build_result"],
     )
+    for w in ("wait_send_request", "wait_delivery", "wait_reply"):
+        g.add_edge(w, "track_message")
+    g.add_conditional_edges("read_reply", ok("reassess_gaps"), ["reassess_gaps", "build_result"])
+    g.add_edge("reassess_gaps", "build_result")
     g.add_conditional_edges("fetch_public_data", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
     g.add_edge("wait_external", "refresh_context")
     g.add_conditional_edges("refresh_context", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
     g.add_edge("build_result", END)
     return g.compile(checkpointer=checkpointer)
+
+
+WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external")
+EXTRACTION_SETTLED = ("DONE", "NO_CANDIDATE", "SKIPPED", "FAILED")
+
+
+def message_phase(m: dict[str, Any]) -> str:
+    """Authoritative message status → where the inquiry is. Same meaning as the backend's wake rules (wake-rules.ts)."""
+    status = m["status"]
+    if status in ("SENT", "REPLIED"):
+        replies = [r for r in m.get("replies") or [] if r.get("status") == "NORMAL"]
+        return "REPLY_READY" if any(r.get("extraction_state") in EXTRACTION_SETTLED for r in replies) else "AWAIT_REPLY"
+    if status == "QUEUED":
+        return "AWAIT_DELIVERY"
+    if status == "DELIVERY_FAILED":
+        return "DELIVERY_FAILED"
+    outcome = approval_outcome(status, m["approval_state"])
+    return "AWAIT_SEND_REQUEST" if outcome == "APPROVED" else outcome
+
+
+def result_summary(state: RecoveryState) -> dict[str, Any]:
+    """What the run found — codes, ids, counts only (stored on the run for the operator screen)."""
+    gap = state.get("target_gap") or {}
+    pub = state.get("public_data") or {}
+    reply = state.get("reply_summary") or {}
+    re_ = state.get("reassessment") or {}
+    out: dict[str, Any] = {
+        "target_gap_id": gap.get("gap_id"),
+        "gap_kind": gap.get("gap_kind"),
+        "subject_id": gap.get("subject_id"),
+        "message_id": state.get("draft_message_id"),
+        "message_phase": state.get("message_phase"),
+        "reply_outcome": reply.get("outcome"),
+        "reply_count": reply.get("reply_count"),
+        "candidate_fields": reply.get("candidate_fields"),
+        "candidate_extraction_ids": reply.get("extraction_ids"),
+        "business_gap_state": re_.get("business_gap_state"),
+        "candidate_state": re_.get("candidate_state"),
+        "facts_confirmed": False,  # T-093 promotes candidates; this graph never confirms
+        "public_data_mode": pub.get("mode"),
+        "public_data_outcome": pub.get("outcome"),
+        "public_vessel_call_count": pub.get("vessel_call_count"),
+        "public_fetch_ids": pub.get("fetch_ids"),
+        "step_count": state.get("step_count"),
+    }
+    return {k: v for k, v in out.items() if v is not None}
 
 
 def approval_outcome(status: str, approval_state: str) -> str:

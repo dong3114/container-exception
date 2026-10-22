@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-22 · T-105 DONE — 첫 Agent Vertical Slice · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(`feat: add agentic recovery vertical slice`). push 없음
+- 한 일: 그래프 확장(`observe_public_data` · `track_message` · `wait_send_request` · `wait_delivery` · `wait_reply` · `read_reply` · `reassess_gaps` · `result_summary`) · Tool `get_reply_candidates`(READ) · `gap-rules/1`(업무 `state` vs 작업 흐름 `candidate_state`) · 수신 · 추출 알림 → 재조정 · Tool 상한 = 대기 구간마다 · 합성 녹화 `odcy-capacity-yes.json` · Control Tower `AgentPanel`
+- 검증: Backend 329 · Python 56 · Front 42 · E2E 11개 · 실제 프로세스 E2E(LIVE 공공데이터 189건 · 브라우저 발송 요청 · 회신 대기 중 Python 재시작 → COMPLETED `CANDIDATE_RECEIVED_PENDING_CONFIRMATION`)
+- 결정(사용자): 업무 fact state 와 Agent candidate_state 분리 유지 — 추출 후보 ≠ CanonicalFact. 발송 요청은 사람(T-090 규칙 유지)
+- 다음: **T-099** 재개(실제 Runtime 에 넣을 AI 선정) → T-093. T-108 은 P2
+
 ## 2026-10-22 · T-104 DONE — LangGraph Agent Runtime · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(`feat: add durable LangGraph agent runtime`). push 없음
 - 한 일: `CeraRecoveryGraph`(StateGraph · 결정론 분기 · interrupt · resume) · Tool adapter(Registry 제한 · 상한 · 재시도) · `BackendCheckpointSaver`(Python DB 자격증명 없음) · Coordinator(시작 · 재개 · 상태 전이) · Runtime API · 승인 신호 · M18(`agent_step` · `agent_checkpoint` · `agent_checkpoint_write` + `agent_run` 생애주기 · 열 10) · M19 가드

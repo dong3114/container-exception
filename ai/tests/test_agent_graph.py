@@ -45,7 +45,8 @@ class FakeTools:
     def __init__(self, overrides: dict[str, Callable[[dict[str, Any], int], ToolResult]] | None = None, *, gaps: list[dict[str, Any]] | None = None, status: str = "APPROVED", approval_state: str = "ACTIVE") -> None:
         self.registry = load_registry()
         self.calls: list[tuple[str, dict[str, Any], str | None]] = []
-        self.status = {"status": status, "approval_state": approval_state}
+        self.status: dict[str, Any] = {"status": status, "approval_state": approval_state, "replies": []}
+        self.candidates: list[dict[str, Any]] = []
         self.gaps = [gap()] if gaps is None else gaps
         self.overrides = overrides or {}
 
@@ -66,6 +67,10 @@ class FakeTools:
             return ok(tool, {"message": {"message_id": MSG}, "approval_requested": True})
         if tool == "get_communication_status":
             return ok(tool, {"messages": [{"message_id": MSG, **self.status}]})
+        if tool == "get_reply_candidates":
+            return ok(tool, {"message_id": MSG, "status": self.status["status"], "replies": [{"inbound_message_id": MSG, "received_at": "x", "extraction_state": "DONE", "no_candidate_outcome": None, "candidates": self.candidates}], "note": "n"})
+        if tool == "get_vessel_calls":
+            return ok(tool, {"summary": {"mode": "LIVE", "outcome": "SUCCESS", "pages": [{"fetch_id": "f-1"}, {"fetch_id": "f-2"}]}, "items": [{}, {}, {}]})
         raise AssertionError(f"unexpected tool {tool}")
 
 
@@ -86,13 +91,74 @@ def test_start_runs_to_the_approval_interrupt_with_a_pending_ref_and_determinist
 
 
 def test_resume_rereads_authoritative_status_and_branches():
-    for status, approval, code in [("APPROVED", "ACTIVE", "INQUIRY_APPROVED"), ("REJECTED", "REJECTED", "INQUIRY_REJECTED"), ("APPROVED", "REVOKED", "APPROVAL_WITHDRAWN")]:
+    for status, approval, code in [("REJECTED", "REJECTED", "INQUIRY_REJECTED"), ("APPROVED", "REVOKED", "APPROVAL_WITHDRAWN")]:
         tools = FakeTools(status=status, approval_state=approval)
         rt = runtime(tools)
         rt.start(RUN, RR, "goal", PARAMS)
         out = rt.resume(RUN, "APPROVAL_DECIDED", {"type": "COMM_MESSAGE", "id": MSG})
         assert (out["status"], out["result_code"]) == ("COMPLETED", code)
         assert tools.calls[-1][0] == "get_communication_status"
+    # approved: the agent does not send — it waits for a person to request the send
+    tools = FakeTools(status="APPROVED", approval_state="ACTIVE")
+    rt = runtime(tools)
+    rt.start(RUN, RR, "goal", PARAMS)
+    out = rt.resume(RUN, "APPROVAL_DECIDED", None)
+    assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "AWAITING_SEND_REQUEST", {"type": "COMM_MESSAGE", "id": MSG})
+
+
+def test_full_slice_waits_for_send_and_reply_then_reads_candidates_and_reassesses():
+    tools = FakeTools()
+    tools.status = {"status": "PENDING_APPROVAL", "approval_state": "NONE", "replies": []}
+    rt = runtime(tools)
+    params = {**PARAMS, "public_data": {"from_date": "2026-10-20", "to_date": "2026-10-21"}}
+    assert rt.start(RUN, RR, "goal", params)["waiting_reason"] == "HUMAN_APPROVAL_REQUIRED"
+    tools.status = {"status": "QUEUED", "approval_state": "ACTIVE", "replies": []}
+    out = rt.resume(RUN, "SEND_PROGRESS", None)
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_EXTERNAL", "AWAITING_DELIVERY")
+    tools.status = {"status": "SENT", "approval_state": "ACTIVE", "replies": []}
+    out = rt.resume(RUN, "SEND_PROGRESS", None)
+    assert (out["status"], out["waiting_reason"], out["pending"]["id"]) == ("WAITING_EXTERNAL", "AWAITING_REPLY", MSG)
+    # a reply arrived but extraction is still running → keep waiting
+    tools.status = {"status": "REPLIED", "approval_state": "ACTIVE", "replies": [{"status": "NORMAL", "extraction_state": "WAITING"}]}
+    assert rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)["waiting_reason"] == "AWAITING_REPLY"
+    tools.status["replies"] = [{"status": "NORMAL", "extraction_state": "DONE"}]
+    tools.candidates = [
+        {"extraction_id": "e-1", "field": "quantity", "value": "4", "unit": "TRUCK", "validation": "PASSED", "failed_reasons": [], "review_status": "PENDING", "generated_by": "RECORDED_REPLAY"},
+        {"extraction_id": "e-2", "field": "available_until", "value": "9", "unit": None, "validation": "REJECTED", "failed_reasons": ["VALUE_NOT_IN_QUOTE"], "review_status": "REJECTED", "generated_by": "RECORDED_REPLAY"},
+    ]
+    tools.gaps = [{**gap("ASKED"), "candidate_state": "CANDIDATE_RECEIVED"}]
+    out = rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)
+    assert (out["status"], out["result_code"]) == ("COMPLETED", "CANDIDATE_RECEIVED_PENDING_CONFIRMATION")
+    summary = out["result_summary"]
+    assert summary["candidate_fields"] == ["quantity"] and summary["candidate_extraction_ids"] == ["e-1"]
+    # workflow satisfied, business gap still open — no fact was made
+    assert (summary["business_gap_state"], summary["candidate_state"], summary["facts_confirmed"]) == ("ASKED", "CANDIDATE_RECEIVED", False)
+    assert (summary["public_data_mode"], summary["public_vessel_call_count"], summary["public_fetch_ids"]) == ("LIVE", 3, ["f-1", "f-2"])
+    assert all(isinstance(v, (str, int, bool, list)) for v in summary.values())
+    assert "4" not in [str(v) for v in summary.values()]  # candidate values are not copied into the run summary
+    names = [c[0] for c in tools.calls]
+    assert names.count("create_inquiry_draft") == 1 and "get_reply_candidates" in names and names[-1] == "get_information_gaps"
+
+
+def test_a_reply_without_a_valid_candidate_needs_a_human():
+    tools = FakeTools(status="SENT", approval_state="ACTIVE")
+    tools.status["replies"] = [{"status": "NORMAL", "extraction_state": "NO_CANDIDATE"}]
+    rt = runtime(tools)
+    rt.start(RUN, RR, "goal", PARAMS)
+    out = rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)
+    assert out["result_code"] == "REPLY_NEEDS_HUMAN_REVIEW" and out["result_summary"]["reply_outcome"] == "NO_VALID_CANDIDATE"
+
+
+def test_tool_call_budget_is_per_active_stretch_and_steps_bound_the_whole_run():
+    tools = FakeTools(status="PENDING_APPROVAL", approval_state="NONE")
+    rt = runtime(tools, max_tool_calls=6, max_steps=40)
+    assert rt.start(RUN, RR, "goal", PARAMS)["status"] == "WAITING_HUMAN"  # 5 tool calls
+    for _ in range(4):  # each wake reads the status once — the budget starts again after a wait
+        assert rt.resume(RUN, "APPROVAL_DECIDED", None)["status"] == "WAITING_HUMAN"
+    bounded = runtime(FakeTools(status="PENDING_APPROVAL", approval_state="NONE"), max_steps=10)
+    bounded.start(RUN, RR, "goal", PARAMS)
+    results = [bounded.resume(RUN, "APPROVAL_DECIDED", None) for _ in range(5)]
+    assert results[-1]["error_code"] == "LOOP_LIMIT_REACHED"
 
 
 def test_a_resume_claiming_approval_does_not_count_when_the_backend_still_says_pending():
@@ -101,8 +167,8 @@ def test_a_resume_claiming_approval_does_not_count_when_the_backend_still_says_p
     rt.start(RUN, RR, "goal", PARAMS)
     out = rt.resume(RUN, "APPROVAL_DECIDED", {"approved": True})  # the payload is ignored
     assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "HUMAN_APPROVAL_REQUIRED")
-    tools.status = {"status": "APPROVED", "approval_state": "ACTIVE"}
-    assert rt.resume(RUN, "APPROVAL_DECIDED", None)["result_code"] == "INQUIRY_APPROVED"
+    tools.status = {"status": "APPROVED", "approval_state": "ACTIVE", "replies": []}
+    assert rt.resume(RUN, "APPROVAL_DECIDED", None)["waiting_reason"] == "AWAITING_SEND_REQUEST"
     assert sum(1 for c in tools.calls if c[0] == "create_inquiry_draft") == 1  # the draft was not made again
 
 
@@ -217,10 +283,10 @@ def test_checkpoints_through_the_backend_survive_a_new_process():
 
     second_tools = FakeTools()
     out = fresh_runtime(second_tools).resume(RUN, "APPROVAL_DECIDED", {"type": "COMM_MESSAGE", "id": MSG})
-    assert (out["status"], out["result_code"]) == ("COMPLETED", "INQUIRY_APPROVED")
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "AWAITING_SEND_REQUEST")
     assert [c[0] for c in second_tools.calls] == ["get_communication_status"]  # continued, did not start over
     nodes = [s["node"] for s in store.steps]
-    assert nodes[:3] == ["load_context", "inspect_gaps", "choose_next_action"] and nodes[-1] == "build_result"
+    assert nodes[:4] == ["load_context", "observe_public_data", "inspect_gaps", "choose_next_action"] and nodes[-2:] == ["wait_for_human", "track_message"]
     assert all(re.match(r"^[A-Z][A-Z0-9_]*$", s["outcome"]) for s in store.steps)
     blob = "".join(store.raw) + "".join(base64.b64decode(c["checkpoint"]["b64"]).decode("latin-1") for c in store.checkpoints.values())
     assert TOKEN not in blob

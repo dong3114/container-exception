@@ -11,7 +11,10 @@ import { v7 } from 'uuid';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AgentReconciler } from '../../src/agent-tools/reconciler.js';
 import { createApiApp } from '../../src/app/create-api.js';
-import { WorkerModule } from '../../src/app/worker.module.js';
+import { WorkerModule, WorkerRunner } from '../../src/app/worker.module.js';
+import { CHANNEL_ADAPTERS } from '../../src/channel/channel-adapter.js';
+import type { ChannelAdapters } from '../../src/channel/channel.module.js';
+import type { MockChannelAdapter } from '../../src/channel/mock-channel-adapter.js';
 import type { Env } from '../../src/config/env.js';
 import { DOMAIN_SIGNALS, type DomainSignals } from '../../src/shared/signals/domain-signals.js';
 import { actor, hashOf, registry, T0, type Registry } from './fixtures.js';
@@ -24,6 +27,7 @@ import { appPool, testEnv } from './support.js';
  * Python 은 DB 자격증명이 없다 — checkpoint 는 /internal/agent-runtime 으로만 쓴다.
  */
 const contentDir = mkdtempSync(join(tmpdir(), 'cera-agent-runtime-content-'));
+const mockDir = mkdtempSync(join(tmpdir(), 'cera-agent-runtime-mock-'));
 const TOKEN = 'agent-runtime-token-for-tests-' + 'k'.repeat(24) + '-SECRET';
 const ACTOR = 'x-cera-actor-id';
 
@@ -88,6 +92,12 @@ async function startApi(): Promise<void> {
 }
 
 const reconcile = () => worker.get(AgentReconciler).runOnce();
+/** one real worker cycle: outbox send → inbound → extraction (Python replay) → agent reconcile */
+const tick = async () => {
+  await worker.get(WorkerRunner).tick();
+  await worker.get(AgentReconciler).idle();
+};
+const mock = () => (worker.get(CHANNEL_ADAPTERS) as ChannelAdapters).get('MOCK') as MockChannelAdapter;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const toolCount = async (id: string, tool: string) =>
   Number((await db.query('SELECT count(*) AS n FROM cera.agent_tool_call WHERE agent_run_id = $1 AND tool_name = $2', [id, tool])).rows[0].n);
@@ -109,6 +119,8 @@ async function simulatedRun(scenarioId: string): Promise<string> {
 }
 
 const PARAMS = { inquiry: { quantity: 2, window_from: '15:00', window_to: '17:00' } };
+// T-105: the human also gives a public-data window — replay fixtures here (synthetic), live data.go.kr in the manual E2E
+const SLICE_PARAMS = { ...PARAMS, public_data: { from_date: '2026-10-20', to_date: '2026-10-21' } };
 
 /** A fresh partner truck pool → a new MISSING gap (earlier runs already asked about the older pools). */
 const newTruckPool = async () =>
@@ -153,6 +165,9 @@ beforeAll(async () => {
     CERA_AGENT_RECONCILE_ENABLED: 'true',
     CERA_AGENT_RUNTIME_MAX_ATTEMPTS: '3',
     CERA_AGENT_RUNTIME_RETRY_BASE_MS: '100',
+    // T-105: Mock channel (send · reply) and the same Python process as the extraction server (recorded replay — no LLM)
+    CERA_MOCK_CHANNEL_DIR: mockDir,
+    CERA_AI_SERVER_URL: `http://127.0.0.1:${pythonPort}`,
   });
   await startApi();
   // the Worker process's reconciler (same code the worker runs every cycle) — here as an application context
@@ -172,31 +187,33 @@ afterAll(async () => {
   await stopPython();
   // leave no waiting run behind for other test files
   await db?.query("UPDATE cera.agent_run SET status = 'CANCELLED', finished_at = started_at, waiting_reason = NULL, pending_ref_type = NULL, pending_ref_id = NULL, next_attempt_at = NULL WHERE status NOT IN ('COMPLETED', 'FAILED', 'CANCELLED')");
+  await worker?.get(WorkerRunner).releaseLock();
   await worker?.close();
   await api?.close();
   await db?.end();
   rmSync(contentDir, { recursive: true, force: true });
+  rmSync(mockDir, { recursive: true, force: true });
 });
 
 describe('CeraRecoveryGraph across two processes', () => {
   let runId: string;
   let messageId: string;
 
-  it('start runs START → load_context → inspect_gaps → choose_next_action → … → request_approval and stops at the human interrupt', async () => {
-    runId = await createRun();
+  it('start runs START → load_context → observe_public_data → inspect_gaps → choose_next_action → … → request_approval and stops at the human interrupt', async () => {
+    runId = await createRun(SLICE_PARAMS);
     expect((await view(runId)).status).toBe('CREATED');
     const started = (await http.post(`/agent-runs/${runId}/start`).set(ACTOR, w.humanId).expect(200)).body;
     expect(started).toMatchObject({ status: 'WAITING_HUMAN', waiting_reason: 'HUMAN_APPROVAL_REQUIRED', current_node: 'wait_for_human', pending_ref: { type: 'COMM_MESSAGE' } });
     messageId = started.pending_ref.id;
     const nodes = started.steps.filter((s: { kind: string }) => s.kind === 'NODE').map((s: { node: string }) => s.node);
-    expect(nodes.slice(0, 6)).toEqual(['load_context', 'inspect_gaps', 'choose_next_action', 'prepare_inquiry', 'create_draft', 'request_approval']);
+    expect(nodes.slice(0, 7)).toEqual(['load_context', 'observe_public_data', 'inspect_gaps', 'choose_next_action', 'prepare_inquiry', 'create_draft', 'request_approval']);
     expect(started.steps[0].kind).toBe('START');
     expect(started.steps.at(-1)).toMatchObject({ kind: 'INTERRUPT', outcome: 'WAITING_HUMAN' });
     // the graph asked for approval — it did not approve. The draft waits for a person.
     const msg = await db.query('SELECT current_status FROM cera.comm_message WHERE message_id = $1', [messageId]);
     expect(msg.rows[0].current_status).toBe('PENDING_APPROVAL');
     const calls = await db.query('SELECT tool_name FROM cera.agent_tool_call WHERE agent_run_id = $1 ORDER BY started_at', [runId]);
-    expect(calls.rows.map((c) => c.tool_name)).toEqual(['get_recovery_context', 'get_information_gaps', 'find_counterparty', 'create_inquiry_draft', 'request_approval']);
+    expect(calls.rows.map((c) => c.tool_name)).toEqual(['get_recovery_context', 'get_vessel_calls', 'get_information_gaps', 'find_counterparty', 'create_inquiry_draft', 'request_approval']);
     // checkpoints were written through the backend (rows + content store), including the interrupt
     expect(Number((await db.query('SELECT count(*) AS n FROM cera.agent_checkpoint WHERE agent_run_id = $1', [runId])).rows[0].n)).toBeGreaterThan(3);
     const interrupts = await db.query("SELECT 1 FROM cera.agent_checkpoint_write WHERE agent_run_id = $1 AND channel = '__interrupt__'", [runId]);
@@ -210,7 +227,7 @@ describe('CeraRecoveryGraph across two processes', () => {
     expect(Number((await db.query("SELECT count(*) AS n FROM cera.agent_tool_call WHERE agent_run_id = $1 AND tool_name = 'create_inquiry_draft'", [runId])).rows[0].n)).toBe(1);
   });
 
-  it('the Python process restarts; a human approves; the approval signal resumes the run from its checkpoint to COMPLETED', async () => {
+  it('the Python process restarts; a human approves; the approval signal resumes the run from its checkpoint — the agent waits for a person to request the send', async () => {
     await stopPython();
     await startPython(); // a new process: nothing of the first graph is in memory
     await http
@@ -218,18 +235,57 @@ describe('CeraRecoveryGraph across two processes', () => {
       .set(ACTOR, w.humanId)
       .send({ content_hash: await draftHash(messageId) })
       .expect(200);
-    const done = await until(runId, (v) => v.status === 'COMPLETED' || v.status === 'FAILED');
-    expect(done).toMatchObject({ status: 'COMPLETED', pending_ref: null, waiting_reason: null });
-    const steps = done.steps as { kind: string; node: string | null; outcome: string; detail_code: string | null }[];
-    expect(steps.filter((s) => s.kind === 'RESUME')).toHaveLength(1);
+    const waiting = await until(runId, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_SEND_REQUEST' || v.status === 'FAILED');
+    expect(waiting).toMatchObject({ status: 'WAITING_HUMAN', waiting_reason: 'AWAITING_SEND_REQUEST', pending_ref: { type: 'COMM_MESSAGE', id: messageId } });
+    const steps = waiting.steps as { kind: string; node: string | null; outcome: string; detail_code: string | null }[];
     const afterResume = steps.slice(steps.findIndex((s) => s.kind === 'RESUME') + 1);
-    // continued after the interrupt — the first nodes did not run again
-    expect(afterResume.filter((s) => s.kind === 'NODE').map((s) => s.node)).toEqual(['wait_for_human', 'refresh_status', 'build_result']);
-    expect(afterResume.find((s) => s.node === 'refresh_status')?.detail_code).toBe('APPROVED');
-    expect(steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'INQUIRY_APPROVED' });
-    const calls = await db.query('SELECT tool_name FROM cera.agent_tool_call WHERE agent_run_id = $1 ORDER BY started_at', [runId]);
-    expect(calls.rows.map((c) => c.tool_name).slice(5)).toEqual(['get_communication_status']); // re-read the authoritative status
-    // a resume of a finished run is a no-op
+    // continued after the interrupt — the first nodes did not run again; the status was re-read from the backend
+    expect(afterResume.filter((s) => s.kind === 'NODE').map((s) => s.node)).toEqual(['wait_for_human', 'track_message']);
+    expect(afterResume.find((s) => s.node === 'track_message')?.detail_code).toBe('AWAIT_SEND_REQUEST');
+    // the agent has no send tool: the message is approved, not queued
+    expect((await db.query('SELECT current_status FROM cera.comm_message WHERE message_id = $1', [messageId])).rows[0].current_status).toBe('APPROVED');
+  });
+
+  it('T-105 slice: a person requests the send → worker sends (Mock) → WAITING_EXTERNAL → Python restarts → reply → extraction → resume → reassess → COMPLETED', async () => {
+    await http.post(`/communication/drafts/${messageId}/send`).set(ACTOR, w.humanId).send({ content_hash: await draftHash(messageId) }).expect(200);
+    await tick(); // outbox → Mock channel SENT; the reconciler sees SENT and wakes the run
+    const awaiting = await until(runId, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_REPLY' || v.status === 'FAILED');
+    expect(awaiting).toMatchObject({ status: 'WAITING_EXTERNAL', waiting_reason: 'AWAITING_REPLY', pending_ref: { type: 'COMM_MESSAGE', id: messageId } });
+    expect((await db.query('SELECT current_status FROM cera.comm_message WHERE message_id = $1', [messageId])).rows[0].current_status).toBe('SENT');
+    expect((await reconcile()).woken).toBe(0); // no reply yet — nothing to wake
+
+    await stopPython();
+    await startPython(); // restart while waiting for the partner
+    await mock().simulateReply({ replyToCeraMessageId: messageId, body: '오후 3시 이후 차량 4대 가능합니다.' });
+    await tick(); // inbound (NORMAL, thread) → extraction (Python replay) → reconciler wakes the same run
+    const done = await until(runId, (v) => v.status === 'COMPLETED' || v.status === 'FAILED', 40_000);
+    expect(done).toMatchObject({ status: 'COMPLETED', waiting_reason: null, pending_ref: null });
+    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'CANDIDATE_RECEIVED_PENDING_CONFIRMATION' });
+    expect(done.result_summary).toMatchObject({
+      message_id: messageId,
+      reply_outcome: 'CANDIDATES_RECEIVED',
+      candidate_state: 'CANDIDATE_RECEIVED',
+      business_gap_state: 'ASKED', // the business gap stays open: a candidate is not a fact (T-093)
+      facts_confirmed: false,
+      public_data_mode: 'REPLAY',
+      public_data_outcome: 'SUCCESS',
+    });
+    expect(done.result_summary.candidate_fields).toContain('quantity');
+    const resumes = done.steps.filter((x: { kind: string }) => x.kind === 'RESUME').map((x: { detail_code: string }) => x.detail_code);
+    expect(resumes).toEqual(['APPROVAL_DECIDED', 'SEND_PROGRESS', 'INBOUND_REPLY_RECEIVED']);
+    const nodes = done.steps.filter((x: { kind: string }) => x.kind === 'NODE').map((x: { node: string }) => x.node);
+    expect(nodes.slice(-4)).toEqual(['track_message', 'read_reply', 'reassess_gaps', 'build_result']);
+    // still no fact: the extraction is a PENDING candidate, no event was created from it
+    const ex = await db.query("SELECT review_status, created_event_id FROM cera.extraction WHERE extraction_id = ANY($1::uuid[])", [done.result_summary.candidate_extraction_ids]);
+    expect(ex.rows.length).toBeGreaterThan(0);
+    expect(ex.rows.every((r) => r.review_status === 'PENDING' && r.created_event_id === null)).toBe(true);
+    // one draft, one approval request; the agent never called a send or approve tool
+    const calls = (await db.query('SELECT tool_name FROM cera.agent_tool_call WHERE agent_run_id = $1 ORDER BY started_at', [runId])).rows.map((c) => c.tool_name);
+    expect(calls.filter((t) => t === 'create_inquiry_draft')).toHaveLength(1);
+    expect(calls.filter((t) => t === 'request_approval')).toHaveLength(1);
+    expect(calls.slice(-2)).toEqual(['get_reply_candidates', 'get_information_gaps']);
+    expect(Number((await db.query("SELECT count(*) AS n FROM cera.send_attempt WHERE message_id = $1 AND result = 'SUCCESS'", [messageId])).rows[0].n)).toBe(1);
+    // a resume of a finished run is a no-op; the finished run is frozen
     const late = (await http.post(`/agent-runs/${runId}/resume`).set(ACTOR, w.humanId).send({ reason: 'MANUAL' }).expect(200)).body;
     expect(late.status).toBe('COMPLETED');
     await expectSql(db.query("UPDATE cera.agent_run SET status = 'RUNNING' WHERE agent_run_id = $1", [runId]), 'CE004');
@@ -304,8 +360,8 @@ describe('CeraRecoveryGraph across two processes', () => {
     await startApi();
     const summary = await reconcile();
     expect(summary.woken).toBeGreaterThanOrEqual(1);
-    const done = await until(id, (v) => v.status === 'COMPLETED' || v.status === 'FAILED');
-    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'INQUIRY_APPROVED' });
+    const done = await until(id, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_SEND_REQUEST' || v.status === 'FAILED');
+    expect(done).toMatchObject({ status: 'WAITING_HUMAN', waiting_reason: 'AWAITING_SEND_REQUEST' });
     expect(done.steps.filter((s: { kind: string; detail_code: string }) => s.kind === 'RESUME').map((s: { detail_code: string }) => s.detail_code)).toEqual(['APPROVAL_DECIDED']);
     // no duplicates: one draft, one approval request, one approval
     expect(await toolCount(id, 'create_inquiry_draft')).toBe(1);

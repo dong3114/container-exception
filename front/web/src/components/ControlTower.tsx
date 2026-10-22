@@ -15,6 +15,7 @@ import { Communications } from "./Communications";
 import { ContainerDrawer } from "./ContainerDrawer";
 import { ContainerTable } from "./ContainerTable";
 import { DataTrustPanel } from "./DataTrustPanel";
+import { AgentPanel } from "./agent/AgentPanel";
 import { InquiryDraftPanel } from "./drafts/InquiryDraftPanel";
 import { ExceptionPanel } from "./ExceptionPanel";
 import { KpiStrip } from "./KpiStrip";
@@ -164,6 +165,9 @@ export function ControlTower() {
           <a href="#sec-comms" className="quick-nav-link">
             <span>✉️</span> 외부 채널 소통
           </a>
+          <a href="#sec-agent" className="quick-nav-link">
+            <span>🤖</span> Agent 진행 (Backend)
+          </a>
           <a href="#sec-drafts" className="quick-nav-link">
             <span>📝</span> 문의 초안 (Backend)
           </a>
@@ -210,6 +214,11 @@ export function ControlTower() {
           <div id="sec-trust">
             <DataTrustPanel trust={view.trust} />
           </div>
+        </div>
+
+        {/* 실제 Backend 영역(T-105): Agent 실행 진행 — 상태 · 단계 · Tool 호출 · 승인/발송 대기 · 회신 · 결과 */}
+        <div className="block" id="sec-agent">
+          <AgentPanel />
         </div>
 
         {/* 실제 Backend 영역(T-088): 문의 초안만 API 로 — 위의 통신 카드는 시나리오 재생 그대로 */}

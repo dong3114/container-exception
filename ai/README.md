@@ -31,13 +31,16 @@
 
 | 무엇 | 파일 |
 | --- | --- |
-| 그래프 하나 — START → `load_context` → `inspect_gaps` → `choose_next_action` →(COMMUNICATION) `prepare_inquiry` → `create_draft` → `request_approval` → `wait_for_human`(interrupt) → `refresh_status` → `build_result` → END. 다른 분기: PUBLIC_DATA(`fetch_public_data` → 다시 공백) · WAIT_EXTERNAL(`wait_external` interrupt) · COMPLETE · FAIL. 분기는 결정론 코드, 정책 hook 은 허용 행동만 돌려줄 수 있다 | `cera_ai/agent/graph.py` |
+| 그래프 하나 — START → `load_context` → `observe_public_data`(사람이 기간을 줬을 때만) → `inspect_gaps` → `choose_next_action` →(COMMUNICATION) `prepare_inquiry` → `create_draft` → `request_approval` → `wait_for_human`(interrupt) → `track_message`(권위 상태) → `wait_send_request`(사람의 발송 요청) · `wait_delivery` · `wait_reply`(외부) → `read_reply`(검증된 추출 후보) → `reassess_gaps`(업무 공백 vs 후보 상태) → `build_result` → END(T-105). 다른 분기: PUBLIC_DATA(`fetch_public_data` → 다시 공백) · WAIT_EXTERNAL(`wait_external` interrupt) · COMPLETE · FAIL. 분기는 결정론 코드, 정책 hook 은 허용 행동만 돌려줄 수 있다 | `cera_ai/agent/graph.py` |
 | State 는 id · 참조 · 코드 · 카운터만(업무 행 · 원문 · 토큰 없음). 재개 뒤 업무 상태는 Tool 로 다시 읽는다 | `graph.py` `RecoveryState` |
 | Tool 호출 — Registry 안의 Tool 만 · 상한(`CERA_AGENT_MAX_STEPS` · `CERA_AGENT_MAX_TOOL_CALLS`) · retryable 실패만 같은 키로 재시도(`CERA_AGENT_MAX_RETRIES`) | `cera_ai/agent/tooling.py` |
 | checkpoint — LangGraph `BaseCheckpointSaver` 구현, 저장은 Backend `/internal/agent-runtime/*` 로만(DB 자격증명 없음) | `cera_ai/agent/checkpointer.py` · `backend.py` |
 | 실행 — `POST /v1/agent-runs/{id}/start` · `/resume`(Backend Coordinator 만 부른다, Bearer 서비스 토큰). 결과 계약 `agent-runtime/1`. 호출 사이 메모리 상태 없음 → 재시작해도 이어 간다 | `cera_ai/agent/runtime.py` · `app.py` |
 
 - 의존성은 `langgraph==1.2.11` · `langgraph-checkpoint==4.2.0` 만 고정(LangChain Agent · LangSmith 필수 아님 · Multi-Agent 없음)
+- Agent 는 보내지 않는다: 승인 뒤 사람이 발송을 요청하고 Backend Worker 가 보낸다. 회신 후보는 사실이 아니다 — 결과는 "후보 도착(확정 전)"으로 끝난다(T-093 이 승격)
+- Tool 호출 상한은 대기와 대기 사이 한 구간마다, 단계 상한은 실행 전체. 같은 실행의 시작을 다시 받으면 checkpoint 에서 이어 간다(T-104 durability)
+- 녹화 재생 `fixtures/replay/odcy-capacity-yes.json` — 가상 ODCY 수용량 회신(합성, T-105 시연 · E2E)
 
 ## 하지 않는 것 (`docs/18` O절 · ADR-033)
 

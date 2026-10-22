@@ -10,14 +10,18 @@
 
 ## Status
 
-**IMPLEMENTING — T-105 첫 Agent Vertical Slice** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. Baseline = T-104 커밋. push 없음. 사용자 지시: T-104 커밋 뒤 승인 기다리지 않고 시작, 끝나면 보고(마지막 줄 `CERA T-105 RECOVERY VERTICAL SLICE REVIEW READY`).
+**IMPLEMENTING — T-099 실제 AI 공급자 검증 + CERA Eval (재개)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. Baseline = T-105 커밋. push 없음. **결과 확인 전 커밋하지 않음**(사용자 지시). 최종 보고 마지막 줄 `CERA T-099 MODEL EVAL REVIEW READY`.
 
-### Task: T-105 첫 Agent Vertical Slice
+### Task: T-099 (재개) — 실제 CERA Runtime 에 넣을 AI 선정
 
-- **Goal**: 한 Graph 에서 START → (공공데이터) → 공백 → 문의 초안 → 승인 대기 → 승인 → 발송 → 회신 대기 → 회신 → 추출(T-092) → 공백 재평가 → 결과 → END 가 실제로 이어진다.
-- **Scope**: 그래프 확장(발송 · 회신 대기 · 회신 읽기 · 재평가) · 회신 후보 READ Tool · 공백 출력에 후보 상태(업무 공백과 구분) · 재조정 대기 사유 확장 · 화면(Agent 진행) · 실제 프로세스 E2E(NestJS · Worker · Python · PostgreSQL, live 공공데이터 1회).
-- **Out of Scope**: send · approve Tool(만들지 않는다) · Event/PROVISIONAL(T-093) · 실제 LLM 공급자(T-099) · 새 디자인 시스템.
-- **Existing Decisions**: ADR-036 · 발송은 승인 뒤 사람의 발송 요청 → Outbox → Worker(T-090 규칙 그대로) · 추출 = 후보(사실 아님) · 신호 = 최적화, 재조정 = 정확성(T-104).
+- **Goal**: 회신 → 추출 → 판정 → 공백 재평가로 이어지는 실제 Agent Runtime 에 넣을 Generative(1 · 2순위) · Decision(1순위 · baseline) 모델을 CERA Eval 로 고른다.
+- **Scope**: 기존 자산 재사용(141건 데이터셋 · 실행기 · 어댑터 3종 · Decision · HF NLI · replay) · Gold 상태 정리(검토 가능한 subset) · 공식 문서로 후보 최신화 · 5건 → 20건 → 전체 비용 단계 · raw vs pipeline(Backend 검증기) 점수 · Decision 지표(F1 · Brier · calibration) · 상위 모델 하나로 Agent Runtime live-LLM E2E smoke · 공급자 ADR(Proposed — 공급자와 모델 분리).
+- **Out of Scope**: T-093 Event · PROVISIONAL · CONFIRMED · Solver · RAG · Vector DB · Fine-tuning · Multi-Agent · threshold 업무 정책 확정.
+- **Existing Decisions**: 추출 = 후보(사실 아님) · Decision 은 권한 없음(확률만, threshold 는 Backend 가 향후) · 업무 fact state 와 candidate_state 분리(T-105 승인) · 비밀값 출력 · 커밋 금지.
+
+### T-105 인계 (2026-10-22 · DONE)
+
+- 사용자 승인. 한 그래프에서 공공데이터(LIVE) → 공백 → 초안 → 승인 → 발송 요청 → Worker 발송 → 회신 대기 → 회신 · 추출 → 재평가 → 결과. 시험 Backend 329 · Python 56 · Front 42. 기록 `docs/24` 18.12. 후속 T-108(P2)
 
 ### T-104 인계 (2026-10-22 · DONE)
 

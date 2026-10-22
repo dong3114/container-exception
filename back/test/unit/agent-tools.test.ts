@@ -69,10 +69,10 @@ const setup = () => {
 };
 
 describe('tool registry', () => {
-  it('has the nine T-103 tools and no COMMIT tool or category', () => {
+  it('has the ten tools (T-103 nine + T-105 get_reply_candidates, READ) and no COMMIT tool or category', () => {
     expect(TOOLS.map((t) => t.name)).toEqual([
       'get_vessel_calls', 'get_vessel_call', 'get_container_manifest', 'get_recovery_context', 'get_information_gaps',
-      'find_counterparty', 'create_inquiry_draft', 'get_communication_status', 'request_approval',
+      'find_counterparty', 'create_inquiry_draft', 'get_communication_status', 'get_reply_candidates', 'request_approval',
     ]);
     expect(TOOLS.every((t) => ['READ', 'EXTERNAL_READ', 'COMPUTE', 'PROPOSE', 'REQUEST'].includes(t.category))).toBe(true);
     for (const forbidden of FORBIDDEN_TOOL_NAMES) expect(TOOLS.some((t) => t.name === forbidden)).toBe(false);

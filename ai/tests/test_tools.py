@@ -24,7 +24,7 @@ def envelope(tool, status="SUCCEEDED", output=None, error=None, replayed=False):
 def test_registry_comes_from_the_backend_contract_and_has_no_commit_tools():
     assert REGISTRY.names() == [
         "get_vessel_calls", "get_vessel_call", "get_container_manifest", "get_recovery_context", "get_information_gaps",
-        "find_counterparty", "create_inquiry_draft", "get_communication_status", "request_approval",
+        "find_counterparty", "create_inquiry_draft", "get_communication_status", "get_reply_candidates", "request_approval",
     ]
     assert {t.category for t in REGISTRY.tools.values()} <= {"READ", "EXTERNAL_READ", "PROPOSE", "REQUEST"}
     for forbidden in ("approve_draft", "send", "request_send", "confirm_fact", "select_final_plan"):

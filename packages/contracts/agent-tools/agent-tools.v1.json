@@ -2293,13 +2293,21 @@
                       },
                       "has_extraction": {
                         "type": "boolean"
+                      },
+                      "extraction_state": {
+                        "description": "WAITING · RETRYING · DONE · NO_CANDIDATE · SKIPPED · FAILED",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
                       }
                     },
                     "required": [
                       "raw_input_id",
                       "status",
                       "received_at",
-                      "has_extraction"
+                      "has_extraction",
+                      "extraction_state"
                     ],
                     "additionalProperties": false
                   }
@@ -2463,6 +2471,25 @@
                       "type": "null"
                     }
                   ]
+                },
+                "candidate_state": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "REPLY_RECEIVED",
+                    "CANDIDATE_RECEIVED",
+                    "NO_VALID_CANDIDATE"
+                  ],
+                  "description": "Workflow only: whether an asked partner replied and the backend validated an extraction candidate. NOT a fact — the business gap (state) stays open until a confirmed fact exists (T-093)"
+                },
+                "candidate_extraction_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "description": "Validated (PASSED) extraction candidates still PENDING review — suggestions, not facts"
                 }
               },
               "required": [
@@ -2478,7 +2505,9 @@
                 "suggested_source",
                 "suggested_intent",
                 "suggested_counterparty_role",
-                "owner_counterparty_id"
+                "owner_counterparty_id",
+                "candidate_state",
+                "candidate_extraction_ids"
               ],
               "additionalProperties": false
             }
@@ -2868,13 +2897,21 @@
                     },
                     "has_extraction": {
                       "type": "boolean"
+                    },
+                    "extraction_state": {
+                      "description": "WAITING · RETRYING · DONE · NO_CANDIDATE · SKIPPED · FAILED",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
                     "raw_input_id",
                     "status",
                     "received_at",
-                    "has_extraction"
+                    "has_extraction",
+                    "extraction_state"
                   ],
                   "additionalProperties": false
                 }
@@ -3009,13 +3046,21 @@
                       },
                       "has_extraction": {
                         "type": "boolean"
+                      },
+                      "extraction_state": {
+                        "description": "WAITING · RETRYING · DONE · NO_CANDIDATE · SKIPPED · FAILED",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
                       }
                     },
                     "required": [
                       "raw_input_id",
                       "status",
                       "received_at",
-                      "has_extraction"
+                      "has_extraction",
+                      "extraction_state"
                     ],
                     "additionalProperties": false
                   }
@@ -3045,6 +3090,162 @@
         },
         "required": [
           "messages"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_reply_candidates",
+      "version": "1",
+      "category": "READ",
+      "description": "Read the replies to one inquiry of this recovery run and the extraction candidates the backend validated (field, candidate value, PASSED/REJECTED and why, review status). Candidates are suggestions, not facts. Use after a reply arrived to judge whether the asked information came back. No raw mail text or quotes are returned.",
+      "timeout_ms": 5000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "inbound_message_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "received_at": {
+                  "type": "string",
+                  "description": "ISO 8601 with +09:00"
+                },
+                "extraction_state": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "no_candidate_outcome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "extraction_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "field": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Candidate value — a suggestion from the reply, not a fact"
+                      },
+                      "unit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "validation": {
+                        "type": "string",
+                        "enum": [
+                          "PASSED",
+                          "REJECTED"
+                        ]
+                      },
+                      "failed_reasons": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "review_status": {
+                        "type": "string",
+                        "enum": [
+                          "PENDING",
+                          "ACCEPTED",
+                          "REJECTED",
+                          "SUPERSEDED"
+                        ]
+                      },
+                      "generated_by": {
+                        "type": "string",
+                        "enum": [
+                          "RECORDED_REPLAY",
+                          "LLM"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "extraction_id",
+                      "field",
+                      "value",
+                      "unit",
+                      "validation",
+                      "failed_reasons",
+                      "review_status",
+                      "generated_by"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "inbound_message_id",
+                "received_at",
+                "extraction_state",
+                "no_candidate_outcome",
+                "candidates"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "note": {
+            "type": "string",
+            "const": "Candidates are suggestions validated by the backend. None is a fact until confirmed (T-093)."
+          }
+        },
+        "required": [
+          "message_id",
+          "status",
+          "replies",
+          "note"
         ],
         "additionalProperties": false
       }
@@ -3138,13 +3339,21 @@
                     },
                     "has_extraction": {
                       "type": "boolean"
+                    },
+                    "extraction_state": {
+                      "description": "WAITING · RETRYING · DONE · NO_CANDIDATE · SKIPPED · FAILED",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
                     "raw_input_id",
                     "status",
                     "received_at",
-                    "has_extraction"
+                    "has_extraction",
+                    "extraction_state"
                   ],
                   "additionalProperties": false
                 }

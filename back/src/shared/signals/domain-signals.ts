@@ -5,7 +5,8 @@
  */
 export type DomainSignal =
   | { type: 'APPROVAL_DECIDED'; messageId: string; decision: 'APPROVED' | 'REJECTED' | 'REVOKED' }
-  | { type: 'INBOUND_REPLY_RECEIVED'; messageId: string }
+  | { type: 'INBOUND_REPLY_RECEIVED'; externalMessageId: string }
+  | { type: 'REPLY_EXTRACTED'; inboundMessageId: string }
   | { type: 'PLAN_SUPERSEDED'; recoveryRunId: string };
 
 export const DOMAIN_SIGNALS = Symbol('CERA_DOMAIN_SIGNALS');

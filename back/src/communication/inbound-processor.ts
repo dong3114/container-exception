@@ -1,3 +1,4 @@
+import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CHANNEL_ADAPTERS, type ChannelAdapter, type InboundRawMessage } from '../channel/channel-adapter.js';
 import type { ChannelAdapters } from '../channel/channel.module.js';
@@ -46,6 +47,7 @@ export class InboundProcessor {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(CHANNEL_ADAPTERS) private readonly adapters: ChannelAdapters,
+    @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
   ) {}
 
   async runCycle(): Promise<InboundCycleSummary> {
@@ -56,7 +58,10 @@ export class InboundProcessor {
       summary.fetched += messages.length;
       for (const m of messages) {
         try {
-          summary[await this.ingest(adapter, m)] += 1;
+          const result = await this.ingest(adapter, m);
+          summary[result] += 1;
+          // 커밋 뒤 알림(T-105) — 기다리는 Agent 를 빨리 깨우는 최적화. 놓쳐도 재조정이 DB 상태로 깨운다
+          if (result === 'NORMAL') this.signals.emit({ type: 'INBOUND_REPLY_RECEIVED', externalMessageId: m.externalMessageId });
         } catch (error) {
           this.logger.warn({ msg: 'inbound message not stored — will retry next cycle', external_message_id: m.externalMessageId, error: String(error) });
         }

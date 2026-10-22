@@ -48,9 +48,21 @@ export function messageStatus(d: DraftDto): MessageStatus {
     approval_state: d.approval.state,
     dispatch_state: d.dispatch.state,
     reply_count: d.replies.length,
-    replies: d.replies.map((r) => ({ raw_input_id: r.raw_input_id, status: r.status, received_at: r.received_at, has_extraction: r.extraction !== null })),
+    replies: d.replies.map((r) => ({ raw_input_id: r.raw_input_id, status: r.status, received_at: r.received_at, has_extraction: r.extraction !== null, extraction_state: r.extraction?.state ?? null })),
     is_simulated: d.message.is_simulated,
   };
+}
+
+/**
+ * 공백 하나에 대해 묻은 메시지들의 회신 · 추출 결과(작업 흐름 상태 — 사실이 아니다). 업무 공백(state)은 바꾸지 않는다:
+ * 검증된 후보(PASSED · PENDING)가 있으면 CANDIDATE_RECEIVED, 회신은 왔는데 추출이 끝나 통과 후보가 없으면 NO_VALID_CANDIDATE.
+ */
+export function candidateState(messages: DraftDto[]): { state: 'NONE' | 'REPLY_RECEIVED' | 'CANDIDATE_RECEIVED' | 'NO_VALID_CANDIDATE'; extractionIds: string[] } {
+  const replies = messages.flatMap((m) => m.replies.filter((r) => r.status === 'NORMAL'));
+  const passed = replies.flatMap((r) => (r.extraction?.candidates ?? []).filter((c) => c.validation === 'PASSED' && c.review_status === 'PENDING').map((c) => c.extraction_id));
+  if (passed.length > 0) return { state: 'CANDIDATE_RECEIVED', extractionIds: passed.sort() };
+  if (replies.some((r) => r.extraction && ['DONE', 'NO_CANDIDATE', 'SKIPPED', 'FAILED'].includes(r.extraction.state))) return { state: 'NO_VALID_CANDIDATE', extractionIds: [] };
+  return { state: replies.length > 0 ? 'REPLY_RECEIVED' : 'NONE', extractionIds: [] };
 }
 
 /** 입력의 계획 실행이 이 Agent 실행의 범위인지. 생략하면 실행의 계획 실행. */
@@ -126,7 +138,44 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
     },
     get_information_gaps: {
       async run(input, ctx) {
-        return deps.context.informationGaps(scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id));
+        const out = await deps.context.informationGaps(scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id));
+        for (const gap of out.gaps) {
+          if (gap.open_question_message_ids.length === 0) continue;
+          const c = candidateState(await Promise.all(gap.open_question_message_ids.map((id) => deps.drafts.get(id))));
+          gap.candidate_state = c.state;
+          gap.candidate_extraction_ids = c.extractionIds;
+        }
+        return out;
+      },
+    },
+    get_reply_candidates: {
+      async run(input, ctx) {
+        const i = input as z.infer<typeof messageIdInput>;
+        await scopedMessage(deps, ctx.run, i.message_id);
+        const d = await deps.drafts.get(i.message_id);
+        return {
+          message_id: d.message.message_id,
+          status: d.message.status ?? 'UNKNOWN',
+          replies: d.replies
+            .filter((r) => r.status === 'NORMAL')
+            .map((r) => ({
+              inbound_message_id: r.message_id,
+              received_at: r.received_at,
+              extraction_state: r.extraction?.state ?? null,
+              no_candidate_outcome: r.extraction?.no_candidate_outcome ?? null,
+              candidates: (r.extraction?.candidates ?? []).map((c) => ({
+                extraction_id: c.extraction_id,
+                field: c.field,
+                value: c.value,
+                unit: c.unit,
+                validation: c.validation,
+                failed_reasons: [...c.failed_reasons],
+                review_status: c.review_status,
+                generated_by: c.generated_by,
+              })),
+            })),
+          note: 'Candidates are suggestions validated by the backend. None is a fact until confirmed (T-093).' as const,
+        };
       },
     },
     find_counterparty: {

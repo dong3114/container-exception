@@ -9,7 +9,7 @@
 
 ## 1. "멀티에이전트"의 뜻
 
-> **2026-10-22 ADR-036 (Accepted)**: 이 절과 3절의 "LLM 에 도구를 주지 않는다 · LLM 플래너를 쓰지 않는다"는 **대체됐다.** 이제 Python + LangGraph Agent Runtime 이 정보 공백 판단 · 조사 대상 선택 · Tool 선택을 추론한다. 단 Agent 는 권한 주체가 아니고, 모든 부작용 · 권위 상태 전이는 NestJS typed Tool/API 를 거친다(승인 · 발송 · 사실 확정 · 숫자 계산은 그대로 Backend · 사람 · 결정론). 업무 이벤트 핸들러 표(3절) · 루프 폭주 방지는 유지한다. 설계: `docs/tasks/plans/T-101-agent-runtime-design.md`. **T-104(2026-10-22)** 에서 `CeraRecoveryGraph` 가 실제로 돈다: Backend Coordinator 가 실행을 시작 · 재개하고, 그래프는 Tool 로 맥락 · 정보 공백을 읽고 결정론 분기로 문의 초안 → 승인 요청 → 사람 승인 interrupt → (승인 신호) 재개 → 권위 상태 재조회 → 끝. checkpoint 는 Backend API 로 저장(`docs/24` 18.11).
+> **2026-10-22 ADR-036 (Accepted)**: 이 절과 3절의 "LLM 에 도구를 주지 않는다 · LLM 플래너를 쓰지 않는다"는 **대체됐다.** 이제 Python + LangGraph Agent Runtime 이 정보 공백 판단 · 조사 대상 선택 · Tool 선택을 추론한다. 단 Agent 는 권한 주체가 아니고, 모든 부작용 · 권위 상태 전이는 NestJS typed Tool/API 를 거친다(승인 · 발송 · 사실 확정 · 숫자 계산은 그대로 Backend · 사람 · 결정론). 업무 이벤트 핸들러 표(3절) · 루프 폭주 방지는 유지한다. 설계: `docs/tasks/plans/T-101-agent-runtime-design.md`. **T-104(2026-10-22)** 에서 `CeraRecoveryGraph` 가 실제로 돈다: Backend Coordinator 가 실행을 시작 · 재개하고, 그래프는 Tool 로 맥락 · 정보 공백을 읽고 결정론 분기로 문의 초안 → 승인 요청 → 사람 승인 interrupt → (승인 신호) 재개 → 권위 상태 재조회 → 끝. checkpoint 는 Backend API 로 저장(`docs/24` 18.11). **T-105** 에서 승인 뒤로 이어진다: 사람의 발송 요청 대기 → Worker 발송 → 회신 대기 → 회신 · 추출 후보 읽기 → 공백 재평가 → "후보 도착(확정 전)" 결과. Agent 는 발송 · 승인 Tool 이 없고, 추출 후보를 사실로 만들지 않는다(`docs/24` 18.12).
 
 - LLM을 여러 개 띄워 서로 대화시키는 구조가 **아니다**.
 - 각 에이전트는 **명확한 책임, 입력·출력 계약, 트리거**를 가진 모듈이다. 모두 하나의 Event Store, Canonical State, Rule Engine, Solver를 공유한다.

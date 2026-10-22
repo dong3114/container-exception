@@ -172,7 +172,11 @@ export const messageStatusSchema = z
     approval_state: z.string(),
     dispatch_state: z.string(),
     reply_count: z.number().int(),
-    replies: z.array(z.object({ raw_input_id: uuid, status: z.string(), received_at: timestamp, has_extraction: z.boolean() }).strict()),
+    replies: z.array(
+      z
+        .object({ raw_input_id: uuid, status: z.string(), received_at: timestamp, has_extraction: z.boolean(), extraction_state: z.string().nullable().describe('WAITING · RETRYING · DONE · NO_CANDIDATE · SKIPPED · FAILED') })
+        .strict(),
+    ),
     is_simulated: z.boolean(),
   })
   .strict();
@@ -222,6 +226,10 @@ const gapSchema = z
     suggested_intent: z.enum(['TRUCK_SLOT', 'FACILITY_CAPACITY']),
     suggested_counterparty_role: z.enum(['TRUCKING', 'ODCY', 'WAREHOUSE']),
     owner_counterparty_id: uuid.nullable(),
+    candidate_state: z
+      .enum(['NONE', 'REPLY_RECEIVED', 'CANDIDATE_RECEIVED', 'NO_VALID_CANDIDATE'])
+      .describe('Workflow only: whether an asked partner replied and the backend validated an extraction candidate. NOT a fact — the business gap (state) stays open until a confirmed fact exists (T-093)'),
+    candidate_extraction_ids: z.array(uuid).describe('Validated (PASSED) extraction candidates still PENDING review — suggestions, not facts'),
   })
   .strict();
 
@@ -270,6 +278,38 @@ export const draftCreatedOutput = z
   .strict();
 
 export const communicationStatusOutput = z.object({ messages: z.array(messageStatusSchema) }).strict();
+
+export const replyCandidatesOutput = z
+  .object({
+    message_id: uuid,
+    status: z.string(),
+    replies: z.array(
+      z
+        .object({
+          inbound_message_id: uuid.nullable(),
+          received_at: timestamp,
+          extraction_state: z.string().nullable(),
+          no_candidate_outcome: z.string().nullable(),
+          candidates: z.array(
+            z
+              .object({
+                extraction_id: uuid,
+                field: z.string(),
+                value: z.string().describe('Candidate value — a suggestion from the reply, not a fact'),
+                unit: z.string().nullable(),
+                validation: z.enum(['PASSED', 'REJECTED']),
+                failed_reasons: z.array(z.string()),
+                review_status: z.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'SUPERSEDED']),
+                generated_by: z.enum(['RECORDED_REPLAY', 'LLM']),
+              })
+              .strict(),
+          ),
+        })
+        .strict(),
+    ),
+    note: z.literal('Candidates are suggestions validated by the backend. None is a fact until confirmed (T-093).'),
+  })
+  .strict();
 
 export const approvalRequestedOutput = z
   .object({

@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DraftService } from '../communication/draft.service.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import { DOMAIN_SIGNALS, type DomainSignal, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { AgentCoordinator } from './coordinator.js';
 import { RuntimeStoreRepository } from './runtime-store.repository.js';
@@ -23,8 +24,10 @@ export interface ReconcileSummary {
  * 승인 · 발송 · 사실을 바꾸지 않는다(읽기만). 새 메시지 브로커 없이 PostgreSQL 만 쓴다.
  */
 @Injectable()
-export class AgentReconciler {
+export class AgentReconciler implements OnModuleInit {
   private readonly logger = new Logger('AgentReconciler');
+  private running: Promise<unknown> | null = null;
+  private again = false;
 
   constructor(
     @Inject(RuntimeStoreRepository) private readonly store: RuntimeStoreRepository,
@@ -32,7 +35,38 @@ export class AgentReconciler {
     @Inject(DraftService) private readonly drafts: DraftService,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ENV) private readonly env: Env,
+    @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
   ) {}
+
+  /** 수신 · 추출 알림(Worker 프로세스) → 바로 한 번 더 재조정. 이미 도는 중이면 끝난 뒤 한 번 더. 승인 알림은 Coordinator 가 직접 받는다. */
+  onModuleInit(): void {
+    this.signals.subscribe((s: DomainSignal) => {
+      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED') return;
+      this.kick();
+    });
+  }
+
+  private kick(): void {
+    if (!this.env.CERA_AGENT_RECONCILE_ENABLED) return;
+    if (this.running) {
+      this.again = true;
+      return;
+    }
+    this.running = this.runOnce()
+      .catch((e: unknown) => this.warn('signal', e))
+      .finally(() => {
+        this.running = null;
+        if (this.again) {
+          this.again = false;
+          this.kick();
+        }
+      });
+  }
+
+  /** 시험 · 종료용: 알림으로 시작된 재조정이 끝날 때까지 */
+  async idle(): Promise<void> {
+    while (this.running) await this.running;
+  }
 
   async runOnce(limit = 100): Promise<ReconcileSummary> {
     const summary: ReconcileSummary = { retried: 0, woken: 0, checked: 0 };

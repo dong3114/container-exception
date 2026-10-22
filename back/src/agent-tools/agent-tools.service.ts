@@ -31,6 +31,12 @@ export const runParametersSchema = z
       })
       .strict()
       .optional(),
+    // T-105: 공공데이터를 볼 기간(사람이 정한다). 있으면 그래프가 실행 초기에 입항 정보를 한 번 조회한다(맥락 · 출처 — 사실 아님)
+    public_data: z
+      .object({ from_date: z.iso.date(), to_date: z.iso.date().optional() })
+      .strict()
+      .refine((w) => !w.to_date || w.to_date >= w.from_date, { message: 'to_date must not be before from_date' })
+      .optional(),
   })
   .strict();
 const createRunSchema = z

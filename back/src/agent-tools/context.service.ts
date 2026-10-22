@@ -20,7 +20,8 @@ import type { informationGapsOutput, recoveryContextOutput } from './schemas.js'
 import { ToolFailure } from './tool-errors.js';
 
 /** 정보 공백 규칙 판(결정론). 값은 [ASSUMPTION] — Reconciliation(T-093) · 신선도 정책(Q-24) 전까지의 최소 규칙 */
-export const GAP_RULE_VERSION = 'gap-rules/0';
+// gap-rules/1(T-105): 업무 공백(state)은 그대로, 묻은 상대의 회신 · 검증된 후보(candidate_state)를 따로 보여 준다
+export const GAP_RULE_VERSION = 'gap-rules/1';
 
 type FactObservation = z.infer<typeof recoveryContextOutput>['latest_observations'][number];
 
@@ -189,6 +190,8 @@ export class RecoveryContextService {
         suggested_intent: n.kind === 'TRUCK_AVAILABILITY' ? 'TRUCK_SLOT' : 'FACILITY_CAPACITY',
         suggested_counterparty_role: n.role,
         owner_counterparty_id: n.owner,
+        candidate_state: 'NONE', // 회신 · 추출은 handler 가 메시지 상태로 채운다(candidateState)
+        candidate_extraction_ids: [],
       });
     }
     return { recovery_run_id: recoveryRunId, plan_date: D, rule_version: GAP_RULE_VERSION, gaps, known };

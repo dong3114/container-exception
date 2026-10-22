@@ -817,6 +817,20 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | R-6 | **숫자**: 문의 수량 · 시간창은 사람이 실행을 만들 때 준 `parameters` 에서만. 없으면 `INQUIRY_PARAMETERS_REQUIRED` |
 | R-7 | **남은 판단**: 상한 값 · `WAITING_EXTERNAL`(회신 대기) 재개는 T-105(수신 신호) · checkpoint 보관 기간 · 오래된 checkpoint 정리 |
 
+### 18.12 T-105 첫 Agent Vertical Slice 구현 확인 결과 (2026-10-22 · DONE)
+
+**DB 변경 없음**(M18 · M19 그대로). 한 그래프에서 START → 공공데이터(사람이 준 기간) → 정보 공백 → 문의 초안 → 승인 대기 → 승인 → **사람의 발송 요청 대기** → Worker 발송 → 회신 대기 → 회신 · 추출(T-092) → 공백 재평가 → 결과 → END.
+
+| # | 구현 메모 |
+| --- | --- |
+| S-1 | **발송 권한은 그대로 사람 · Backend**: Tool 은 10개(READ `get_reply_candidates` 추가 — 회신 · 검증된 추출 후보, 원문 · 인용 없음). send · approve Tool 없음. 승인 뒤 그래프는 `track_message` 로 상태만 보고 `AWAITING_SEND_REQUEST`(사람) → `AWAITING_DELIVERY` · `AWAITING_REPLY`(외부)로 기다린다. 발송 요청 · Outbox · Worker 는 T-090 규칙 그대로 |
+| S-2 | **깨우기**: 대기 사유별 판정 `wake-rules.ts` — 승인 결정 · 발송 진행(APPROVED 를 벗어남 · QUEUED 를 벗어남) · 회신(정상 회신 + 추출이 끝남: DONE · NO_CANDIDATE · SKIPPED · FAILED). 수신 · 추출 Worker 가 커밋 뒤 `INBOUND_REPLY_RECEIVED` · `REPLY_EXTRACTED` 알림 → 재조정 즉시 실행(최적화). 알림을 놓쳐도 Worker 주기 재조정이 같은 판정으로 깨운다 |
+| S-3 | **후보 ≠ 사실**: 회신 추출은 PENDING 후보로 남고 사건 · 현재 사실을 만들지 않는다(T-093 전). 공백 출력 `gap-rules/1` 이 둘을 나눈다 — `state`(업무 공백: MISSING · ASKED, 사실 기준) · `candidate_state`(작업 흐름: NONE · REPLY_RECEIVED · CANDIDATE_RECEIVED · NO_VALID_CANDIDATE) · `candidate_extraction_ids`. 결과 코드 `CANDIDATE_RECEIVED_PENDING_CONFIRMATION`(통과 후보 있음) · `REPLY_NEEDS_HUMAN_REVIEW`(통과 후보 없음 · 추출 실패) |
+| S-4 | **결과 요약** `agent_run.result_summary`: 목표 공백 · 메시지 id · 회신 결과 · 후보 항목 · 후보 id · 업무 공백 상태 · 후보 상태 · `facts_confirmed=false` · 공공데이터 모드(LIVE · REPLAY) · 결과 · 입항 건수 · fetch id. 후보 값 · 원문은 넣지 않는다 |
+| S-5 | **상한**: 단계 상한은 실행 전체, Tool 호출 상한은 **대기와 대기 사이 한 구간마다**(대기 뒤 0 부터) — 오래 기다리는 실행이 상태 재조회만으로 예산을 다 쓰지 않게. 무한 반복은 단계 상한이 막는다. 값은 기본값 [ASSUMPTION] |
+| S-6 | **실제 프로세스 E2E(2026-10-22)**: 개발 DB(M19) · `npx tsx src/main.ts` · `src/worker.ts` · `python -m cera_ai`(그래프 + 추출 녹화 재생) · 실제 data.go.kr. 공공데이터 LIVE 4쪽 · 입항 189건(원장 행위자 AI_AGENT · `is_simulated=false`) → 가상 ODCY A 수용량 공백 → 초안 → 승인(API) → 발송 요청(**브라우저 화면 클릭**) → Worker Mock 발송 → `AWAITING_REPLY` 에서 **Python 종료 · 재기동** → Mock 회신 → 추출(합성 녹화 `odcy-capacity-yes.json`) → 재평가 → COMPLETED(`CANDIDATE_RECEIVED_PENDING_CONFIRMATION`, 업무 공백 ASKED 유지). 실제 공공데이터는 합성 계획 실행과 억지로 잇지 않았다(REAL PUBLIC · SYNTHETIC PRIVATE 출처 유지 — T-107) |
+| S-7 | **화면**: Control Tower 에 "Agent 진행 (Backend)" 블록 — 실행 시작(계획 실행 · 수량 · 시간창 · 공공데이터 기간) · 상태 · 지금 하는 일 · 기다리는 이유 · 단계 체크(초안 · 승인 · 발송 · 회신/추출 · 재평가 · 결과) · 최근 단계 · 최근 Tool · 기다리는 초안(기존 DraftView 로 승인 · 발송 요청) · 결과 요약. 새 디자인 없음 |
+
 
 
 

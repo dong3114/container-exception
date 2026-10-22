@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import type { AgentRun } from "@/api/agentRuns";
+import { milestones, resultLabel, summaryRows, waitingLabel } from "./agentLabels";
+
+const run = (steps: AgentRun["steps"], extra: Partial<AgentRun> = {}): AgentRun => ({
+  agent_run_id: "r",
+  recovery_run_id: "p",
+  goal: "g",
+  status: "WAITING_HUMAN",
+  current_node: null,
+  waiting_reason: null,
+  pending_ref: null,
+  last_error_code: null,
+  started_at: "2026-10-22T10:00:00+09:00",
+  finished_at: null,
+  updated_at: null,
+  runtime_attempts: 0,
+  next_attempt_at: null,
+  result_summary: null,
+  is_simulated: true,
+  steps,
+  tool_calls: [],
+  ...extra,
+});
+const node = (seq: number, n: string, detail: string | null = null) => ({ seq, kind: "NODE" as const, node: n, outcome: "SUCCEEDED", detail_code: detail, started_at: "2026-10-22T10:00:00+09:00" });
+
+describe("agent progress labels", () => {
+  it("milestones follow only the recorded steps", () => {
+    const waitingSend = run([node(1, "request_approval"), node(2, "wait_for_human"), node(3, "track_message", "AWAIT_SEND_REQUEST")]);
+    expect(milestones(waitingSend).filter((m) => m.done).map((m) => m.key)).toEqual(["draft", "approved"]);
+    const done = run([node(1, "request_approval"), node(2, "track_message", "AWAIT_REPLY"), node(3, "track_message", "REPLY_READY"), node(4, "read_reply"), node(5, "reassess_gaps"), { ...node(6, "x"), kind: "TERMINAL", node: null, detail_code: "CANDIDATE_RECEIVED_PENDING_CONFIRMATION" }], { status: "COMPLETED" });
+    expect(milestones(done).every((m) => m.done)).toBe(true);
+  });
+
+  it("explains waits and results without claiming facts", () => {
+    expect(waitingLabel("AWAITING_SEND_REQUEST")).toContain("Agent 는 보내지 않습니다");
+    expect(resultLabel("CANDIDATE_RECEIVED_PENDING_CONFIRMATION")).toContain("아직 확정 사실이 아닙니다");
+    expect(waitingLabel("SOMETHING_NEW")).toBe("SOMETHING_NEW"); // unknown codes are shown, not guessed
+  });
+
+  it("summary rows show workflow vs business state and no unknown keys", () => {
+    const rows = summaryRows({ candidate_state: "CANDIDATE_RECEIVED", business_gap_state: "ASKED", facts_confirmed: false, candidate_fields: ["quantity"], message_id: "m", public_data_mode: "LIVE" });
+    expect(rows).toEqual([
+      { label: "후보 상태(작업 흐름)", value: "CANDIDATE_RECEIVED" },
+      { label: "업무 공백 상태(사실 기준)", value: "ASKED" },
+      { label: "후보가 온 항목", value: "quantity" },
+      { label: "확정된 사실", value: "아니오 — 아직 후보" },
+      { label: "공공데이터 출처", value: "LIVE" },
+    ]);
+  });
+});
