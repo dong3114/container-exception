@@ -1,6 +1,6 @@
 # ai/ — CERA AI Server (LLM·비정형 처리)
 
-**이 영역은 LLM·비정형 처리만 맡는다** (ADR-029 · ADR-033 Accepted). 위험·비용·Tariff·Reconciliation·최적화·Solver 같은 **결정론 엔진은 `back/`에 있다** — "숫자는 결정론 엔진에서만 나온다"(`docs/01_project-rules.md` 3절).
+**이 영역은 LLM·비정형 처리와 Agent 추론 런타임을 맡는다** (ADR-029 · ADR-033 Accepted · **ADR-036 Accepted 2026-10-22** — LangGraph Agent Runtime 은 T-104 부터. Agent 는 CERA Backend Tool API 와 LLM 공급자만 부르고, DB · 메일 · 공공 API 를 직접 부르지 않는다). 위험·비용·Tariff·Reconciliation·최적화·Solver 같은 **결정론 엔진은 `back/`에 있다** — "숫자는 결정론 엔진에서만 나온다"(`docs/01_project-rules.md` 3절).
 
 ## 지금 있는 것 (T-092 U7 · 2026-10-07)
 

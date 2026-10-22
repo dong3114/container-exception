@@ -9,6 +9,8 @@
 
 ## 1. "멀티에이전트"의 뜻
 
+> **2026-10-22 ADR-036 (Accepted)**: 이 절과 3절의 "LLM 에 도구를 주지 않는다 · LLM 플래너를 쓰지 않는다"는 **대체됐다.** 이제 Python + LangGraph Agent Runtime 이 정보 공백 판단 · 조사 대상 선택 · Tool 선택을 추론한다. 단 Agent 는 권한 주체가 아니고, 모든 부작용 · 권위 상태 전이는 NestJS typed Tool/API 를 거친다(승인 · 발송 · 사실 확정 · 숫자 계산은 그대로 Backend · 사람 · 결정론). 업무 이벤트 핸들러 표(3절) · 루프 폭주 방지는 유지한다. 설계: `docs/tasks/plans/T-101-agent-runtime-design.md`.
+
 - LLM을 여러 개 띄워 서로 대화시키는 구조가 **아니다**.
 - 각 에이전트는 **명확한 책임, 입력·출력 계약, 트리거**를 가진 모듈이다. 모두 하나의 Event Store, Canonical State, Rule Engine, Solver를 공유한다.
 - 대부분의 에이전트는 **결정론적 코드**다. LLM은 비정형 텍스트를 읽거나 쓰는 **말단 함수**로만 쓴다.

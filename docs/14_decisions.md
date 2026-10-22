@@ -191,7 +191,7 @@
 - **T-060 주석 (2026-09-15, 사람 지시)**: 바로 위 "RECEIVED_ONLY → STALE 취급"을 **폐기**한다. "언제 발생했는지 모른다"는 "오래됐다"가 아니다. RECEIVED_ONLY면 `freshness_status = UNKNOWN`, `temporal_confidence = LOW`, `evidence_time_quality = RECEIVED_ONLY`(옛 이름 `temporal_quality`)로 둔다. 중요 사실이면 STALE과 같은 게이트(확인 요청·재조회·계획 승인 차단, 사유 `FRESHNESS_UNKNOWN`)를 건다. 모든 출처에 같게 적용한다(옛 "그 밖 출처는 received_at으로 계산"도 폐기). 결정 본문의 `time_basis = RECEIVED`는 `evidence_time_quality = RECEIVED_ONLY`로 읽는다(`05_event-and-state.md` 5.2).
 
 ## ADR-015: 역할 분리 에이전트 + 결정론 오케스트레이터
-- 상태: Proposed
+- 상태: Proposed — **일부 대체 by ADR-036 (2026-10-22)**: "LLM 은 … 도구를 주지 않는다"와 대안 기각 "LLM 플래너" 부분만. 업무 이벤트 핸들러 표 · 루프 폭주 방지 · 결정론 안전 규칙 · 승인/발송 권한 · 숫자 계산 권한은 그대로
 - 날짜: 2026-09-11
 - 맥락: "멀티에이전트"를 여러 LLM의 자율 대화로 만들면 재현성·안전성·디버깅이 무너진다.
 - 결정: 10개 역할(`06_agent-architecture.md` 2절)을 책임이 분리된 모듈로 만들고, 공유 Event Store / Canonical State / Rule Engine / Solver를 쓴다. 흐름은 in-process 작업 큐와 명시적 핸들러 표로 제어한다. LLM은 추출·초안·설명의 말단 함수로만 쓰며 도구를 주지 않는다.
@@ -434,7 +434,7 @@
 - 미결: 보관 범주별 **기간 숫자**(Pilot — 고객사 IT · 계약 · 보안·감사 요구 · 개인정보·관련 법률 검토) · 연락처 익명화·법적 보관 의무(`[TO VERIFY]`, Q-48) · `internalDate` 의 정확한 의미(`[TO VERIFY]`, Tech Validation) · 물리 저장 위치와 파기 실행 방식(T-080 이후)
 
 ## ADR-033: Main Backend = TypeScript + NestJS · AI Server = 별도 Python 런타임 (Q-64)
-- 상태: **Accepted** (2026-09-21, 사용자 결정 — Q-64 CLOSED)
+- 상태: **Accepted** (2026-09-21, 사용자 결정 — Q-64 CLOSED). **결정 3·4 일부 개정 by ADR-036 (2026-10-22)**: 허용 외부 클라이언트 = LLM 공급자 + CERA Backend Tool API, 호출은 양방향(Backend → 실행 시작 · 재개 / Agent → Tool). 나머지 결정은 그대로
 - 날짜: 2026-09-21 (T-083)
 - 맥락: T-069 가 첫 구현 Slice(Mock 외부 통신 루프)와 그 기술 조건을 확정했다(`docs/tasks/plans/T-069-external-communication-slice.md` 16절). 사용자는 CERA 의 기본 구조를 **React/Next.js → Main Backend → DB**, 그리고 **Main Backend → Python AI Server** 로 정했고, Main Backend 후보로 NestJS 와 Spring Boot 를 비교해 NestJS 를 골랐다. Python/FastAPI 는 Main Backend 후보가 아니다.
 - 결정:
@@ -482,3 +482,24 @@
   5. 시나리오 데이터 팩은 계속 `data/scenarios/` 에서 읽는다(`@scenario` 별칭 · 개발 서버 `fs.allow` = 저장소 루트).
 - 대안: Next.js 유지 + `output: 'export'`(런타임 SSR 은 없지만 빌드 때 HTML 을 미리 그리고, export 모드에서는 rewrites 프록시를 못 써서 Backend CORS 가 필요 — 사용자 의도 "서버에서 그리지 않음"과 어긋남).
 - 결과: `next` · `eslint-config-next` 제거, `vite` · `@vitejs/plugin-react` · `typescript-eslint` 계열 추가. `next.config.ts` · `src/app/layout.tsx` · `src/app/page.tsx` · `next-env.d.ts` · `.next/` 는 쓰지 않는다. `docs/16` 3·4절, `AGENTS.md` 1·6절, 루트 `README.md` 동기화.
+
+## ADR-036: Agent Runtime = Python + LangGraph · Agent 는 권한 주체가 아니다 (ADR-015 일부 대체 · ADR-033 결정 3·4 일부 개정)
+- 상태: **Accepted** (2026-10-22, 사용자 승인 — T-101)
+- 날짜: 2026-10-22
+- 맥락: 사용자는 CERA 를 실제 Agentic Logistics System 으로 만들기로 했다(2026-10-22). 지금 AI Server 는 회신 1건에 LLM 1회를 부르는 무상태 함수이고, 흐름은 NestJS 결정론 단계뿐이다. 동시에 지금까지 만든 Backend 권한 · 승인 · Contact Gate · 감사 · 멱등은 버리지 않는다. 설계 상세는 `docs/tasks/plans/T-101-agent-runtime-design.md`.
+- 결정:
+  1. **두 오케스트레이션을 나눈다.** (A) Business Workflow / Authority = NestJS — DB · Event · CanonicalFact · 승인 · Contact Gate · 발송 · 등록부 · 감사 · 상태 전이 · 멱등 · 권한. (B) Agent Reasoning = Python + **LangGraph**(`ai/`) — 정보 공백 판단 · 조사 대상 선택 · Tool 선택 · 회신 해석 · 의미/모호성 판단 · 충분성의 의미 판단 · 후보 복구전략 추론 · 설명. **Agent 는 권한 주체가 아니다. 모든 부작용과 권위 상태 전이는 NestJS 의 typed Tool/API 를 거친다.** Agent 는 DB · SQL · CanonicalFact · 권위 Event · 승인 · Contact Gate · 발송 · Gmail · 사용자/역할 · 계획 확정 · 숫자 생성을 직접 하지 않는다. 승인 · 발송 · 사실 확정 · 계획 확정(`COMMIT` 등급) Tool 은 Agent 에게 열지 않는다.
+  2. **LangGraph checkpoint 는 실행 상태(execution state)이지 업무 사실(business truth)이 아니다.** checkpoint 는 "어디서 재개하는가"만 담는다. 사람 승인 상태 · 사실 · 발송 여부의 정본은 PostgreSQL/NestJS 다. interrupt → NestJS 승인 흐름 → 사람 → Backend 이벤트 → Coordinator 의 resume 신호로 이어지고, 재개한 그래프는 Tool 로 현재 상태를 다시 읽는다. checkpoint 는 Backend Tool API 로 저장한다(AI Server 는 DB 자격증명을 갖지 않는다 — ADR-034 결정 6 유지).
+  3. **공공데이터는 Agent 가 직접 호출하지 않는다.** NestJS Public Data Adapter → 실제 API → 원문 보존(`raw_input` · ContentStore) → 결정론 정규화 → 출처(provenance) → 필요 시 `PUBLIC_API` Event 후보. Agent 는 `get_vessel_status` · `get_container_manifest` · `get_customs_progress` 같은 typed capability 로 Backend 를 부르고, 받은 값에는 출처 · 관측 시각 · 원문 참조가 붙는다.
+  4. **제한된 행위성(bounded agency).** 그래프 모양(노드 · 엣지)은 코드로 고정한다. LLM · Decision 모델은 정해진 분기점에서 열거된 선택지 중에서만 고른다. 실행마다 단계 · Tool 호출 상한(`CERA_AGENT_MAX_STEPS` · `CERA_AGENT_MAX_TOOL_CALLS`)을 둔다. 그래프는 하나(`CeraRecoveryGraph`)로 시작하고, 독립 맥락 · Tool 묶음 · 모델 정책 · 평가셋이 필요할 때만 Subgraph 로 승격한다. Supervisor + 다중 Agent 구조는 만들지 않는다.
+  5. **Tool 계약**: 입력 · 출력 스키마는 Backend 의 단일 스키마에서 파생해 `packages/contracts/` 로 내보낸다. 모든 Tool 호출은 서비스 토큰 · 실행 범위 검사 · 부작용 등급(`READ` · `EXTERNAL_READ` · `COMPUTE` · `PROPOSE` · `REQUEST`) · 멱등 키 · 시간 제한 · `agent_tool_call` 감사 · provenance 를 갖는다. 행위자는 `AI_AGENT`.
+  6. **관측성**: 실행마다 `agent_run_id` · `trace_id`(W3C `traceparent`) · `recovery_run_id`. 노드마다 시작/종료 · Tool 호출 · 소요 · 모델 · 토큰 · 비용 · 판정 · 오류 · interrupt · resume 을 Backend 소유 표에 남긴다. 원문 · 비밀값은 일반 로그에 남기지 않는다. 외부 추적 SaaS 는 별도 결정 전 쓰지 않는다.
+  7. **평가가 복잡도를 정한다**: Extraction · Decision · Tool Selection · Workflow 평가에서 single-call 대비 나아지지 않는 노드는 줄인다.
+- 기존 ADR 처리:
+  - **ADR-015 (Proposed)** — 결정 중 "LLM 은 말단 함수로만, 도구를 주지 않는다"와 대안 기각 "LLM 플래너"를 **이 ADR 결정 1·4 로 대체**한다. "업무 이벤트 → 다음 업무 단계의 명시적 핸들러 표"(NestJS)와 루프 폭주 방지(디바운스 · 입력 해시) · Agent Activity 기록은 **유지**한다.
+  - **ADR-033 (Accepted)** — 결정 3 의 "AI Server 가 가질 수 있는 외부 클라이언트는 LLM 공급자뿐"을 **"LLM 공급자 + CERA Backend Tool API"** 로, 결정 4 의 "Main Backend → AI Server" 단방향을 **양방향(Backend → 실행 시작 · 재개 / Agent → Tool 호출)** 으로 개정한다. 결정 1 · 2(Backend 가 유일한 권한 주체) · 5~10 과 "출력은 언제나 후보" · 장애 격리는 **그대로**다.
+  - **ADR-029 (Accepted)** — 유지. `ai/` 영역 정의 문구만 "LLM · 비정형 처리 + Agent 추론 런타임"으로 넓힌다. 결정론 엔진은 `back/` · LLM import 금지 그대로.
+  - **ADR-034 (Accepted)** — 유지(결정 6 재확인).
+  - ADR-017 · 026 · 027 · 028 · 030 · 006 · AGENTS.md 규칙 3 · 4 · 11 — 유지.
+- 대안: (a) LangGraph 를 회신 추출 파이프라인 안에만 — 권한 문제는 없지만 Recovery 추론이라는 목표에 못 미친다. (b) LangGraph 가 운영 전체를 지휘하고 Tool 로 승인 · 발송 · 상태 변경까지 — ADR-029 · 033 · 규칙 3 · 4 와 정면 충돌, 기각. (c) Agent Runtime 을 NestJS(LangGraph.js) 안에 — 권한 코드와 추론 코드가 같은 프로세스 · 같은 DB 자격증명을 공유해 경계가 약해진다. Python 평가 · 모델 생태계도 잃는다.
+- 결과: `docs/06` 1·3절 · `docs/18` O절 책임표 · `docs/23` 관측성 · `ai/README.md` · `back/README.md` · AGENTS.md 1.1 표 갱신. T-102 ~ T-107 큐 등록 · T-005/T-006 DEPRECATED · T-099 재배치. 미결: checkpoint 표 구조 · Tool 시간 제한 값 · `system_error` boundary 추가 여부 · Decision 임계값(T-099).

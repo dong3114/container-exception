@@ -1013,6 +1013,8 @@ Planner(ChatGPT)가 `docs/tasks/plans/T-068-external-communication-slice.md`를 
 
 ## O. CERA 전체 책임 경계 (Architecture Boundary)
 
+> **2026-10-22 ADR-036 (Accepted)**: 이 표에 **Agent Runtime(Python + LangGraph)** 열이 생긴다 — 정보 공백 판단 · 조사 대상 · Tool 선택 · 해석 · 설명을 추론하되, 이 표에서 Backend · 결정론 · 사람 칸에 있는 일(신원 · 권한 · 승인 · 발송 · 사실 확정 · 숫자)은 그대로 그 칸에 있다. Agent 는 Backend typed Tool 로만 행동한다. 상세 `docs/tasks/plans/T-101-agent-runtime-design.md` 5 · 6절.
+
 이 표가 이 문서에서 가장 자주 참조될 부분이다. **새 기능을 설계할 때 먼저 여기에 줄을 하나 추가하고, 어느 칸에 들어가는지 정한 다음 구현을 논한다.**
 
 범례: ● 주 책임 · ○ 보조 · — 관여 없음

@@ -21,6 +21,20 @@
 
 ---
 
+## 2026-10-22 · T-101 DONE — Agent Runtime 설계 (ADR-036 Accepted) · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(이 항목과 같은 커밋 `docs: define CERA agent runtime architecture`). push 없음
+- 한 일: 두 오케스트레이션(NestJS 권한 · 업무 사실 / Python + LangGraph 추론) · Tool Layer(부작용 등급 5종, COMMIT 등급 미노출) · 공공데이터는 Backend Adapter 경유 · checkpoint = 실행 상태 · Graph State = ref 만 · `CeraRecoveryGraph` 하나로 시작 · 평가 4층(single-call vs graph) · 작업 순서 T-102~T-107. 공공 API 공식 재확인(DS-01~03 정상 · 무료, DS-02/03 가이드 새 PDF 2026-10-06, DS-02 `entrpsCd` 크기 차이 7 vs 9)
+- 사용자 결정(2026-10-22): ADR-036 승인 · ADR-015 일부 대체 · ADR-033 결정 3·4 일부 개정 · 2026-09-11 공공 API 실호출 금지 해제 · `vessel_call` P0 승격 · T-005/T-006 DEPRECATED → T-106/T-102 · T-099 는 T-105 뒤 재개
+- T-105 확인: 설계 문서 13절 6번째 줄에 정의돼 있었다(이름 "첫 Vertical Slice", 9.3절). 그대로 QUEUE 에 등록. 번호 정본은 QUEUE(등록 전 최대 T-099)
+- 변경: `docs/tasks/plans/T-101-agent-runtime-design.md` · `docs/14`(ADR-036 · ADR-015/033 표시) · `docs/06` · `docs/18` O절 · `docs/23` · `ai/README.md` · `AGENTS.md` · QUEUE · LOG
+- 다음: **T-102** (DS-03 + DS-02 Public Data Adapter) — 커밋 전 사용자 보고. T-103 은 T-102 검토 전 시작 금지
+
+## 2026-10-22 · T-100 DONE — Runtime 설정 정리 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 커밋 `1c58f08`**(`chore: align runtime configuration`). push 없음
+- 한 일: Backend 설정 스키마에 공공데이터 · Agent Tool 항목 + production 금지 조합(장애 주입 · 공공데이터 replay · live 키 없음 · 짧은 토큰) · AI Server 설정 검증 모듈 신설(LLM · Decision · Agent, production replay 금지) · `.env.example` ↔ 코드 키 양방향 시험 · `npm run env:check` · `python -m cera_ai.config` · CURRENT 의 Git/remote 사실 오류 정정
+- 검증: Backend unit 113 · typecheck · AI pytest 32. DB 시험은 설정 외 변경이 없어 돌리지 않음
+- 주의: 로컬 `back/.env` 는 비밀 파일이라 고치지 않았다 — 빠진 키는 `npm run env:check`
+
 ## 2026-10-07 · T-092 DONE — U7 회신 추출 파이프라인 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인 뒤 커밋**(`feat: add AI reply extraction pipeline`, 이 항목과 같은 커밋). 기준 HEAD `4f78fec`. push 없음. T-099 · T-093 시작 안 함. T-098 은 건드리지 않음
 - 한 일: 정상 회신만 → Backend 가 물은 질문 · 기준일 · 정확한 원문 텍스트를 Python AI Server 에 보냄(트랜잭션 밖 · 시간 제한) → AI 는 값 후보 + 원문 인용만(녹화 재생) → 결정론 검증기(질문 범위 · 인용 원문 대조 · 형식 · 단위 · 값-인용 · 상충) → `extraction`(통과 PENDING · 탈락 REJECTED · SYSTEM). 기술 실패는 `system_error` + 재시도 한도. 화면 "AI 제안"(확정 아님 표시). 사건 · 현재 사실 생성 없음
