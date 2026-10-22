@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-22 · T-099 중간 checkpoint (진행 중 — DONE 아님) · Claude Code (claude-opus-5-5)
+- 상태: **차단 — 실제 API credentials 필요. Task 는 IN_PROGRESS 유지**(`test: add CERA model evaluation harness and local baselines`, origin push — 사용자 지시)
+- 한 일: 데이터셋 루브릭 README · 정답을 보지 않은 두 번째 라벨링 → AGREED 119 · CONTESTED 22(**two-model-agreed · AI 교차 검토 — Human Gold 아님**, 사람 검토 0) · 사람 검토표 `review/gold-review.csv`(OK · FIX · UNSURE) · Gold 등급별 지표 · raw vs pipeline(Backend 검증기 포팅) 점수 · 범주별 요약 · run 메타(eval/contract version · case ids) · 가격표 10-22 재확인 · `eval` extra · HF NLI 기준선 2종(Docker CPU) · ADR-037 Proposed(공급자 = ADR, 모델 = 설정)
+- 결과: HF 기준선은 **일부 분류력(조건부 F1 0.33 · mDeBERTa 검토필요 F1 0.52)은 있지만 보정(Brier · ECE)과 높은 확신 오답이 Production 기준 미달** → Production Decision Provider 부적합. 실제 상용 LLM 호출 0건
+- 남은 일: OpenAI · Anthropic · Gemini · Jev 실제 평가 → 추출 비교 → 선정 → Agent Runtime LIVE LLM E2E → ADR-037 Accepted. 필요한 키(코드 기준 이름): `OPENAI_API_KEY` · `ANTHROPIC_API_KEY` · `GEMINI_API_KEY` · (Jev) `OPENROUTER_API_KEY`
+- 주의: API 키 없이 T-093 등 큰 작업을 시작하지 않는다(사용자 지시)
+
 ## 2026-10-22 · T-105 DONE — 첫 Agent Vertical Slice · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(`feat: add agentic recovery vertical slice`). push 없음
 - 한 일: 그래프 확장(`observe_public_data` · `track_message` · `wait_send_request` · `wait_delivery` · `wait_reply` · `read_reply` · `reassess_gaps` · `result_summary`) · Tool `get_reply_candidates`(READ) · `gap-rules/1`(업무 `state` vs 작업 흐름 `candidate_state`) · 수신 · 추출 알림 → 재조정 · Tool 상한 = 대기 구간마다 · 합성 녹화 `odcy-capacity-yes.json` · Control Tower `AgentPanel`

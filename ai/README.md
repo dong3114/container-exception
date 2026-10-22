@@ -56,3 +56,21 @@ DB 접근(커넥션 · ORM 없음) · 채널 · 메일 · 발송 · 발신자 �
 환경변수:  CERA_LLM_MODE=replay|live (기본 replay) · CERA_AI_REPLAY_DIR(기본 fixtures/replay)
 Agent:     CERA_AGENT_MODE=on · CERA_AGENT_TOOL_TOKEN(back/.env 와 같은 값) · CERA_BACKEND_TOOL_URL — 켜면 /v1/agent-runs/* 가 열린다
 ```
+
+## 모델 평가 — CERA Eval (T-099)
+
+실제 Runtime 에 넣을 AI 를 고르는 평가(ADR-037 Proposed — 공급자는 ADR, 모델은 설정). 데이터셋 `evals/datasets/cera-reply-eval-v1`(141건 · 14범주 · 합성) — 루브릭 · Gold 상태는 그 폴더 README.
+
+```text
+설치(실제 공급자):  pip install -e ".[dev,eval]"        # anthropic · openai · google-genai. 키는 ai/.env 에만(커밋 금지)
+검사:              python -m cera_ai.evals validate
+비용 추정:          python -m cera_ai.evals estimate
+추출:              python -m cera_ai.evals extract --provider anthropic|openai|gemini --model <id> --cases A01,C02 --limit N
+판정:              python -m cera_ai.evals decide --provider jev|llm-judge:<vendor>|hf-nli|prior --model <id>
+비교표:            python -m cera_ai.evals report --runs <dir> ... --out report.md --csv report.csv
+Gold:              python -m cera_ai.evals gold-agreement --labels <blind.jsonl> --annotator <이름>  ·  gold-sheet
+```
+
+- 점수는 Gold 등급별(사람 검토 > AGREED = two-model-agreed · AI 교차 검토, 사람 검토 아님 > Draft) · 추출은 **raw**(모델 JSON) 와 **pipeline**(Backend 결정론 검증기 포팅을 통과한 값) 을 따로 낸다
+- 순서: 모델마다 5건 → 20건 → 비용 확인 → 전체. 결과는 `run.json` · `outputs.jsonl` · `metrics.json` · `per_case.csv`(재현 · 재채점 가능, 비밀값 없음)
+- HF NLI 기준선은 Windows 애플리케이션 제어가 scipy DLL 을 막아 **Docker(Linux, CPU)** 에서 돌린다: `evals/hf-nli-docker.sh`(실행 명령은 파일 머리말, 가중치는 docker volume — 저장소에 넣지 않는다). `mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` 는 학습 데이터에 비상업 데이터가 있어 연구 비교용만, 상용 후보는 `bge-m3-zeroshot-v2.0-c`(MIT)

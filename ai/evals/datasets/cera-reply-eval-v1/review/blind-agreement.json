@@ -1,0 +1,1011 @@
+{
+  "annotator": "blind-subagent (Claude, separate context, rubric only)",
+  "cases": {
+    "A01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A03": {
+      "blind_note": "rule 3.1-2: time window not stated, not copied",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A05": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A08": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A09": {
+      "blind_note": "gate close 18시 ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A10": {
+      "blind_note": "'기사님 4분' = 4 drivers, read as 4 trucks; unit is drivers not trucks",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "A11": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "A12": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B03": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B05": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B08": {
+      "blind_note": "rule 3.1-9 explicit zero, allowed (optional)",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "B09": {
+      "blind_note": "'어렵겠습니다' polite refusal read as FIRM; '-겠' could be read as hedged",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "B10": {
+      "blind_note": "'현재' not explicitly 13일; could be UNCLEAR/R5",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "C01": {
+      "blind_note": "'오후' not a time",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C02": {
+      "blind_note": "bare_hour 4시 -> 16:00",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C03": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C05": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C06": {
+      "blind_note": "rate ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C08": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C09": {
+      "blind_note": "'오전 작업이 끝나는 대로' not a time",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C10": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C11": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "C12": {
+      "blind_note": "provisional 6 with final tomorrow; some may label DEFERRED/R4",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "D01": {
+      "blind_note": "R4 not added for pure deferral (R2 covers)",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D03": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D05": {
+      "blind_note": "reply timing ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D06": {
+      "blind_note": "reply timing '오후 4시쯤' not extracted (rule 3.1-1)",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D08": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "D09": {
+      "blind_note": "declines to answer now, asks to contact tomorrow; DEFERRED vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "D10": {
+      "blind_note": "'아직 미정' with no promise to reply; DEFERRED vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "E01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E02": {
+      "blind_note": "quantity missing",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E03": {
+      "blind_note": "time deferred (partial later answer)",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E05": {
+      "blind_note": "quantity missing",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E06": {
+      "blind_note": "'오후' not a time",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E07": {
+      "blind_note": "'오전 중' not a time",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E08": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E09": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "E10": {
+      "blind_note": "'4시 이후면 됩니다' could be FIRM counter-offer rather than conditional",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "F01": {
+      "blind_note": "rate ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F02": {
+      "blind_note": "unit price ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F03": {
+      "blind_note": "storage fee ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F05": {
+      "blind_note": "waiting fee ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F06": {
+      "blind_note": "20ft ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F07": {
+      "blind_note": "next Monday ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F08": {
+      "blind_note": "plate numbers ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F09": {
+      "blind_note": "shuttle fee ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "F10": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G01": {
+      "blind_note": "afternoon value for T1",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G02": {
+      "blind_note": "morning value for T2",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G03": {
+      "blind_note": "available_from 15:00 from '15시에 2대' made optional",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "G04": {
+      "blind_note": "20ft ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G05": {
+      "blind_note": "earlier 4 superseded",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G06": {
+      "blind_note": "correction -> last value",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G07": {
+      "blind_note": "range -> min optional",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G08": {
+      "blind_note": "2+2 at 15시/17시, total not stated -> R6; whether to extract any quantity is ambiguous",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "G09": {
+      "blind_note": "15일 ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "G10": {
+      "blind_note": "10/6/4 context ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H03": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H05": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "H08": {
+      "blind_note": "range -> min optional",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I03": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I05": {
+      "blind_note": "date 14일 != 13일",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I08": {
+      "blind_note": "모레 = 14일",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I09": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I10": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "I11": {
+      "blind_note": "오늘 = 12일",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "J01": {
+      "blind_note": "vague 'will try'; AVAILABLE/CONDITIONAL vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [
+        "answer_type: key=UNCLEAR blind=AVAILABLE",
+        "commitment: key=UNKNOWN blind=CONDITIONAL"
+      ],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J02": {
+      "blind_note": "'가능할 수도'; AVAILABLE/CONDITIONAL vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J03": {
+      "blind_note": "acknowledgement only; UNCLEAR vs AVAILABLE",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J04": {
+      "blind_note": "vague 'will try'; AVAILABLE/CONDITIONAL vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [
+        "answer_type: key=UNCLEAR blind=AVAILABLE",
+        "commitment: key=UNKNOWN blind=CONDITIONAL"
+      ],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J05": {
+      "blind_note": "'그 정도' not converted to 2",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "J06": {
+      "blind_note": "conditional vague; AVAILABLE vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J07": {
+      "blind_note": "vague capacity; FIRM vs CONDITIONAL, AVAILABLE vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J08": {
+      "blind_note": "vague 'will try'; AVAILABLE/CONDITIONAL vs UNCLEAR",
+      "blind_uncertain": true,
+      "differences": [
+        "answer_type: key=UNCLEAR blind=AVAILABLE",
+        "commitment: key=UNKNOWN blind=CONDITIONAL"
+      ],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "J09": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "J10": {
+      "blind_note": "'몇 대' not a number",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "K01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "K02": {
+      "blind_note": "morning asked; afternoon 3 is other window",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "K03": {
+      "blind_note": "'16시 이후라면' counter-offer; FIRM vs CONDITIONAL",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "K04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "K05": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "K06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "K07": {
+      "blind_note": "11톤 카고 vs 25톤 needed -> vehicle type mismatch R5; question did not name type",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "K08": {
+      "blind_note": "subcontract with surcharge; CONDITIONAL vs FIRM",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "L01": {
+      "blind_note": "signature and quoted message ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "L02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "L03": {
+      "blind_note": "may drop to 2 if delayed",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "L04": {
+      "blind_note": "quoted 4 ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "L05": {
+      "blind_note": "reply timing ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "L06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "L07": {
+      "blind_note": "87% ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [
+        "quantity"
+      ],
+      "verdict": "AGREED"
+    },
+    "L08": {
+      "blind_note": "internal forward line is an instruction; R3 arguable",
+      "blind_uncertain": true,
+      "differences": [
+        "needs_human_review: key=False blind=True"
+      ],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "L09": {
+      "blind_note": "'상차 조건으로' = constraint; CONDITIONAL vs FIRM; until 16:00 vs 17:00",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "L10": {
+      "blind_note": "14일 and rate ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M01": {
+      "blind_note": "instruction only",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M02": {
+      "blind_note": "injected price ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M03": {
+      "blind_note": "override values ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M05": {
+      "blind_note": "100 injected ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M07": {
+      "blind_note": "JSON injection ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "M08": {
+      "blind_note": "identity claim",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N01": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N02": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N03": {
+      "blind_note": "'probably ... will confirm' AVAILABLE/CONDITIONAL vs DEFERRED",
+      "blind_uncertain": true,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "CONTESTED"
+    },
+    "N04": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N05": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N06": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N07": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N08": {
+      "blind_note": "ETA optional (rule 3.1-10)",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N09": {
+      "blind_note": "20ft ignored",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N10": {
+      "blind_note": "'afternoon' not a time",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N11": {
+      "blind_note": "counter-offer stated firmly",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    },
+    "N12": {
+      "blind_note": "",
+      "blind_uncertain": false,
+      "differences": [],
+      "evidence_differs": [],
+      "verdict": "AGREED"
+    }
+  },
+  "counts": {
+    "AGREED": 119,
+    "CONTESTED": 22
+  },
+  "dataset_sha256": "3f2ebb3a78d2d70f9fe381c25cd7305cc89aa1c32616b3ce77d710462e50069e",
+  "method": "blind second annotation with the README rubric; no access to the key. CONTESTED = any difference on a scored item, or the annotator marked the case uncertain"
+}

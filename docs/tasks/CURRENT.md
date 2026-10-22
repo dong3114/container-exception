@@ -10,7 +10,7 @@
 
 ## Status
 
-**IMPLEMENTING — T-099 실제 AI 공급자 검증 + CERA Eval (재개)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. Baseline = T-105 커밋. push 없음. **결과 확인 전 커밋하지 않음**(사용자 지시). 최종 보고 마지막 줄 `CERA T-099 MODEL EVAL REVIEW READY`.
+**IMPLEMENTING — T-099 실제 AI 공급자 검증 + CERA Eval (진행 중 · 실제 상용 공급자 평가 대기)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. **평가 기반 중간 checkpoint 커밋 + origin push 완료(사용자 지시 2026-10-22)** — T-099 는 DONE 이 아니다. **Blocker = 실제 API credentials**(`OPENAI_API_KEY` · `ANTHROPIC_API_KEY` · `GEMINI_API_KEY`, Jev 는 `OPENROUTER_API_KEY` — `ai/.env`).
 
 ### Task: T-099 (재개) — 실제 CERA Runtime 에 넣을 AI 선정
 
@@ -18,6 +18,19 @@
 - **Scope**: 기존 자산 재사용(141건 데이터셋 · 실행기 · 어댑터 3종 · Decision · HF NLI · replay) · Gold 상태 정리(검토 가능한 subset) · 공식 문서로 후보 최신화 · 5건 → 20건 → 전체 비용 단계 · raw vs pipeline(Backend 검증기) 점수 · Decision 지표(F1 · Brier · calibration) · 상위 모델 하나로 Agent Runtime live-LLM E2E smoke · 공급자 ADR(Proposed — 공급자와 모델 분리).
 - **Out of Scope**: T-093 Event · PROVISIONAL · CONFIRMED · Solver · RAG · Vector DB · Fine-tuning · Multi-Agent · threshold 업무 정책 확정.
 - **Existing Decisions**: 추출 = 후보(사실 아님) · Decision 은 권한 없음(확률만, threshold 는 Backend 가 향후) · 업무 fact state 와 candidate_state 분리(T-105 승인) · 비밀값 출력 · 커밋 금지.
+
+### T-099 진행 (2026-10-22)
+
+- **Blocker — API 키 없음**: `ai/.env` 파일이 없고 셸 환경 · `back/.env` 에도 `ANTHROPIC_API_KEY` · `OPENAI_API_KEY` · `GEMINI_API_KEY` · `OPENROUTER_API_KEY` 가 없다 → 실제 공급자 호출 0건. 사용자에게 필요 키 · 발급처 · 예상 상한(약 $15, 상한 $20)을 한 번 알렸다
+- **Gold**: 루브릭 README 작성 · 정답을 보지 않은 두 번째 라벨링(별도 컨텍스트) → `review/blind-agreement.json`: AGREED 119 · CONTESTED 22(실제 차이 4건 = 답 유형 3 · 확정성 3 · 검토 필요 1, 나머지 18 = 두 번째 라벨러의 '불확실' 표시). 추출 값 · 근거는 전부 일치. 사람 검토표 `review/gold-review.csv`(CONTESTED 먼저, `reviewer_decision` 칸). 주 지표 = AGREED — **two-model-agreed(AI 교차 검토)이지 Human Gold · Verified Gold 가 아니다.** 사람이 `gold-review.csv` 에 OK · FIX · UNSURE 를 적으면 human-reviewed 등급이 따로 생긴다
+- **평가 코드 보강**(기존 유지 · 최소 수정): Gold 등급별 지표 · pipeline 점수(Backend 검증 통과분) · 범주별 요약 · run 메타(eval_version · contract_version · case_ids · gold_tiers) · `gold-agreement` · `gold-sheet` 명령 · 가격표 10-22 재확인 · `eval` extra(SDK 3종)
+- **공식 문서 조사(10-22)**: ADR-037(Proposed) 후보 목록 — 모델명 변경점: Jev 1.14 · Gemini 4 Argon · 3.5 Flash-Lite · Gemini 3.8 Flash 2027 가격 인상 · Sonnet 5.5 포함
+- **HF 기준선 결과(Docker CPU, 141건 실행 · 주 지표는 AGREED 119)**: **일부 분류력은 있지만 보정(calibration)과 높은 확신 오답이 Production 기준에 못 미친다 → Production Decision Provider 로 부적합.**
+  - 기저율보다 나은 점: 조건부 F1 0.33(둘 다, 기저율 0.00) · 검토필요 F1 — `mDeBERTa` 0.52(기저율 0.00) · 파생 검토 AUROC 0.73~0.74(전체 141건)
+  - 기준 미달: 검토필요 Brier — `bge-m3` 0.28 · `mDeBERTa` 0.47(기저율 0.23) · 검토필요 ECE 0.23 · 0.50 · 확신 오답(≥0.9, 141건) 18 · 36건 · 확정성(FIRM/CONDITIONAL) 정확도 0.33 · 0.47(141건) — 확신 값이 실제 정답률을 나타내지 못한다
+  - `bge-m3-zeroshot-v2.0-c`(MIT · 상업 친화 데이터) = 무료 로컬 참고 기준선으로만 유지. `mDeBERTa`(학습 데이터에 비상업 ANLI) = 연구 비교용만
+  - 결과 `ai/evals/runs/2026-10-22-baselines/`(합성 데이터 · 비밀값 없음). Windows 애플리케이션 제어 차단은 우회하지 않고 Docker(Linux CPU) 사용
+- **다음 한 걸음**: 키가 생기면 scratchpad `t099-live-plan.sh smoke` → `sample` → 비용 확인 → 전체(AGREED) → Decision(Jev · LLM judge) → 상위 모델로 Agent Runtime live-LLM E2E → ADR-037 선정 채우기
 
 ### T-105 인계 (2026-10-22 · DONE)
 

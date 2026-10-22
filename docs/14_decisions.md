@@ -503,3 +503,17 @@
   - ADR-017 · 026 · 027 · 028 · 030 · 006 · AGENTS.md 규칙 3 · 4 · 11 — 유지.
 - 대안: (a) LangGraph 를 회신 추출 파이프라인 안에만 — 권한 문제는 없지만 Recovery 추론이라는 목표에 못 미친다. (b) LangGraph 가 운영 전체를 지휘하고 Tool 로 승인 · 발송 · 상태 변경까지 — ADR-029 · 033 · 규칙 3 · 4 와 정면 충돌, 기각. (c) Agent Runtime 을 NestJS(LangGraph.js) 안에 — 권한 코드와 추론 코드가 같은 프로세스 · 같은 DB 자격증명을 공유해 경계가 약해진다. Python 평가 · 모델 생태계도 잃는다.
 - 결과: `docs/06` 1·3절 · `docs/18` O절 책임표 · `docs/23` 관측성 · `ai/README.md` · `back/README.md` · AGENTS.md 1.1 표 갱신. T-102 ~ T-107 큐 등록 · T-005/T-006 DEPRECATED · T-099 재배치. 미결: checkpoint 표 구조 · Tool 시간 제한 값 · `system_error` boundary 추가 여부 · Decision 임계값(T-099).
+
+## ADR-037: AI 공급자 · 모델 선정 방식 — 공급자는 ADR, 모델은 설정 (T-099)
+- 상태: **Proposed** (2026-10-22, T-099 재개). **선정 자체는 비어 있다** — 실제 공급자 호출 결과(CERA Eval)가 나온 뒤 채운다
+- 날짜: 2026-10-22
+- 맥락: T-105 로 실제 Agent Runtime 이 회신 → 추출 → (판정) → 공백 재평가로 이어진다. 어느 AI 를 넣을지가 품질 · 비용을 정한다. 모델 이름은 몇 달마다 바뀌므로(2026-10-12 메모 대비 10-22 에 Jev 1.13 → 1.14, Gemini 4 Argon · 3.5 Flash-Lite 신규 등) 모델 이름마다 아키텍처 ADR 을 새로 쓰면 안 된다.
+- 결정(제안):
+  1. **공급자(vendor) 선정은 ADR**, **모델(model id) 은 설정**(`CERA_LLM_PROVIDER` · `CERA_LLM_MODEL` · `CERA_DECISION_PROVIDER` · `CERA_DECISION_MODEL`). 모델 교체 = 같은 Eval 을 다시 돌려 기준을 넘는지 확인 + 설정 변경(코드 · ADR 변경 없음).
+  2. 두 역할을 섞지 않는다: **Generative Extraction**(자유 회신 → 질문별 값 후보 + 정확한 원문 인용) 1순위 · 2순위, **Decision**(answers_question · firm · conditional · needs_human_review 확률) 1순위 · fallback/baseline.
+  3. **선정 근거는 CERA Eval 만**: `ai/evals/datasets/cera-reply-eval-v1`(141건 · 14범주) 의 Gold 등급별(사람 검토 > AGREED = two-model-agreed · AI 교차 검토, Human Gold 아님 > Draft) 점수. 추출은 raw(모델 JSON) 와 **pipeline**(Backend 결정론 검증기를 통과한 값) 을 따로 보고, 범위 위반 · 지어낸 값 · Backend 가 통과시킨 틀린 값 · 근거 정확도 · 한국어 · 조건부 범주 · 스키마 안정성 · 지연 · 비용을 본다. 판정은 F1 과 함께 Brier · ECE(보정) 를 본다. 유명도 · 외부 벤치마크 점수는 근거가 아니다.
+  4. 비용 단계: 모델마다 5건 → 20건 → 비용 계산 → 전체. 결과는 재현 가능한 run artifact(`run.json` · `outputs.jsonl` · `metrics.json` · `per_case.csv`) 로 남기고, 비밀값은 저장하지 않는다.
+  5. 권한은 그대로: 모델 출력은 후보, 판정은 확률뿐. 문턱값(threshold) 은 Backend 업무 정책으로 나중에 정한다(이 ADR 은 추천만 할 수 있다). 추출 후보 ≠ CanonicalFact(T-105 결정 유지).
+- 후보(2026-10-22 공식 문서 확인, 첫 비교 대상): Anthropic `claude-sonnet-5-5` · `claude-haiku-5-5`(+ `claude-opus-5-5`) · OpenAI `gpt-6.1-sol` · `gpt-6-luna` · Google `gemini-3.8-flash` · `gemini-3.1-flash-lite`(+ `gemini-4-argon`). 판정: TypeSafe Jev(`typesafe/jev-1.14`, OpenRouter Decisions API — Alpha · 독점 · 데이터 보존 정책 문서 없음) · LLM judge · 로컬 baseline `MoritzLaurer/bge-m3-zeroshot-v2.0-c`(MIT · 상업 친화 데이터 — 2026-10-22 측정: 일부 분류력은 있으나 보정 · 높은 확신 오답이 Production 기준 미달, 무료 참고 기준선으로만) — `mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` 는 학습 데이터에 비상업(ANLI) 이 있어 **연구 비교용만**. 최상위 단가(`claude-fable-5-1` · `gpt-6-astra`, $10/$50) 는 하위 모델이 기준에 못 미칠 때만 추가한다.
+- 대안: (a) 공급자 + 모델을 한 번에 ADR 로 고정 — 모델 교체마다 ADR 이 필요해 거부. (b) 외부 벤치마크 순위로 선정 — CERA 의 한국어 업무 회신 · 근거 인용 · 권한 경계를 재지 않아 거부.
+- 결과: 선정 결과(공급자 · 기본 모델 · 근거 run id) 를 이 ADR 에 채우고 Accepted 를 받는다. 그 전까지 Runtime 기본은 녹화 재생(replay) 그대로.

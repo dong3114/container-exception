@@ -6,6 +6,8 @@
   decide    --dataset cera-reply-eval-v1 --provider jev|llm-judge:<vendor>|hf-nli|prior|replay-run --model <id> [--from-run DIR]
   rescore   --run DIR                                                         re-score recorded outputs
   report    --runs DIR [DIR ...] [--out FILE.md] [--csv FILE.csv]              compare runs
+  gold-agreement --labels FILE.jsonl --annotator NAME                         blind second annotation → review/blind-agreement.json
+  gold-sheet                                                                  → review/gold-review.csv (a person fills reviewer_decision)
 
 Common: --cases A01,B,... (ids or categories) · --limit N · --concurrency N · --run-id NAME · --out-dir DIR.
 Keys come from the environment only (ANTHROPIC_API_KEY · OPENAI_API_KEY · GEMINI_API_KEY · OPENROUTER_API_KEY).
@@ -186,6 +188,21 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gold_agreement(args: argparse.Namespace) -> int:
+    from .gold import agreement
+
+    doc = agreement(args.dataset, Path(args.labels), args.annotator)
+    print(json.dumps(doc["counts"]), file=sys.stderr)
+    return 0
+
+
+def cmd_gold_sheet(args: argparse.Namespace) -> int:
+    from .gold import sheet
+
+    print(sheet(args.dataset), file=sys.stderr)
+    return 0
+
+
 def load_local_env(path: Path) -> None:
     """KEY=VALUE lines from ai/.env (gitignored) for keys not already set. Values are never printed."""
     if not path.is_file():
@@ -225,6 +242,9 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--out-dir", default=str(RUNS_DIR))
         p.set_defaults(fn=fn)
     p = sub.add_parser("rescore"); p.add_argument("--run", required=True); p.set_defaults(fn=cmd_rescore)
+    p = sub.add_parser("gold-agreement"); p.add_argument("--dataset", default="cera-reply-eval-v1"); p.add_argument("--labels", required=True)
+    p.add_argument("--annotator", required=True); p.set_defaults(fn=cmd_gold_agreement)
+    p = sub.add_parser("gold-sheet"); p.add_argument("--dataset", default="cera-reply-eval-v1"); p.set_defaults(fn=cmd_gold_sheet)
     p = sub.add_parser("report"); p.add_argument("--runs", nargs="+", required=True); p.add_argument("--out"); p.add_argument("--csv"); p.set_defaults(fn=cmd_report)
     args = parser.parse_args(argv)
     return int(args.fn(args))

@@ -115,7 +115,7 @@ def score_extraction_case(case: dict[str, Any], output: dict[str, Any] | None, e
         "case_id": case["case_id"], "category": case["category"], "language": case["language"],
         "error": (error or {}).get("code"), "required": 0, "correct_exact": 0, "correct_norm": 0, "wrong": 0, "missing": 0,
         "predictions": 0, "scope_violations": 0, "hallucinated": 0, "grounded": 0,
-        "correct_aligned": 0, "correct_backend_pass": 0, "wrong_backend_reject": 0, "spurious": 0,
+        "correct_aligned": 0, "correct_backend_pass": 0, "wrong_backend_reject": 0, "spurious": 0, "pipeline_correct": 0,
         "per_field": {}, "case_exact": False,
     }
     required = [g for g in gold if not g["optional"]]
@@ -163,6 +163,8 @@ def score_extraction_case(case: dict[str, Any], output: dict[str, Any] | None, e
             a, chk = preds[0]
             r["correct_aligned"] += int(_span_overlaps(source, a["evidence"]["quote"], g["evidence"]))
             r["correct_backend_pass"] += int(all(c["passed"] for _, c in preds))
+            # CERA pipeline score: a required value that is right AND survives the Backend validator (what the agent gets)
+            r["pipeline_correct"] += int(not g["optional"] and all(c["passed"] for _, c in preds))
             r["per_field"][g["field"]] = "CORRECT" if exact else "CORRECT_NORMALIZED"
         else:
             r["wrong"] += 1
@@ -183,7 +185,7 @@ def aggregate_extraction(rows: list[dict[str, Any]], latencies: list[int], usage
     tot = Counter()
     for r in rows:
         for k in ("required", "correct_exact", "correct_norm", "wrong", "missing", "predictions", "scope_violations", "hallucinated",
-                  "grounded", "correct_aligned", "correct_backend_pass", "wrong_backend_reject", "spurious"):
+                  "grounded", "correct_aligned", "correct_backend_pass", "wrong_backend_reject", "spurious", "pipeline_correct"):
             tot[k] += r[k]
     n = len(rows)
     errors = Counter(r["error"] for r in rows if r["error"])
@@ -217,6 +219,10 @@ def aggregate_extraction(rows: list[dict[str, Any]], latencies: list[int], usage
         "evidence_aligned_with_gold_span": _rate(tot["correct_aligned"], correct_total),
         "correct_values_backend_accepts": _rate(tot["correct_backend_pass"], correct_total),
         "bad_values_backend_rejects": _rate(tot["wrong_backend_reject"], wrong_or_halluc),
+        # raw = the model's JSON; pipeline = after contract + Backend deterministic validation (T-092 rules)
+        "pipeline_field_accuracy": _rate(tot["pipeline_correct"], tot["required"]),
+        "bad_values_backend_accepts": _rate(wrong_or_halluc - tot["wrong_backend_reject"], wrong_or_halluc),
+        "cases_with_bad_value_accepted": _rate(sum(1 for r in rows if r["wrong"] + r["hallucinated"] - r["wrong_backend_reject"] > 0), n),
         "schema_failure_rate": _rate(schema_fail, n),
         "call_failure_rate": _rate(sum(errors.values()) - schema_fail, n),
         "errors": dict(errors),
@@ -226,8 +232,28 @@ def aggregate_extraction(rows: list[dict[str, Any]], latencies: list[int], usage
         },
         "case_exact_by_category": {k: _rate(sum(v), len(v)) for k, v in sorted(by_cat.items())},
         "case_exact_by_language": {k: _rate(sum(v), len(v)) for k, v in sorted(by_lang.items())},
+        "by_category": category_summary(rows),
         **latency_usage(latencies, usage, cost_usd, n),
     }
+
+
+def category_summary(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Per category: raw field accuracy, pipeline accuracy, missing, and cases with a scope violation / invented value."""
+    out: dict[str, dict[str, Any]] = {}
+    for cat in sorted({r["category"] for r in rows}):
+        rs = [r for r in rows if r["category"] == cat]
+        req = sum(r["required"] for r in rs)
+        out[cat] = {
+            "cases": len(rs),
+            "case_exact": _rate(sum(r["case_exact"] for r in rs), len(rs)),
+            "field_accuracy": _rate(sum(r["correct_norm"] for r in rs), req),
+            "pipeline_accuracy": _rate(sum(r["pipeline_correct"] for r in rs), req),
+            "missing_rate": _rate(sum(r["missing"] for r in rs), req),
+            "cases_scope_violation": sum(1 for r in rs if r["scope_violations"]),
+            "cases_invented_value": sum(1 for r in rs if r["hallucinated"]),
+            "errors": sum(1 for r in rs if r["error"]),
+        }
+    return out
 
 
 def latency_usage(latencies: list[int], usage: dict[str, int], cost_usd: float | None, n: int) -> dict[str, Any]:

@@ -15,6 +15,7 @@ import json
 import re
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +24,7 @@ from typing import Any, Callable
 from ..decision import DECISION_SPEC_VERSION, DecisionOutput
 from ..extraction import PROMPT_VERSION, build_prompt
 from ..providers import ProviderError
-from .dataset import AI_ROOT, Dataset, EvalCase
+from .dataset import AI_ROOT, DATASET_SCHEMA, Dataset, EvalCase, tier_subsets
 from .pricing import estimate_cost
 from .scoring import aggregate_decision, aggregate_extraction, derived_review_probability, score_extraction_case
 
@@ -93,7 +94,17 @@ def score_extraction_records(ds: Dataset, records: list[dict[str, Any]], model: 
         for k in usage:
             usage[k] += int((rec.get("usage") or {}).get(k) or 0)
     cost = estimate_cost(model, usage["input_tokens"], usage["output_tokens"]) if usage["input_tokens"] else None
-    return aggregate_extraction(rows, lat, usage, cost), rows
+    metrics = aggregate_extraction(rows, lat, usage, cost)
+    keep = ("cases", "case_exact_match", "field_exact_accuracy", "normalized_value_accuracy", "pipeline_field_accuracy", "missing_answer_rate",
+            "wrong_value_rate", "question_scope_violation_rate", "hallucinated_field_rate", "evidence_exact_grounding", "bad_values_backend_accepts")
+    metrics["by_gold_tier"] = {
+        name: {k: v for k, v in aggregate_extraction([r for r in rows if r["case_id"] in ids], [], {}, None).items() if k in keep}
+        for name, ids in tier_subsets(ds.cases).items()
+        if ids
+    }
+    for r in rows:
+        r["gold_tier"] = next(c.gold_tier for c in ds.cases if c.case_id == r["case_id"])
+    return metrics, rows
 
 
 # ----------------------------------------------------------------------------------------------------- decision
@@ -147,6 +158,21 @@ def score_decision_records(ds: Dataset, records: list[dict[str, Any]], model: st
         rows.append(row)
     cost = reported if has_reported else (estimate_cost(model, usage["input_tokens"], usage["output_tokens"]) if usage["input_tokens"] else None)
     metrics = aggregate_decision(cases, outputs, errors, lat, usage, cost)
+    tiers: dict[str, Any] = {}
+    for name, ids in tier_subsets(ds.cases).items():
+        idx = [i for i, c in enumerate(cases) if c["case_id"] in ids]
+        if idx:
+            sub = aggregate_decision([cases[i] for i in idx], [outputs[i] for i in idx], [errors[i] for i in idx], [], {}, None)
+            tiers[name] = {k: sub.get(k) for k in ("cases", "answer_type", "commitment", "conditional", "firm", "answers_question", "needs_human_review")}
+            for k in ("answer_type", "commitment"):
+                if isinstance(tiers[name].get(k), dict):
+                    tiers[name][k] = {m: tiers[name][k].get(m) for m in ("accuracy", "macro_f1")}
+            for k in ("conditional", "firm", "answers_question", "needs_human_review"):
+                if isinstance(tiers[name].get(k), dict):
+                    tiers[name][k] = {m: tiers[name][k].get(m) for m in ("accuracy_at_0_5", "precision", "recall", "f1", "brier", "ece_10bin")}
+    metrics["by_gold_tier"] = tiers
+    for row in rows:
+        row["gold_tier"] = next(c.gold_tier for c in ds.cases if c.case_id == row["case_id"])
     metrics["cost_source"] = "provider_reported" if has_reported else ("list_price_estimate" if cost is not None else "none (local model)")
     return metrics, rows
 
@@ -196,6 +222,10 @@ def run_meta(ds: Dataset, task: str, provider: str, model: str, records: list[di
         "prompt_version": PROMPT_VERSION if task == "extraction" else DECISION_SPEC_VERSION,
         "created_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "real_api_call": provider not in {"replay-run", "null", "prior"} and not provider.startswith("hf-"),
+        "eval_version": DATASET_SCHEMA,
+        "contract_version": "reply-extract/1" if task == "extraction" else DECISION_SPEC_VERSION,
+        "case_ids": [c.case_id for c in ds.cases],
+        "gold_tiers": dict(Counter(c.gold_tier for c in ds.cases)),
         **(extra or {}),
     }
 

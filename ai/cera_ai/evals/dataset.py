@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 from dataclasses import dataclass
@@ -14,6 +15,10 @@ from ..decision import DecisionInput
 AI_ROOT = Path(__file__).resolve().parents[2]
 DATASETS_DIR = AI_ROOT / "evals" / "datasets"
 DATASET_SCHEMA = "cera-reply-eval/v1"
+
+# Gold tiers (README.md 1): a person's review wins; otherwise the blind second annotation decides AGREED/CONTESTED.
+HUMAN_REVIEWED = ("HUMAN_VERIFIED", "HUMAN_CORRECTED")
+TIERS = ("HUMAN_VERIFIED", "HUMAN_CORRECTED", "HUMAN_DISPUTED", "AGREED", "CONTESTED", "DRAFT")
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,10 @@ class EvalCase:
     @property
     def ask(self) -> dict[str, Any]:
         return self.doc["ask"]
+
+    @property
+    def gold_tier(self) -> str:
+        return self.doc.get("gold_tier", "DRAFT")
 
     def extraction_request(self) -> ExtractionRequest:
         """The same request the Backend would send (reply-extract/1) — no gold inside."""
@@ -86,12 +95,41 @@ def load_dataset(name_or_path: str, only: list[str] | None = None, limit: int | 
         if doc.get("schema") != DATASET_SCHEMA:
             raise ValueError(f"{doc.get('case_id')}: schema must be {DATASET_SCHEMA}")
         cases.append(EvalCase(doc))
+    _apply_review(path.parent, cases)
     if only:
         wanted = set(only)
         cases = [c for c in cases if c.case_id in wanted or c.doc["category"] in wanted]
     if limit is not None:
         cases = cases[:limit]
     return Dataset(name=path.parent.name, path=path, sha256=hashlib.sha256(raw).hexdigest(), cases=cases)
+
+
+def _apply_review(folder: Path, cases: list[EvalCase]) -> None:
+    """``review/gold-review.csv`` column ``reviewer_decision`` (a person: OK · FIX · UNSURE) and
+    ``review/blind-agreement.json`` (generated) → gold_tier.
+    FIX means the person corrected ``source.py`` (the label is then theirs) — HUMAN_CORRECTED."""
+    review = folder / "review"
+    agreement: dict[str, str] = {}
+    if (review / "blind-agreement.json").is_file():
+        agreement = {k: v["verdict"] for k, v in json.loads((review / "blind-agreement.json").read_text(encoding="utf-8"))["cases"].items()}
+    decisions: dict[str, str] = {}
+    if (review / "gold-review.csv").is_file():
+        with (review / "gold-review.csv").open(encoding="utf-8-sig", newline="") as fh:
+            for row in csv.DictReader(fh):
+                d = (row.get("reviewer_decision") or "").strip().upper()
+                if row.get("case_id") and d:
+                    decisions[row["case_id"].strip()] = d
+    for c in cases:
+        d = decisions.get(c.case_id)
+        tier = {"OK": "HUMAN_VERIFIED", "FIX": "HUMAN_CORRECTED", "UNSURE": "HUMAN_DISPUTED"}.get(d or "") or agreement.get(c.case_id) or "DRAFT"
+        c.doc["gold_tier"] = tier
+
+
+def tier_subsets(cases: list[EvalCase]) -> dict[str, set[str]]:
+    """Case-id sets the reports use. Primary = human reviewed when any exist, else AGREED (still AI-only — say so)."""
+    human = {c.case_id for c in cases if c.gold_tier in HUMAN_REVIEWED}
+    agreed = {c.case_id for c in cases if c.gold_tier in ("AGREED", *HUMAN_REVIEWED)}
+    return {"all_draft": {c.case_id for c in cases if c.gold_tier != "HUMAN_DISPUTED"}, "agreed_or_human": agreed, "human_reviewed": human}
 
 
 def validate_dataset(ds: Dataset) -> list[str]:

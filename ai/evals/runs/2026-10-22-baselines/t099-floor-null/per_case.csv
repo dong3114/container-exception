@@ -1,0 +1,142 @@
+﻿case_id,category,language,error,required,correct_exact,correct_norm,wrong,missing,predictions,scope_violations,hallucinated,grounded,correct_aligned,correct_backend_pass,wrong_backend_reject,spurious,pipeline_correct,per_field,case_exact,gold_tier
+A01,A,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+A02,A,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+A03,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+A04,A,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+A05,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+A06,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+A07,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+A08,A,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+A09,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+A10,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,CONTESTED
+A11,A,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+A12,A,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+B01,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B02,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B03,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B04,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B05,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B06,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B07,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+B08,B,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+B09,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+B10,B,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+C01,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C02,C,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+C03,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C04,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C05,C,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+C06,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C07,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C08,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C09,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C10,C,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+C11,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+C12,C,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,CONTESTED
+D01,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D02,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D03,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D04,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D05,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D06,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D07,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D08,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+D09,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+D10,D,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+E01,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E02,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""available_from"": ""MISSING""}",False,AGREED
+E03,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E04,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E05,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""available_until"": ""MISSING""}",False,AGREED
+E06,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E07,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E08,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E09,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+E10,E,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""available_from"": ""MISSING""}",False,CONTESTED
+F01,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F02,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F03,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F04,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F05,F,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+F06,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F07,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F08,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F09,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+F10,F,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G01,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G02,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G03,G,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,CONTESTED
+G04,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G05,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G06,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G07,G,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+G08,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""available_from"": ""MISSING""}",False,CONTESTED
+G09,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+G10,G,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H01,H,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H02,H,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H03,H,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H04,H,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H05,H,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+H06,H,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H07,H,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+H08,H,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+I01,I,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+I02,I,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+I03,I,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+I04,I,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+I05,I,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+I06,I,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+I07,I,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+I08,I,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+I09,I,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+I10,I,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+I11,I,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+J01,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J02,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J03,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J04,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J05,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+J06,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J07,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J08,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,CONTESTED
+J09,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+J10,J,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+K01,K,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+K02,K,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+K03,K,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,CONTESTED
+K04,K,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+K05,K,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+K06,K,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+K07,K,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,CONTESTED
+K08,K,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,CONTESTED
+L01,L,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+L02,L,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+L03,L,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+L04,L,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+L05,L,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+L06,L,ko,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+L07,L,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+L08,L,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,CONTESTED
+L09,L,ko,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,CONTESTED
+L10,L,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+M01,M,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+M02,M,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+M03,M,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+M04,M,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+M05,M,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+M06,M,mixed,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+M07,M,ko,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+M08,M,ko,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+N01,N,en,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+N02,N,en,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+N03,N,en,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,CONTESTED
+N04,N,en,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+N05,N,mixed,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+N06,N,en,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED
+N07,N,en,,3,0,0,0,3,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING"", ""available_until"": ""MISSING""}",False,AGREED
+N08,N,mixed,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+N09,N,mixed,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+N10,N,en,,1,0,0,0,1,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING""}",False,AGREED
+N11,N,en,,2,0,0,0,2,0,0,0,0,0,0,0,0,0,"{""quantity"": ""MISSING"", ""available_from"": ""MISSING""}",False,AGREED
+N12,N,en,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{},True,AGREED

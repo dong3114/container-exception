@@ -8,6 +8,8 @@ dependencies = ["fastapi>=0.115", "pydantic>=2.9", "uvicorn>=0.30", "httpx>=0.27
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27"]
+# T-099 live provider runs (keys in ai/.env, never committed). Adapters import these lazily — not needed for replay
+eval = ["anthropic>=2.1", "openai>=3.5", "google-genai>=2.24"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
