@@ -16,6 +16,17 @@
 - **stateless**: 요청 사이에 아무것도 기억하지 않는다. 여러 인스턴스로 띄워도 같은 입력 → 같은 출력
 - 로그: 요청 id · 메시지 id · 결과 · 지연 · 사용량만. 원문 · 인용 · 비밀값은 남기지 않는다
 
+## Agent Tool Client (T-103 · ADR-036)
+
+| 무엇 | 파일 |
+| --- | --- |
+| Tool Registry — Backend 가 만든 계약 파일 `packages/contracts/agent-tools/agent-tools.v1.json` 을 읽는다(DTO 를 손으로 쓰지 않는다). 프레임워크 중립 — T-104 가 LangGraph Tool 로 감싼다 | `cera_ai/tools/registry.py` |
+| 작은 JSON Schema 검사기 — 생성된 계약이 쓰는 키워드만, 그 밖은 거부 | `cera_ai/tools/schema_check.py` |
+| Backend Tool Client — `Authorization: Bearer` 서비스 토큰 · `X-CERA-Agent-Run-Id` · `Idempotency-Key` · 입력/출력 계약 검사 · 타입 있는 결과(시간 초과 · 거부도 예외가 아니라 결과) · 토큰은 URL · 로그 · repr 에 없다 | `cera_ai/tools/client.py` · `client_from_env()`(`CERA_AGENT_MODE=on` · `CERA_BACKEND_TOOL_URL` · `CERA_AGENT_TOOL_TOKEN`) |
+
+- Agent 가 할 수 있는 일은 Tool 9개뿐이다(읽기 · 외부 읽기 · 초안 제안 · 승인 요청). 승인 · 발송 · 사실 확정 · 계획 확정 Tool 은 없다
+- DB · data.go.kr · UNI-PASS · 메일 채널을 직접 부르지 않는다 — 모두 Backend Tool 을 거친다
+
 ## 하지 않는 것 (`docs/18` O절 · ADR-033)
 
 DB 접근(커넥션 · ORM 없음) · 채널 · 메일 · 발송 · 발신자 신원 · 거래처 권한 · 사실 키 · 적용 범위 · 근거 강도 · 사건 · 현재 사실 · 승인 · 비용 · 위험 · 솔버. **출력은 언제나 후보**이고, Main Backend(`back/`)의 결정론 검증기가 인용 · 형식 · 단위 · 질문 범위를 확인한 뒤에만 다음 단계로 간다. 브라우저는 이 서버를 부르지 않는다(Main Backend 만).

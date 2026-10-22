@@ -360,6 +360,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/agent-tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agent tool catalog (same content as packages/contracts/agent-tools/agent-tools.v1.json). Service token required. */
+        get: operations["AgentToolsController_catalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/agent-tools/{tool}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Call one registered agent tool. Only READ · EXTERNAL_READ · COMPUTE · PROPOSE · REQUEST tools exist — never approve, send or confirm. */
+        post: operations["AgentToolsController_call"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the Python Agent Runtime (CERA_AGENT_RUNTIME_URL) answers, and whether agent tools are enabled */
+        get: operations["AgentRunsController_runtime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start an agent run bound to one recovery run (the scope every tool call is checked against) */
+        post: operations["AgentRunsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{agentRunId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One agent run and its tool calls */
+        get: operations["AgentRunsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{agentRunId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel an active agent run — its tool calls stop being accepted */
+        post: operations["AgentRunsController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2026,6 +2128,294 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AgentToolsController_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description UNAUTHORIZED_AGENT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description AGENT_TOOLS_DISABLED */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentToolsController_call: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required for PROPOSE and REQUEST tools */
+                "Idempotency-Key"?: string;
+                /** @description Agent run (created by a human or the coordinator) that fixes the recovery-run scope */
+                "X-CERA-Agent-Run-Id": string;
+            };
+            path: {
+                tool: string;
+            };
+            cookie?: never;
+        };
+        /** @description Tool input (input_schema of the tool) */
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Recorded tool outcome */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        schema_version: "agent-tool/1";
+                        tool: string;
+                        /** Format: uuid */
+                        tool_call_id: string | null;
+                        /** @enum {string} */
+                        status: "SUCCEEDED" | "REJECTED" | "FAILED";
+                        replayed: boolean;
+                        /** @description Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json) */
+                        output: unknown;
+                        error: {
+                            code?: string;
+                            retryable?: boolean;
+                            message?: string;
+                            cause_code?: string;
+                            details?: Record<string, never>;
+                        } | null;
+                    };
+                };
+            };
+            /** @description UNAUTHORIZED_AGENT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        schema_version: "agent-tool/1";
+                        tool: string;
+                        /** Format: uuid */
+                        tool_call_id: string | null;
+                        /** @enum {string} */
+                        status: "SUCCEEDED" | "REJECTED" | "FAILED";
+                        replayed: boolean;
+                        /** @description Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json) */
+                        output: unknown;
+                        error: {
+                            code?: string;
+                            retryable?: boolean;
+                            message?: string;
+                            cause_code?: string;
+                            details?: Record<string, never>;
+                        } | null;
+                    };
+                };
+            };
+            /** @description TOOL_NOT_FOUND · AGENT_RUN_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        schema_version: "agent-tool/1";
+                        tool: string;
+                        /** Format: uuid */
+                        tool_call_id: string | null;
+                        /** @enum {string} */
+                        status: "SUCCEEDED" | "REJECTED" | "FAILED";
+                        replayed: boolean;
+                        /** @description Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json) */
+                        output: unknown;
+                        error: {
+                            code?: string;
+                            retryable?: boolean;
+                            message?: string;
+                            cause_code?: string;
+                            details?: Record<string, never>;
+                        } | null;
+                    };
+                };
+            };
+            /** @description AGENT_RUN_NOT_ACTIVE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        schema_version: "agent-tool/1";
+                        tool: string;
+                        /** Format: uuid */
+                        tool_call_id: string | null;
+                        /** @enum {string} */
+                        status: "SUCCEEDED" | "REJECTED" | "FAILED";
+                        replayed: boolean;
+                        /** @description Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json) */
+                        output: unknown;
+                        error: {
+                            code?: string;
+                            retryable?: boolean;
+                            message?: string;
+                            cause_code?: string;
+                            details?: Record<string, never>;
+                        } | null;
+                    };
+                };
+            };
+            /** @description AGENT_TOOLS_DISABLED */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        schema_version: "agent-tool/1";
+                        tool: string;
+                        /** Format: uuid */
+                        tool_call_id: string | null;
+                        /** @enum {string} */
+                        status: "SUCCEEDED" | "REJECTED" | "FAILED";
+                        replayed: boolean;
+                        /** @description Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json) */
+                        output: unknown;
+                        error: {
+                            code?: string;
+                            retryable?: boolean;
+                            message?: string;
+                            cause_code?: string;
+                            details?: Record<string, never>;
+                        } | null;
+                    };
+                };
+            };
+        };
+    };
+    AgentRunsController_runtime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRunsController_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    recovery_run_id: string;
+                    goal: string;
+                    runtime_version?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRunsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRunsController_cancel: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

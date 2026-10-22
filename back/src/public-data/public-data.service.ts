@@ -90,7 +90,14 @@ export class PublicDataService {
 
   /** DS-03: 부산 · 기간(입항일 기준)의 입항 건을 받아 등록하고, 입항 신고 일시 · 선석을 사건으로 남긴다. */
   async fetchVesselCalls(search: VesselCallSearch, actorHeader: string | undefined): Promise<VesselCallFetchResult> {
-    const actorId = await this.requireRequester(actorHeader);
+    return this.fetchVesselCallsAs(search, await this.requireRequester(actorHeader));
+  }
+
+  /**
+   * 이미 확인된 행위자로 부른다 — Agent Tool(T-103)은 서비스 토큰 + 실행 기록이 정한 AI_AGENT 행위자로 이 길을 쓴다.
+   * 사람 헤더를 흉내 내지 않는다. 원장 `requested_by_actor_id` 에 그 행위자가 남는다.
+   */
+  async fetchVesselCallsAs(search: VesselCallSearch, actorId: string): Promise<VesselCallFetchResult> {
     this.requireAvailable(DS03_VESSEL_CALL.dataset);
     const { from, to } = search;
     if (!isCalendarDate(from) || !isCalendarDate(to)) throw new ValidationError('INVALID_DATE', 'from and to must be calendar dates (YYYY-MM-DD, Asia/Seoul)', ['from', 'to']);
@@ -116,7 +123,11 @@ export class PublicDataService {
 
   /** DS-02: 등록된 입항 건 하나의 수입 적하목록(B/L ↔ 컨테이너 · 규격)을 받는다. */
   async fetchContainerManifest(vesselCallId: string, actorHeader: string | undefined): Promise<ManifestFetchResult> {
-    const actorId = await this.requireRequester(actorHeader);
+    return this.fetchContainerManifestAs(vesselCallId, await this.requireRequester(actorHeader));
+  }
+
+  /** 이미 확인된 행위자로 부른다(Agent Tool). */
+  async fetchContainerManifestAs(vesselCallId: string, actorId: string): Promise<ManifestFetchResult> {
     this.requireAvailable(DS02_CONTAINER_MANIFEST.dataset);
     const [call] = await this.repo.vesselCalls({ ids: [vesselCallId], limit: 1 });
     if (!call) throw new BusinessRuleError('VESSEL_CALL_NOT_FOUND', 'Vessel call not found', 404);

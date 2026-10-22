@@ -111,6 +111,7 @@ export class Slice1Seed {
           .values([
             { actorId: SEED_IDS.actorSystem, actorType: 'SYSTEM', displayName: 'CERA System' },
             { actorId: SEED_IDS.actorOperator, actorType: 'HUMAN', displayName: '운영자 (가상)' },
+            { actorId: SEED_IDS.actorAgent, actorType: 'AI_AGENT', displayName: 'CERA Agent Runtime' },
           ])
           .onConflictDoNothing()
           .returning({ id: actor.actorId }),

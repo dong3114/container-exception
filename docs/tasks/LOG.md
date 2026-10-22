@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-22 · T-103 DONE — Agent Tool Layer v1 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(`feat: add agent tool capability layer`). push 없음
+- 한 일: `back/src/agent-tools/`(Registry 9 · zod 계약 → `packages/contracts/agent-tools/agent-tools.v1.json` · 실행기: 검증 · 기록 · 멱등 · 시간 제한 · 오류 분류 · 출력 검사 · 서비스 인증 Bearer · 실행 범위) · `/internal/agent-tools/*` · `/agent-runs/*` · M16(`agent_run` · `agent_tool_call`) · M17(행위자 · 전이 · 열 가드 · GRANT) · `DraftService` Agent 옵션(승인 대기에 올리지 않음) + `requestApproval`(승인 아님) · `PublicDataService.*As` · Python `ai/cera_ai/tools/`(계약 기반 Registry · 스키마 검사기 · 타입 있는 Client) · 시드 AI_AGENT 행위자
+- 검증: Backend 311 · Python 39 · Front 39 · 실제 경로 Python Client → NestJS Tool API → data.go.kr(LIVE), 공공 원장 행위자 AI_AGENT
+- 남은 판단: Agent 초안의 숫자는 아직 계획 엔진에서 오지 않는다(사람 승인이 마지막 문) · `gap-rules/0` · Tool 시간 제한 값 · 큰 적하목록 페이지 상한
+- 다음: **T-104** LangGraph Runtime(StateGraph · interrupt · resume · Backend 경유 checkpoint)
+
 ## 2026-10-22 · T-102 DONE — DS-03 + DS-02 Public Data Adapter (live 검증) · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인(구현) + live 검증**(`feat: add public logistics data adapters`). push 없음
 - 한 일: `back/src/public-data/`(전송 포트 · 실제 HTTP · 녹화 재생 · XML 봉투 · 정규화 · 원장 · 원문 · 개체 · PUBLIC_API 사건 · 개발 API 6개) · M14(6표) · M15(가드 · GRANT) · 합성 fixture · `docs/22` rev.2.6 · `docs/24` 22.30~22.35 · 18.9 · 필드 사전 정정

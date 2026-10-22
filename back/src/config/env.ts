@@ -79,7 +79,7 @@ export const envSchema = z.object({
   CERA_PUBLIC_DATA_RAW_DIR: z.string().min(1).default('../data/raw/public-data'),
   // replay 모드가 읽는 마스킹 fixture 위치(커밋 가능한 합성 · 마스킹본만)
   CERA_PUBLIC_DATA_REPLAY_DIR: z.string().min(1).default('../data/fixtures/public-data'),
-  // ── Agent Tool API(T-103 예정 · ADR-036) — Python Agent Runtime 이 Backend 의 typed Tool 을 부를 때만 쓴다 ──
+  // ── Agent Tool API(T-103 · ADR-036 · back/src/agent-tools/) — Python Agent Runtime 이 /internal/agent-tools 를 부를 때만 쓴다 ──
   // false(기본)면 Tool 엔드포인트를 열지 않는다. Agent 는 권한 주체가 아니다 — Tool 이 Backend 권한 검사를 그대로 거친다
   CERA_AGENT_TOOLS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // Agent Runtime → Backend 서비스 토큰(32자 이상). 사람 사용자 권한을 대신하지 않는다(승인 · 확인은 사람만)

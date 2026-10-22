@@ -4,6 +4,7 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { ContentService } from '../content/content-service.js';
 import { ABSENT, CONTENT_STORE, type ContentStore } from '../content/content-store.js';
+import type { DbTransaction } from '../db/database.js';
 import { TransactionRunner } from '../db/transaction.js';
 import { AuditRecorder } from '../persistence/audit-recorder.js';
 import { AUDIT_ACTION } from '../persistence/catalog.js';
@@ -106,6 +107,18 @@ export interface DraftInspection {
  * Contact Gate 는 여기서 한 번 통과했다고 끝이 아니다 — U4 승인 시점 · U5 발송 직전에 다시 부른다(FR-ELG-03).
  * 상태는 모두 DB 에 있다. 이 서비스는 요청 사이에 아무것도 기억하지 않는다(LB 뒤 여러 인스턴스 가능).
  */
+/**
+ * 호출자가 초안 만들기를 다르게 쓸 때(T-103 Agent Tool). 기본값은 지금까지와 같다(사람 화면 · 시스템 행위자 · 숫자 검사 통과 시 승인 대기).
+ * - `actorId`: 상태 전이를 기록할 행위자(Agent Tool 은 AI_AGENT — 승인 결정 주체는 DB 가 HUMAN 으로 막는다)
+ * - `submitForApproval: false`: 숫자 검사를 통과해도 `DRAFTED` 에 둔다 — 승인 대기는 `requestApproval` 이 따로 한다
+ * - `inTransaction`: 초안을 쓰는 같은 트랜잭션 안에서 부른다(Tool 호출 기록 성공 표시를 초안과 한 번에 커밋하려고)
+ */
+export interface DraftCreateOptions {
+  actorId?: string;
+  submitForApproval?: boolean;
+  inTransaction?: (tx: DbTransaction, messageId: string) => Promise<void>;
+}
+
 @Injectable()
 export class DraftService {
   private readonly prose: DraftProse = new TemplateDraftProse();
@@ -133,7 +146,7 @@ export class DraftService {
     this.retryBaseMs = env.CERA_SEND_RETRY_BASE_MS;
   }
 
-  async create(body: unknown): Promise<DraftDto> {
+  async create(body: unknown, options: DraftCreateOptions = {}): Promise<DraftDto> {
     const req = parse(createSchema, body);
 
     // 1. 받는 사람 — 등록부 + Contact Gate(판정은 순수 함수, AI 없음)
@@ -194,7 +207,7 @@ export class DraftService {
 
     // 7. 한 트랜잭션
     const now = this.clock.now().toDb();
-    const actorId = await this.systemActor();
+    const actorId = options.actorId ?? (await this.systemActor());
     const threadId = this.ids.newId();
     const questionItemId = this.ids.newId();
     await this.tx.run(async (tx) => {
@@ -240,9 +253,77 @@ export class DraftService {
         check,
         actorId,
         now,
+        submitForApproval: options.submitForApproval ?? true,
       });
+      await options.inTransaction?.(tx, messageId);
     });
     return this.get(messageId);
+  }
+
+  /**
+   * 승인 요청(T-103 `request_approval`): `DRAFTED` 초안을 사람의 승인 대기(`PENDING_APPROVAL`)로 올린다. **승인이 아니다.**
+   * 승인 직전과 같은 검사를 다시 한다 — 내용 존재 · 지문 일치(`msg-content/1`) · 숫자 검사 · Contact Gate · 계획 교체.
+   * 요청자가 Agent 라고 건너뛰는 검사는 없다. 이미 승인 대기면 그대로(멱등). 결과 상태 전이는 요청자 행위자로 남는다.
+   */
+  async requestApproval(
+    messageId: string,
+    actorId: string,
+    inTransaction?: (tx: DbTransaction) => Promise<void>,
+  ): Promise<{ alreadyPending: boolean }> {
+    const i = await this.inspect(messageId);
+    const { message } = i.loaded;
+    const notDrafted = (status: string | null) => new BusinessRuleError('NOT_DRAFTED', `A ${status} message cannot be sent to the approval queue`, 409);
+    if (message.currentStatus === 'CLOSED') throw new BusinessRuleError('MESSAGE_SUPERSEDED', 'The message was replaced by a newer revision', 409);
+    if (message.currentStatus === 'PENDING_APPROVAL') {
+      if (inTransaction) await this.tx.run((tx) => inTransaction(tx));
+      return { alreadyPending: true };
+    }
+    if (message.currentStatus !== 'DRAFTED') throw notDrafted(message.currentStatus);
+    if (!i.text) throw new BusinessRuleError('CONTENT_MISSING', 'The message content is missing from the content store', 409);
+    if (!i.contentHashMatches) throw new BusinessRuleError('CONTENT_HASH_MISMATCH', 'The stored content does not match the message content hash (msg-content/1)', 409);
+    if (!i.check?.passed) {
+      throw new BusinessRuleError('BLOCKED_NUMBER_CHECK', `Numbers in the text are not in the structured values: ${i.check?.unmatched.map((t) => t.text).join(', ') ?? ''}`, 422);
+    }
+    if (!i.gate?.eligible) {
+      throw new BusinessRuleError('RECIPIENT_NOT_ELIGIBLE', `Recipient is not eligible: ${(i.gate?.reasons ?? []).map((r) => r.code).join(', ')}`, 403);
+    }
+    if (i.successorRunId) throw new BusinessRuleError('PLAN_SUPERSEDED', 'The plan run behind these values was replaced by a newer run', 409);
+
+    let alreadyPending = false;
+    await this.tx.run(async (tx) => {
+      const locked = await this.approvals.lockMessage(tx, messageId);
+      if (!locked) throw new BusinessRuleError('DRAFT_NOT_FOUND', 'No outbound draft with this id', 404);
+      if (locked.contentHash !== message.contentHash) throw new BusinessRuleError('CONTENT_CHANGED', 'The message changed while the request was checked', 409);
+      if (locked.currentStatus === 'PENDING_APPROVAL') {
+        alreadyPending = true; // 잠금을 기다리는 사이 같은 요청이 먼저 올렸다
+      } else {
+        if (locked.currentStatus !== 'DRAFTED') throw notDrafted(locked.currentStatus);
+        if (i.sourceRunId) {
+          await this.approvals.lockPlanRun(tx, i.sourceRunId);
+          if (await this.approvals.findSuccessorRun(i.sourceRunId, tx)) throw new BusinessRuleError('PLAN_SUPERSEDED', 'The plan run behind these values was replaced by a newer run', 409);
+        }
+        const now = this.clock.now().toDb();
+        await this.drafts.insertTransition(tx, {
+          id: this.ids.newId(),
+          messageId,
+          status: 'PENDING_APPROVAL',
+          actorId,
+          at: now,
+          isSimulated: message.isSimulated,
+          note: 'approval requested — re-checked content, numbers, Contact Gate and plan',
+        });
+        await this.audit.record(tx, {
+          actorId,
+          action: AUDIT_ACTION.APPROVAL_REQUESTED,
+          targetType: 'COMM_MESSAGE',
+          targetId: messageId,
+          result: 'SUCCESS',
+          isSimulated: message.isSimulated,
+        });
+      }
+      if (inTransaction) await inTransaction(tx);
+    });
+    return { alreadyPending };
   }
 
   /**
@@ -684,6 +765,7 @@ export class DraftService {
       check: NumberCheckResult;
       actorId: string;
       now: string;
+      submitForApproval?: boolean;
     },
   ): Promise<void> {
     await this.drafts.insertDraftMessage(
@@ -708,7 +790,8 @@ export class DraftService {
       { id: this.ids.newId(), actorId: m.actorId, at: m.now },
     );
     // 숫자 검사를 통과한 초안만 승인 화면으로(FR-COM-07 · T-069 11.3). 실패하면 DRAFTED 에 머문다.
-    if (m.check.passed) {
+    // Agent 초안(submitForApproval = false)은 통과해도 DRAFTED — 승인 대기는 requestApproval 이 따로 올린다(T-103)
+    if (m.check.passed && m.submitForApproval !== false) {
       await this.drafts.insertTransition(tx, {
         id: this.ids.newId(),
         messageId: m.messageId,

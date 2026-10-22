@@ -43,6 +43,8 @@ export const AUDIT_ACTION = {
   EXTRACTION_SKIPPED_NO_QUESTION: 'EXTRACTION_SKIPPED_NO_QUESTION',
   // T-102 공공데이터 — 누가 외부 공공 API 호출(또는 녹화 재생)을 일으켰나. 결과는 호출 원장(public_data_fetch)에 있다
   PUBLIC_DATA_FETCHED: 'PUBLIC_DATA_FETCHED',
+  // T-103 Agent Tool — 초안을 사람의 승인 대기로 올렸다(승인이 아니다)
+  APPROVAL_REQUESTED: 'APPROVAL_REQUESTED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];
 

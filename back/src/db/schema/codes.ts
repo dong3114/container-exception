@@ -88,3 +88,8 @@ export const PUBLIC_DATA_DATASET = ['MOF_VESSEL_CALL', 'MOF_CONTAINER_MANIFEST']
 export const PUBLIC_DATA_MODE = ['LIVE', 'REPLAY'] as const;
 export const PUBLIC_DATA_OUTCOME = ['SUCCESS', 'NO_DATA', 'UPSTREAM_ERROR', 'TRANSPORT_ERROR', 'PARSE_ERROR'] as const;
 
+// ── M16 Agent 실행 · Tool 호출 기록(T-103 · ADR-036 · docs/24 22.36 ~ 22.37) ──
+export const AGENT_RUN_STATUS = ['ACTIVE', 'FINISHED', 'CANCELLED'] as const;
+// 부작용 등급. COMMIT(승인 · 발송 · 사실 확정 · 계획 확정 · 등록부 변경)은 Agent 에게 열지 않으므로 값이 없다
+export const TOOL_CATEGORY = ['READ', 'EXTERNAL_READ', 'COMPUTE', 'PROPOSE', 'REQUEST'] as const;
+export const TOOL_CALL_STATUS = ['STARTED', 'SUCCEEDED', 'FAILED', 'REJECTED'] as const;

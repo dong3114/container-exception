@@ -1167,6 +1167,613 @@
           "public-data"
         ]
       }
+    },
+    "/internal/agent-tools": {
+      "get": {
+        "operationId": "AgentToolsController_catalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED_AGENT"
+          },
+          "503": {
+            "description": "AGENT_TOOLS_DISABLED"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Agent tool catalog (same content as packages/contracts/agent-tools/agent-tools.v1.json). Service token required.",
+        "tags": [
+          "internal-agent-tools"
+        ]
+      }
+    },
+    "/internal/agent-tools/{tool}": {
+      "post": {
+        "operationId": "AgentToolsController_call",
+        "parameters": [
+          {
+            "name": "tool",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,59}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Required for PROPOSE and REQUEST tools",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,100}$"
+            }
+          },
+          {
+            "name": "X-CERA-Agent-Run-Id",
+            "in": "header",
+            "description": "Agent run (created by a human or the coordinator) that fixes the recovery-run scope",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Tool input (input_schema of the tool)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded tool outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "tool",
+                    "tool_call_id",
+                    "status",
+                    "replayed",
+                    "output",
+                    "error"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "enum": [
+                        "agent-tool/1"
+                      ]
+                    },
+                    "tool": {
+                      "type": "string"
+                    },
+                    "tool_call_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCEEDED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "output": {
+                      "description": "Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json)",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "cause_code": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED_AGENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "tool",
+                    "tool_call_id",
+                    "status",
+                    "replayed",
+                    "output",
+                    "error"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "enum": [
+                        "agent-tool/1"
+                      ]
+                    },
+                    "tool": {
+                      "type": "string"
+                    },
+                    "tool_call_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCEEDED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "output": {
+                      "description": "Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json)",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "cause_code": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOOL_NOT_FOUND · AGENT_RUN_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "tool",
+                    "tool_call_id",
+                    "status",
+                    "replayed",
+                    "output",
+                    "error"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "enum": [
+                        "agent-tool/1"
+                      ]
+                    },
+                    "tool": {
+                      "type": "string"
+                    },
+                    "tool_call_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCEEDED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "output": {
+                      "description": "Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json)",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "cause_code": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "AGENT_RUN_NOT_ACTIVE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "tool",
+                    "tool_call_id",
+                    "status",
+                    "replayed",
+                    "output",
+                    "error"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "enum": [
+                        "agent-tool/1"
+                      ]
+                    },
+                    "tool": {
+                      "type": "string"
+                    },
+                    "tool_call_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCEEDED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "output": {
+                      "description": "Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json)",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "cause_code": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AGENT_TOOLS_DISABLED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "tool",
+                    "tool_call_id",
+                    "status",
+                    "replayed",
+                    "output",
+                    "error"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "enum": [
+                        "agent-tool/1"
+                      ]
+                    },
+                    "tool": {
+                      "type": "string"
+                    },
+                    "tool_call_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCEEDED",
+                        "REJECTED",
+                        "FAILED"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "output": {
+                      "description": "Tool output (output_schema in packages/contracts/agent-tools/agent-tools.v1.json)",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "cause_code": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Call one registered agent tool. Only READ · EXTERNAL_READ · COMPUTE · PROPOSE · REQUEST tools exist — never approve, send or confirm.",
+        "tags": [
+          "internal-agent-tools"
+        ]
+      }
+    },
+    "/agent-runs/runtime": {
+      "get": {
+        "operationId": "AgentRunsController_runtime",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether the Python Agent Runtime (CERA_AGENT_RUNTIME_URL) answers, and whether agent tools are enabled",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
+    "/agent-runs": {
+      "post": {
+        "operationId": "AgentRunsController_create",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recovery_run_id",
+                  "goal"
+                ],
+                "properties": {
+                  "recovery_run_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "goal": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "runtime_version": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Agent run with its tool-call log (hashes and refs only — no raw content)"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start an agent run bound to one recovery run (the scope every tool call is checked against)",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
+    "/agent-runs/{agentRunId}": {
+      "get": {
+        "operationId": "AgentRunsController_get",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Agent run with its tool-call log (hashes and refs only — no raw content)"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One agent run and its tool calls",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
+    "/agent-runs/{agentRunId}/cancel": {
+      "post": {
+        "operationId": "AgentRunsController_cancel",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Agent run with its tool-call log (hashes and refs only — no raw content)"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cancel an active agent run — its tool calls stop being accepted",
+        "tags": [
+          "agent-runs"
+        ]
+      }
     }
   },
   "info": {

@@ -1,0 +1,3194 @@
+{
+  "schema_version": "agent-tools/1",
+  "envelope_schema_version": "agent-tool/1",
+  "transport": {
+    "method": "POST",
+    "path": "/internal/agent-tools/{tool}",
+    "headers": {
+      "authorization": "Bearer <CERA_AGENT_TOOL_TOKEN> (service token — never in the URL or query)",
+      "x-cera-agent-run-id": "Agent run created by a human or the coordinator; fixes the recovery-run scope",
+      "idempotency-key": "Required for PROPOSE and REQUEST tools; same key + same input returns the same result",
+      "traceparent": "W3C trace context (optional)"
+    },
+    "body": "Tool input object (input_schema)",
+    "response": "Envelope { schema_version, tool, tool_call_id, status: SUCCEEDED|REJECTED|FAILED, replayed, output, error }"
+  },
+  "categories": {
+    "READ": "Reads CERA state, no external I/O",
+    "EXTERNAL_READ": "Backend reads an external system and keeps the raw response; no business state is confirmed",
+    "COMPUTE": "Deterministic calculation, no side effects",
+    "PROPOSE": "Creates a draft or candidate; business truth does not change",
+    "REQUEST": "Asks a human to act (e.g. approval queue); never approves or sends"
+  },
+  "not_available_to_agents": "COMMIT actions — approve, reject, send, confirm a fact, select the final plan, change the registry",
+  "error_codes": {
+    "tool": {
+      "INVALID_ARGUMENT": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "IDEMPOTENCY_KEY_REQUIRED": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "IDEMPOTENCY_KEY_REUSED": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "TOOL_CALL_IN_PROGRESS": {
+        "status": "REJECTED",
+        "retryable": true
+      },
+      "OUT_OF_SCOPE": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "NOT_FOUND": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "CAPABILITY_DISABLED": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "CAPABILITY_NOT_AVAILABLE": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "HUMAN_ACTION_REQUIRED": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "CONFLICT": {
+        "status": "REJECTED",
+        "retryable": false
+      },
+      "UPSTREAM_TIMEOUT": {
+        "status": "FAILED",
+        "retryable": true
+      },
+      "UPSTREAM_ERROR": {
+        "status": "FAILED",
+        "retryable": true
+      },
+      "TOOL_TIMEOUT": {
+        "status": "FAILED",
+        "retryable": true
+      },
+      "OUTPUT_CONTRACT_VIOLATION": {
+        "status": "FAILED",
+        "retryable": false
+      },
+      "INTERNAL_ERROR": {
+        "status": "FAILED",
+        "retryable": true
+      }
+    },
+    "gateway": [
+      "AGENT_TOOLS_DISABLED",
+      "UNAUTHORIZED_AGENT",
+      "TOOL_NOT_FOUND",
+      "AGENT_RUN_NOT_FOUND",
+      "AGENT_RUN_NOT_ACTIVE"
+    ]
+  },
+  "tools": [
+    {
+      "name": "get_vessel_calls",
+      "version": "1",
+      "category": "EXTERNAL_READ",
+      "description": "Fetch Busan vessel calls (arrival basis) for a date range from the public port data service through the CERA backend, register them and return each call with its latest declared arrival time (a port entry declaration — not a confirmed berthing) and berth plus provenance. Use when you need to know which vessels arrive or arrived in a window, or to find the vessel call of a shipment. Each call counts against the public API quota and stores new evidence — prefer get_vessel_call for a call you already have. Values are public observations, not confirmed facts.",
+      "timeout_ms": 60000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "port_code": {
+            "default": "020",
+            "description": "Port authority code. Only Busan (020) is in scope",
+            "type": "string",
+            "const": "020"
+          },
+          "from_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "to_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "call_sign": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9]{1,10}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "from_date",
+          "to_date"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "dataset": {
+                "type": "string",
+                "enum": [
+                  "MOF_VESSEL_CALL",
+                  "MOF_CONTAINER_MANIFEST"
+                ]
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "LIVE",
+                  "REPLAY"
+                ]
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCESS",
+                  "NO_DATA",
+                  "UPSTREAM_ERROR",
+                  "TRANSPORT_ERROR",
+                  "PARSE_ERROR"
+                ]
+              },
+              "total_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "fetch_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "page_no": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCESS",
+                        "NO_DATA",
+                        "UPSTREAM_ERROR",
+                        "TRANSPORT_ERROR",
+                        "PARSE_ERROR"
+                      ]
+                    },
+                    "http_status": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "result_code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "item_count": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "raw_input_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "fetch_id",
+                    "page_no",
+                    "outcome",
+                    "http_status",
+                    "result_code",
+                    "item_count",
+                    "raw_input_id"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "item_index": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "item_index",
+                    "code"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "dataset",
+              "mode",
+              "outcome",
+              "total_count",
+              "pages",
+              "truncated",
+              "issues"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "vessel_call_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "port_authority_code": {
+                  "type": "string"
+                },
+                "call_year": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "call_seq": {
+                  "type": "string"
+                },
+                "call_sign": {
+                  "type": "string"
+                },
+                "vessel_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "is_simulated": {
+                  "type": "boolean"
+                },
+                "declared_arrival": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            },
+                            "request_kind": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "relative_to_received": {
+                              "type": "string",
+                              "enum": [
+                                "PAST",
+                                "FUTURE"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "request_kind",
+                            "relative_to_received"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "event_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "provenance": {
+                          "type": "object",
+                          "properties": {
+                            "source_type": {
+                              "type": "string",
+                              "const": "PUBLIC_API"
+                            },
+                            "provider": {
+                              "type": "string",
+                              "const": "DATA_GO_KR"
+                            },
+                            "dataset": {
+                              "type": "string",
+                              "enum": [
+                                "MOF_VESSEL_CALL",
+                                "MOF_CONTAINER_MANIFEST"
+                              ]
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "LIVE",
+                                "REPLAY"
+                              ]
+                            },
+                            "is_simulated": {
+                              "type": "boolean"
+                            },
+                            "result_kind": {
+                              "type": "string",
+                              "enum": [
+                                "PUBLIC_DATA",
+                                "SCENARIO_RESULT"
+                              ]
+                            },
+                            "fetch_id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "raw_input_id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "payload_hash": {
+                              "type": "string"
+                            },
+                            "requested_at": {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            },
+                            "received_at": {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            }
+                          },
+                          "required": [
+                            "source_type",
+                            "provider",
+                            "dataset",
+                            "mode",
+                            "is_simulated",
+                            "result_kind",
+                            "fetch_id",
+                            "raw_input_id",
+                            "payload_hash",
+                            "requested_at",
+                            "received_at"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "event_id",
+                        "provenance"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Declared arrival time (port entry declaration) — not a confirmed berthing"
+                },
+                "latest_berth": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "event_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "provenance": {
+                          "type": "object",
+                          "properties": {
+                            "source_type": {
+                              "type": "string",
+                              "const": "PUBLIC_API"
+                            },
+                            "provider": {
+                              "type": "string",
+                              "const": "DATA_GO_KR"
+                            },
+                            "dataset": {
+                              "type": "string",
+                              "enum": [
+                                "MOF_VESSEL_CALL",
+                                "MOF_CONTAINER_MANIFEST"
+                              ]
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "LIVE",
+                                "REPLAY"
+                              ]
+                            },
+                            "is_simulated": {
+                              "type": "boolean"
+                            },
+                            "result_kind": {
+                              "type": "string",
+                              "enum": [
+                                "PUBLIC_DATA",
+                                "SCENARIO_RESULT"
+                              ]
+                            },
+                            "fetch_id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "raw_input_id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "payload_hash": {
+                              "type": "string"
+                            },
+                            "requested_at": {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            },
+                            "received_at": {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            }
+                          },
+                          "required": [
+                            "source_type",
+                            "provider",
+                            "dataset",
+                            "mode",
+                            "is_simulated",
+                            "result_kind",
+                            "fetch_id",
+                            "raw_input_id",
+                            "payload_hash",
+                            "requested_at",
+                            "received_at"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "event_id",
+                        "provenance"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "manifest_no": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "container_count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "registered_from": {
+                  "type": "object",
+                  "properties": {
+                    "source_type": {
+                      "type": "string",
+                      "const": "PUBLIC_API"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "const": "DATA_GO_KR"
+                    },
+                    "dataset": {
+                      "type": "string",
+                      "enum": [
+                        "MOF_VESSEL_CALL",
+                        "MOF_CONTAINER_MANIFEST"
+                      ]
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "LIVE",
+                        "REPLAY"
+                      ]
+                    },
+                    "is_simulated": {
+                      "type": "boolean"
+                    },
+                    "result_kind": {
+                      "type": "string",
+                      "enum": [
+                        "PUBLIC_DATA",
+                        "SCENARIO_RESULT"
+                      ]
+                    },
+                    "fetch_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "raw_input_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "payload_hash": {
+                      "type": "string"
+                    },
+                    "requested_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    }
+                  },
+                  "required": [
+                    "source_type",
+                    "provider",
+                    "dataset",
+                    "mode",
+                    "is_simulated",
+                    "result_kind",
+                    "fetch_id",
+                    "raw_input_id",
+                    "payload_hash",
+                    "requested_at",
+                    "received_at"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "vessel_call_id",
+                "port_authority_code",
+                "call_year",
+                "call_seq",
+                "call_sign",
+                "vessel_name",
+                "is_simulated",
+                "declared_arrival",
+                "latest_berth",
+                "manifest_no",
+                "container_count",
+                "registered_from"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_vessel_call",
+      "version": "1",
+      "category": "READ",
+      "description": "Read one registered vessel call and its known manifest containers from CERA (no external call). Use before deciding whether to fetch the manifest, or to read provenance of arrival and berth observations.",
+      "timeout_ms": 5000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vessel_call_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "vessel_call_id"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "vessel_call": {
+            "type": "object",
+            "properties": {
+              "vessel_call_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "port_authority_code": {
+                "type": "string"
+              },
+              "call_year": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "call_seq": {
+                "type": "string"
+              },
+              "call_sign": {
+                "type": "string"
+              },
+              "vessel_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "is_simulated": {
+                "type": "boolean"
+              },
+              "declared_arrival": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          },
+                          "request_kind": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "relative_to_received": {
+                            "type": "string",
+                            "enum": [
+                              "PAST",
+                              "FUTURE"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "at",
+                          "request_kind",
+                          "relative_to_received"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "provenance": {
+                        "type": "object",
+                        "properties": {
+                          "source_type": {
+                            "type": "string",
+                            "const": "PUBLIC_API"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "const": "DATA_GO_KR"
+                          },
+                          "dataset": {
+                            "type": "string",
+                            "enum": [
+                              "MOF_VESSEL_CALL",
+                              "MOF_CONTAINER_MANIFEST"
+                            ]
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "LIVE",
+                              "REPLAY"
+                            ]
+                          },
+                          "is_simulated": {
+                            "type": "boolean"
+                          },
+                          "result_kind": {
+                            "type": "string",
+                            "enum": [
+                              "PUBLIC_DATA",
+                              "SCENARIO_RESULT"
+                            ]
+                          },
+                          "fetch_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "raw_input_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "payload_hash": {
+                            "type": "string"
+                          },
+                          "requested_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          },
+                          "received_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          }
+                        },
+                        "required": [
+                          "source_type",
+                          "provider",
+                          "dataset",
+                          "mode",
+                          "is_simulated",
+                          "result_kind",
+                          "fetch_id",
+                          "raw_input_id",
+                          "payload_hash",
+                          "requested_at",
+                          "received_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "event_id",
+                      "provenance"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Declared arrival time (port entry declaration) — not a confirmed berthing"
+              },
+              "latest_berth": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "provenance": {
+                        "type": "object",
+                        "properties": {
+                          "source_type": {
+                            "type": "string",
+                            "const": "PUBLIC_API"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "const": "DATA_GO_KR"
+                          },
+                          "dataset": {
+                            "type": "string",
+                            "enum": [
+                              "MOF_VESSEL_CALL",
+                              "MOF_CONTAINER_MANIFEST"
+                            ]
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "LIVE",
+                              "REPLAY"
+                            ]
+                          },
+                          "is_simulated": {
+                            "type": "boolean"
+                          },
+                          "result_kind": {
+                            "type": "string",
+                            "enum": [
+                              "PUBLIC_DATA",
+                              "SCENARIO_RESULT"
+                            ]
+                          },
+                          "fetch_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "raw_input_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "payload_hash": {
+                            "type": "string"
+                          },
+                          "requested_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          },
+                          "received_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          }
+                        },
+                        "required": [
+                          "source_type",
+                          "provider",
+                          "dataset",
+                          "mode",
+                          "is_simulated",
+                          "result_kind",
+                          "fetch_id",
+                          "raw_input_id",
+                          "payload_hash",
+                          "requested_at",
+                          "received_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "event_id",
+                      "provenance"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "manifest_no": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "container_count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "registered_from": {
+                "type": "object",
+                "properties": {
+                  "source_type": {
+                    "type": "string",
+                    "const": "PUBLIC_API"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "const": "DATA_GO_KR"
+                  },
+                  "dataset": {
+                    "type": "string",
+                    "enum": [
+                      "MOF_VESSEL_CALL",
+                      "MOF_CONTAINER_MANIFEST"
+                    ]
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "LIVE",
+                      "REPLAY"
+                    ]
+                  },
+                  "is_simulated": {
+                    "type": "boolean"
+                  },
+                  "result_kind": {
+                    "type": "string",
+                    "enum": [
+                      "PUBLIC_DATA",
+                      "SCENARIO_RESULT"
+                    ]
+                  },
+                  "fetch_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "raw_input_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "payload_hash": {
+                    "type": "string"
+                  },
+                  "requested_at": {
+                    "type": "string",
+                    "description": "ISO 8601 with +09:00"
+                  },
+                  "received_at": {
+                    "type": "string",
+                    "description": "ISO 8601 with +09:00"
+                  }
+                },
+                "required": [
+                  "source_type",
+                  "provider",
+                  "dataset",
+                  "mode",
+                  "is_simulated",
+                  "result_kind",
+                  "fetch_id",
+                  "raw_input_id",
+                  "payload_hash",
+                  "requested_at",
+                  "received_at"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "vessel_call_id",
+              "port_authority_code",
+              "call_year",
+              "call_seq",
+              "call_sign",
+              "vessel_name",
+              "is_simulated",
+              "declared_arrival",
+              "latest_berth",
+              "manifest_no",
+              "container_count",
+              "registered_from"
+            ],
+            "additionalProperties": false
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "container_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "container_no": {
+                  "type": "string"
+                },
+                "size_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "iso_size_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bl_no": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bl_type": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "MASTER",
+                        "HOUSE",
+                        "UNKNOWN"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "msn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "check_digit_valid": {
+                  "type": "boolean"
+                },
+                "is_simulated": {
+                  "type": "boolean"
+                },
+                "registered_from": {
+                  "type": "object",
+                  "properties": {
+                    "source_type": {
+                      "type": "string",
+                      "const": "PUBLIC_API"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "const": "DATA_GO_KR"
+                    },
+                    "dataset": {
+                      "type": "string",
+                      "enum": [
+                        "MOF_VESSEL_CALL",
+                        "MOF_CONTAINER_MANIFEST"
+                      ]
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "LIVE",
+                        "REPLAY"
+                      ]
+                    },
+                    "is_simulated": {
+                      "type": "boolean"
+                    },
+                    "result_kind": {
+                      "type": "string",
+                      "enum": [
+                        "PUBLIC_DATA",
+                        "SCENARIO_RESULT"
+                      ]
+                    },
+                    "fetch_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "raw_input_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "payload_hash": {
+                      "type": "string"
+                    },
+                    "requested_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    }
+                  },
+                  "required": [
+                    "source_type",
+                    "provider",
+                    "dataset",
+                    "mode",
+                    "is_simulated",
+                    "result_kind",
+                    "fetch_id",
+                    "raw_input_id",
+                    "payload_hash",
+                    "requested_at",
+                    "received_at"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "container_id",
+                "container_no",
+                "size_type",
+                "iso_size_type",
+                "bl_no",
+                "bl_type",
+                "msn",
+                "check_digit_valid",
+                "is_simulated",
+                "registered_from"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "vessel_call",
+          "containers"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_container_manifest",
+      "version": "1",
+      "category": "EXTERNAL_READ",
+      "description": "Fetch the import container manifest (B/L to container, ISO size type) of one registered vessel call from the public port data service through the CERA backend. Use when you need the containers of a vessel call. Does not give per-container gate-out times. Values are public observations with provenance, not confirmed facts.",
+      "timeout_ms": 60000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vessel_call_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "vessel_call_id"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "dataset": {
+                "type": "string",
+                "enum": [
+                  "MOF_VESSEL_CALL",
+                  "MOF_CONTAINER_MANIFEST"
+                ]
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "LIVE",
+                  "REPLAY"
+                ]
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "SUCCESS",
+                  "NO_DATA",
+                  "UPSTREAM_ERROR",
+                  "TRANSPORT_ERROR",
+                  "PARSE_ERROR"
+                ]
+              },
+              "total_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "fetch_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "page_no": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCESS",
+                        "NO_DATA",
+                        "UPSTREAM_ERROR",
+                        "TRANSPORT_ERROR",
+                        "PARSE_ERROR"
+                      ]
+                    },
+                    "http_status": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "result_code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "item_count": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "raw_input_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "fetch_id",
+                    "page_no",
+                    "outcome",
+                    "http_status",
+                    "result_code",
+                    "item_count",
+                    "raw_input_id"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "item_index": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "item_index",
+                    "code"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "dataset",
+              "mode",
+              "outcome",
+              "total_count",
+              "pages",
+              "truncated",
+              "issues"
+            ],
+            "additionalProperties": false
+          },
+          "vessel_call": {
+            "type": "object",
+            "properties": {
+              "vessel_call_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "port_authority_code": {
+                "type": "string"
+              },
+              "call_year": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "call_seq": {
+                "type": "string"
+              },
+              "call_sign": {
+                "type": "string"
+              },
+              "vessel_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "is_simulated": {
+                "type": "boolean"
+              },
+              "declared_arrival": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          },
+                          "request_kind": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "relative_to_received": {
+                            "type": "string",
+                            "enum": [
+                              "PAST",
+                              "FUTURE"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "at",
+                          "request_kind",
+                          "relative_to_received"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "provenance": {
+                        "type": "object",
+                        "properties": {
+                          "source_type": {
+                            "type": "string",
+                            "const": "PUBLIC_API"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "const": "DATA_GO_KR"
+                          },
+                          "dataset": {
+                            "type": "string",
+                            "enum": [
+                              "MOF_VESSEL_CALL",
+                              "MOF_CONTAINER_MANIFEST"
+                            ]
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "LIVE",
+                              "REPLAY"
+                            ]
+                          },
+                          "is_simulated": {
+                            "type": "boolean"
+                          },
+                          "result_kind": {
+                            "type": "string",
+                            "enum": [
+                              "PUBLIC_DATA",
+                              "SCENARIO_RESULT"
+                            ]
+                          },
+                          "fetch_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "raw_input_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "payload_hash": {
+                            "type": "string"
+                          },
+                          "requested_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          },
+                          "received_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          }
+                        },
+                        "required": [
+                          "source_type",
+                          "provider",
+                          "dataset",
+                          "mode",
+                          "is_simulated",
+                          "result_kind",
+                          "fetch_id",
+                          "raw_input_id",
+                          "payload_hash",
+                          "requested_at",
+                          "received_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "event_id",
+                      "provenance"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Declared arrival time (port entry declaration) — not a confirmed berthing"
+              },
+              "latest_berth": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "provenance": {
+                        "type": "object",
+                        "properties": {
+                          "source_type": {
+                            "type": "string",
+                            "const": "PUBLIC_API"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "const": "DATA_GO_KR"
+                          },
+                          "dataset": {
+                            "type": "string",
+                            "enum": [
+                              "MOF_VESSEL_CALL",
+                              "MOF_CONTAINER_MANIFEST"
+                            ]
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "LIVE",
+                              "REPLAY"
+                            ]
+                          },
+                          "is_simulated": {
+                            "type": "boolean"
+                          },
+                          "result_kind": {
+                            "type": "string",
+                            "enum": [
+                              "PUBLIC_DATA",
+                              "SCENARIO_RESULT"
+                            ]
+                          },
+                          "fetch_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "raw_input_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "payload_hash": {
+                            "type": "string"
+                          },
+                          "requested_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          },
+                          "received_at": {
+                            "type": "string",
+                            "description": "ISO 8601 with +09:00"
+                          }
+                        },
+                        "required": [
+                          "source_type",
+                          "provider",
+                          "dataset",
+                          "mode",
+                          "is_simulated",
+                          "result_kind",
+                          "fetch_id",
+                          "raw_input_id",
+                          "payload_hash",
+                          "requested_at",
+                          "received_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "event_id",
+                      "provenance"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "manifest_no": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "container_count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "registered_from": {
+                "type": "object",
+                "properties": {
+                  "source_type": {
+                    "type": "string",
+                    "const": "PUBLIC_API"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "const": "DATA_GO_KR"
+                  },
+                  "dataset": {
+                    "type": "string",
+                    "enum": [
+                      "MOF_VESSEL_CALL",
+                      "MOF_CONTAINER_MANIFEST"
+                    ]
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "LIVE",
+                      "REPLAY"
+                    ]
+                  },
+                  "is_simulated": {
+                    "type": "boolean"
+                  },
+                  "result_kind": {
+                    "type": "string",
+                    "enum": [
+                      "PUBLIC_DATA",
+                      "SCENARIO_RESULT"
+                    ]
+                  },
+                  "fetch_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "raw_input_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "payload_hash": {
+                    "type": "string"
+                  },
+                  "requested_at": {
+                    "type": "string",
+                    "description": "ISO 8601 with +09:00"
+                  },
+                  "received_at": {
+                    "type": "string",
+                    "description": "ISO 8601 with +09:00"
+                  }
+                },
+                "required": [
+                  "source_type",
+                  "provider",
+                  "dataset",
+                  "mode",
+                  "is_simulated",
+                  "result_kind",
+                  "fetch_id",
+                  "raw_input_id",
+                  "payload_hash",
+                  "requested_at",
+                  "received_at"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "vessel_call_id",
+              "port_authority_code",
+              "call_year",
+              "call_seq",
+              "call_sign",
+              "vessel_name",
+              "is_simulated",
+              "declared_arrival",
+              "latest_berth",
+              "manifest_no",
+              "container_count",
+              "registered_from"
+            ],
+            "additionalProperties": false
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "container_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "container_no": {
+                  "type": "string"
+                },
+                "size_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "iso_size_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bl_no": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bl_type": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "MASTER",
+                        "HOUSE",
+                        "UNKNOWN"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "msn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "check_digit_valid": {
+                  "type": "boolean"
+                },
+                "is_simulated": {
+                  "type": "boolean"
+                },
+                "registered_from": {
+                  "type": "object",
+                  "properties": {
+                    "source_type": {
+                      "type": "string",
+                      "const": "PUBLIC_API"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "const": "DATA_GO_KR"
+                    },
+                    "dataset": {
+                      "type": "string",
+                      "enum": [
+                        "MOF_VESSEL_CALL",
+                        "MOF_CONTAINER_MANIFEST"
+                      ]
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "LIVE",
+                        "REPLAY"
+                      ]
+                    },
+                    "is_simulated": {
+                      "type": "boolean"
+                    },
+                    "result_kind": {
+                      "type": "string",
+                      "enum": [
+                        "PUBLIC_DATA",
+                        "SCENARIO_RESULT"
+                      ]
+                    },
+                    "fetch_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "raw_input_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "payload_hash": {
+                      "type": "string"
+                    },
+                    "requested_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    }
+                  },
+                  "required": [
+                    "source_type",
+                    "provider",
+                    "dataset",
+                    "mode",
+                    "is_simulated",
+                    "result_kind",
+                    "fetch_id",
+                    "raw_input_id",
+                    "payload_hash",
+                    "requested_at",
+                    "received_at"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "container_id",
+                "container_no",
+                "size_type",
+                "iso_size_type",
+                "bl_no",
+                "bl_type",
+                "msn",
+                "check_digit_valid",
+                "is_simulated",
+                "registered_from"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "vessel_call",
+          "containers"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_recovery_context",
+      "version": "1",
+      "category": "READ",
+      "description": "Read the recovery run this agent run is bound to: run status and trigger, snapshot date, facilities and truck pools in play, latest observed claims (not reconciled facts) and the inquiries already drafted or sent for it. Use first, to understand the situation before choosing any other tool.",
+      "timeout_ms": 5000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "description": "Defaults to the recovery run this agent run is bound to",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run": {
+            "type": "object",
+            "properties": {
+              "run_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "run_status": {
+                "type": "string"
+              },
+              "trigger_type": {
+                "type": "string"
+              },
+              "trigger_ref": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executed_at": {
+                "type": "string",
+                "description": "ISO 8601 with +09:00"
+              },
+              "superseded_by_run_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "total_cost_krw": {
+                "description": "KRW integer as string",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cost_result_kind": {
+                "type": "string",
+                "enum": [
+                  "SCENARIO_RESULT",
+                  "ENGINE_RESULT",
+                  "NONE"
+                ]
+              },
+              "unmet_constraints": {
+                "type": "array",
+                "items": {}
+              },
+              "contains_simulated": {
+                "type": "boolean"
+              },
+              "scenario_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "run_id",
+              "run_status",
+              "trigger_type",
+              "trigger_ref",
+              "executed_at",
+              "superseded_by_run_id",
+              "total_cost_krw",
+              "cost_result_kind",
+              "unmet_constraints",
+              "contains_simulated",
+              "scenario_id"
+            ],
+            "additionalProperties": false
+          },
+          "snapshot": {
+            "type": "object",
+            "properties": {
+              "snapshot_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "as_of": {
+                "type": "string",
+                "description": "ISO 8601 with +09:00"
+              },
+              "plan_date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "rule_version": {
+                "type": "string"
+              },
+              "policy_version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "snapshot_id",
+              "as_of",
+              "plan_date",
+              "rule_version",
+              "policy_version"
+            ],
+            "additionalProperties": false
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "facilities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "facility_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "facility_type": {
+                      "type": "string"
+                    },
+                    "facility_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "facility_id",
+                    "facility_type",
+                    "facility_name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "truck_pools": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "truck_pool_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "pool_name": {
+                      "type": "string"
+                    },
+                    "ownership": {
+                      "type": "string"
+                    },
+                    "owner_counterparty_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "truck_pool_id",
+                    "pool_name",
+                    "ownership",
+                    "owner_counterparty_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "facilities",
+              "truck_pools"
+            ],
+            "additionalProperties": false
+          },
+          "latest_observations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "subject_type": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "fact_key": {
+                  "type": "string"
+                },
+                "value_text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "value_number": {
+                  "description": "Decimal as string",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "value_unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source_type": {
+                  "type": "string"
+                },
+                "received_at": {
+                  "type": "string",
+                  "description": "ISO 8601 with +09:00"
+                },
+                "is_simulated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "event_id",
+                "subject_type",
+                "subject_id",
+                "fact_key",
+                "value_text",
+                "value_number",
+                "value_unit",
+                "source_type",
+                "received_at",
+                "is_simulated"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Latest observed claims per subject and fact — NOT reconciled current facts"
+          },
+          "communications": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "thread_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "counterparty_name": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "DRAFTED · PENDING_APPROVAL · APPROVED · QUEUED · SENT · REPLIED · ..."
+                },
+                "drafted_by": {
+                  "type": "string"
+                },
+                "approval_ready": {
+                  "type": "boolean"
+                },
+                "blocked_reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "approval_state": {
+                  "type": "string"
+                },
+                "dispatch_state": {
+                  "type": "string"
+                },
+                "reply_count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "replies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "raw_input_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "received_at": {
+                        "type": "string",
+                        "description": "ISO 8601 with +09:00"
+                      },
+                      "has_extraction": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "raw_input_id",
+                      "status",
+                      "received_at",
+                      "has_extraction"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "is_simulated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "message_id",
+                "thread_id",
+                "counterparty_name",
+                "purpose",
+                "status",
+                "drafted_by",
+                "approval_ready",
+                "blocked_reasons",
+                "approval_state",
+                "dispatch_state",
+                "reply_count",
+                "replies",
+                "is_simulated"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "recovery_run",
+          "snapshot",
+          "resources",
+          "latest_observations",
+          "communications",
+          "limitations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_information_gaps",
+      "version": "1",
+      "category": "READ",
+      "description": "Ask the CERA backend which facts the recovery plan needs but does not have (deterministic rules, not a judgement): warehouse/ODCY capacity for the plan date and partner truck availability. Each gap says whether an inquiry is already open and which counterparty role can answer it. Use to decide what to investigate or ask next; do not invent gaps yourself.",
+      "timeout_ms": 5000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "description": "Defaults to the recovery run this agent run is bound to",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "plan_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "rule_version": {
+            "type": "string"
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "gap_id": {
+                  "type": "string"
+                },
+                "gap_kind": {
+                  "type": "string",
+                  "enum": [
+                    "FACILITY_CAPACITY",
+                    "TRUCK_AVAILABILITY"
+                  ]
+                },
+                "subject_type": {
+                  "type": "string",
+                  "enum": [
+                    "FACILITY",
+                    "TRUCK_POOL"
+                  ]
+                },
+                "subject_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "subject_name": {
+                  "type": "string"
+                },
+                "required_fact": {
+                  "type": "string",
+                  "description": "Fact key pattern that would close the gap"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "MISSING",
+                    "ASKED"
+                  ]
+                },
+                "open_question_message_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "public_data_can_resolve": {
+                  "type": "boolean"
+                },
+                "suggested_source": {
+                  "type": "string",
+                  "enum": [
+                    "PARTNER_INQUIRY",
+                    "HUMAN_VERIFICATION"
+                  ]
+                },
+                "suggested_intent": {
+                  "type": "string",
+                  "enum": [
+                    "TRUCK_SLOT",
+                    "FACILITY_CAPACITY"
+                  ]
+                },
+                "suggested_counterparty_role": {
+                  "type": "string",
+                  "enum": [
+                    "TRUCKING",
+                    "ODCY",
+                    "WAREHOUSE"
+                  ]
+                },
+                "owner_counterparty_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "gap_id",
+                "gap_kind",
+                "subject_type",
+                "subject_id",
+                "subject_name",
+                "required_fact",
+                "state",
+                "open_question_message_ids",
+                "public_data_can_resolve",
+                "suggested_source",
+                "suggested_intent",
+                "suggested_counterparty_role",
+                "owner_counterparty_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "known": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject_type": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "required_fact": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "object",
+                  "properties": {
+                    "event_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "subject_type": {
+                      "type": "string"
+                    },
+                    "subject_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "fact_key": {
+                      "type": "string"
+                    },
+                    "value_text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "value_number": {
+                      "description": "Decimal as string",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "value_unit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "source_type": {
+                      "type": "string"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "is_simulated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "event_id",
+                    "subject_type",
+                    "subject_id",
+                    "fact_key",
+                    "value_text",
+                    "value_number",
+                    "value_unit",
+                    "source_type",
+                    "received_at",
+                    "is_simulated"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "subject_type",
+                "subject_id",
+                "required_fact",
+                "evidence"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "recovery_run_id",
+          "plan_date",
+          "rule_version",
+          "gaps",
+          "known"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "find_counterparty",
+      "version": "1",
+      "category": "READ",
+      "description": "Look up registered counterparties (trucking, warehouse, ODCY, ...) with their contact addresses and the Contact Gate verdict for each address. Use to pick a recipient for create_inquiry_draft. Only an eligible address can receive an inquiry; never guess an address.",
+      "timeout_ms": 5000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "TRUCKING",
+              "ODCY",
+              "WAREHOUSE",
+              "SHIPPING_LINE",
+              "TERMINAL"
+            ]
+          },
+          "name_contains": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "eligible_only": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "evaluated_at": {
+            "type": "string",
+            "description": "ISO 8601 with +09:00"
+          },
+          "counterparties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "counterparty_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "display_name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "contacts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "contact_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "person_name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "addresses": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "address_id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "channel_type": {
+                              "type": "string"
+                            },
+                            "eligible": {
+                              "type": "boolean"
+                            },
+                            "blocked_reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "is_simulated": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "address_id",
+                            "channel_type",
+                            "eligible",
+                            "blocked_reasons",
+                            "is_simulated"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "contact_id",
+                      "person_name",
+                      "addresses"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "counterparty_id",
+                "display_name",
+                "role",
+                "contacts"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "evaluated_at",
+          "counterparties"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_inquiry_draft",
+      "version": "1",
+      "category": "PROPOSE",
+      "description": "Create an inquiry draft (truck slot or facility capacity question) to an eligible counterparty address for this recovery run. The backend fills the structured values into a template, re-checks the Contact Gate and checks every number in the text. The draft is NOT sent and NOT in the approval queue yet — call request_approval next. Requires an Idempotency-Key; retrying with the same key returns the same draft.",
+      "timeout_ms": 15000,
+      "idempotency": "REQUIRED",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "address_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Recipient address from find_counterparty (must be eligible)"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "TRUCK_SLOT",
+              "FACILITY_CAPACITY"
+            ]
+          },
+          "target_id": {
+            "description": "Facility or truck pool the question is about",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "values": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "value_number": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "value_text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 20
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "address_id",
+          "intent",
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "thread_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "counterparty_name": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "description": "DRAFTED · PENDING_APPROVAL · APPROVED · QUEUED · SENT · REPLIED · ..."
+              },
+              "drafted_by": {
+                "type": "string"
+              },
+              "approval_ready": {
+                "type": "boolean"
+              },
+              "blocked_reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "approval_state": {
+                "type": "string"
+              },
+              "dispatch_state": {
+                "type": "string"
+              },
+              "reply_count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "replies": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "raw_input_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "has_extraction": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "raw_input_id",
+                    "status",
+                    "received_at",
+                    "has_extraction"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "is_simulated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "message_id",
+              "thread_id",
+              "counterparty_name",
+              "purpose",
+              "status",
+              "drafted_by",
+              "approval_ready",
+              "blocked_reasons",
+              "approval_state",
+              "dispatch_state",
+              "reply_count",
+              "replies",
+              "is_simulated"
+            ],
+            "additionalProperties": false
+          },
+          "number_check_passed": {
+            "type": "boolean"
+          },
+          "next_step": {
+            "type": "string",
+            "enum": [
+              "REQUEST_APPROVAL",
+              "HUMAN_EDIT_REQUIRED"
+            ],
+            "description": "REQUEST_APPROVAL when request_approval can move it to the human approval queue"
+          }
+        },
+        "required": [
+          "message",
+          "number_check_passed",
+          "next_step"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_communication_status",
+      "version": "1",
+      "category": "READ",
+      "description": "Read the state of inquiries of this recovery run: draft, waiting for human approval, approved, queued, sent, replied, and whether replies have extraction candidates. Use to know whether to wait, follow up or continue.",
+      "timeout_ms": 5000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "description": "One message; omit for every message of this recovery run",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "thread_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "counterparty_name": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "DRAFTED · PENDING_APPROVAL · APPROVED · QUEUED · SENT · REPLIED · ..."
+                },
+                "drafted_by": {
+                  "type": "string"
+                },
+                "approval_ready": {
+                  "type": "boolean"
+                },
+                "blocked_reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "approval_state": {
+                  "type": "string"
+                },
+                "dispatch_state": {
+                  "type": "string"
+                },
+                "reply_count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "replies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "raw_input_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "received_at": {
+                        "type": "string",
+                        "description": "ISO 8601 with +09:00"
+                      },
+                      "has_extraction": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "raw_input_id",
+                      "status",
+                      "received_at",
+                      "has_extraction"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "is_simulated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "message_id",
+                "thread_id",
+                "counterparty_name",
+                "purpose",
+                "status",
+                "drafted_by",
+                "approval_ready",
+                "blocked_reasons",
+                "approval_state",
+                "dispatch_state",
+                "reply_count",
+                "replies",
+                "is_simulated"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "request_approval",
+      "version": "1",
+      "category": "REQUEST",
+      "description": "Put a draft of this recovery run into the human approval queue. This is a request, not an approval: the backend re-checks content fingerprint, numbers, Contact Gate and plan currency, and a human operator decides. After this, wait — sending happens only after a human approves. Requires an Idempotency-Key.",
+      "timeout_ms": 15000,
+      "idempotency": "REQUIRED",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "thread_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "counterparty_name": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "description": "DRAFTED · PENDING_APPROVAL · APPROVED · QUEUED · SENT · REPLIED · ..."
+              },
+              "drafted_by": {
+                "type": "string"
+              },
+              "approval_ready": {
+                "type": "boolean"
+              },
+              "blocked_reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "approval_state": {
+                "type": "string"
+              },
+              "dispatch_state": {
+                "type": "string"
+              },
+              "reply_count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "replies": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "raw_input_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "has_extraction": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "raw_input_id",
+                    "status",
+                    "received_at",
+                    "has_extraction"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "is_simulated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "message_id",
+              "thread_id",
+              "counterparty_name",
+              "purpose",
+              "status",
+              "drafted_by",
+              "approval_ready",
+              "blocked_reasons",
+              "approval_state",
+              "dispatch_state",
+              "reply_count",
+              "replies",
+              "is_simulated"
+            ],
+            "additionalProperties": false
+          },
+          "approval_requested": {
+            "type": "boolean"
+          },
+          "already_pending": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "const": "A human must approve. This tool never approves or sends."
+          }
+        },
+        "required": [
+          "message",
+          "approval_requested",
+          "already_pending",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

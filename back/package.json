@@ -24,7 +24,8 @@
     "db:seed": "tsx src/seed/run-seed.ts",
     "mock:reply": "tsx src/dev/mock-reply.ts",
     "env:check": "tsx src/dev/env-check.ts",
-    "openapi:emit": "tsx src/openapi/emit-openapi.ts"
+    "openapi:emit": "tsx src/openapi/emit-openapi.ts",
+    "agent-tools:emit": "tsx src/agent-tools/emit-tool-contracts.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.0.4",

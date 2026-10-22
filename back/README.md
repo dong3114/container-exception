@@ -9,6 +9,7 @@
 | `src/db/` | Pool · Drizzle · `TransactionRunner`(외부 I/O 는 트랜잭션 밖 — `assertOutsideTransaction`) · `migrate.ts` · `sqlstate.ts`(트리거 전용 코드 CE001~CE006) |
 | `src/db/schema/` | P0 29표 Drizzle 스키마 — 파일이 migration 층과 같다(`m01-foundation` … `m06-derived`) · `codes.ts`(CLOSED 코드 값) · `_common.ts`(이름 규칙 · CHECK 도구) |
 | `drizzle/migrations/` | **검토된 SQL migration** M01~M06(drizzle-kit 생성) + M07~M13(사람이 쓴 custom: append-only · 열/한 번 채움 가드 · 발송/승인/사건 가드 · 지연 트리거 · GRANT) + **M14(생성: 공공데이터 6표) · M15(custom: 가드 · GRANT)** — T-102. 앞으로만 |
+| `src/agent-tools/` | **Agent Tool Layer(T-103 · ADR-036)** — Tool Registry 9개 · zod 계약(→ `packages/contracts/agent-tools/agent-tools.v1.json`) · 실행기(검증 · 기록 · 멱등 · 시간 제한 · 오류 분류) · 서비스 인증(Bearer) · 실행 범위 · `/internal/agent-tools/*`(Agent 전용) · `/agent-runs/*`(사람이 실행 시작 · 취소). 기존 서비스만 부른다. M16 · M17 |
 | `src/public-data/` | **공공데이터(T-102 · ADR-036 결정 3)** — DS-03 선박운항 · DS-02 외항화물컨테이너. `adapters/`(전송 포트 · 실제 HTTP · 녹화 재생) · `parsing/` · `normalization/`(순수) · 원장 · 원문 · 개체 · PUBLIC_API 사건 · 개발 API `/public-data/*`. 모드 `CERA_PUBLIC_DATA_MODE` |
 | `src/persistence/` | `AuditRecorder` · `SystemErrorRecorder`(별도 트랜잭션) · `RegistryReader` · `EventWriter`(사람 입력 경로) · `catalog.ts`(CATALOG 코드 정본) |
 | `src/content/` | `ContentStore` 포트 · `LocalFileContentStore`(`CERA_CONTENT_DIR`) · `ContentService`(생성 4단계 · 파기 4단계 · 손실 판정) |

@@ -17,7 +17,7 @@ export default defineConfig({
           name: 'db',
           include: ['test/db/**/*.test.ts'],
           environment: 'node',
-          // 빈 cera_test 에 M01 → M15 를 처음부터 적용한다(기존 DB 상태에 기대지 않는다)
+          // 빈 cera_test 에 M01 → M17 을 처음부터 적용한다(기존 DB 상태에 기대지 않는다)
           globalSetup: ['test/db/global-setup.ts'],
           fileParallelism: false,
           testTimeout: 60_000,

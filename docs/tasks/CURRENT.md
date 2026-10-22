@@ -10,9 +10,35 @@
 
 ## Status
 
-**IMPLEMENTING — T-099 (실제 AI 공급자 검증 + CERA 평가셋)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-12 세션 중단(사용자 요청). **중간 저장 커밋 `5ba83ab`(2026-10-14, T-099 WIP) · origin push 됨.** T-093 시작 안 함.
+**IDLE → 다음 T-104 (LangGraph Runtime)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. T-102 · T-103 DONE(사용자 승인 · 각각 커밋). push 없음.
 
-### T-099 인계 (2026-10-12)
+### T-103 인계 (2026-10-22 · DONE)
+
+- **한 일**: `back/src/agent-tools/`(Registry 9 · zod 계약 · 실행기 · 서비스 인증 · 실행 범위 · 기존 서비스만 호출) · `/internal/agent-tools/*`(Agent 전용) · `/agent-runs/*`(사람이 시작 · 취소 · Runtime 연결 확인) · M16(`agent_run` · `agent_tool_call`) · M17(행위자 · 전이 · 열 가드 · GRANT) · `DraftService` 에 Agent 용 옵션(승인 대기에 올리지 않음) + `requestApproval`(승인 직전 검사 재사용, 승인 아님) · `PublicDataService.*As(actorId)` · 계약 파일 `packages/contracts/agent-tools/agent-tools.v1.json`(`npm run agent-tools:emit`) · Python `ai/cera_ai/tools/`(계약 기반 Registry · 작은 스키마 검사기 · 타입 있는 Client) · 시드 AI_AGENT 행위자
+- **시험**: Backend **311**(unit 130 · db 181) · Python **39** · Front 39 · typecheck · build · `drizzle-kit check` · OpenAPI · 계약 파일 최신. **실제 경로 확인**: Python Client → NestJS Tool API → 실제 data.go.kr(LIVE) — 공공 원장에 행위자 AI_AGENT 로 남음
+- **T-102 live 검증**(같은 세션): DS-03 · DS-02 실제 응답 확인 — 차이 2곳 최소 수정(`*` 비표준 계선 시설 코드 · 신청구분 최초 · 변경 · 최종). field-dictionary 9절 · Q-18 CLOSED
+- **주의 — 로컬 `back/.env`**: 13:17 에 예시 내용으로 바뀌어 **DB 비밀번호가 `infra/local/.env` 와 다르다**(DB 연결 실패 28P01). 비밀 파일이라 고치지 않았다 — 시험 · 실행은 이번 세션에서 연결 문자열을 환경변수로 넘겨 돌렸다. 사용자가 `back/.env` 4줄(`DATABASE_URL` · `MIGRATION_DATABASE_URL` · `TEST_DATABASE_URL` · `TEST_OWNER_DATABASE_URL`)의 비밀번호를 `infra/local/.env` 의 `CERA_APP_PASSWORD` · `CERA_OWNER_PASSWORD` 와 맞춰야 한다
+- **남은 판단(사용자 검토)**: Agent 초안의 숫자는 아직 계획 엔진에서 오지 않는다(사람 승인이 마지막 문) · 정보 공백 규칙 `gap-rules/0`(계획 날짜 · 창고/ODCY 수용량 · 협력 차량) · Tool 시간 제한 값 · 큰 적하목록(1,227행)은 페이지 상한 20 에 걸린다
+- **다음 한 걸음**: T-104 LangGraph Runtime(사용자 지시 2026-10-22 — StateGraph · interrupt · resume · Backend 경유 checkpoint · Python 재시작 뒤 재개)
+
+(이전) **T-102** · 2026-10-22.
+
+### Task: T-102 DS-03 + DS-02 Public Data Adapter
+
+- **Goal**: 부산 실제 입항 건(DS-03)과 그 입항 건의 B/L ↔ 컨테이너 목록(DS-02)을 Backend 가 받아 원문 · 출처와 함께 저장하고, CERA 개체 · 사건(PUBLIC_API)으로 정규화한다.
+- **Why**: 100% Mock 시나리오를 벗어나 REAL 공공 + SYNTHETIC 사설 데이터로 개발한다(사용자 2026-10-22). 이 capability 를 T-103 에서 첫 External Read Tool 로 감싼다.
+- **Scope**: `back/src/public-data/`(어댑터 · XML 파싱 · 정규화 · provenance · 서비스 · 개발 API) · M14(엔티티 5표 + 호출 원장) · M15(가드 · 권한) · replay fixture(합성) · 시험 · `docs/22` rev.2.6 · `docs/24` 22.30~ · 필드 사전 정정. `DATA_GO_KR_SERVICE_KEY` 가 있으면 실제 호출.
+- **Out of Scope**: LangGraph · Tool Registry · Tool SDK(T-103~) · DS-01 UNI-PASS(T-106) · Reconciliation/현재 사실(T-093) · Demo Scenario v2(T-107) · 화면.
+- **Existing Decisions**: ADR-036(Agent 는 공공 API 직접 호출 금지 — LangGraph → Backend Tool → Public Data Service → Adapter → data.go.kr) · ADR-033/034(NestJS · PostgreSQL · 검토 migration, M01~M13 수정 금지) · 규칙 5(실제 키 · B/L · 컨테이너 번호 커밋 금지, fixture 는 마스킹 · 합성) · 규칙 9(replay = 시뮬레이션) · `vessel_call` P0 승격(사용자 2026-10-22).
+- **Completion Criteria**: 원문 바이트 보존 + 지문 · 요청 시각 · 수신 시각 · 안전한 조회 조건 · 원문 참조가 재현 가능 · 인증키가 DB · 원문 메타 · 로그에 없음(시험) · replay 로 전체 흐름 시험 · 반복 조회 시 개체 중복 없음 · Backend 전체 시험 · typecheck · `drizzle-kit check` · OpenAPI 최신.
+- **진행(2026-10-22)**: **구현 · 검증 끝 — 사용자 검토 대기(커밋 전).** M14(6표) · M15(가드 · GRANT) · `back/src/public-data/` · 개발 API 6개 · 합성 replay fixture(`data/fixtures/public-data/`) · `docs/22` rev.2.6 · `docs/24` 22.30~22.35 · 18.9 · 필드 사전 정정(S-09 · S-10). 시험: Backend **292**(+20) · Front 39 · typecheck · build · `drizzle-kit check` · OpenAPI 최신 · 개발 DB migrate + 실제 API 서버 replay 확인.
+- **실제 호출 0건** — `back/.env` 에 `DATA_GO_KR_SERVICE_KEY` 없음. 키가 생기면: `CERA_PUBLIC_DATA_MODE=live` 로 API 를 띄우고 `POST /public-data/vessel-calls/fetch {"from":"<어제>","to":"<오늘>"}` → 입항 건 하나 골라 `/manifest/fetch`. 원문은 `data/raw/content/`(gitignore)
+- **남은 판단(사용자 검토)**: `bl` 유일 잠정안(L-16) · `container.vessel_call_id` = 처음 입항 건(재입항은 사건만) · 결과 코드 03 = 데이터 없음 `[ASSUMPTION]` · 입항 신고 일시를 `ARRIVED` 로 부르는 것(실제 접안 확인 전, 신뢰도 MEDIUM · `basis` 기록)
+- **다음 한 걸음**: 사용자 보고 → 승인 시 T-102 커밋(명시 staging) → T-103(Tool Layer, migration 은 M16 부터)
+
+---
+
+(이전) ### T-099 인계 (2026-10-12)
 
 - 원칙(사용자 지시): 모델 평가가 목적 — AI 권한 추가 없음 · Backend · DB · 화면 변경 없음 · Generative(값 + 원문 근거)와 Decision(의미 판단)을 분리 · 임계값은 결과를 보고 정하고 이번에 확정하지 않음 · LangChain · Agent framework · RAG 금지
 - **한 일 (`5ba83ab` 에 커밋됨, 모두 `ai/` 안)**:

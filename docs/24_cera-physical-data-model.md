@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
+- 상태: **T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -776,6 +776,24 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | P-11 | **live 검증(2026-10-22)**: 실제 DS-03 · DS-02 응답으로 전체 흐름 확인. 차이를 최소 수정했다 — `*` 비표준 계선 시설 코드(이름만 남김) · 신청구분 `최초 · 변경 · 최종`(최종 아니면 LOW) · **입항 신고 일시를 `ARRIVED` 마일스톤에서 `ARRIVAL_DECLARED` 로**(실제 접안 확정이 아니다) · **데이터 없음 = `00` + 0건만**(`03` 은 관측되지 않아 데이터 없음 규칙에서 뺐다 — 오면 UPSTREAM_ERROR 로 남겨 확인). 상세 field-dictionary 9절 |
 | P-10 | **남은 판단**: `CERA_PUBLIC_DATA_RAW_DIR` 는 예약값(원문은 지금 내용 저장소 `CERA_CONTENT_DIR` 에 있다 — 둘 다 `data/raw/` gitignore) · `bl` 유일(L-16)은 잠정 · 원문 보관 기간은 Q-45 · 실제 응답에서 응답 크기 · 결과 코드 `03` 확인 필요 |
 
+### 18.10 T-103 Agent Tool Layer 구현 확인 결과 (2026-10-22)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **M16 = `0015_m16_agent_runs.sql`**(생성, 검토) — `agent_run` · `agent_tool_call` · 컬럼 28 · FK 4. **M17 = `0016_m17_agent_guards.sql`**(custom) — 함수 +2(**23**) · 행위자 가드(실행 = AI_AGENT, 만든 이 = HUMAN · SYSTEM) · 한 번 전이 · 열 가드 · 삭제 금지 · GRANT. M01~M15 는 고치지 않았다 |
+| Backend | `back/src/agent-tools/` — `registry.ts`(Tool 9 · 등급 · 시간 제한 · 멱등) · `schemas.ts`(zod 정본 — T-102 TS 계약과 같은 모양인지 컴파일 때 검사) · `executor.ts`(검증 · 기록 · 멱등 · 시간 제한 · 오류 분류 · 출력 검사) · `handlers.ts`(기존 서비스만 호출) · `context.service.ts`(맥락 · 정보 공백 `gap-rules/0`) · `agent-tools.service.ts`(서비스 인증 · 실행 범위) · `/internal/agent-tools/*` · `/agent-runs/*` |
+| 계약 | `packages/contracts/agent-tools/agent-tools.v1.json`(`npm run agent-tools:emit`) — Python 이 읽는다. 단위 시험이 최신인지 검사 |
+
+| # | 구현 메모 |
+| --- | --- |
+| A-1 | **서비스 인증**: `Authorization: Bearer <CERA_AGENT_TOOL_TOKEN>` 만(쿼리 · 사람 헤더 불가). SHA-256 지문을 `timingSafeEqual` 로 비교. 꺼져 있으면 503 `AGENT_TOOLS_DISABLED`. 토큰은 기록 · 로그에 없다(DB 시험이 모든 기록 표를 문자열 검색) |
+| A-2 | **실행 범위**: `X-CERA-Agent-Run-Id` 의 ACTIVE 실행만. 실행은 사람(`POST /agent-runs`)이 계획 실행 하나에 묶어 만든다. 다른 계획 실행 · 그 실행의 메시지를 가리키면 `OUT_OF_SCOPE`(기록됨). 초안의 계획 실행은 실행 기록이 정한다 — 입력으로 받지 않는다 |
+| A-3 | **봉투**: 기록된 결과는 HTTP 200 + `{status: SUCCEEDED · REJECTED · FAILED, error.code, retryable}`. 입구 오류(꺼짐 · 인증 · 실행 없음 · 모르는 Tool)만 HTTP 오류 상태 + 같은 봉투(기록 없음) |
+| A-4 | **멱등**: PROPOSE · REQUEST 는 `Idempotency-Key` 필수. 부분 유일(진행 중 · 성공)이 동시 재시도를 하나로 줄 세우고, 같은 키 + 같은 입력이면 앞선 결과 참조로 출력을 다시 만든다(`replayed`). 다른 입력이면 `IDEMPOTENCY_KEY_REUSED`. **성공 표시는 초안 · 승인 대기 전이와 같은 트랜잭션**(`ctx.commit`) — 업무 기록만 있고 호출은 STARTED 로 남는 틈이 없다 |
+| A-5 | **시간 제한**(Tool 별, [ASSUMPTION]): READ 5초 · EXTERNAL_READ 60초 · PROPOSE · REQUEST 15초. 넘으면 FAILED(`UPSTREAM_TIMEOUT` · `TOOL_TIMEOUT`, retryable). 늦게 끝난 부작용은 commit 이 실패해 업무 트랜잭션도 되돌린다 |
+| A-6 | **초안 · 승인 요청**: `create_inquiry_draft` 는 기존 `DraftService.create`(Contact Gate · 값 형식 · 숫자 검사)를 그대로 쓰되 **승인 대기에 올리지 않는다**(`submitForApproval: false`, 전이 행위자 AI_AGENT). `request_approval` 은 `DraftService.requestApproval` — 승인 직전 검사(내용 · 지문 · 숫자 · Contact Gate · 계획 교체)를 다시 하고 `DRAFTED → PENDING_APPROVAL` + 감사 `APPROVAL_REQUESTED`. **승인 행은 만들지 않는다** — 승인 결정은 DB 가 HUMAN 으로 막는다(M08) |
+| A-7 | **정보 공백(`gap-rules/0`, 결정론)**: 계획 날짜 D(스냅숏 기준 시각의 Asia/Seoul 날짜)에 창고 `capacity.day(D)` · ODCY `capacity.….day(D)` · 협력 차량 풀 `available.slot(D…)` 가 같은 시뮬레이션 구분의 관측으로 있나. 없으면 공백(이 실행에서 묻는 중이면 ASKED). 공공데이터는 이 공백을 풀지 못한다 |
+| A-8 | **남은 판단**: Agent 초안의 숫자(수량 · 시각)는 아직 계획 엔진에서 오지 않는다 — 사람 승인이 마지막 문이다(솔버 · 자원 부족 계산 T-036 뒤 공백 출력에서 값을 주는 방향) · 실행 종료(FINISHED)는 T-104 Coordinator · Python 쪽 실행 시작/재개 endpoint 는 T-104 |
 
 
 
@@ -808,6 +826,8 @@ M14 공공데이터(T-102) vessel_call (raw_input) ─ container (vessel_call, r
                     bl (counterparty, raw_input, 자기참조) ─ container_bl (container, bl)
                     external_identifier (event, raw_input) · public_data_fetch (raw_input, actor)
 M15 가드 · 권한(T-102 custom — 트리거 · 함수 교체 · GRANT, 표 없음)
+M16 Agent 기록(T-103) agent_run (recovery_run, actor) ─ agent_tool_call (agent_run)
+M17 가드 · 권한(T-103 custom — 행위자 · 전이 · 열 가드 · GRANT, 표 없음)
 ```
 
 **순환 분석 — 둘 다 "NULL 먼저, FK 나중"으로 풀리고 설계 오류가 아니다**
@@ -877,7 +897,7 @@ M15 가드 · 권한(T-102 custom — 트리거 · 함수 교체 · GRANT, 표 �
 
 ---
 
-## 22. 표별 물리 명세 (29표 + T-102 공공데이터 6표 = 35표)
+## 22. 표별 물리 명세 (29표 + T-102 공공데이터 6표 + T-103 Agent 기록 2표 = 37표)
 
 > **읽는 법** — 컬럼 표는 `docs/22` 작업표의 논리 컬럼 순서 그대로다. "FK / CHECK / 메모" 칸의 FK 는 **참조 대상**이고, **복합 FK 로 구현되는 곳은 표 아래 "FK(표 수준)" 목록이 정본**이다. `IN (…)` = CLOSED CHECK, `CATALOG` = 형식 CHECK + 앱 카탈로그(3절). 해시 형식 = `^sha256:[0-9a-f]{64}$`. 모든 표의 PK 는 `NOT NULL` 이다. **S-2** = `CHECK (is_simulated = (scenario_id IS NOT NULL))`(`docs/22` 20절). 표 수준 FK 목록의 단일 FK 가 복합 FK 와 같은 컬럼을 쓰면 **복합 FK 하나로 만든다**(존재 검사가 포함된다). 이 절과 짝 작업표(`docs/24_…xlsx`)는 같은 생성기로 만들었다.
 
@@ -2032,6 +2052,74 @@ M15 가드 · 권한(T-102 custom — 트리거 · 함수 교체 · GRANT, 표 �
   - `(outcome = 'TRANSPORT_ERROR') = (raw_input_id IS NULL AND received_at IS NULL)` — 응답이 왔으면 원문이 있다
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**:
   - (requested_at)
+
+### 22.36 `agent_run` — Agent 실행(범위 = 계획 실행 하나) **(M16 · T-103 · ADR-036)**
+
+- 논리: `OPERATIONAL_RECORD` · 한 번 전이 · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.7
+- PK: `agent_run_id`
+- 변경 방식: ACTIVE → FINISHED · CANCELLED 한 번(M17). 바뀔 수 있는 열 `status` · `finished_at`. 삭제 없음
+- 삽입 가드(M17): `agent_actor_id` 는 AI_AGENT, `created_by_actor_id` 는 HUMAN 또는 SYSTEM — **Agent 가 자기 실행 · 범위를 만들지 못한다**
+- **업무 사실이 아니다** — 실행 기록이다(checkpoint 도 아니다, ADR-036 결정 2)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `agent_run_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `recovery_run_id` | REF(recovery_run) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_run · RESTRICT — 모든 Tool 호출의 범위 |
+| 3 | `goal` | STRING(300) | `varchar(300)` | NOT NULL | — | `varchar({ length: 300 })` | 사람이 준 목표 |
+| 4 | `status` | CODE | `text` | NOT NULL | — | `text()` | IN (ACTIVE, FINISHED, CANCELLED) |
+| 5 | `created_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT — HUMAN · SYSTEM(M17) |
+| 6 | `agent_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT — AI_AGENT(M17). Tool 호출의 행위자 |
+| 7 | `runtime_version` | STRING(40) | `varchar(40)` | NULL | — | `varchar({ length: 40 })` | — |
+| 8 | `trace_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | — |
+| 9 | `started_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 10 | `finished_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | `(status = ACTIVE) = (finished_at IS NULL)` |
+| 11 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | = 계획 실행의 `contains_simulated` |
+
+- **FK(표 수준 · 복합 포함)**:
+  - recovery_run_id → recovery_run
+  - created_by_actor_id → actor
+  - agent_actor_id → actor
+- **UNIQUE / 부분 유일**: —
+- **CHECK(컬럼 CHECK 외)**:
+  - `(status = 'ACTIVE') = (finished_at IS NULL)` · `finished_at >= started_at`
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (recovery_run_id)
+
+### 22.37 `agent_tool_call` — Tool 호출 하나 **(M16 · T-103)**
+
+- 논리: `OPERATIONAL_RECORD` · 한 번 전이 · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.7
+- PK: `tool_call_id`
+- 변경 방식: STARTED → SUCCEEDED · FAILED · REJECTED 한 번(M17). 바뀔 수 있는 열은 결과 열뿐. 삭제 없음. 삽입은 ACTIVE 실행에만, STARTED 또는 REJECTED(실행 전 거부)
+- **입력 · 출력은 지문만**(JCS SHA-256). 메일 원문 · 공공 API 원문 · 비밀값을 복제하지 않는다. 결과가 업무 기록이면 그 id(`result_ref_*`)만
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `tool_call_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `agent_run_id` | REF(agent_run) | `uuid` | NOT NULL | — | `uuid()` | FK agent_run · RESTRICT |
+| 3 | `tool_name` | STRING(60) | `varchar(60)` | NOT NULL | — | `varchar({ length: 60 })` | 형식 `^[a-z][a-z0-9_]{1,59}$` — Tool Registry 이름 |
+| 4 | `tool_version` | STRING(10) | `varchar(10)` | NOT NULL | — | `varchar({ length: 10 })` | — |
+| 5 | `category` | CODE | `text` | NOT NULL | — | `text()` | IN (READ, EXTERNAL_READ, COMPUTE, PROPOSE, REQUEST) — COMMIT 없음 |
+| 6 | `status` | CODE | `text` | NOT NULL | — | `text()` | IN (STARTED, SUCCEEDED, FAILED, REJECTED) |
+| 7 | `idempotency_key` | STRING(100) | `varchar(100)` | NULL | — | `varchar({ length: 100 })` | 형식 `^[A-Za-z0-9._:-]{1,100}$` — PROPOSE · REQUEST 필수 |
+| 8 | `input_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` · 입력 JCS 지문 |
+| 9 | `output_hash` | HASH | `varchar(71)` | NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` · 출력(부작용 Tool 은 결과 참조) 지문 |
+| 10 | `result_ref_type` | STRING(40) | `varchar(40)` | NULL | — | `varchar({ length: 40 })` | `result_ref_id` 와 함께 |
+| 11 | `result_ref_id` | STRING(40) | `uuid` | NULL | — | `uuid()` | 다형 참조(예: COMM_MESSAGE) — FK 없음 |
+| 12 | `error_code` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | 상태가 FAILED · REJECTED 일 때만 값이 있다 |
+| 13 | `started_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 14 | `finished_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | `(status = STARTED) = (finished_at IS NULL AND duration_ms IS NULL)` |
+| 15 | `duration_ms` | INTEGER | `integer` | NULL | — | `integer()` | >= 0 |
+| 16 | `request_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | — |
+| 17 | `trace_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - agent_run_id → agent_run
+- **UNIQUE / 부분 유일**:
+  - (agent_run_id, tool_name, idempotency_key) WHERE idempotency_key IS NOT NULL AND status IN ('STARTED', 'SUCCEEDED') — 재시도가 부작용을 두 번 만들지 않는다(실패 · 거부 뒤 재시도는 가능)
+- **CHECK(컬럼 CHECK 외)**:
+  - 끝남 모양 · 오류 모양 · 결과 참조 쌍 · `duration_ms >= 0`
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (agent_run_id, started_at)
 
 ---
 

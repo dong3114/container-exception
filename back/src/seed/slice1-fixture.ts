@@ -7,6 +7,8 @@ export const SEED_IDS = {
   scenario: '01a0fb92-9b63-7544-b3af-72add1339753',
   actorSystem: '01a0fb92-9b65-7540-b184-5cbee844d937',
   actorOperator: '01a0fb92-9b65-7540-b184-603086bde57f',
+  // T-103: Agent Tool 의 행위자(AI_AGENT). 승인 · 발송 권한 없음 — DB 가 승인 결정을 HUMAN 으로 막는다
+  actorAgent: '01a1a4c0-7e10-7a3b-9c21-5d0f00a0b103',
   counterpartyTrucking: '01a0fb92-9b65-7540-b184-67031c74f472',
   counterpartyOdcy: '01a0fb92-9b65-7540-b184-681786542a58',
   contactTrucking: '01a0fb92-9b65-7540-b184-6e6d97931077',
