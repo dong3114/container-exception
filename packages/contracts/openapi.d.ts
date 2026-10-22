@@ -394,6 +394,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent agent runs — status, current node, waiting reason, pending reference */
+        get: operations["AgentRunsController_list"];
+        put?: never;
+        /** Start an agent run bound to one recovery run (the scope every tool call is checked against) */
+        post: operations["AgentRunsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agent-runs/runtime": {
         parameters: {
             query?: never;
@@ -411,7 +429,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agent-runs": {
+    "/agent-runs/{agentRunId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One agent run: status · current node · waiting reason · recent steps · tool calls */
+        get: operations["AgentRunsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-runs/{agentRunId}/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -420,25 +455,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start an agent run bound to one recovery run (the scope every tool call is checked against) */
-        post: operations["AgentRunsController_create"];
+        /** Start the graph of a CREATED run (runs until it waits or ends). Starting twice returns the current state — never a second graph. */
+        post: operations["AgentRunsController_start"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/agent-runs/{agentRunId}": {
+    "/agent-runs/{agentRunId}/resume": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** One agent run and its tool calls */
-        get: operations["AgentRunsController_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Resume a waiting run (normally the backend does this when the awaited event happens). Not waiting = no-op. */
+        post: operations["AgentRunsController_resume"];
         delete?: never;
         options?: never;
         head?: never;
@@ -456,6 +491,58 @@ export interface paths {
         put?: never;
         /** Cancel an active agent run — its tool calls stop being accepted */
         post: operations["AgentRunsController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/agent-runtime/runs/{agentRunId}/checkpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest (or a given / earlier) checkpoints with their pending writes */
+        get: operations["AgentRuntimeController_list"];
+        /** Store one LangGraph checkpoint (execution state — not business truth). Content goes to the content store; the row keeps ref + hash. */
+        put: operations["AgentRuntimeController_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/agent-runtime/runs/{agentRunId}/checkpoint-writes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Store pending writes of a checkpoint (special writes such as interrupt/resume overwrite; normal writes are kept once) */
+        post: operations["AgentRuntimeController_writes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/agent-runtime/runs/{agentRunId}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report finished graph nodes (node · outcome · branch · tool call · retries · timing) — no payloads */
+        post: operations["AgentRuntimeController_steps"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2324,9 +2411,11 @@ export interface operations {
             };
         };
     };
-    AgentRunsController_runtime: {
+    AgentRunsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2360,9 +2449,30 @@ export interface operations {
                     recovery_run_id: string;
                     goal: string;
                     runtime_version?: string | null;
+                    /** @description Human-provided values the agent may use (e.g. inquiry.quantity · window_from · window_to) — the agent never invents numbers */
+                    parameters?: Record<string, never>;
                 };
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRunsController_runtime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -2395,6 +2505,60 @@ export interface operations {
             };
         };
     };
+    AgentRunsController_start: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRunsController_resume: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
     AgentRunsController_cancel: {
         parameters: {
             query?: never;
@@ -2410,6 +2574,102 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Cancelled run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRuntimeController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRuntimeController_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRuntimeController_writes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    AgentRuntimeController_steps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
             200: {
                 headers: {
                     [name: string]: unknown;

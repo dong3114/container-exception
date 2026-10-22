@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: **T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
+- 상태: **T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -795,6 +795,28 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | A-7 | **정보 공백(`gap-rules/0`, 결정론)**: 계획 날짜 D(스냅숏 기준 시각의 Asia/Seoul 날짜)에 창고 `capacity.day(D)` · ODCY `capacity.….day(D)` · 협력 차량 풀 `available.slot(D…)` 가 같은 시뮬레이션 구분의 관측으로 있나. 없으면 공백(이 실행에서 묻는 중이면 ASKED). 공공데이터는 이 공백을 풀지 못한다 |
 | A-8 | **남은 판단**: Agent 초안의 숫자(수량 · 시각)는 아직 계획 엔진에서 오지 않는다 — 사람 승인이 마지막 문이다(솔버 · 자원 부족 계산 T-036 뒤 공백 출력에서 값을 주는 방향) · 실행 종료(FINISHED)는 T-104 Coordinator · Python 쪽 실행 시작/재개 endpoint 는 T-104 |
 
+### 18.11 T-104 LangGraph Agent Runtime 구현 확인 결과 (2026-10-22 · DONE)
+
+| 항목 | 결과 |
+| --- | --- |
+| migration | **M18 = `0017_m18_agent_runtime.sql`**(생성 + 검토한 옮김 블록) — `agent_step` · `agent_checkpoint` · `agent_checkpoint_write` · `agent_run` 열 10 · FK +4(**78**). 옛 상태 옮김: `ACTIVE` → `CANCELLED`(`LEGACY_RUN_CLOSED_BY_M18`) · `FINISHED` → `COMPLETED`(트리거를 그 블록에서만 끄고 다시 켬). **M19 = `0018_m19_agent_runtime_guards.sql`**(custom) — 함수 +2(**25**) · 생애주기 전이표 · 열 가드 교체 · Tool 호출은 CREATED · RUNNING 실행에만 · checkpoint/쓰기는 RUNNING 에만 · step · checkpoint append-only · 쓰기 삭제 금지 · 특수 쓰기만 갱신 · GRANT. **M01~M17 은 고치지 않았다** |
+| Backend | `back/src/agent-tools/` — `coordinator.ts`(시작 · 재개 · 결과 반영 · 신호 구독) · `runtime-client.ts`(Python 호출 · 응답 계약 `agent-runtime/1` 엄격 검사) · `agent-runtime.service.ts` · `agent-runtime.controller.ts`(`/internal/agent-runtime/runs/:id/checkpoints · checkpoint-writes · steps`) · `runtime-store.repository.ts` · `service-auth.ts` · `src/shared/signals/`(업무 신호 — 승인 결정) |
+| Python | `ai/cera_ai/agent/` — `graph.py`(`CeraRecoveryGraph` 노드 12 · 조건 분기 · interrupt) · `runtime.py`(start · resume) · `checkpointer.py`(`BackendCheckpointSaver` — LangGraph `BaseCheckpointSaver` 를 Backend API 로) · `tooling.py`(Registry 제한 · 상한 · 재시도) · `backend.py`. LangGraph `1.2.11` 고정 |
+
+| # | 구현 메모 |
+| --- | --- |
+| R-1 | **두 오케스트레이션**: 실행 상태 전이는 Coordinator 만 한다. Python 은 결과(`WAITING_HUMAN · WAITING_EXTERNAL · COMPLETED · FAILED` + 코드)만 돌려준다 — `CANCELLED` · 업무 상태는 돌려줄 수 없다(응답 스키마가 거부) |
+| R-2 | **멱등**: 시작은 `CREATED → RUNNING` 을 잠금 아래 이긴 쪽만 그래프를 부른다(두 번째 시작 = 지금 상태). 재개도 `WAITING_* → RUNNING` 을 이긴 쪽만. 초안 · 승인 요청 Tool 키는 실행 + 공백 / 메시지에서 결정론으로 만든다 → 재실행 · 재시도가 초안을 두 번 만들지 않는다 |
+| R-3 | **재개 = 깨우기만**: 승인 결정이 커밋된 뒤 `APPROVAL_DECIDED` 신호 → `pending_ref` 로 기다리는 실행을 찾아 재개. 재개 값은 사유 코드뿐이고 그래프는 `get_communication_status` 로 권위 상태를 다시 읽는다(아직 대기면 다시 interrupt) |
+| R-3a | **신호는 최적화, 정확성은 DB 상태**: 신호는 프로세스 안에서만 돈다(커밋 직후 죽으면 사라진다). Worker 의 `AgentReconciler`(잠금 `cera.agent.reconciler`, 기동 · 주기마다)가 기다리는 실행마다 대기 대상 메시지의 지금 상태를 `wake-rules.ts` 로 판정해 이미 일어났으면 깨운다. 따로 깨우기 표를 두지 않는다 — 기다리던 업무 기록(승인 · 발송 · 회신 · 추출) 자체가 내구성 있는 기록이다. Kafka · Redis 없음. 시험: 신호를 버린 채 승인 → API 재기동 → 재조정 → 같은 실행이 COMPLETED, 초안 · 승인 요청 · 승인 각 1건 |
+| R-3b | **부작용 직후 · checkpoint 전 장애**: 노드가 끝나기 전에 죽으면 그 노드는 다시 돈다. 초안 · 승인 요청 Tool 의 멱등 키가 실행 + 공백 / 메시지에서 결정론으로 만들어지므로 다시 불러도 같은 결과를 돌려받는다(T-103 멱등). Python 시험이 두 Tool 각각에서 죽였다가 이어 가 부작용 1건씩을 확인 |
+| R-4 | **재시작 복구**: Python 은 호출 사이에 아무것도 기억하지 않는다 — 매 호출 checkpoint 를 Backend 에서 읽는다. E2E 시험이 interrupt 뒤 Python 을 죽였다 다시 띄우고 이어서 완료하는 것을 확인 |
+| R-5 | **상한 · 재시도**: 단계 25 · Tool 호출 12 · 재시도 2(`CERA_AGENT_MAX_*` — 기본값일 뿐 제품 정책이 아니다, [ASSUMPTION], Agent Eval 로 조정). 넘으면 `LOOP_LIMIT_REACHED` · `TOOL_CALL_LIMIT_REACHED` 로 FAILED. retryable FAILED(`UPSTREAM_TIMEOUT` 등)만 같은 키로 재시도 |
+| R-5a | **Runtime 장애 구분**: 일시 장애(`AGENT_RUNTIME_UNAVAILABLE` — 연결 거부 · 5xx · Python 이 Backend 저장 통로에 못 닿음, `AGENT_RUNTIME_TIMEOUT`) → `WAITING_RUNTIME` + `next_attempt_at`(`CERA_AGENT_RUNTIME_RETRY_BASE_MS` × 2^(n-1)) → 재조정이 다시 시도. `CERA_AGENT_RUNTIME_MAX_ATTEMPTS`(기본 3 = 첫 시도 + 재시도 2, [ASSUMPTION]) 번째 실패에서 FAILED. 거부(401/403) · 계약 위반 · 그래프 오류(`POLICY_OUTPUT_INVALID` · `OUT_OF_SCOPE` …)는 바로 FAILED. 실패마다 `system_error`(retryable 표시). 다시 시도할 때 checkpoint 가 있으면 이어 가기(resume), 없으면 시작 — Python 은 같은 실행의 시작을 다시 받으면 checkpoint 에서 이어 간다 |
+| R-5b | **시간 제한 120초 = 그래프 한 번 실행(HTTP 요청 하나)의 제한**이다. interrupt 에서 요청이 끝나므로 WAITING_HUMAN · WAITING_EXTERNAL 대기 시간에는 제한이 없다 |
+| R-6 | **숫자**: 문의 수량 · 시간창은 사람이 실행을 만들 때 준 `parameters` 에서만. 없으면 `INQUIRY_PARAMETERS_REQUIRED` |
+| R-7 | **남은 판단**: 상한 값 · `WAITING_EXTERNAL`(회신 대기) 재개는 T-105(수신 신호) · checkpoint 보관 기간 · 오래된 checkpoint 정리 |
+
 
 
 
@@ -828,6 +850,8 @@ M14 공공데이터(T-102) vessel_call (raw_input) ─ container (vessel_call, r
 M15 가드 · 권한(T-102 custom — 트리거 · 함수 교체 · GRANT, 표 없음)
 M16 Agent 기록(T-103) agent_run (recovery_run, actor) ─ agent_tool_call (agent_run)
 M17 가드 · 권한(T-103 custom — 행위자 · 전이 · 열 가드 · GRANT, 표 없음)
+M18 Agent Runtime(T-104) agent_step (agent_run, agent_tool_call) · agent_checkpoint (agent_run) · agent_checkpoint_write (agent_run) + agent_run 열 7
+M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · append-only · GRANT, 표 없음)
 ```
 
 **순환 분석 — 둘 다 "NULL 먼저, FK 나중"으로 풀리고 설계 오류가 아니다**
@@ -2053,11 +2077,12 @@ M17 가드 · 권한(T-103 custom — 행위자 · 전이 · 열 가드 · GRANT
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**:
   - (requested_at)
 
-### 22.36 `agent_run` — Agent 실행(범위 = 계획 실행 하나) **(M16 · T-103 · ADR-036)**
+### 22.36 `agent_run` — Agent 실행(범위 = 계획 실행 하나) **(M16 · T-103 · ADR-036 · M18/M19 T-104 생애주기)**
 
 - 논리: `OPERATIONAL_RECORD` · 한 번 전이 · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.7
 - PK: `agent_run_id`
-- 변경 방식: ACTIVE → FINISHED · CANCELLED 한 번(M17). 바뀔 수 있는 열 `status` · `finished_at`. 삭제 없음
+- 변경 방식(M19): 생애주기 `CREATED → RUNNING → WAITING_HUMAN · WAITING_EXTERNAL · WAITING_RUNTIME → RUNNING → … → COMPLETED · FAILED · CANCELLED`(WAITING_RUNTIME = Runtime 일시 장애 뒤 재시도 대기). 끝난 실행은 바뀌지 않는다. 삽입은 `CREATED` 만. 바뀔 수 있는 열 `status` · `finished_at` · `current_node` · `waiting_reason` · `pending_ref_type` · `pending_ref_id` · `last_error_code` · `updated_at` · `runtime_attempts` · `next_attempt_at` · `result_summary`. 삭제 없음. M18 이 옛 값 `ACTIVE` → `CANCELLED`(`last_error_code = LEGACY_RUN_CLOSED_BY_M18`) · `FINISHED` → `COMPLETED` 로 옮겼다
+- 상태 전이는 **Backend Coordinator 만** 한다. Python Runtime 은 결과(`agent-runtime/1`)를 돌려줄 뿐 상태를 쓰지 않는다
 - 삽입 가드(M17): `agent_actor_id` 는 AI_AGENT, `created_by_actor_id` 는 HUMAN 또는 SYSTEM — **Agent 가 자기 실행 · 범위를 만들지 못한다**
 - **업무 사실이 아니다** — 실행 기록이다(checkpoint 도 아니다, ADR-036 결정 2)
 
@@ -2066,14 +2091,24 @@ M17 가드 · 권한(T-103 custom — 행위자 · 전이 · 열 가드 · GRANT
 | 1 | `agent_run_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
 | 2 | `recovery_run_id` | REF(recovery_run) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_run · RESTRICT — 모든 Tool 호출의 범위 |
 | 3 | `goal` | STRING(300) | `varchar(300)` | NOT NULL | — | `varchar({ length: 300 })` | 사람이 준 목표 |
-| 4 | `status` | CODE | `text` | NOT NULL | — | `text()` | IN (ACTIVE, FINISHED, CANCELLED) |
+| 4 | `status` | CODE | `text` | NOT NULL | — | `text()` | IN (CREATED, RUNNING, WAITING_HUMAN, WAITING_EXTERNAL, WAITING_RUNTIME, COMPLETED, FAILED, CANCELLED) |
 | 5 | `created_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT — HUMAN · SYSTEM(M17) |
 | 6 | `agent_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT — AI_AGENT(M17). Tool 호출의 행위자 |
 | 7 | `runtime_version` | STRING(40) | `varchar(40)` | NULL | — | `varchar({ length: 40 })` | — |
 | 8 | `trace_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | — |
 | 9 | `started_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
-| 10 | `finished_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | `(status = ACTIVE) = (finished_at IS NULL)` |
+| 10 | `finished_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 끝난 상태(COMPLETED · FAILED · CANCELLED) ⇔ 값 있음 |
 | 11 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | = 계획 실행의 `contains_simulated` |
+| 12 | `parameters` | JSON | `jsonb` | NULL | — | `jsonb()` | 객체(M18). **사람이** 실행을 만들 때 준 값(예: 문의 수량 · 시간창) — Agent 가 숫자를 지어내지 않는다 |
+| 13 | `current_node` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | 관측용 — 마지막으로 끝난 그래프 노드 |
+| 14 | `waiting_reason` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | WAITING_* 상태 ⇔ 값 있음(예: HUMAN_APPROVAL_REQUIRED · AWAITING_REPLIES) |
+| 15 | `pending_ref_type` | STRING(40) | `varchar(40)` | NULL | — | `varchar({ length: 40 })` | `pending_ref_id` 와 함께 — 재개를 기다리는 업무 기록 종류(COMM_MESSAGE) |
+| 16 | `pending_ref_id` | STRING(40) | `uuid` | NULL | — | `uuid()` | 다형 참조 — FK 없음. 승인 결정 신호가 이것으로 실행을 찾는다 |
+| 17 | `last_error_code` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | FAILED · CANCELLED 사유 코드(값만, 메시지 · 비밀값 없음) |
+| 18 | `updated_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 마지막 상태 변경 시각 |
+| 19 | `runtime_attempts` | INTEGER | `integer` | NOT NULL | `0` | `integer().default(0)` | >= 0 · Runtime 일시 장애의 연속 실패 횟수(성공하면 0) |
+| 20 | `next_attempt_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | status = WAITING_RUNTIME ⇔ 값 있음 — 재조정이 이 시각 뒤에 다시 시도 |
+| 21 | `result_summary` | JSON | `jsonb` | NULL | — | `jsonb()` | 객체 · 끝난 실행의 요약(코드 · id · 개수만 — 업무 값 · 원문 없음) |
 
 - **FK(표 수준 · 복합 포함)**:
   - recovery_run_id → recovery_run
@@ -2081,15 +2116,16 @@ M17 가드 · 권한(T-103 custom — 행위자 · 전이 · 열 가드 · GRANT
   - agent_actor_id → actor
 - **UNIQUE / 부분 유일**: —
 - **CHECK(컬럼 CHECK 외)**:
-  - `(status = 'ACTIVE') = (finished_at IS NULL)` · `finished_at >= started_at`
+  - 끝남 모양 `(status IN 끝난 상태) = (finished_at IS NOT NULL)` · 대기 모양 `(status IN WAITING_*) = (waiting_reason IS NOT NULL)` · 재시도 모양 `(status = 'WAITING_RUNTIME') = (next_attempt_at IS NOT NULL)` · `runtime_attempts >= 0` · 대기 참조 쌍 · `parameters` · `result_summary` 객체 · `finished_at >= started_at`
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**:
   - (recovery_run_id)
+  - (pending_ref_type, pending_ref_id) WHERE pending_ref_id IS NOT NULL — 신호 → 기다리는 실행
 
 ### 22.37 `agent_tool_call` — Tool 호출 하나 **(M16 · T-103)**
 
 - 논리: `OPERATIONAL_RECORD` · 한 번 전이 · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.7
 - PK: `tool_call_id`
-- 변경 방식: STARTED → SUCCEEDED · FAILED · REJECTED 한 번(M17). 바뀔 수 있는 열은 결과 열뿐. 삭제 없음. 삽입은 ACTIVE 실행에만, STARTED 또는 REJECTED(실행 전 거부)
+- 변경 방식: STARTED → SUCCEEDED · FAILED · REJECTED 한 번(M17). 바뀔 수 있는 열은 결과 열뿐. 삭제 없음. 삽입은 CREATED · RUNNING 실행에만(M19), STARTED 또는 REJECTED(실행 전 거부)
 - **입력 · 출력은 지문만**(JCS SHA-256). 메일 원문 · 공공 API 원문 · 비밀값을 복제하지 않는다. 결과가 업무 기록이면 그 id(`result_ref_*`)만
 
 | # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
@@ -2120,6 +2156,94 @@ M17 가드 · 권한(T-103 custom — 행위자 · 전이 · 열 가드 · GRANT
   - 끝남 모양 · 오류 모양 · 결과 참조 쌍 · `duration_ms >= 0`
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**:
   - (agent_run_id, started_at)
+
+### 22.38 `agent_step` — 그래프 단계 하나(관측) **(M18 · T-104)**
+
+- 논리: `OPERATIONAL_RECORD` · append-only · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.8
+- PK: `step_id`
+- 변경 방식: 삽입만(M19 append-only). Coordinator 가 START · RESUME · INTERRUPT · TERMINAL 을, Runtime API 가 NODE 를 적는다(NODE 는 RUNNING 실행에만)
+- **입력 · 출력 · 프롬프트 · 비밀값은 없다** — 노드 이름 · 결과 코드 · Tool 호출 id · 시간뿐
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `step_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `agent_run_id` | REF(agent_run) | `uuid` | NOT NULL | — | `uuid()` | FK agent_run · RESTRICT |
+| 3 | `seq` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 1 · 실행 안에서 유일(실행 행 잠금 아래 max + 1) |
+| 4 | `kind` | CODE | `text` | NOT NULL | — | `text()` | IN (START, NODE, INTERRUPT, RESUME, TERMINAL) |
+| 5 | `node` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | 형식 `^[a-z][a-z0-9_]{0,59}$` · kind = NODE ⇔ 값 있음 |
+| 6 | `outcome` | STRING(60) | `varchar(60)` | NOT NULL | — | `varchar({ length: 60 })` | 형식 `^[A-Z][A-Z0-9_]{0,59}$` — SUCCEEDED · 오류 코드 · 상태 |
+| 7 | `detail_code` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | 같은 형식 — 고른 행동 · 승인 결과 |
+| 8 | `tool_call_id` | REF(agent_tool_call) | `uuid` | NULL | — | `uuid()` | FK agent_tool_call · RESTRICT — 이 단계의 마지막 Tool 호출 |
+| 9 | `retry_count` | INTEGER | `integer` | NOT NULL | `0` | `integer().default(0)` | >= 0 |
+| 10 | `started_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 11 | `finished_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | >= started_at |
+| 12 | `duration_ms` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 0 |
+| 13 | `trace_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - agent_run_id → agent_run
+  - tool_call_id → agent_tool_call
+- **UNIQUE / 부분 유일**:
+  - (agent_run_id, seq)
+- **CHECK(컬럼 CHECK 외)**:
+  - 노드 모양 `(kind = 'NODE') = (node IS NOT NULL)` · `finished_at >= started_at`
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: —
+
+### 22.39 `agent_checkpoint` — LangGraph checkpoint 하나 **(M18 · T-104 · ADR-036 결정 2)**
+
+- 논리: `OPERATIONAL_RECORD` · append-only · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.8
+- PK: `checkpoint_row_id`
+- 변경 방식: 삽입만(M19). RUNNING 실행에만 삽입. 같은 (실행, ns, checkpoint_id) 재전송은 같은 행을 돌려준다(멱등)
+- **실행 상태이지 업무 사실이 아니다.** 본문(직렬화된 그래프 상태 — id · 참조 · 코드뿐)은 내용 저장소에 두고 행에는 참조 + 지문만. Python 은 DB 자격증명 없이 `/internal/agent-runtime` 으로만 쓴다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `checkpoint_row_id` | STRING(40) | `uuid` | NOT NULL | — | `uuid()` | — |
+| 2 | `agent_run_id` | REF(agent_run) | `uuid` | NOT NULL | — | `uuid()` | FK agent_run · RESTRICT — LangGraph thread_id |
+| 3 | `checkpoint_ns` | STRING(200) | `varchar(200)` | NOT NULL | `''` | `varchar({ length: 200 }).default('')` | 하위 그래프 이름공간(지금은 빈 값뿐) |
+| 4 | `checkpoint_id` | STRING(64) | `varchar(64)` | NOT NULL | — | `varchar({ length: 64 })` | 형식 `^[A-Za-z0-9._:-]{1,64}$` — LangGraph 가 만든 정렬 가능 id |
+| 5 | `parent_checkpoint_id` | STRING(64) | `varchar(64)` | NULL | — | `varchar({ length: 64 })` | 같은 형식 |
+| 6 | `content_ref` | STRING(300) | `varchar(300)` | NOT NULL | — | `varchar({ length: 300 })` | 내용 참조 형식 `cref:v1:AGENT_CHECKPOINT:<uuid>` |
+| 7 | `content_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` · 읽을 때 다시 계산해 대조 |
+| 8 | `meta_source` | STRING(20) | `varchar(20)` | NULL | — | `varchar({ length: 20 })` | LangGraph metadata.source(input · loop · update) |
+| 9 | `meta_step` | INTEGER | `integer` | NULL | — | `integer()` | LangGraph metadata.step |
+| 10 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - agent_run_id → agent_run
+- **UNIQUE / 부분 유일**:
+  - (agent_run_id, checkpoint_ns, checkpoint_id)
+- **CHECK(컬럼 CHECK 외)**: —
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: —
+
+### 22.40 `agent_checkpoint_write` — checkpoint 의 대기 쓰기(pending writes) **(M18 · T-104)**
+
+- 논리: `OPERATIONAL_RECORD` · 거의 append-only · 그룹 **A Agent 실행 기록** · Drizzle 분류 **DRIZZLE_PLUS_SQL** · `docs/22` rev.2.8
+- PK: (`agent_run_id`, `checkpoint_ns`, `checkpoint_id`, `task_id`, `write_idx`)
+- 변경 방식: 삽입(RUNNING 실행에만). 삭제 없음. **갱신은 특수 쓰기(`write_idx < 0` — 오류 · interrupt · resume)만**, 값 열만(M19). 일반 쓰기(`write_idx >= 0`) 재전송은 무시(LangGraph 규약)
+- 값은 직렬화된 작은 값(노드 반환 · interrupt 값 · resume 사유)뿐 — 업무 행 · 원문 · 비밀값 없음
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `agent_run_id` | REF(agent_run) | `uuid` | NOT NULL | — | `uuid()` | FK agent_run · RESTRICT |
+| 2 | `checkpoint_ns` | STRING(200) | `varchar(200)` | NOT NULL | `''` | `varchar({ length: 200 }).default('')` | — |
+| 3 | `checkpoint_id` | STRING(64) | `varchar(64)` | NOT NULL | — | `varchar({ length: 64 })` | — |
+| 4 | `task_id` | STRING(64) | `varchar(64)` | NOT NULL | — | `varchar({ length: 64 })` | — |
+| 5 | `write_idx` | INTEGER | `integer` | NOT NULL | — | `integer()` | 음수 = 특수 쓰기(덮어쓰기 허용) |
+| 6 | `task_path` | STRING(300) | `varchar(300)` | NOT NULL | `''` | `varchar({ length: 300 }).default('')` | — |
+| 7 | `channel` | STRING(200) | `varchar(200)` | NOT NULL | — | `varchar({ length: 200 })` | 상태 채널 이름 · `__interrupt__` · `__resume__` |
+| 8 | `value_type` | STRING(40) | `varchar(40)` | NOT NULL | — | `varchar({ length: 40 })` | 직렬화 형식(serde type) |
+| 9 | `value_b64` | TEXT | `text` | NOT NULL | — | `text()` | base64 · 길이 <= 262144 |
+| 10 | `value_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` |
+| 11 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - agent_run_id → agent_run
+- **UNIQUE / 부분 유일**: — (PK 가 쓰기 하나의 신원)
+- **CHECK(컬럼 CHECK 외)**:
+  - base64 형식 · 크기 상한
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**:
+  - (agent_run_id, checkpoint_ns, checkpoint_id)
 
 ---
 

@@ -10,7 +10,19 @@
 
 ## Status
 
-**IDLE → 다음 T-104 (LangGraph Runtime)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. T-102 · T-103 DONE(사용자 승인 · 각각 커밋). push 없음.
+**IMPLEMENTING — T-105 첫 Agent Vertical Slice** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. Baseline = T-104 커밋. push 없음. 사용자 지시: T-104 커밋 뒤 승인 기다리지 않고 시작, 끝나면 보고(마지막 줄 `CERA T-105 RECOVERY VERTICAL SLICE REVIEW READY`).
+
+### Task: T-105 첫 Agent Vertical Slice
+
+- **Goal**: 한 Graph 에서 START → (공공데이터) → 공백 → 문의 초안 → 승인 대기 → 승인 → 발송 → 회신 대기 → 회신 → 추출(T-092) → 공백 재평가 → 결과 → END 가 실제로 이어진다.
+- **Scope**: 그래프 확장(발송 · 회신 대기 · 회신 읽기 · 재평가) · 회신 후보 READ Tool · 공백 출력에 후보 상태(업무 공백과 구분) · 재조정 대기 사유 확장 · 화면(Agent 진행) · 실제 프로세스 E2E(NestJS · Worker · Python · PostgreSQL, live 공공데이터 1회).
+- **Out of Scope**: send · approve Tool(만들지 않는다) · Event/PROVISIONAL(T-093) · 실제 LLM 공급자(T-099) · 새 디자인 시스템.
+- **Existing Decisions**: ADR-036 · 발송은 승인 뒤 사람의 발송 요청 → Outbox → Worker(T-090 규칙 그대로) · 추출 = 후보(사실 아님) · 신호 = 최적화, 재조정 = 정확성(T-104).
+
+### T-104 인계 (2026-10-22 · DONE)
+
+- 사용자 승인 + durability 보강: 재조정(`AgentReconciler` · Worker · 기동/주기) · `wake-rules.ts` · `WAITING_RUNTIME`(일시 장애 = 연결 실패 · 시간 초과 · 5xx → 2배 backoff, 최대 3회 → FAILED) · Python 은 같은 실행 시작을 다시 받으면 checkpoint 에서 이어 감 · Backend 저장 통로 장애 = 503 · crash window 시험. 기록 `docs/24` 18.11 R-3a · R-3b · R-5a · R-5b
+- 시험: Backend 328 · Python 53 · Front 39 · typecheck · build · lint · `drizzle-kit check`
 
 ### T-103 인계 (2026-10-22 · DONE)
 

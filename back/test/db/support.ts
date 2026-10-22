@@ -20,7 +20,8 @@ if (!TEST_DATABASE_URL || !TEST_OWNER_DATABASE_URL) {
 }
 
 export function testEnv(overrides: Partial<Record<keyof Env, string>> = {}): Env {
-  return parseEnv({ APP_ENV: 'test', DATABASE_URL: TEST_DATABASE_URL, LOG_LEVEL: 'error', ...overrides });
+  // Agent 재조정은 기본으로 끈다 — Worker 를 쓰는 다른 시험이 Agent 시험의 실행을 건드리지 않게(Agent 시험이 켠다)
+  return parseEnv({ APP_ENV: 'test', DATABASE_URL: TEST_DATABASE_URL, LOG_LEVEL: 'error', CERA_AGENT_RECONCILE_ENABLED: 'false', ...overrides });
 }
 
 export function appPool(): pg.Pool {

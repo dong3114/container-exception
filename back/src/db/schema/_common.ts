@@ -35,6 +35,8 @@ export const CONTENT_CATEGORIES = [
   'COMM_MESSAGE_CONTENT',
   'MESSAGE_APPROVAL_CONTENT',
   'EXTRACTION_SOURCE_QUOTE',
+  // T-104: LangGraph 실행 checkpoint(실행 상태 — 업무 사실 아님, ADR-036 결정 2)
+  'AGENT_CHECKPOINT',
 ] as const;
 export type ContentCategory = (typeof CONTENT_CATEGORIES)[number];
 export const CONTENT_REF_PATTERN = (category: ContentCategory) => `^cref:v1:${category}:${UUIDV7_RE}$`;

@@ -89,7 +89,13 @@ export const PUBLIC_DATA_MODE = ['LIVE', 'REPLAY'] as const;
 export const PUBLIC_DATA_OUTCOME = ['SUCCESS', 'NO_DATA', 'UPSTREAM_ERROR', 'TRANSPORT_ERROR', 'PARSE_ERROR'] as const;
 
 // ── M16 Agent 실행 · Tool 호출 기록(T-103 · ADR-036 · docs/24 22.36 ~ 22.37) ──
-export const AGENT_RUN_STATUS = ['ACTIVE', 'FINISHED', 'CANCELLED'] as const;
+// T-104(M18): 실행 생애주기. CREATED → RUNNING → WAITING_HUMAN · WAITING_EXTERNAL ↔ RUNNING → COMPLETED · FAILED · CANCELLED(M19 가드)
+// WAITING_RUNTIME(T-104 durability): Python Runtime 이 일시적으로 닿지 않아 정해진 시각에 다시 시도한다(상한 뒤 FAILED)
+export const AGENT_RUN_STATUS = ['CREATED', 'RUNNING', 'WAITING_HUMAN', 'WAITING_EXTERNAL', 'WAITING_RUNTIME', 'COMPLETED', 'FAILED', 'CANCELLED'] as const;
+export const AGENT_RUN_TERMINAL = ['COMPLETED', 'FAILED', 'CANCELLED'] as const;
 // 부작용 등급. COMMIT(승인 · 발송 · 사실 확정 · 계획 확정 · 등록부 변경)은 Agent 에게 열지 않으므로 값이 없다
 export const TOOL_CATEGORY = ['READ', 'EXTERNAL_READ', 'COMPUTE', 'PROPOSE', 'REQUEST'] as const;
 export const TOOL_CALL_STATUS = ['STARTED', 'SUCCEEDED', 'FAILED', 'REJECTED'] as const;
+
+// ── M18 Agent Runtime(T-104) — 그래프 실행 관측 · 재개용 실행 상태(업무 사실 아님) ──
+export const AGENT_STEP_KIND = ['START', 'NODE', 'INTERRUPT', 'RESUME', 'TERMINAL'] as const;

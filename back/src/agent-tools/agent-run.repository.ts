@@ -7,6 +7,16 @@ import type { ToolCategory } from './registry.js';
 
 export interface AgentRunRow {
   agentRunId: string;
+  parameters?: Record<string, unknown> | null;
+  currentNode?: string | null;
+  waitingReason?: string | null;
+  pendingRefType?: string | null;
+  pendingRefId?: string | null;
+  lastErrorCode?: string | null;
+  updatedAt?: string | null;
+  runtimeAttempts?: number;
+  nextAttemptAt?: string | null;
+  resultSummary?: Record<string, unknown> | null;
   recoveryRunId: string;
   goal: string;
   status: string;
@@ -82,11 +92,12 @@ export class AgentRunRepository {
     return rows[0] ?? null;
   }
 
-  async finishRun(agentRunId: string, status: 'FINISHED' | 'CANCELLED', at: string): Promise<boolean> {
+  /** 끝나지 않은 실행을 취소한다(M19 전이 표). */
+  async cancelRun(agentRunId: string, at: string): Promise<boolean> {
     const rows = await this.db
       .update(agentRun)
-      .set({ status, finishedAt: at })
-      .where(and(eq(agentRun.agentRunId, agentRunId), eq(agentRun.status, 'ACTIVE')))
+      .set({ status: 'CANCELLED', finishedAt: at, waitingReason: null, pendingRefType: null, pendingRefId: null, nextAttemptAt: null, updatedAt: at })
+      .where(and(eq(agentRun.agentRunId, agentRunId), inArray(agentRun.status, ['CREATED', 'RUNNING', 'WAITING_HUMAN', 'WAITING_EXTERNAL', 'WAITING_RUNTIME'])))
       .returning({ id: agentRun.agentRunId });
     return rows.length > 0;
   }

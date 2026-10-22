@@ -27,6 +27,18 @@
 - Agent 가 할 수 있는 일은 Tool 9개뿐이다(읽기 · 외부 읽기 · 초안 제안 · 승인 요청). 승인 · 발송 · 사실 확정 · 계획 확정 Tool 은 없다
 - DB · data.go.kr · UNI-PASS · 메일 채널을 직접 부르지 않는다 — 모두 Backend Tool 을 거친다
 
+## Agent Runtime — `CeraRecoveryGraph` (T-104 · ADR-036)
+
+| 무엇 | 파일 |
+| --- | --- |
+| 그래프 하나 — START → `load_context` → `inspect_gaps` → `choose_next_action` →(COMMUNICATION) `prepare_inquiry` → `create_draft` → `request_approval` → `wait_for_human`(interrupt) → `refresh_status` → `build_result` → END. 다른 분기: PUBLIC_DATA(`fetch_public_data` → 다시 공백) · WAIT_EXTERNAL(`wait_external` interrupt) · COMPLETE · FAIL. 분기는 결정론 코드, 정책 hook 은 허용 행동만 돌려줄 수 있다 | `cera_ai/agent/graph.py` |
+| State 는 id · 참조 · 코드 · 카운터만(업무 행 · 원문 · 토큰 없음). 재개 뒤 업무 상태는 Tool 로 다시 읽는다 | `graph.py` `RecoveryState` |
+| Tool 호출 — Registry 안의 Tool 만 · 상한(`CERA_AGENT_MAX_STEPS` · `CERA_AGENT_MAX_TOOL_CALLS`) · retryable 실패만 같은 키로 재시도(`CERA_AGENT_MAX_RETRIES`) | `cera_ai/agent/tooling.py` |
+| checkpoint — LangGraph `BaseCheckpointSaver` 구현, 저장은 Backend `/internal/agent-runtime/*` 로만(DB 자격증명 없음) | `cera_ai/agent/checkpointer.py` · `backend.py` |
+| 실행 — `POST /v1/agent-runs/{id}/start` · `/resume`(Backend Coordinator 만 부른다, Bearer 서비스 토큰). 결과 계약 `agent-runtime/1`. 호출 사이 메모리 상태 없음 → 재시작해도 이어 간다 | `cera_ai/agent/runtime.py` · `app.py` |
+
+- 의존성은 `langgraph==1.2.11` · `langgraph-checkpoint==4.2.0` 만 고정(LangChain Agent · LangSmith 필수 아님 · Multi-Agent 없음)
+
 ## 하지 않는 것 (`docs/18` O절 · ADR-033)
 
 DB 접근(커넥션 · ORM 없음) · 채널 · 메일 · 발송 · 발신자 신원 · 거래처 권한 · 사실 키 · 적용 범위 · 근거 강도 · 사건 · 현재 사실 · 승인 · 비용 · 위험 · 솔버. **출력은 언제나 후보**이고, Main Backend(`back/`)의 결정론 검증기가 인용 · 형식 · 단위 · 질문 범위를 확인한 뒤에만 다음 단계로 간다. 브라우저는 이 서버를 부르지 않는다(Main Backend 만).
@@ -39,4 +51,5 @@ DB 접근(커넥션 · ORM 없음) · 채널 · 메일 · 발송 · 발신자 �
 시험:      python -m pytest -q
 계약:      python -m cera_ai.emit_schema      # → packages/contracts/ai/reply-extract.v1.schema.json (시험이 최신인지 검사)
 환경변수:  CERA_LLM_MODE=replay|live (기본 replay) · CERA_AI_REPLAY_DIR(기본 fixtures/replay)
+Agent:     CERA_AGENT_MODE=on · CERA_AGENT_TOOL_TOKEN(back/.env 와 같은 값) · CERA_BACKEND_TOOL_URL — 켜면 /v1/agent-runs/* 가 열린다
 ```

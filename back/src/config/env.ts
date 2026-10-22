@@ -86,6 +86,13 @@ export const envSchema = z.object({
   CERA_AGENT_TOOL_TOKEN: optionalSecret,
   // Backend → Agent Runtime(실행 시작 · 재개). 지금은 AI Server 와 같은 프로세스를 가정한다 [ASSUMPTION]
   CERA_AGENT_RUNTIME_URL: z.string().url().default('http://127.0.0.1:8100'),
+  // Backend → Agent Runtime 한 번 실행(시작 · 재개)의 시간 제한(ms). 그래프는 interrupt 나 끝에서 돌려준다 [ASSUMPTION]
+  CERA_AGENT_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(120_000),
+  // Runtime 일시 장애(연결 실패 · 시간 초과 · 5xx) 때 같은 실행을 몇 번까지 시도하나(첫 시도 포함) · 다음 시도까지 기다림의 시작 값(ms, 2배씩) [ASSUMPTION]
+  CERA_AGENT_RUNTIME_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  CERA_AGENT_RUNTIME_RETRY_BASE_MS: z.coerce.number().int().min(100).max(3_600_000).default(30_000),
+  // Worker 의 Agent 재조정(기다리던 실행 · 재시도 시각이 된 실행 깨우기) on/off
+  CERA_AGENT_RECONCILE_ENABLED: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
 }).superRefine((e, ctx) => {
   const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
   if (e.APP_ENV === 'production' && e.CERA_MOCK_CHANNEL_FAULT !== 'none') fail('CERA_MOCK_CHANNEL_FAULT', 'fault injection is not allowed in production');

@@ -205,7 +205,7 @@ Frontend ──(request_id)──> Backend API ──(trace_id 전파)──> Ou
 - 외부로 나가는 호출에는 가능한 범위에서 추적 정보를 싣는다(예: 이미 정한 `X-CERA-Message` 헤더, `docs/18` H.2). 외부 시스템에 내부 식별자를 과하게 노출하지 않는다.
 - 사용자 오류 화면에는 `request_id` 를 보여 줘 문의할 때 쓰게 한다.
 - **OpenTelemetry 같은 특정 표준·제품은 지금 정하지 않는다.** 위 전파 규칙을 지키면 나중에 붙일 수 있다.
-- **Agent Runtime(ADR-036, 2026-10-22)**: 실행마다 `agent_run_id` · `trace_id` · `recovery_run_id`. Backend ↔ Agent 호출은 W3C `traceparent` 로 전파한다. 노드 · Tool 호출 기록은 Backend 소유 표(T-103 M15 예정)에 남기고, 외부 추적 SaaS 는 별도 결정 전 쓰지 않는다.
+- **Agent Runtime(ADR-036, 2026-10-22)**: 실행마다 `agent_run_id` · `trace_id` · `recovery_run_id`. Backend ↔ Agent 호출은 W3C `traceparent` 로 전파한다. 노드 · Tool 호출 기록은 Backend 소유 표(`agent_tool_call` — T-103 M16 · `agent_step` — T-104 M18)에 남기고, Runtime 연결 실패는 `system_error`(분류 `AGENT_RUNTIME`)로 남기고, 외부 추적 SaaS 는 별도 결정 전 쓰지 않는다.
 - 헤더 이름·형식(UUID 등)은 구현 때 정한다.
 
 ## 6. 외부 연동 실패 정책 (Integration Failure Policy)

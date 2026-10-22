@@ -45,6 +45,7 @@ KEYS: dict[str, tuple[str | None, str]] = {
     "CERA_AGENT_TOOL_TOKEN": (None, "secret — same value as back/.env CERA_AGENT_TOOL_TOKEN, 32+ characters"),
     "CERA_AGENT_MAX_STEPS": ("25", "hard cap on graph steps per run"),
     "CERA_AGENT_MAX_TOOL_CALLS": ("12", "hard cap on tool calls per run"),
+    "CERA_AGENT_MAX_RETRIES": ("2", "retries of a retryable (FAILED + retryable) tool result, same idempotency key"),
 }
 
 
@@ -67,6 +68,7 @@ class Settings:
     backend_tool_url: str
     agent_max_steps: int
     agent_max_tool_calls: int
+    agent_max_retries: int
 
 
 def _get(source: Mapping[str, str], key: str) -> str | None:
@@ -131,13 +133,14 @@ def load_settings(source: Mapping[str, str]) -> Settings:
     port = _int(source, "CERA_AI_PORT", 1, 65_535, issues)
     steps = _int(source, "CERA_AGENT_MAX_STEPS", 1, 200, issues)
     calls = _int(source, "CERA_AGENT_MAX_TOOL_CALLS", 0, 100, issues)
+    retries = _int(source, "CERA_AGENT_MAX_RETRIES", 0, 10, issues)
     if issues:
         raise SettingsError(issues)
     return Settings(
         env=env, host=_get(source, "CERA_AI_HOST") or "127.0.0.1", port=port,
         llm_mode=llm_mode or "replay", llm_provider=vendor, decision_mode=decision_mode or "off",
         decision_provider=decision, agent_mode=agent_mode or "off", backend_tool_url=tool_url,
-        agent_max_steps=steps, agent_max_tool_calls=calls,
+        agent_max_steps=steps, agent_max_tool_calls=calls, agent_max_retries=retries,
     )
 
 

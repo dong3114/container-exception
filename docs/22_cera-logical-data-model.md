@@ -1,6 +1,6 @@
 # 22. CERA 논리 데이터 모델 (Logical Data Model)
 
-- 상태: **rev.2.7 — T-103 Agent 실행 기록(2026-10-22, ADR-036).** MVP **56**(+2: `agent_run` · `agent_tool_call`) · Next 0 · 만들지 않음 2 = **58**, 컬럼 **640**(+28). 이전 rev.2.6 — T-102 공공데이터(DS-03 · DS-02) 실제 연동 (2026-10-22, 사용자 승인: `vessel_call` P0 승격). MVP **54** · Next **0** · 만들지 않음 2 = **56**, 컬럼 **612**(+25). 물리는 `docs/24` 22.30~22.35 · M14/M15. 짝 작업표(xlsx)는 아직 rev.2.5 표기다 — 이 문서 rev.2.6 블록이 우선. 이전 상태: **rev.2.5 — T-080 물리 설계가 찾은 논리 모순 정리 (2026-09-22).** 표·컬럼 수 변화 없음(52 · 587). 발송 시도의 멱등·재시도·`UNKNOWN` 화해 · 한 번 채움(`sent_at` · `external_thread_id`) · 받은 메시지의 `drafted_by` · `current_status` · 표기 정정 4건 — 아래 rev.2.5 표. 이전: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
+- 상태: **rev.2.8 — T-104 Agent Runtime 실행 상태(2026-10-22, ADR-036 결정 2).** MVP **59**(+3: `agent_step` · `agent_checkpoint` · `agent_checkpoint_write`) · Next 0 · 만들지 않음 2 = **61**, 컬럼 **684**(+44 — `agent_run` +10 포함). 이전 rev.2.7 — T-103 Agent 실행 기록(2026-10-22, ADR-036). MVP **56**(+2: `agent_run` · `agent_tool_call`) · Next 0 · 만들지 않음 2 = **58**, 컬럼 **640**(+28). 이전 rev.2.6 — T-102 공공데이터(DS-03 · DS-02) 실제 연동 (2026-10-22, 사용자 승인: `vessel_call` P0 승격). MVP **54** · Next **0** · 만들지 않음 2 = **56**, 컬럼 **612**(+25). 물리는 `docs/24` 22.30~22.35 · M14/M15. 짝 작업표(xlsx)는 아직 rev.2.5 표기다 — 이 문서 rev.2.6 블록이 우선. 이전 상태: **rev.2.5 — T-080 물리 설계가 찾은 논리 모순 정리 (2026-09-22).** 표·컬럼 수 변화 없음(52 · 587). 발송 시도의 멱등·재시도·`UNKNOWN` 화해 · 한 번 채움(`sent_at` · `external_thread_id`) · 받은 메시지의 `drafted_by` · `current_status` · 표기 정정 4건 — 아래 rev.2.5 표. 이전: **rev.2.4 — Q-44 · Q-45 사용자 결정 반영 (2026-09-21).** rev.2.3(T-081 DONE, 사용자 최종 승인) 위에 **메일 근거 시각 선택 규칙(11.2e)** 과 **기록·내용 분리 보관 구조(29절)** 를 더했다. **논리 테이블 수 변화 없음(52).** 흐름 검증 **64개 전부 PASS**. 이전: rev.2.3 — T-081 DONE, 47개 PASS. rev.2.2 까지의 검증이 **이 문서 내부 정합성과 작업표 대조에만** 집중해, Event 속성의 정본인 **`docs/05` 4.2 와 한 번도 대조되지 않은 채** 승인됐다는 것이 T-070 에서 드러났다. rev.2.3 은 **새 설계를 벌리지 않고** 그 누락만 복구한다
 - 설계 입력 기준 커밋: `1b97905` (이 설계가 읽은 요구사항·개념 모델 전 단계 문서의 기준). rev.2.1 최초 저장 커밋: `687d458`. rev.2.2 저장 커밋: `8d47a99`. **이 문서는 자기 자신의 최신 커밋을 적지 않는다** — 최신 상태는 `git log` 가 정본이다
 - 승인된 입력: **`docs/21_cera-conceptual-data-model.md` rev.3 (T-076 최종 승인)**. 이 문서는 그 개념을 **DB 구조로 옮기는 것**이며 개념을 다시 열지 않는다. **rev.2.3 에서도 `docs/21` 변경 0건**
 - 짝 산출물: **`docs/22_cera-logical-data-model.xlsx`** — 테이블·컬럼·타입·제약·예시를 DB 명세 형태로 본 것. **11 시트**(`00_목록` · `01_물류핵심` ~ `09_감사운영` · `10_OpenDecisions`), 테이블 블록 **53개**(MVP 52 + Next 1), 컬럼 **587개**(rev.2.4 — 내용 컬럼을 참조 + 지문으로 바꾸며 +1. rev.2.3 은 586, rev.2.2 는 52블록·557). 기본키 노랑 · 외래키 초록 · 유일 제약 분홍 · **분류와 변경 방식을 둘 다 표기**
@@ -8,6 +8,15 @@
 - 런타임·오류 처리·관측성의 행동 규칙은 **`docs/23_runtime-platform-and-observability.md`** 가 정본이다. 이 문서는 그중 **DB 에 남는 `system_error` 표**만 다룬다
 - **2026-09-21 T-069: L-13 CLOSED** — 복구 맥락 = `recovery_run` 계보의 뿌리 실행 id(4절 L-13 · I-35 · I-36). **새 표·새 컬럼 없음**, 논리 테이블 수 52 그대로
 - **사용자 결정 D-1~D-5 는 모두 닫혔다**(25절). **C(출처 어휘)는 2026-09-21 사용자 결정으로 닫혔다** — 11.2c. **Q-44 CLOSED · Q-45 구조 CLOSED(기간 OPEN)** — 2026-09-21 사용자 결정, 11.2e · 29절
+
+> **rev.2.8 (T-104 · ADR-036 결정 2) 에서 더한 것** — LangGraph 그래프의 **실행 상태**(어디서 이어 갈지)와 관측. **업무 사실이 아니다** — 재개한 그래프는 업무 상태를 Tool 로 다시 읽는다. 개념 모델 변경 없음.
+>
+> | # | 더한 것 | 어디 |
+> | --- | --- | --- |
+> | **H-3** | `agent_run` 생애주기 `CREATED → RUNNING → WAITING_HUMAN · WAITING_EXTERNAL → … → COMPLETED · FAILED · CANCELLED` + 열 10(`parameters` · `current_node` · `waiting_reason` · `pending_ref_*` · `last_error_code` · `updated_at` · `runtime_attempts` · `next_attempt_at` · `result_summary`) · `WAITING_RUNTIME`(Runtime 일시 장애 뒤 재시도 대기). 전이는 Backend Coordinator 만 | 8.7 |
+> | **H-4** | **`agent_step`** — 그래프 단계 하나(START · NODE · INTERRUPT · RESUME · TERMINAL). 코드 · id · 시간만 | 8.9 |
+> | **H-5** | **`agent_checkpoint`** — LangGraph checkpoint. 본문은 내용 저장소(`AGENT_CHECKPOINT`), 행은 참조 + 지문 | 8.10 |
+> | **H-6** | **`agent_checkpoint_write`** — checkpoint 의 대기 쓰기(interrupt · resume 값 포함). 특수 쓰기만 덮어쓰기 | 8.11 |
 
 > **rev.2.7 (T-103 · ADR-036) 에서 더한 것** — **업무 사실이 아니라 실행 기록**인 표 2개. 개념 모델(`docs/21`) 변경 없음(기술 운영 표 — `system_error` 와 같은 자리).
 >
@@ -195,7 +204,7 @@
 
 | 구분 | 개수 | 바뀐 과정 |
 | --- | --- | --- |
-| **MVP 논리 테이블** | **56** | **rev.2.7 56**(+2 Agent 실행 기록) ← rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) → **rev.2.6 54** (**+2**: `vessel_call` 승격 · `public_data_fetch` 신설) · rev.2.4 **52** (변화 없음 — 보관 관리 내용은 표가 아니다, 29.1) |
+| **MVP 논리 테이블** | **59** | **rev.2.8 59**(+3 Agent 실행 상태) ← **rev.2.7 56**(+2 Agent 실행 기록) ← rev.1 46 → rev.2 50 (**+4**) → rev.2.2 51 (**+1**, `system_error`) → rev.2.3 **52** (**+1**, `event_verification_target`) → **rev.2.6 54** (**+2**: `vessel_call` 승격 · `public_data_fetch` 신설) · rev.2.4 **52** (변화 없음 — 보관 관리 내용은 표가 아니다, 29.1) |
 | Next (구조만 두고 MVP 에서 쓰지 않음) | **0** | rev.2.6 에서 `vessel_call` 이 MVP 로 |
 | **MVP 에서 만들지 않음** (요구가 생기면 다시 연다) | **2** (`exception_case` · `operational_plan_batch`) | rev.2 에서 **OPEN → 결정 완료**(D-4 · D-5) |
 | 표에 적은 것 전체 | **58** | 49 → 53 → 54 → 55 → 56 → 58 |
@@ -668,7 +677,7 @@
 ### 8.7 `agent_run` — Agent 실행 **(rev.2.7 신설, H-1)**
 
 - 분류 **`OPERATIONAL_RECORD`**(기술 운영 — 업무 사실 아님) · 한 번 전이 · MVP · 물리 `docs/24` 22.36
-- 열: `agent_run_id` · `recovery_run_id`(범위) · `goal` · `status`(ACTIVE · FINISHED · CANCELLED) · `created_by_actor_id`(HUMAN · SYSTEM) · `agent_actor_id`(AI_AGENT) · `runtime_version` · `trace_id` · `started_at` · `finished_at` · `is_simulated`
+- 열: `agent_run_id` · `recovery_run_id`(범위) · `goal` · `status`(rev.2.8: CREATED · RUNNING · WAITING_HUMAN · WAITING_EXTERNAL · WAITING_RUNTIME · COMPLETED · FAILED · CANCELLED — rev.2.7 의 ACTIVE · FINISHED 를 대체) · `created_by_actor_id`(HUMAN · SYSTEM) · `agent_actor_id`(AI_AGENT) · `runtime_version` · `trace_id` · `started_at` · `finished_at` · `is_simulated` · rev.2.8: `parameters`(사람이 준 값 — 예: 문의 수량 · 시간창) · `current_node` · `waiting_reason` · `pending_ref_type` · `pending_ref_id`(재개를 기다리는 업무 기록) · `last_error_code` · `updated_at` · `runtime_attempts` · `next_attempt_at` · `result_summary`(끝난 실행의 요약 — 코드 · id · 개수만)
 - 규칙: Agent 는 자기 실행 · 범위를 만들지 못한다. 실행의 모든 Tool 호출은 이 범위로 검사된다. 실행 상태는 업무 사실(승인 · 발송 · 사실)과 무관하다
 
 ### 8.8 `agent_tool_call` — Tool 호출 **(rev.2.7 신설, H-2)**
@@ -676,6 +685,24 @@
 - 분류 **`OPERATIONAL_RECORD`** · 한 번 전이 · MVP · 물리 `docs/24` 22.37
 - 열: `tool_call_id` · `agent_run_id` · `tool_name` · `tool_version` · `category`(READ · EXTERNAL_READ · COMPUTE · PROPOSE · REQUEST) · `status`(STARTED · SUCCEEDED · FAILED · REJECTED) · `idempotency_key` · `input_hash` · `output_hash` · `result_ref_type` · `result_ref_id` · `error_code` · `started_at` · `finished_at` · `duration_ms` · `request_id` · `trace_id`
 - 규칙: **내용을 복제하지 않는다**(지문 · 참조만). PROPOSE · REQUEST 의 성공 표시는 업무 기록과 같은 트랜잭션. 같은 실행 · Tool · 키의 진행 중 · 성공 호출은 하나
+
+### 8.9 `agent_step` — 그래프 단계 **(rev.2.8 신설, H-4)**
+
+- 분류 **`OPERATIONAL_RECORD`** · `APPEND_ONLY` · MVP · 물리 `docs/24` 22.38
+- 열: `step_id` · `agent_run_id` · `seq` · `kind`(START · NODE · INTERRUPT · RESUME · TERMINAL) · `node` · `outcome` · `detail_code` · `tool_call_id` · `retry_count` · `started_at` · `finished_at` · `duration_ms` · `trace_id`
+- 규칙: 입력 · 출력 · 프롬프트 · 비밀값을 담지 않는다. NODE 는 Python Runtime 이 Runtime API 로, 나머지는 Coordinator 가 적는다
+
+### 8.10 `agent_checkpoint` — 그래프 checkpoint **(rev.2.8 신설, H-5)**
+
+- 분류 **`OPERATIONAL_RECORD`**(실행 상태 — 업무 사실 아님) · `APPEND_ONLY` · MVP · 물리 `docs/24` 22.39
+- 열: `checkpoint_row_id` · `agent_run_id`(= LangGraph thread) · `checkpoint_ns` · `checkpoint_id` · `parent_checkpoint_id` · `content_ref`(`AGENT_CHECKPOINT`) · `content_hash` · `meta_source` · `meta_step` · `created_at`
+- 규칙: RUNNING 실행에만 쓴다. 본문은 그래프 상태(id · 참조 · 코드)뿐. Python 은 DB 자격증명 없이 Backend API 로만 읽고 쓴다
+
+### 8.11 `agent_checkpoint_write` — checkpoint 대기 쓰기 **(rev.2.8 신설, H-6)**
+
+- 분류 **`OPERATIONAL_RECORD`** · 삽입 + 특수 쓰기 덮어쓰기만 · MVP · 물리 `docs/24` 22.40
+- 열: `agent_run_id` · `checkpoint_ns` · `checkpoint_id` · `task_id` · `write_idx` · `task_path` · `channel` · `value_type` · `value_b64` · `value_hash` · `created_at`
+- 규칙: 작은 값만(크기 상한). 일반 쓰기 재전송은 무시, 특수 쓰기(`write_idx < 0` — 오류 · interrupt · resume)만 덮어쓴다(LangGraph 규약)
 
 ---
 

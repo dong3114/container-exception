@@ -21,6 +21,14 @@
 
 ---
 
+## 2026-10-22 · T-104 DONE — LangGraph Agent Runtime · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(`feat: add durable LangGraph agent runtime`). push 없음
+- 한 일: `CeraRecoveryGraph`(StateGraph · 결정론 분기 · interrupt · resume) · Tool adapter(Registry 제한 · 상한 · 재시도) · `BackendCheckpointSaver`(Python DB 자격증명 없음) · Coordinator(시작 · 재개 · 상태 전이) · Runtime API · 승인 신호 · M18(`agent_step` · `agent_checkpoint` · `agent_checkpoint_write` + `agent_run` 생애주기 · 열 10) · M19 가드
+- durability(승인 뒤 보강): 신호 = 최적화, 정확성 = DB 상태 — Worker 재조정이 기다리던 기록을 다시 보고 깨움 · `WAITING_RUNTIME`(일시 장애 bounded backoff) · checkpoint 에서 이어 가기 · crash window(부작용 1건) 시험
+- 검증: Backend 328 · Python 53 · Front 39 · 두 프로세스 E2E(Python 재시작 · 신호 유실 → API 재기동 → 재조정 → 같은 실행 COMPLETED · Runtime 장애 재시도 · 상한 FAILED)
+- 남은 판단: 상한 25/12/2 · Runtime 시간 제한 120초 · 재시도 3회/30초 — 모두 기본값 [ASSUMPTION], Agent Eval 로 조정 · checkpoint 보관 · 정리 주기
+- 다음: **T-105** 첫 Agent Vertical Slice(사용자 지시로 바로 시작)
+
 ## 2026-10-22 · T-103 DONE — Agent Tool Layer v1 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(`feat: add agent tool capability layer`). push 없음
 - 한 일: `back/src/agent-tools/`(Registry 9 · zod 계약 → `packages/contracts/agent-tools/agent-tools.v1.json` · 실행기: 검증 · 기록 · 멱등 · 시간 제한 · 오류 분류 · 출력 검사 · 서비스 인증 Bearer · 실행 범위) · `/internal/agent-tools/*` · `/agent-runs/*` · M16(`agent_run` · `agent_tool_call`) · M17(행위자 · 전이 · 열 가드 · GRANT) · `DraftService` Agent 옵션(승인 대기에 올리지 않음) + `requestApproval`(승인 아님) · `PublicDataService.*As` · Python `ai/cera_ai/tools/`(계약 기반 Registry · 스키마 검사기 · 타입 있는 Client) · 시드 AI_AGENT 행위자

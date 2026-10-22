@@ -1,3 +1,4 @@
+import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { ENV } from '../config/config.module.js';
@@ -43,6 +44,7 @@ export class ApprovalService {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(ENV) env: Env,
+    @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
   ) {
     this.ttlMs = env.CERA_APPROVAL_TTL_MINUTES * 60_000;
   }
@@ -134,6 +136,7 @@ export class ApprovalService {
         isSimulated: message.isSimulated,
       });
     });
+    this.signals.emit({ type: 'APPROVAL_DECIDED', messageId, decision: 'APPROVED' }); // 커밋 뒤 — 기다리던 Agent 실행을 깨운다(T-104)
     return this.drafts.get(messageId);
   }
 
@@ -186,6 +189,7 @@ export class ApprovalService {
         isSimulated: message.isSimulated,
       });
     });
+    this.signals.emit({ type: 'APPROVAL_DECIDED', messageId, decision: 'REJECTED' });
     return this.drafts.get(messageId);
   }
 
@@ -236,6 +240,7 @@ export class ApprovalService {
         isSimulated: locked.isSimulated,
       });
     });
+    this.signals.emit({ type: 'APPROVAL_DECIDED', messageId: target.messageId, decision: 'REVOKED' });
     return this.drafts.get(target.messageId);
   }
 

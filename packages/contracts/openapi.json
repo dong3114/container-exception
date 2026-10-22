@@ -1614,10 +1614,22 @@
         ]
       }
     },
-    "/agent-runs/runtime": {
+    "/agent-runs": {
       "get": {
-        "operationId": "AgentRunsController_runtime",
-        "parameters": [],
+        "operationId": "AgentRunsController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -1630,13 +1642,11 @@
             }
           }
         },
-        "summary": "Whether the Python Agent Runtime (CERA_AGENT_RUNTIME_URL) answers, and whether agent tools are enabled",
+        "summary": "Recent agent runs — status, current node, waiting reason, pending reference",
         "tags": [
           "agent-runs"
         ]
-      }
-    },
-    "/agent-runs": {
+      },
       "post": {
         "operationId": "AgentRunsController_create",
         "parameters": [
@@ -1674,6 +1684,10 @@
                     "type": "string",
                     "maxLength": 40,
                     "nullable": true
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "description": "Human-provided values the agent may use (e.g. inquiry.quantity · window_from · window_to) — the agent never invents numbers"
                   }
                 }
               }
@@ -1694,6 +1708,28 @@
           }
         },
         "summary": "Start an agent run bound to one recovery run (the scope every tool call is checked against)",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
+    "/agent-runs/runtime": {
+      "get": {
+        "operationId": "AgentRunsController_runtime",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether the Python Agent Runtime (CERA_AGENT_RUNTIME_URL) answers, and whether agent tools are enabled",
         "tags": [
           "agent-runs"
         ]
@@ -1726,7 +1762,109 @@
             }
           }
         },
-        "summary": "One agent run and its tool calls",
+        "summary": "One agent run: status · current node · waiting reason · recent steps · tool calls",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
+    "/agent-runs/{agentRunId}/start": {
+      "post": {
+        "operationId": "AgentRunsController_start",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Agent run with its tool-call log (hashes and refs only — no raw content)"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start the graph of a CREATED run (runs until it waits or ends). Starting twice returns the current state — never a second graph.",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
+    "/agent-runs/{agentRunId}/resume": {
+      "post": {
+        "operationId": "AgentRunsController_resume",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]{0,59}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Agent run with its tool-call log (hashes and refs only — no raw content)"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Resume a waiting run (normally the backend does this when the awaited event happens). Not waiting = no-op.",
         "tags": [
           "agent-runs"
         ]
@@ -1772,6 +1910,182 @@
         "summary": "Cancel an active agent run — its tool calls stop being accepted",
         "tags": [
           "agent-runs"
+        ]
+      }
+    },
+    "/internal/agent-runtime/runs/{agentRunId}/checkpoints": {
+      "put": {
+        "operationId": "AgentRuntimeController_put",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Store one LangGraph checkpoint (execution state — not business truth). Content goes to the content store; the row keeps ref + hash.",
+        "tags": [
+          "internal-agent-runtime"
+        ]
+      },
+      "get": {
+        "operationId": "AgentRuntimeController_list",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Latest (or a given / earlier) checkpoints with their pending writes",
+        "tags": [
+          "internal-agent-runtime"
+        ]
+      }
+    },
+    "/internal/agent-runtime/runs/{agentRunId}/checkpoint-writes": {
+      "post": {
+        "operationId": "AgentRuntimeController_writes",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Store pending writes of a checkpoint (special writes such as interrupt/resume overwrite; normal writes are kept once)",
+        "tags": [
+          "internal-agent-runtime"
+        ]
+      }
+    },
+    "/internal/agent-runtime/runs/{agentRunId}/steps": {
+      "post": {
+        "operationId": "AgentRuntimeController_steps",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Report finished graph nodes (node · outcome · branch · tool call · retries · timing) — no payloads",
+        "tags": [
+          "internal-agent-runtime"
         ]
       }
     }

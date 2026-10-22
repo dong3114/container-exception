@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { DraftService } from '../communication/draft.service.js';
 import { ENV } from '../config/config.module.js';
@@ -13,6 +12,7 @@ import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
 import { AgentRunRepository, type AgentRunRow } from './agent-run.repository.js';
 import { RecoveryContextService } from './context.service.js';
+import { AgentServiceAuth } from './service-auth.js';
 import { ENVELOPE_SCHEMA_VERSION, type ToolEnvelope, ToolExecutor, type ToolHandler } from './executor.js';
 import { buildHandlers } from './handlers.js';
 import { findTool, TOOLS, type ToolName } from './registry.js';
@@ -20,8 +20,21 @@ import { toolCatalog } from './tool-contracts.js';
 import { ToolGatewayError } from './tool-errors.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** 사람이 실행을 만들 때 주는 값 — Agent 는 문의 수량 · 시간창 같은 숫자를 지어내지 않는다(규칙 3). */
+export const runParametersSchema = z
+  .object({
+    inquiry: z
+      .object({
+        quantity: z.number().int().min(1).max(999),
+        window_from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+        window_to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
 const createRunSchema = z
-  .object({ recovery_run_id: z.uuid(), goal: z.string().min(1).max(300), runtime_version: z.string().max(40).nullish() })
+  .object({ recovery_run_id: z.uuid(), goal: z.string().min(1).max(300), runtime_version: z.string().max(40).nullish(), parameters: runParametersSchema.optional() })
   .strict();
 
 /**
@@ -36,7 +49,6 @@ const createRunSchema = z
 export class AgentToolsService {
   private readonly executor: ToolExecutor;
   private readonly handlers: Record<ToolName, ToolHandler>;
-  private readonly tokenDigest: Buffer | null;
 
   constructor(
     @Inject(ENV) private readonly env: Env,
@@ -47,8 +59,8 @@ export class AgentToolsService {
     @Inject(RegistryService) registry: RegistryService,
     @Inject(DraftService) drafts: DraftService,
     @Inject(RecoveryContextService) context: RecoveryContextService,
+    @Inject(AgentServiceAuth) private readonly auth: AgentServiceAuth,
   ) {
-    this.tokenDigest = env.CERA_AGENT_TOOL_TOKEN ? digest(env.CERA_AGENT_TOOL_TOKEN) : null;
     this.executor = new ToolExecutor(
       {
         insertStarted: (c) => this.runs.insertStarted(c),
@@ -98,7 +110,8 @@ export class AgentToolsService {
       agentRunId: this.ids.newId(),
       recoveryRunId: recovery.runId,
       goal: parsed.data.goal,
-      status: 'ACTIVE',
+      status: 'CREATED',
+      parameters: parsed.data.parameters ?? null,
       agentActorId,
       createdByActorId: creator,
       runtimeVersion: parsed.data.runtime_version ?? null,
@@ -121,7 +134,7 @@ export class AgentToolsService {
   async cancelRun(agentRunId: string, actorHeader: string | undefined) {
     await this.requireHuman(actorHeader);
     const run = await this.getRun(agentRunId);
-    if (!(await this.runs.finishRun(agentRunId, 'CANCELLED', this.clock.now().toDb()))) {
+    if (!(await this.runs.cancelRun(agentRunId, this.clock.now().toDb()))) {
       throw new BusinessRuleError('AGENT_RUN_NOT_ACTIVE', `The agent run is ${run.status}`, 409);
     }
     return this.getRun(agentRunId);
@@ -141,13 +154,7 @@ export class AgentToolsService {
   // ── 내부 ──
 
   private authenticate(authorization: string | undefined): void {
-    if (!this.env.CERA_AGENT_TOOLS_ENABLED || !this.tokenDigest) {
-      throw new ToolGatewayError('AGENT_TOOLS_DISABLED', 503, 'Agent tools are disabled (CERA_AGENT_TOOLS_ENABLED=false)');
-    }
-    const m = /^Bearer ([^\s]{1,512})$/.exec(authorization?.trim() ?? '');
-    if (!m || !timingSafeEqual(digest(m[1]!), this.tokenDigest)) {
-      throw new ToolGatewayError('UNAUTHORIZED_AGENT', 401, 'A valid agent service token is required (Authorization: Bearer …)');
-    }
+    this.auth.verify(authorization);
   }
 
   private async activeRun(header: string | undefined): Promise<AgentRunRow> {
@@ -155,11 +162,12 @@ export class AgentToolsService {
     if (!UUID.test(id)) throw new ToolGatewayError('AGENT_RUN_NOT_FOUND', 404, 'X-CERA-Agent-Run-Id must name an agent run');
     const run = await this.runs.findRun(id);
     if (!run) throw new ToolGatewayError('AGENT_RUN_NOT_FOUND', 404, 'No agent run with this id');
-    if (run.status !== 'ACTIVE') throw new ToolGatewayError('AGENT_RUN_NOT_ACTIVE', 409, `The agent run is ${run.status}`);
+    // Tool 은 시작 전(CREATED) · 실행 중(RUNNING)에만. 기다리는(사람 · 외부 사건) · 끝난 실행은 Tool 을 부르지 않는다
+    if (run.status !== 'CREATED' && run.status !== 'RUNNING') throw new ToolGatewayError('AGENT_RUN_NOT_ACTIVE', 409, `The agent run is ${run.status}`);
     return run;
   }
 
-  private async requireHuman(header: string | undefined): Promise<string> {
+  async requireHuman(header: string | undefined): Promise<string> {
     const value = header?.trim();
     if (!value) throw new ValidationError('ACTOR_REQUIRED', 'The X-CERA-Actor-Id header is required', ['x-cera-actor-id']);
     if (!UUID.test(value)) throw new ValidationError('INVALID_ID', 'x-cera-actor-id must be a UUID', ['x-cera-actor-id']);
@@ -168,7 +176,7 @@ export class AgentToolsService {
     return value;
   }
 
-  private async runView(row: AgentRunRow) {
+  async runView(row: AgentRunRow, steps: unknown[] = []) {
     const calls = await this.runs.listCalls(row.agentRunId);
     return {
       agent_run_id: row.agentRunId,
@@ -182,6 +190,16 @@ export class AgentToolsService {
       started_at: Instant.fromDb(row.startedAt).toSeoulIso(),
       finished_at: row.finishedAt ? Instant.fromDb(row.finishedAt).toSeoulIso() : null,
       is_simulated: row.isSimulated,
+      parameters: row.parameters ?? null,
+      current_node: row.currentNode ?? null,
+      waiting_reason: row.waitingReason ?? null,
+      pending_ref: row.pendingRefType && row.pendingRefId ? { type: row.pendingRefType, id: row.pendingRefId } : null,
+      last_error_code: row.lastErrorCode ?? null,
+      updated_at: row.updatedAt ? Instant.fromDb(row.updatedAt).toSeoulIso() : null,
+      runtime_attempts: row.runtimeAttempts ?? 0,
+      next_attempt_at: row.nextAttemptAt ? Instant.fromDb(row.nextAttemptAt).toSeoulIso() : null,
+      result_summary: row.resultSummary ?? null,
+      steps,
       tool_calls: calls.map((c) => ({
         tool_call_id: c.toolCallId,
         tool_name: c.toolName,
@@ -203,7 +221,3 @@ export class AgentToolsService {
 }
 
 export { ENVELOPE_SCHEMA_VERSION };
-
-function digest(token: string): Buffer {
-  return createHash('sha256').update(token, 'utf8').digest();
-}

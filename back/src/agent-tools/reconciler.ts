@@ -1,0 +1,67 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { DraftService } from '../communication/draft.service.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
+import { CLOCK, type Clock } from '../shared/time/clock.js';
+import { AgentCoordinator } from './coordinator.js';
+import { RuntimeStoreRepository } from './runtime-store.repository.js';
+import { wakeReason } from './wake-rules.js';
+
+export interface ReconcileSummary {
+  retried: number;
+  woken: number;
+  checked: number;
+}
+
+/**
+ * Agent 재조정(T-104 durability) — **알림이 아니라 DB 상태로** 기다리는 실행을 깨운다. Worker 가 기동할 때 · 주기마다 부른다.
+ *
+ * 1. WAITING_RUNTIME 이고 다음 시도 시각이 지난 실행 → 다시 시도(Runtime 일시 장애 뒤)
+ * 2. WAITING_HUMAN · WAITING_EXTERNAL 이고 대기 대상이 메시지인 실행 → 메시지의 지금 상태로 `wakeReason` 판정 → 깨움
+ *
+ * 깨우기는 Coordinator 의 조건부 전이로만 한다 — API 의 알림 경로 · 다른 Worker 와 동시에 깨워도 한 번만 이긴다.
+ * 승인 · 발송 · 사실을 바꾸지 않는다(읽기만). 새 메시지 브로커 없이 PostgreSQL 만 쓴다.
+ */
+@Injectable()
+export class AgentReconciler {
+  private readonly logger = new Logger('AgentReconciler');
+
+  constructor(
+    @Inject(RuntimeStoreRepository) private readonly store: RuntimeStoreRepository,
+    @Inject(AgentCoordinator) private readonly coordinator: AgentCoordinator,
+    @Inject(DraftService) private readonly drafts: DraftService,
+    @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+
+  async runOnce(limit = 100): Promise<ReconcileSummary> {
+    const summary: ReconcileSummary = { retried: 0, woken: 0, checked: 0 };
+    if (!this.env.CERA_AGENT_RECONCILE_ENABLED) return summary;
+
+    for (const id of await this.store.dueRetries(this.clock.now().toDb(), limit)) {
+      const r = await this.coordinator.resume(id, 'RUNTIME_RETRY', null).catch((e: unknown) => this.warn(id, e));
+      if (r && !r.already) summary.retried += 1;
+    }
+
+    for (const w of await this.store.waitingOnRecords(limit)) {
+      if (w.pendingRefType !== 'COMM_MESSAGE' || !w.pendingRefId) continue;
+      summary.checked += 1;
+      const dto = await this.drafts.get(w.pendingRefId).catch(() => null);
+      if (!dto) continue;
+      const reason = wakeReason(w.waitingReason, {
+        status: dto.message.status ?? '',
+        approvalState: dto.approval.state,
+        replies: dto.replies.map((r) => ({ status: r.status, extractionState: r.extraction?.state ?? null })),
+      });
+      if (!reason) continue;
+      const r = await this.coordinator.resume(w.agentRunId, reason, { type: 'COMM_MESSAGE', id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
+      if (r && !r.already) summary.woken += 1;
+    }
+    return summary;
+  }
+
+  private warn(agentRunId: string, error: unknown): null {
+    this.logger.warn({ msg: 'agent reconcile failed for a run — next cycle retries', agent_run_id: agentRunId, error: error instanceof Error ? error.name : 'unknown' });
+    return null;
+  }
+}

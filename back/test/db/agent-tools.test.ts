@@ -120,7 +120,7 @@ describe('gateway: service auth, run scope, registry only', () => {
     await http.post('/agent-runs').send({ recovery_run_id: w.runId, goal: 'x' }).expect(400);
     const runId = await startRun(w.runId);
     const view = (await http.get(`/agent-runs/${runId}`).expect(200)).body;
-    expect(view).toMatchObject({ recovery_run_id: w.runId, status: 'ACTIVE', agent_actor_id: agentId, created_by_actor_id: humanId, is_simulated: true });
+    expect(view).toMatchObject({ recovery_run_id: w.runId, status: 'CREATED', agent_actor_id: agentId, created_by_actor_id: humanId, is_simulated: true });
     expect((await http.get('/agent-runs/runtime').expect(200)).body).toMatchObject({ tools_enabled: true, tool_count: 9 });
   });
 

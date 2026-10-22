@@ -4,7 +4,7 @@ import { closedValues, normalizeDbDefault, normalizeSpecType, readPhysicalSpec, 
 import { ownerPool } from './support.js';
 
 /**
- * Phase A 커버리지 — 빈 DB 에 M01 → M17 을 적용한 결과(global-setup)를 PostgreSQL 카탈로그로 읽어
+ * Phase A 커버리지 — 빈 DB 에 M01 → M19 을 적용한 결과(global-setup)를 PostgreSQL 카탈로그로 읽어
  * docs/24 22절 명세와 컬럼 하나씩 대조한다(이름 · 순서 · 타입 · NULL · 기본값 · CLOSED/CATALOG/해시/내용참조 CHECK).
  */
 let owner: pg.Pool;
@@ -49,14 +49,14 @@ afterAll(async () => {
 });
 
 describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
-  it('the spec itself has 37 tables (P0 29 + M14 public data 6 + M16 agent records 2) and 434 logical columns', () => {
-    expect(new Set(spec.map((c) => c.table)).size).toBe(37);
-    expect(spec.length).toBe(434);
+  it('the spec itself has 40 tables (P0 29 + M14 public data 6 + M16 agent records 2 + M18 agent runtime 3) and 478 logical columns', () => {
+    expect(new Set(spec.map((c) => c.table)).size).toBe(40);
+    expect(spec.length).toBe(478);
   });
 
-  it('the database has exactly the 37 tables and 434 columns in schema cera', () => {
+  it('the database has exactly the 40 tables and 478 columns in schema cera', () => {
     expect(new Set(dbColumns.map((c) => c.table))).toEqual(new Set(spec.map((c) => c.table)));
-    expect(dbColumns.length).toBe(434);
+    expect(dbColumns.length).toBe(478);
   });
 
   it('every column matches the spec: name, order, type, nullability, default', () => {
@@ -79,7 +79,7 @@ describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
 
   it('every CLOSED code column has a CHECK IN with exactly the spec values (no ENUM types)', () => {
     const closed = spec.filter((s) => closedValues(s.memo));
-    expect(closed.length).toBe(67);
+    expect(closed.length).toBe(68);
     const problems: string[] = [];
     for (const s of closed) {
       const def = checkDefs.get(`ck_${s.table}__${s.name}`);
@@ -122,21 +122,21 @@ describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
 });
 
 describe('Phase A — keys, foreign keys and indexes', () => {
-  it('37 primary keys named pk_<table>', async () => {
+  it('40 primary keys named pk_<table>', async () => {
     const r = await owner.query<{ conname: string; table: string }>(`
       SELECT con.conname, c.relname AS table FROM pg_constraint con
         JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'cera' AND con.contype = 'p'`);
-    expect(r.rowCount).toBe(37);
+    expect(r.rowCount).toBe(40);
     for (const row of r.rows) expect(row.conname).toBe(`pk_${row.table}`);
   });
 
-  it('74 foreign keys (18 composite): all RESTRICT except verification_request.conflict_id SET NULL, no CASCADE', async () => {
+  it('78 foreign keys (18 composite): all RESTRICT except verification_request.conflict_id SET NULL, no CASCADE', async () => {
     const r = await owner.query<{ conname: string; cols: number; del: string; upd: string }>(`
       SELECT con.conname, array_length(con.conkey, 1) AS cols, con.confdeltype AS del, con.confupdtype AS upd
         FROM pg_constraint con JOIN pg_namespace n ON n.oid = con.connamespace
        WHERE n.nspname = 'cera' AND con.contype = 'f'`);
-    expect(r.rowCount).toBe(74);
+    expect(r.rowCount).toBe(78);
     expect(r.rows.filter((x) => x.cols > 1).length).toBe(18);
     const setNull = r.rows.filter((x) => x.del === 'n').map((x) => x.conname);
     expect(setNull).toEqual(['fk_verification_request__conflict_id']);

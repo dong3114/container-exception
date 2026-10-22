@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { PgTableExtraConfigValue } from 'drizzle-orm/pg-core';
-import { boolean, check, foreignKey, index, integer, primaryKey, text, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
-import { cera, ckHash, ckIn, hash, n, tstz } from './_common.js';
+import { boolean, check, foreignKey, index, integer, jsonb, primaryKey, text, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { cera, ckHash, ckIn, ckJsonType, hash, n, tstz } from './_common.js';
 import { AGENT_RUN_STATUS, TOOL_CALL_STATUS, TOOL_CATEGORY } from './codes.js';
 import { actor } from './m01-foundation.js';
 import { recoveryRun } from './m03-planning.js';
@@ -28,6 +28,20 @@ export const agentRun = cera.table(
     startedAt: tstz('started_at').notNull(),
     finishedAt: tstz('finished_at'),
     isSimulated: boolean('is_simulated').notNull(),
+    // ── M18(T-104) — 그래프 실행 상태(재개 위치 · 대기 사유). 업무 사실은 여전히 업무 표에 있다 ──
+    // 사람이 실행을 만들 때 준 값(예: 문의 수량 · 시간창). Agent 가 숫자를 지어내지 않게 — 사람 입력이다
+    parameters: jsonb('parameters').$type<Record<string, unknown>>(),
+    currentNode: varchar('current_node', { length: 60 }),
+    waitingReason: varchar('waiting_reason', { length: 60 }),
+    pendingRefType: varchar('pending_ref_type', { length: 40 }),
+    pendingRefId: uuid('pending_ref_id'),
+    lastErrorCode: varchar('last_error_code', { length: 60 }),
+    updatedAt: tstz('updated_at'),
+    // Runtime 연결 실패의 연속 횟수와 다음 시도 시각(WAITING_RUNTIME 일 때만). 성공하면 0 으로 돌아간다
+    runtimeAttempts: integer('runtime_attempts').notNull().default(0),
+    nextAttemptAt: tstz('next_attempt_at'),
+    // 끝난 실행의 요약(코드 · id · 개수만 — 업무 값 · 원문 없음). 화면이 "무엇을 알아냈나"를 보여 준다
+    resultSummary: jsonb('result_summary').$type<Record<string, unknown>>(),
   },
   (t): PgTableExtraConfigValue[] => [
     primaryKey({ name: n('pk_agent_run'), columns: [t.agentRunId] }),
@@ -41,7 +55,15 @@ export const agentRun = cera.table(
       .onDelete('restrict')
       .onUpdate('restrict'),
     ckIn('agent_run', t.status, AGENT_RUN_STATUS),
-    check(n('ck_agent_run__finished_shape'), sql`(${t.status} = 'ACTIVE') = (${t.finishedAt} IS NULL)`),
+    check(n('ck_agent_run__finished_shape'), sql`(${t.status} IN ('COMPLETED', 'FAILED', 'CANCELLED')) = (${t.finishedAt} IS NOT NULL)`),
+    // 기다리는 실행만 대기 사유가 있다. 대기 대상 참조는 쌍으로
+    check(n('ck_agent_run__waiting_shape'), sql`(${t.status} IN ('WAITING_HUMAN', 'WAITING_EXTERNAL', 'WAITING_RUNTIME')) = (${t.waitingReason} IS NOT NULL)`),
+    check(n('ck_agent_run__retry_shape'), sql`(${t.status} = 'WAITING_RUNTIME') = (${t.nextAttemptAt} IS NOT NULL)`),
+    check(n('ck_agent_run__runtime_attempts'), sql`${t.runtimeAttempts} >= 0`),
+    ckJsonType('agent_run', t.resultSummary, 'object'),
+    check(n('ck_agent_run__pending_ref_pair'), sql`(${t.pendingRefType} IS NULL) = (${t.pendingRefId} IS NULL)`),
+    ckJsonType('agent_run', t.parameters, 'object'),
+    index(n('ix_agent_run__pending_ref')).on(t.pendingRefType, t.pendingRefId).where(sql`${t.pendingRefId} IS NOT NULL`),
     check(n('ck_agent_run__finished_after_started'), sql`${t.finishedAt} IS NULL OR ${t.finishedAt} >= ${t.startedAt}`),
     index(n('ix_agent_run__recovery_run_id')).on(t.recoveryRunId),
   ],

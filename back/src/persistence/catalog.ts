@@ -66,6 +66,8 @@ export const SYSTEM_ERROR_CATEGORY = {
   DATA_INTEGRITY: 'DATA_INTEGRITY',
   AI_INTEGRATION: 'AI_INTEGRATION',
   PUBLIC_DATA_INTEGRATION: 'PUBLIC_DATA_INTEGRATION',
+  // T-104 Backend ↔ Python Agent Runtime 호출 실패
+  AGENT_RUNTIME: 'AGENT_RUNTIME',
 } as const;
 export type SystemErrorCategory = (typeof SYSTEM_ERROR_CATEGORY)[keyof typeof SYSTEM_ERROR_CATEGORY];
 
