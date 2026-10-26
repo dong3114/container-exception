@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRun } from "@/api/agentRuns";
-import { milestones, resultLabel, summaryRows, waitingLabel } from "./agentLabels";
+import { milestones, nodeLabel, resultLabel, summaryRows, waitingLabel } from "./agentLabels";
 
 const run = (steps: AgentRun["steps"], extra: Partial<AgentRun> = {}): AgentRun => ({
   agent_run_id: "r",
@@ -35,6 +35,11 @@ describe("agent progress labels", () => {
   it("explains waits and results without claiming facts", () => {
     expect(waitingLabel("AWAITING_SEND_REQUEST")).toContain("Agent 는 보내지 않습니다");
     expect(resultLabel("CANDIDATE_RECEIVED_PENDING_CONFIRMATION")).toContain("아직 확정 사실이 아닙니다");
+    expect(resultLabel("CANDIDATE_RECEIVED_PENDING_CONFIRMATION")).toContain("자동으로 사실이 되기에는");
+    expect(waitingLabel("AWAITING_FACT_VERIFICATION")).toContain("확인·거절·정정");
+    expect(resultLabel("FACT_CONFIRMED")).toContain("사람이 확인한");
+    expect(resultLabel("FACT_AWAITING_CONFIRMATION")).toContain("아직 확정 아님");
+    expect(nodeLabel("wait_fact_verification")).toContain("사람 확인");
     expect(waitingLabel("SOMETHING_NEW")).toBe("SOMETHING_NEW"); // unknown codes are shown, not guessed
   });
 
@@ -44,8 +49,17 @@ describe("agent progress labels", () => {
       { label: "후보 상태(작업 흐름)", value: "CANDIDATE_RECEIVED" },
       { label: "업무 공백 상태(사실 기준)", value: "ASKED" },
       { label: "후보가 온 항목", value: "quantity" },
-      { label: "확정된 사실", value: "아니오 — 아직 후보" },
+      { label: "확정된 사실", value: "아니오 — 아직 사람이 확인하지 않음" },
       { label: "공공데이터 출처", value: "LIVE" },
+    ]);
+  });
+
+  it("fact summary rows: provisional fact ids and an accepted candidate", () => {
+    const rows = summaryRows({ candidate_state: "CANDIDATE_ACCEPTED", fact_event_ids: ["01a11040-0000-7000-8000-0000000000e1"], facts_confirmed: true });
+    expect(rows).toEqual([
+      { label: "후보 상태(작업 흐름)", value: "CANDIDATE_ACCEPTED (임시 사실로 올라감)" },
+      { label: "임시 사실 기록", value: "01a11040" },
+      { label: "확정된 사실", value: "예 — 사람이 확인함" },
     ]);
   });
 });

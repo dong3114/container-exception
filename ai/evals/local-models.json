@@ -55,7 +55,8 @@
     {
       "name": "qwen3-4b-instruct-2507-q4_k_m",
       "status": "LOCAL_CANDIDATE",
-      "status_reason": "로컬 후보 중 추가 평가 가치가 가장 높음(20건에서 답 없는 회신 값 생성 0.0 · 환각 칸 상대적으로 낮음). Production 선정은 아님 — 상용 모델 benchmark 이후 전체 평가 여부 결정",
+      "mvp_role": "PROVISIONAL_DEFAULT",
+      "status_reason": "MVP 임시 기본값(2026-10-26 · 최종 Production 선정 아님): API 비용 0 · 현재 하드웨어에서 동작 · 교체 가능 · 결정론 검증이 보호. 로컬 후보 중 추가 평가 가치가 가장 높음(20건에서 답 없는 회신 값 생성 0.0 · 환각 칸 상대적으로 낮음). Production 선정은 아님 — 상용 모델 benchmark 이후 전체 평가 여부 결정",
       "upstream_model": "Qwen/Qwen3-4B-Instruct-2507",
       "gguf_repo": "unsloth/Qwen3-4B-Instruct-2507-GGUF",
       "gguf_publisher": "unsloth (제3자 변환 — Qwen 공식 가중치 파일이 아니다)",

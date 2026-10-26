@@ -152,10 +152,10 @@ const rowsOf = async (messageId: string) =>
   (await app.query('SELECT * FROM cera.extraction WHERE message_id = $1 ORDER BY ask_id, extraction_id', [messageId])).rows;
 const replyView = async (draftId: string) => (await http.get(`/communication/drafts/${draftId}`).expect(200)).body.replies[0];
 
-describe('A. a normal reply → AI candidates → backend validation → stored as suggestions only', () => {
-  it('question-scoped request, verbatim quotes checked, PENDING rows with validator results, no event', async () => {
+describe('A. a normal reply → AI candidates → backend validation → candidates; the passed quantity becomes a provisional event (T-093)', () => {
+  it('question-scoped request, verbatim quotes checked, rows with validator results; promoted rows point to one OBSERVATION event', async () => {
     const w = await world();
-    const text = '내일 오후 3시 이후 차량 4대까지 가능합니다.\n단가는 대당 18만원입니다.';
+    const text = '오후 3시 이후 차량 4대까지 가능합니다.\n단가는 대당 18만원입니다.';
     const { draftId, inboundId } = await repliedInquiry(w, { body: text });
     if (!inboundId) throw new Error('reply was not attached');
     handler = () => ok([answer('quantity', '4', 'TRUCK', '차량 4대까지 가능합니다'), answer('available_from', '15:00', null, '오후 3시 이후'), answer('rate_per_truck', '180000', 'KRW', '단가는 대당 18만원입니다')]);
@@ -173,14 +173,19 @@ describe('A. a normal reply → AI candidates → backend validation → stored 
     const rows = await rowsOf(inboundId);
     expect(rows).toHaveLength(3);
     const byValue = Object.fromEntries(rows.map((x) => [x.candidate_value_text, x]));
-    expect(byValue['4']).toMatchObject({ review_status: 'PENDING', candidate_unit: 'TRUCK', ask_id: 'Q1', created_event_id: null, model_version: 'replay:test', schema_version: 'reply-extract/1', reviewed_by_actor_id: null });
+    // T-093: 검증을 통과한 수량 후보는 같은 트랜잭션에서 임시 사실(사건)로 올라간다 — 시간창 칸 후보는 그 사건에 반영된 것으로 본다
+    expect(byValue['4']).toMatchObject({ review_status: 'ACCEPTED', candidate_unit: 'TRUCK', ask_id: 'Q1', model_version: 'replay:test', schema_version: 'reply-extract/1' });
+    expect(byValue['4'].created_event_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(byValue['4'].input_hash).toMatch(/^sha256:/);
-    expect(byValue['15:00']).toMatchObject({ review_status: 'PENDING', candidate_unit: null });
+    expect(byValue['15:00']).toMatchObject({ review_status: 'ACCEPTED', candidate_unit: null, created_event_id: byValue['4'].created_event_id });
     expect(byValue['180000']).toMatchObject({ review_status: 'REJECTED' }); // 묻지 않은 단가 — 결정론 규칙이 거절(SYSTEM 주체)
     const reviewer = (await app.query('SELECT actor_type FROM cera.actor WHERE actor_id = $1', [byValue['180000'].reviewed_by_actor_id])).rows[0];
     expect(reviewer.actor_type).toBe('SYSTEM');
     expect(byValue['180000'].validator_result).toContainEqual({ check: 'QUESTION_SCOPE', passed: false, detail_code: 'FIELD_NOT_ASKED' });
-    expect((await app.query('SELECT count(*)::int AS n FROM cera.event WHERE raw_input_id = $1', [rows[0].raw_input_id])).rows[0].n).toBe(0);
+    // 거절된 후보(묻지 않은 단가)는 사건이 되지 않는다 — 사건은 수량 하나뿐
+    const events = (await app.query('SELECT event_class, extraction_method, value_number, fact_key FROM cera.event WHERE raw_input_id = $1', [rows[0].raw_input_id])).rows;
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ event_class: 'OBSERVATION', extraction_method: 'LLM_EXTRACTED', value_number: '4.0000' });
 
     const view = await replyView(draftId);
     expect(view.extraction.state).toBe('DONE');

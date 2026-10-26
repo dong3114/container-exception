@@ -85,7 +85,7 @@ services:
         condition: service_completed_successfully
     command: ["node", "dist/worker.js"]
 
-  # AI Server + Agent Runtime. 로컬 모델을 쓰려면 ai/.env 에 CERA_LLM_MODE=live · CERA_LLM_PROVIDER=local · CERA_LLM_MODEL=<이름>
+  # AI Server + Agent Runtime. 로컬 모델을 쓰려면 ai/.env 에 CERA_LLM_MODE=live 만 바꾼다(MVP 임시 기본값: provider=local · model=qwen3-4b-instruct-2507-q4_k_m 은 ai/.env.example 에 이미 있다)
   ai:
     build:
       context: ../..
@@ -111,7 +111,7 @@ services:
   llm:
     image: ghcr.io/ggml-org/llama.cpp:server
     profiles: [llm]
-    command: ["-hf", "${CERA_LLM_HF:-Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M}", "--host", "0.0.0.0", "--port", "8080", "-c", "${CERA_LLM_CTX:-4096}", "--parallel", "1"]
+    command: ["-hf", "${CERA_LLM_HF:-unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M}", "--host", "0.0.0.0", "--port", "8080", "-c", "${CERA_LLM_CTX:-4096}", "--parallel", "1"]
     ports:
       - "127.0.0.1:${CERA_LLM_PORT:-8080}:8080"
     volumes:

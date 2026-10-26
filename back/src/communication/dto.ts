@@ -484,8 +484,14 @@ export class ExtractionCandidateDto {
   @ApiProperty({ type: [String], description: 'Failed checks: QUOTE_NOT_IN_SOURCE, FIELD_NOT_ASKED, UNIT_MISMATCH:x, VALUE_NOT_IN_QUOTE, CONFLICTING_CANDIDATES, ...' })
   failed_reasons!: string[];
 
-  @ApiProperty({ enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'SUPERSEDED'], description: 'PENDING = passed and waiting to become an event (next step). Nothing is a fact yet' })
+  @ApiProperty({ enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'SUPERSEDED'], description: 'PENDING = passed validation but did not qualify to become a provisional fact (see promotion_blocked_reasons) · ACCEPTED = it became an event (a provisional fact — see fact_event_id) · REJECTED = failed validation' })
   review_status!: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'SUPERSEDED';
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The event this candidate became (T-093). A provisional fact until a human confirms it' })
+  fact_event_id!: string | null;
+
+  @ApiProperty({ type: [String], description: 'Why a validated candidate was not turned into a provisional fact (SENDER_NOT_AUTHORITY · WINDOW_OUT_OF_SCOPE · DATE_OUT_OF_SCOPE · DATE_UNVERIFIED · AMBIGUOUS_REPLY · PLAN_SUPERSEDED …). A person decides' })
+  promotion_blocked_reasons!: string[];
 
   @ApiProperty({ enum: ['RECORDED_REPLAY', 'LLM'], description: 'RECORDED_REPLAY = recorded response, no LLM was run' })
   generated_by!: 'RECORDED_REPLAY' | 'LLM';

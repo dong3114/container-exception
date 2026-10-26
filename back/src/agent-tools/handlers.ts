@@ -57,10 +57,13 @@ export function messageStatus(d: DraftDto): MessageStatus {
  * 공백 하나에 대해 묻은 메시지들의 회신 · 추출 결과(작업 흐름 상태 — 사실이 아니다). 업무 공백(state)은 바꾸지 않는다:
  * 검증된 후보(PASSED · PENDING)가 있으면 CANDIDATE_RECEIVED, 회신은 왔는데 추출이 끝나 통과 후보가 없으면 NO_VALID_CANDIDATE.
  */
-export function candidateState(messages: DraftDto[]): { state: 'NONE' | 'REPLY_RECEIVED' | 'CANDIDATE_RECEIVED' | 'NO_VALID_CANDIDATE'; extractionIds: string[] } {
+export function candidateState(messages: DraftDto[]): { state: 'NONE' | 'REPLY_RECEIVED' | 'CANDIDATE_RECEIVED' | 'CANDIDATE_ACCEPTED' | 'NO_VALID_CANDIDATE'; extractionIds: string[] } {
   const replies = messages.flatMap((m) => m.replies.filter((r) => r.status === 'NORMAL'));
-  const passed = replies.flatMap((r) => (r.extraction?.candidates ?? []).filter((c) => c.validation === 'PASSED' && c.review_status === 'PENDING').map((c) => c.extraction_id));
+  const candidates = replies.flatMap((r) => r.extraction?.candidates ?? []).filter((c) => c.validation === 'PASSED');
+  // 검증은 통과했지만 임시 사실이 될 자격이 없어 사람을 기다리는 후보(PENDING) — 먼저 본다
+  const passed = candidates.filter((c) => c.review_status === 'PENDING').map((c) => c.extraction_id);
   if (passed.length > 0) return { state: 'CANDIDATE_RECEIVED', extractionIds: passed.sort() };
+  if (candidates.some((c) => c.review_status === 'ACCEPTED')) return { state: 'CANDIDATE_ACCEPTED', extractionIds: [] };
   if (replies.some((r) => r.extraction && ['DONE', 'NO_CANDIDATE', 'SKIPPED', 'FAILED'].includes(r.extraction.state))) return { state: 'NO_VALID_CANDIDATE', extractionIds: [] };
   return { state: replies.length > 0 ? 'REPLY_RECEIVED' : 'NONE', extractionIds: [] };
 }
@@ -109,6 +112,7 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
         const resources = await deps.context.resources();
         const subjects = [...resources.facilities.map((f) => f.facility_id), ...resources.truck_pools.map((p) => p.truck_pool_id)];
         const messages = await Promise.all((await deps.runs.outboundMessagesOfRun(runId)).map((id) => deps.drafts.get(id)));
+        const sim = { isSimulated: run.containsSimulated, scenarioId: run.scenarioId };
         return {
           recovery_run: {
             run_id: run.runId,
@@ -126,10 +130,13 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
           },
           snapshot: { snapshot_id: run.snapshotId, as_of: toSeoul(run.asOf), plan_date: run.planDate, rule_version: run.ruleVersion, policy_version: run.policyVersion },
           resources,
-          latest_observations: await deps.context.latestObservations(subjects, { isSimulated: run.containsSimulated, scenarioId: run.scenarioId }),
+          latest_observations: await deps.context.latestObservations(subjects, sim),
+          facts: await deps.context.facts(subjects, sim, Instant.fromDb(run.asOf)),
           communications: messages.map(messageStatus),
           limitations: [
-            'OBSERVATIONS_NOT_RECONCILED — latest_observations are claims, not current facts (Reconciliation is T-093)',
+            'OBSERVATIONS_ARE_RAW_CLAIMS — latest_observations are unjudged claims; read `facts` for current values and their state',
+            'PROVISIONAL_IS_NOT_CONFIRMED — a provisional fact is a validated reply value no human has confirmed; only a person makes it CONFIRMED',
+            'FRESHNESS_NOT_EVALUATED — a fact does not age yet (freshness policy Q-24)',
             'NO_SOLVER — no recovery optimisation yet (T-036); stored costs are scenario values',
             'CONTAINERS_NOT_LINKED_TO_RUN — public-data containers are not yet tied to this recovery run',
           ],
@@ -172,9 +179,11 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
                 failed_reasons: [...c.failed_reasons],
                 review_status: c.review_status,
                 generated_by: c.generated_by,
+                fact_event_id: c.fact_event_id,
+                promotion_blocked_reasons: [...c.promotion_blocked_reasons],
               })),
             })),
-          note: 'Candidates are suggestions validated by the backend. None is a fact until confirmed (T-093).' as const,
+          note: 'Candidates are suggestions validated by the backend. A qualifying one becomes a provisional fact; only a human confirmation makes it CONFIRMED (T-093).' as const,
         };
       },
     },

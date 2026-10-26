@@ -87,7 +87,7 @@ export const TOOLS = [
     version: '1',
     category: 'READ',
     description:
-      'Read the recovery run this agent run is bound to: run status and trigger, snapshot date, facilities and truck pools in play, latest observed claims (not reconciled facts) and the inquiries already drafted or sent for it. Use first, to understand the situation before choosing any other tool.',
+      'Read the recovery run this agent run is bound to: run status and trigger, snapshot date, facilities and truck pools in play, raw observed claims, the judged current facts with their state (PROVISIONAL is not confirmed) and the inquiries already drafted or sent for it. Use first, to understand the situation before choosing any other tool.',
     input: recoveryRunInput,
     output: recoveryContextOutput,
     timeoutMs: TOOL_TIMEOUT_MS.READ,
@@ -98,7 +98,7 @@ export const TOOLS = [
     version: '1',
     category: 'READ',
     description:
-      'Ask the CERA backend which facts the recovery plan needs but does not have (deterministic rules, not a judgement): warehouse/ODCY capacity for the plan date and partner truck availability. Each gap says whether an inquiry is already open and which counterparty role can answer it. Use to decide what to investigate or ask next; do not invent gaps yourself.',
+      'Ask the CERA backend which facts the recovery plan needs but does not have (deterministic rules, not a judgement): warehouse/ODCY capacity for the plan date and partner truck availability. Each gap says its state — MISSING, ASKED, PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists; a human must confirm) or NEEDS_REVIEW — whether an inquiry is already open, and which counterparty role can answer it. Only a human-confirmed fact closes a gap (it moves to `known`). Use to decide what to investigate or ask next; do not invent gaps yourself.',
     input: recoveryRunInput,
     output: informationGapsOutput,
     timeoutMs: TOOL_TIMEOUT_MS.READ,
@@ -142,7 +142,7 @@ export const TOOLS = [
     version: '1',
     category: 'READ',
     description:
-      'Read the replies to one inquiry of this recovery run and the extraction candidates the backend validated (field, candidate value, PASSED/REJECTED and why, review status). Candidates are suggestions, not facts. Use after a reply arrived to judge whether the asked information came back. No raw mail text or quotes are returned.',
+      'Read the replies to one inquiry of this recovery run and the extraction candidates the backend validated (field, candidate value, PASSED/REJECTED and why, review status). Candidates are suggestions; a qualifying one has already become a provisional fact (fact_event_id) — not a confirmed one. Use after a reply arrived to judge whether the asked information came back. No raw mail text or quotes are returned.',
     input: messageIdInput,
     output: replyCandidatesOutput,
     timeoutMs: TOOL_TIMEOUT_MS.READ,

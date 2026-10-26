@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-26 · T-093 DONE — 사실 파이프라인 · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(`feat: add provisional truth verification pipeline`). push 없음
+- 한 일: 검증된 추출 후보 → 임시 사실(PROVISIONAL) 사건(추출과 같은 트랜잭션의 승격 판정) → 사람 확인 · 거절 · 정정(모두 새 사건) → 사실 판정 `reconcile/1`(R4-b · R6 · R10 등, 정책 값 `truth-policy.ts` [ASSUMPTION]) · `canonical_fact` · `conflict` 파생 · M20 DB 가드 3(표 변경 없음) · `gap-rules/2` · `get_recovery_context.facts` · 그래프 `wait_fact_verification` · 깨우기 `AWAITING_FACT_VERIFICATION` · 화면(Agent 패널 사실 확인). 최종 보완: 시간창 subset 허용(질문 창 안의 더 좁은 창이 유효 범위) · 날짜 표현 확인(질문 날짜와 다르거나 풀 수 없으면 승격 안 함) · 정책 상수 분리 · 출처 강도 정의 문서화. ADR-037 = 구조 한정 Accepted · 선정 Deferred. T-099 = 연속 평가, MVP 임시 기본값 Qwen3-4B
+- 검증: Backend 372 · Python 71 · Front 57 · typecheck · lint · build · drizzle-kit check. Docker: 실제 Qwen3-4B → 틀린 수량 거절(사실 없음) / 통제된 회신(녹화 재생) → PROVISIONAL → 브라우저 [확인] → CONFIRMED → Agent 깨어남 · 공백 해결, [거절] · [정정] 브라우저 동작
+- 남은 일: T-111 Truth Lifecycle Hardening(철회 · 신선도 · 직접 입력 · 날짜 계약 · 확인 큐) → Cost/Risk → Solver
+- 주의: `ai/.env` 의 빈 `CERA_AI_REPLAY_DIR=` 가 녹화 폴더를 잃게 하는 결함(후속 커밋). 정정 값이 몇 분 안의 다른 사람 확인 값과 다르면 R6 충돌(NEEDS_REVIEW)이 된다 — 정책대로
+
 ## 2026-10-22 · T-099 중간 checkpoint (진행 중 — DONE 아님) · Claude Code (claude-opus-5-5)
 - 상태: **차단 — 실제 API credentials 필요. Task 는 IN_PROGRESS 유지**(`test: add CERA model evaluation harness and local baselines`, origin push — 사용자 지시)
 - 한 일: 데이터셋 루브릭 README · 정답을 보지 않은 두 번째 라벨링 → AGREED 119 · CONTESTED 22(**two-model-agreed · AI 교차 검토 — Human Gold 아님**, 사람 검토 0) · 사람 검토표 `review/gold-review.csv`(OK · FIX · UNSURE) · Gold 등급별 지표 · raw vs pipeline(Backend 검증기 포팅) 점수 · 범주별 요약 · run 메타(eval/contract version · case ids) · 가격표 10-22 재확인 · `eval` extra · HF NLI 기준선 2종(Docker CPU) · ADR-037 Proposed(공급자 = ADR, 모델 = 설정)

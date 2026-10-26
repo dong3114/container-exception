@@ -140,6 +140,59 @@ def test_full_slice_waits_for_send_and_reply_then_reads_candidates_and_reassesse
     assert names.count("create_inquiry_draft") == 1 and "get_reply_candidates" in names and names[-1] == "get_information_gaps"
 
 
+def _replied_with_promoted_candidate(tools: FakeTools) -> AgentRuntime:
+    """Start → approval → send → reply: the backend promoted the validated candidate to a PROVISIONAL fact (review_status ACCEPTED)."""
+    tools.status = {"status": "PENDING_APPROVAL", "approval_state": "NONE", "replies": []}
+    rt = runtime(tools)
+    assert rt.start(RUN, RR, "goal", PARAMS)["waiting_reason"] == "HUMAN_APPROVAL_REQUIRED"
+    tools.status = {"status": "SENT", "approval_state": "ACTIVE", "replies": []}
+    assert rt.resume(RUN, "SEND_PROGRESS", None)["waiting_reason"] == "AWAITING_REPLY"
+    tools.status = {"status": "REPLIED", "approval_state": "ACTIVE", "replies": [{"status": "NORMAL", "extraction_state": "DONE"}]}
+    tools.candidates = [
+        {"extraction_id": "e-1", "field": "quantity", "value": "4", "unit": "TRUCK", "validation": "PASSED", "failed_reasons": [], "review_status": "ACCEPTED", "generated_by": "LLM", "fact_event_id": "ev-9", "promotion_blocked_reasons": []},
+    ]
+    tools.gaps = [{**gap("PROVISIONAL_AVAILABLE"), "candidate_state": "CANDIDATE_ACCEPTED"}]
+    return rt
+
+
+def test_a_provisional_fact_makes_the_run_wait_for_a_person_and_only_a_confirmed_fact_closes_the_gap():
+    tools = FakeTools()
+    rt = _replied_with_promoted_candidate(tools)
+    out = rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)
+    # the value exists but no person confirmed it: the gap is NOT closed, the run waits for a person (not for the partner)
+    assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "AWAITING_FACT_VERIFICATION", {"type": "COMM_MESSAGE", "id": MSG})
+    # a still-provisional fact on wake-up (wrong wake) → wait again; the resume value is only a reason
+    assert rt.resume(RUN, "FACT_STATE_CHANGED", {"confirmed": True})["waiting_reason"] == "AWAITING_FACT_VERIFICATION"
+    # a person confirmed → the backend no longer lists the gap
+    tools.gaps = []
+    done = rt.resume(RUN, "FACT_STATE_CHANGED", None)
+    assert (done["status"], done["result_code"]) == ("COMPLETED", "FACT_CONFIRMED")
+    summary = done["result_summary"]
+    assert (summary["business_gap_state"], summary["facts_confirmed"], summary["reply_outcome"], summary["fact_event_ids"]) == ("KNOWN", True, "FACTS_PROMOTED", ["ev-9"])
+    assert "4" not in [str(v) for v in summary.values()]  # fact values are not copied into the run summary
+    assert [c[0] for c in tools.calls].count("create_inquiry_draft") == 1
+
+
+def test_a_rejected_or_disputed_provisional_fact_ends_the_run_without_inventing_a_fact():
+    for gap_after, code in [("ASKED", "FACT_REJECTED_GAP_OPEN"), ("NEEDS_REVIEW", "FACT_NEEDS_HUMAN_REVIEW")]:
+        tools = FakeTools()
+        rt = _replied_with_promoted_candidate(tools)
+        assert rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)["waiting_reason"] == "AWAITING_FACT_VERIFICATION"
+        tools.gaps = [{**gap(gap_after), "candidate_state": "CANDIDATE_ACCEPTED"}]
+        out = rt.resume(RUN, "FACT_STATE_CHANGED", None)
+        assert (out["status"], out["result_code"]) == ("COMPLETED", code)
+        assert out["result_summary"]["facts_confirmed"] is False
+
+
+def test_gaps_that_wait_for_a_person_are_not_gaps_the_agent_asks_about():
+    # only a provisional / disputed gap is left → nothing to ask, nothing to wait for from a partner
+    out = runtime(FakeTools(gaps=[gap("PROVISIONAL_AVAILABLE")])).start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["result_code"]) == ("COMPLETED", "OPEN_GAPS_AWAIT_HUMAN")
+    # an asked gap next to a provisional one still waits for the reply
+    mixed = runtime(FakeTools(gaps=[gap("ASKED"), {**gap("PROVISIONAL_AVAILABLE"), "gap_id": "gap:2"}])).start(RUN, RR, "goal", PARAMS)
+    assert (mixed["status"], mixed["waiting_reason"]) == ("WAITING_EXTERNAL", "AWAITING_REPLIES")
+
+
 def test_a_reply_without_a_valid_candidate_needs_a_human():
     tools = FakeTools(status="SENT", approval_state="ACTIVE")
     tools.status["replies"] = [{"status": "NORMAL", "extraction_state": "NO_CANDIDATE"}]

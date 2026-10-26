@@ -96,7 +96,7 @@
 
 ## 진행 중
 
-- **T-099** 실제 AI 공급자 검증 + CERA Eval — IN_PROGRESS(Claude Code / 2026-10-22 재개). 목적: 실제 Agent Runtime 에 넣을 Generative · Decision 모델 선정. **평가 기반 완료 · 중간 checkpoint 커밋**(데이터셋 141 · 루브릭 · AI 교차 검토 AGREED 119/CONTESTED 22 · runner · raw/pipeline 점수 · HF 기준선 2종 · ADR-037 Proposed). **남은 것 = 실제 상용 공급자 평가**(OpenAI · Anthropic · Gemini · Jev · 추출 비교 · 선정 · Agent Runtime LIVE LLM E2E · ADR-037 Accepted). **Blocker: 실제 API credentials**(`ai/.env`). 상세 `CURRENT.md`
+- **T-099** 실제 AI 공급자 검증 + CERA Eval — **MODEL_EVAL_CONTINUOUS**(연속 평가, 사용자 지시 2026-10-26; 상태 칸은 IN_PROGRESS 유지). 평가 인프라 · 141건 데이터셋 · LocalProvider · 로컬 사다리 · Validator conformance 는 끝. **MVP 임시 기본값 = 로컬 Qwen3-4B-Instruct-2507 Q4_K_M**(API 비용 0 · 현재 하드웨어에서 동작 · 교체 가능 · 결정론 검증이 보호) — **최종 Production 선정은 Deferred**. 상용(OpenAI · Gemini · Anthropic · Jev) 평가는 이번 순서에서 하지 않으며 키를 요구하지 않는다(필요할 때 같은 Eval 로 다시). ADR-037: 구조 한정 Accepted · 선정 Deferred. 파인튜닝은 사람 보정 데이터가 쌓인 뒤 검토. 상세 `CURRENT.md`
 
 ## 대기 — P0
 
@@ -207,8 +207,8 @@
 | ~~**T-090**~~ (`DONE` 2026-10-07) | U5 | Phase 5 — Outbox · Mock 발송 · 멱등 · 화해(`lookup_sent`) · kill switch · **메시지 상태 전이 규칙 검토(T-089 기술 부채 ②)** | ~~T-089~~ | A-01 · S-01~05 · **G-06(가상 데이터 실채널 차단)** | Outbox·멱등 REAL / 채널 MOCK |
 | ~~**T-091**~~ (`DONE` 2026-10-07) | U6 | Phase 6 — 수신 · 원문 · 발신자 매핑 · Quarantine · Q-44 시각 | T-089 (**T-090 과 병렬**) | I-01~07 · G-07 | 처리 REAL / 회신 MOCK |
 | ~~**T-092**~~ (`DONE` 2026-10-07) | U7 | Phase 7 — 추출 · 검증기 · 구조화 채널 AI 우회 | T-091 | X-01~05 | 검증기 REAL / 추출 포트 녹화 재생(MOCK) |
-| **T-093** | U8 | Phase 8 — 사건 · Reconciliation subset · 현재 사실 · 확인 요청 | ~~T-092~~ · ~~T-090~~ · **T-099**(사용자 결정 2026-10-07) · T-102 | E-01~05 · 회신만으로 CONFIRMED 불가 | 전부 REAL(규칙은 `18` F.5 부분집합) |
-| **T-094** | U9 | Phase 9 — 사람 확인(`VERIFICATION`) · [지금도 맞음] · 후보 선택 | T-093 | V-01~03 | 전부 REAL |
+| ~~**T-093**~~ (`DONE` 2026-10-26) | U8 | Phase 8 — 사실 파이프라인: 후보 → 임시 사실(PROVISIONAL) 사건 → 사람 확인(CONFIRMED · 거절 · 정정) · 충돌 · 보류 · 시간창 subset · 날짜 표현 확인 · 공백 · Agent 깨우기. 기록 `docs/24` 18.14 | ~~T-092~~ · ~~T-090~~ · T-102 | E-01~05 · 회신만으로 CONFIRMED 불가 | 전부 REAL(규칙은 `18` F.5 부분집합) |
+| **T-094** | U9 | Phase 9 — 확인 요청 큐(`verification_request` V1/V4 · 처리 기록 `verification_request_handling`) · [지금도 맞음] · 후보 없이 사람 값 직접 입력 · `REVOKE` API. (사람 확인 · 거절 · 정정 자체는 T-093 에서 구현됨) | T-093 | V-01~03 | 전부 REAL |
 | **T-095** | U10 | Phase 10 — OpenAPI · `CeraCommandClient` · 화면 연결(통신·확인 큐·Data Trust·타임라인) | T-094 · T-090 · **프론트 디자인 작업(Antigravity) 반영 완료** | F-01 · `validate:scenario`·`typecheck`·`lint`·`build`·`smoke` · MockProvider 기본값 유지 | 통신·확인 화면 REAL / 계획·위험·비용 화면은 시나리오 |
 | **T-096** | U11 | Phase 11 — Slice 1 인수 시험 | T-095 | 계획 15절 **DoD 19항목** | 시험만 |
 
@@ -441,6 +441,17 @@
 - 의존: 없음
 - 목표: (1) `back/src/persistence` ↔ `content` 모듈 순환 해소 — `persistence.module.ts:2-4` 가 `content/*` 를 import 하고, `content/content-service.ts:7-9` 가 `persistence/*` 를 import 한다(파일 단위 순환은 아니지만 모듈 경계가 흐리다). (2) `.github` 가 없다 — typecheck · 시험 · `docker compose config` 와 conformance(`validator-conformance.test.ts` · `test_validator_conformance.py`) · 계약 최신 여부 시험을 GitHub 에서 자동 실행하는 CI(검증기 drift 자체는 T-099 에서 시험으로 해결됨 — 자동 실행만 남음). (3) `ai/` 의존성 lockfile(지금은 상한만 있다)
 - 완료 조건: [ ] 순환 제거 또는 의도 문서화 [ ] CI 가 conformance 두 시험을 돌림 [ ] ai lockfile
+
+### T-111: Truth Lifecycle Hardening (Solver 전 필수)
+- 상태: TODO | 우선: P0 | 단계: Phase 1 | 담당: -
+- 의존: ~~T-093~~
+- 목표: 사실이 바뀌거나 틀렸을 때 안전하게 되돌린다 — Solver 가 낡은 · 철회된 값을 현재 사실로 쓰지 않게.
+  (1) **철회 · 무효화**: 확정 값이 더는 유효하지 않은데 새 값이 없는 경우(예: 10:00 CONFIRMED 4대 → 14:00 업체 사정 변경). 현재 스키마의 `VERIFICATION(REVOKE)` · 값 없는 `CORRECTION`(철회 — 판정 규칙은 이미 있음) 중 무엇으로 표현할지 설계 + 사람 API
+  (2) **신선도(Q-24)**: 명시적 `valid_from` · `valid_until` 이 있으면 그것 우선. 없는 운영 사실은 계열별 정책(창고 수용량 · 차량 가용 · 게이트 · 선석 관측) — 임의 TTL 금지, 계열별로 정한다. 주기 재판정
+  (3) **사람 직접 입력**: AI 후보 없이 운영자가 사실을 입력("창고 B 오늘 6대", 전화 확인) — HUMAN_UI 사건 · 감사 · 출처
+  (4) **날짜를 담는 회신 계약** `reply-extract/2`(답의 날짜 칸) + 검증기 · conformance — 지금은 `date-scope.ts` 가 날짜 표현이 질문 날짜와 다르면 막기만 한다
+  (5) **확인 요청 큐** 필요성 검토(`verification_request` V1/V4 · 처리 기록 — T-094 와 합칠지)
+- 완료 조건: [ ] 철회 · 무효화 → 현재 사실에서 빠짐 · 공백 다시 열림 · Agent 깨움 [ ] 신선도가 판정 · R11 에 반영 [ ] 직접 입력 API + 화면 [ ] `reply-extract/2` [ ] 시험
 
 ### T-038: Three.js Simulator 상세 명세
 - 상태: TODO | 우선: P2 | 단계: Phase 0~3 | 담당: -
@@ -926,3 +937,7 @@
 ## 백로그 (로드맵에서 꺼낼 후보)
 
 T-041 ~ T-059: `docs/12_roadmap.md` 3~5절. 의존이 풀리면 위 템플릿으로 옮겨 적는다.
+
+
+### T-093 후속 순서 (2026-10-26 사용자 지시 — Solver 전에 Truth Lifecycle 보강)
+**T-111 Truth Lifecycle Hardening → Cost / Risk Engine → Solver(Q-65) → Recovery Plan 생성 → 실제 이메일 채널 → 역할 · 인증 UI(T-098) → 연속 모델 평가 / 파인튜닝(사람 보정 데이터 이후)**

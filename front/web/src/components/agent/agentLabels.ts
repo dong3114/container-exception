@@ -44,6 +44,7 @@ const NODE_LABEL: Record<string, string> = {
   build_result: "결과 정리",
   fetch_public_data: "공공데이터 조회",
   wait_external: "외부 대기",
+  wait_fact_verification: "임시 사실 사람 확인 대기",
   refresh_context: "맥락 다시 읽기",
 };
 
@@ -55,6 +56,7 @@ const WAITING_LABEL: Record<string, string> = {
   AWAITING_SEND_REQUEST: "승인됐습니다. 발송 요청을 기다립니다 — Agent 는 보내지 않습니다. 아래 '문의 초안'의 [발송 요청]을 누르세요.",
   AWAITING_DELIVERY: "발송 대기열에 있습니다 — 발송 Worker 가 보내기를 기다립니다.",
   AWAITING_REPLY: "상대 업체의 회신을 기다립니다. 회신이 오고 추출이 끝나면 자동으로 이어 갑니다.",
+  AWAITING_FACT_VERIFICATION: "임시 사실이 사람 확인을 기다리는 중입니다 — 아래에서 확인·거절·정정하세요. Agent 는 확정하지 않습니다.",
   AWAITING_REPLIES: "묻는 중인 문의의 회신을 기다립니다.",
   AGENT_RUNTIME_UNAVAILABLE: "Agent Runtime 에 닿지 않습니다 — 정해진 시각에 자동으로 다시 시도합니다.",
   AGENT_RUNTIME_TIMEOUT: "Agent Runtime 응답이 늦었습니다 — 정해진 시각에 자동으로 다시 시도합니다.",
@@ -63,7 +65,12 @@ const WAITING_LABEL: Record<string, string> = {
 export const waitingLabel = (reason: string | null) => (reason ? (WAITING_LABEL[reason] ?? reason) : null);
 
 const RESULT_LABEL: Record<string, string> = {
-  CANDIDATE_RECEIVED_PENDING_CONFIRMATION: "회신에서 검증을 통과한 값 후보가 도착했습니다. 아직 확정 사실이 아닙니다(사람 확인 · 다음 단계에서 반영).",
+  CANDIDATE_RECEIVED_PENDING_CONFIRMATION: "회신에서 검증을 통과한 값이 왔지만, 자동으로 사실이 되기에는 조건이 부족합니다. 아직 확정 사실이 아닙니다 — 사람이 직접 살펴봐야 합니다.",
+  FACT_CONFIRMED: "사람이 확인한 사실로 정보 공백이 닫혔습니다.",
+  FACT_NEEDS_HUMAN_REVIEW: "사실 판단에 충돌이나 보류가 있습니다 — 사람이 검토해야 합니다.",
+  FACT_AWAITING_CONFIRMATION: "임시 사실이 올라왔습니다. 아직 확정 아님 — 사람이 확인해야 합니다.",
+  FACT_REJECTED_GAP_OPEN: "임시 사실이 거절되어 정보 공백이 다시 열렸습니다.",
+  OPEN_GAPS_AWAIT_HUMAN: "열린 정보 공백이 남아 있습니다 — 사람의 판단을 기다립니다.",
   REPLY_NEEDS_HUMAN_REVIEW: "회신은 왔지만 검증을 통과한 후보가 없습니다 — 사람이 회신을 읽고 판단해야 합니다.",
   INQUIRY_REJECTED: "문의 초안이 반려되어 이번 실행을 마쳤습니다.",
   APPROVAL_WITHDRAWN: "승인이 취소 · 무효화되어 이번 실행을 마쳤습니다.",
@@ -105,6 +112,7 @@ const SUMMARY_LABEL: Record<string, string> = {
   candidate_state: "후보 상태(작업 흐름)",
   business_gap_state: "업무 공백 상태(사실 기준)",
   candidate_fields: "후보가 온 항목",
+  fact_event_ids: "임시 사실 기록",
   facts_confirmed: "확정된 사실",
   public_data_mode: "공공데이터 출처",
   public_data_outcome: "공공데이터 조회 결과",
@@ -120,7 +128,13 @@ export function summaryRows(summary: AgentRun["result_summary"]): { label: strin
     .filter((k) => summary[k] !== undefined && summary[k] !== null)
     .map((k) => {
       const v = summary[k];
-      const value = Array.isArray(v) ? v.join(", ") || "—" : typeof v === "boolean" ? (v ? "예" : "아니오 — 아직 후보") : String(v);
+      const value = Array.isArray(v)
+        ? (k === "fact_event_ids" ? v.map((id) => id.slice(0, 8)) : v).join(", ") || "—"
+        : typeof v === "boolean"
+          ? v ? "예 — 사람이 확인함" : "아니오 — 아직 사람이 확인하지 않음"
+          : k === "candidate_state" && v === "CANDIDATE_ACCEPTED"
+            ? "CANDIDATE_ACCEPTED (임시 사실로 올라감)"
+            : String(v);
       return { label: SUMMARY_LABEL[k] ?? k, value };
     });
 }

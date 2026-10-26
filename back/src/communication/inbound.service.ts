@@ -10,6 +10,7 @@ import { ExtractionRepository } from './extraction.repository.js';
 import { type Check, failedCodes } from './extraction-rules.js';
 import { InboundRepository } from './inbound.repository.js';
 import { type DateRejectReason, type HoldReason, normalizeAddress } from './inbound-rules.js';
+import { TruthRepository } from '../truth/truth.repository.js';
 
 const PREVIEW = 300;
 const LIMIT = 50;
@@ -25,6 +26,7 @@ export class InboundService {
     @Inject(InboundRepository) private readonly inbound: InboundRepository,
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
     @Inject(ExtractionRepository) private readonly extractions: ExtractionRepository,
+    @Inject(TruthRepository) private readonly truth: TruthRepository,
     @Inject(ENV) env: Env,
   ) {
     this.maxAttempts = env.CERA_EXTRACTION_MAX_ATTEMPTS;
@@ -51,6 +53,7 @@ export class InboundService {
     const rows = await this.extractions.forMessages(messageIds);
     const done = await this.extractions.completions(messageIds);
     const failures = await this.extractions.failures(messageIds);
+    const blocked = await this.truth.blockedReasons(rows.filter((x) => x.reviewStatus === 'PENDING').map((x) => x.extractionId));
     for (const id of messageIds) {
       const candidates: InboundExtractionDto['candidates'] = [];
       for (const x of rows.filter((row) => row.messageId === id)) {
@@ -68,6 +71,8 @@ export class InboundService {
           failed_reasons: failed,
           review_status: x.reviewStatus as InboundExtractionDto['candidates'][number]['review_status'],
           generated_by: x.modelVersion.startsWith('replay:') ? 'RECORDED_REPLAY' : 'LLM',
+          fact_event_id: x.createdEventId,
+          promotion_blocked_reasons: [...new Set(blocked.get(x.extractionId) ?? [])],
         });
       }
       const fail = failures.get(id);

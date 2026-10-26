@@ -15,6 +15,8 @@ const candidate = (over: Partial<Extraction["candidates"][number]>): Extraction[
   failed_reasons: [],
   review_status: "PENDING",
   generated_by: "RECORDED_REPLAY",
+  fact_event_id: null,
+  promotion_blocked_reasons: [],
   ...over,
 });
 const view = (e: Partial<Extraction>) =>
@@ -48,5 +50,17 @@ describe("AI suggestions — candidates with evidence, never facts", () => {
     expect(view({ state: "RETRYING", failed_attempts: 1, last_error_code: "EXTRACTION_TIMEOUT" })).toContain("자동으로 다시 시도합니다 · EXTRACTION_TIMEOUT");
     expect(view({ state: "FAILED", failed_attempts: 3, last_error_code: "AI_SERVER_UNAVAILABLE" })).toContain("재시도 한도에 도달(회신 원문은 그대로 보관)");
     expect(view({ state: "NO_CANDIDATE", no_candidate_outcome: "UNPARSEABLE" })).toContain("질문에 대한 값을 찾지 못함 (UNPARSEABLE)");
+  });
+
+  it("tells apart: became a provisional fact, validated but not promoted (with reasons), and plain candidates", () => {
+    const accepted = view({ candidates: [candidate({ review_status: "ACCEPTED", fact_event_id: "e1", promotion_blocked_reasons: [] })] });
+    expect(accepted).toContain("임시 사실로 올라감");
+    expect(accepted).toContain("아직 사람이 확인하지 않았습니다");
+    expect(accepted).not.toContain("사람 확인 완료");
+    const held = view({ candidates: [candidate({ promotion_blocked_reasons: ["AMBIGUOUS_REPLY", "WINDOW_UNVERIFIED"] })] });
+    expect(held).toContain("자동 승격 안 됨 — 사람이 판단");
+    expect(held).toContain("이유: 모호한 표현 · 시간창 검증 불가");
+    const rejected = view({ candidates: [candidate({ validation: "REJECTED", review_status: "REJECTED", failed_reasons: ["BAD_QUANTITY"] })] });
+    expect(rejected).not.toContain("extraction-promotion");
   });
 });

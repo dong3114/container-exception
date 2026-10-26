@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DraftService } from '../communication/draft.service.js';
+import { TruthService } from '../truth/truth.service.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { DOMAIN_SIGNALS, type DomainSignal, type DomainSignals } from '../shared/signals/domain-signals.js';
@@ -33,6 +34,7 @@ export class AgentReconciler implements OnModuleInit {
     @Inject(RuntimeStoreRepository) private readonly store: RuntimeStoreRepository,
     @Inject(AgentCoordinator) private readonly coordinator: AgentCoordinator,
     @Inject(DraftService) private readonly drafts: DraftService,
+    @Inject(TruthService) private readonly truth: TruthService,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ENV) private readonly env: Env,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
@@ -41,7 +43,7 @@ export class AgentReconciler implements OnModuleInit {
   /** 수신 · 추출 알림(Worker 프로세스) → 바로 한 번 더 재조정. 이미 도는 중이면 끝난 뒤 한 번 더. 승인 알림은 Coordinator 가 직접 받는다. */
   onModuleInit(): void {
     this.signals.subscribe((s: DomainSignal) => {
-      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED') return;
+      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED' && s.type !== 'FACT_CHANGED') return;
       this.kick();
     });
   }
@@ -86,12 +88,25 @@ export class AgentReconciler implements OnModuleInit {
         status: dto.message.status ?? '',
         approvalState: dto.approval.state,
         replies: dto.replies.map((r) => ({ status: r.status, extractionState: r.extraction?.state ?? null })),
+        // 사실 대기만 사실을 읽는다 — 다른 대기는 이 조회가 필요 없다
+        ...(w.waitingReason === 'AWAITING_FACT_VERIFICATION' ? { facts: await this.factStates(w.pendingRefId) } : {}),
       });
       if (!reason) continue;
       const r = await this.coordinator.resume(w.agentRunId, reason, { type: 'COMM_MESSAGE', id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
       if (r && !r.already) summary.woken += 1;
     }
     return summary;
+  }
+
+  /** 이 문의가 물은 좌표들의 지금 사실이 "사람 확인 대기"인지 — 사건에서 바로 판정한다(알림 · 파생 표에 기대지 않는다). */
+  private async factStates(outboundMessageId: string): Promise<{ awaitingConfirmation: boolean }[]> {
+    const coordinates = await this.truth.repo.messageCoordinates(outboundMessageId);
+    const out: { awaitingConfirmation: boolean }[] = [];
+    for (const c of coordinates) {
+      const live = await this.truth.liveForCoordinate(c);
+      out.push({ awaitingConfirmation: live.state === 'PROVISIONAL' });
+    }
+    return out;
   }
 
   private warn(agentRunId: string, error: unknown): null {

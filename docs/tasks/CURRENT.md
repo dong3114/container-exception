@@ -10,14 +10,19 @@
 
 ## Status
 
-**IMPLEMENTING — T-099 실제 AI 공급자 검증 + CERA Eval (진행 중 · 실제 상용 공급자 평가 대기)** · Orchestrator: Claude Code (claude-opus-5-5) · 2026-10-22. **평가 기반 중간 checkpoint 커밋 + origin push 완료(사용자 지시 2026-10-22)** — T-099 는 DONE 이 아니다. **Blocker = 실제 API credentials**(`OPENAI_API_KEY` · `ANTHROPIC_API_KEY` · `GEMINI_API_KEY`, Jev 는 `OPENROUTER_API_KEY` — `ai/.env`).
+**IMPLEMENTING — Runtime 안전 상한 재정의(T-093 후속 지시 · 2026-10-26)** · Orchestrator: Claude Code. **T-093 DONE**(커밋, push 없음 — `LOG.md` 맨 위 · `docs/24` 18.14). 다음 Task: **T-111 Truth Lifecycle Hardening**(Solver 전). T-099 는 연속 평가.
 
-### Task: T-099 (재개) — 실제 CERA Runtime 에 넣을 AI 선정
+### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"
 
-- **Goal**: 회신 → 추출 → 판정 → 공백 재평가로 이어지는 실제 Agent Runtime 에 넣을 Generative(1 · 2순위) · Decision(1순위 · baseline) 모델을 CERA Eval 로 고른다.
-- **Scope**: 기존 자산 재사용(141건 데이터셋 · 실행기 · 어댑터 3종 · Decision · HF NLI · replay) · Gold 상태 정리(검토 가능한 subset) · 공식 문서로 후보 최신화 · 5건 → 20건 → 전체 비용 단계 · raw vs pipeline(Backend 검증기) 점수 · Decision 지표(F1 · Brier · calibration) · 상위 모델 하나로 Agent Runtime live-LLM E2E smoke · 공급자 ADR(Proposed — 공급자와 모델 분리).
-- **Out of Scope**: T-093 Event · PROVISIONAL · CONFIRMED · Solver · RAG · Vector DB · Fine-tuning · Multi-Agent · threshold 업무 정책 확정.
-- **Existing Decisions**: 추출 = 후보(사실 아님) · Decision 은 권한 없음(확률만, threshold 는 Backend 가 향후) · 업무 fact state 와 candidate_state 분리(T-105 승인) · 비밀값 출력 · 커밋 금지.
+- 원칙(사용자 지시): 운영 데이터가 없으므로 정상 실행을 막는 낮은 제한을 추측해 두지 않는다. 폭주(무한 loop · retry · HTTP 대기 · 생성)만 막는 넉넉한 비상 상한 `[ASSUMPTION / DEVELOPMENT SAFETY CEILING]` 을 두고, 분포(p50 · p90 · p95 · p99 · max)를 보고 줄인다. 사람 · 외부 대기(WAITING_*)는 실행 시간 제한 대상이 아니다.
+- 상세 · 결과는 `docs/24` 18.15 에 기록한다.
+
+### T-099 — 연속 모델 평가 (MODEL_EVAL_CONTINUOUS · 2026-10-26)
+
+- **현재 임시 모델**: Qwen3-4B-Instruct-2507 Q4_K_M(llama.cpp, OpenAI 호환, 로컬 Docker `llm` 프로필). 이유: API 비용 0 · 현재 하드웨어에서 동작 · 교체 가능 · 결정론 검증이 보호. **최종 Production 선정: Deferred.** 설정 위치 `ai/.env.example`(provider · model) · `infra/local/.env.example`(`CERA_LLM_HF`).
+- 모델의 역할은 후보 제시뿐이다(값 후보 · 정규화 값 · 정확한 인용 · 모호성). 사실 확정 · 승인 · 발송 · 권한 판정 · 계획 확정은 못 한다. 틀린 값(예: `"Yeah"`)은 장애가 아니라 후보 거절이다.
+- 상용 fallback(Local → 검증 실패 / 모호 → 상용 → 사람)은 구현하지 않는다. 공급자 추상화는 유지한다.
+- 파인튜닝 안 함(141건 중 Human Gold 없음). 나중 학습 데이터로 재구성할 수 있는 고리만 남겼다(`docs/24` 18.14 F-13).
 
 ### T-099 추가 작업 (2026-10-26 · 사용자 승인 · 체크포인트 커밋 2개)
 
@@ -34,7 +39,7 @@
 - **주의(Windows)**: Git Bash 는 컨테이너 경로 인자(`/srv/...`)를 `C:/Program Files/Git/...` 로 바꾼다 · curl 에 한글을 인자로 직접 주면 깨진다(`--data-binary @파일` 사용)
 
 **T-099 완료된 것**: 평가 인프라 · 141건 데이터셋 · AI 교차 검토 · HF Decision 기준선 · LocalProvider · Docker 모델 서빙 · 로컬 생성 모델 사다리 · Validator conformance · 전체 Docker 런타임.
-**T-099 남은 것**: OpenAI · Gemini live 평가(필요하면 Anthropic) · Jev live 평가 · 상용 vs 로컬 비교 · 추출 공급자/모델 선정 · Decision 공급자/모델 선정 · Live LLM Agent E2E · ADR-037 Accepted. 평가 순서 5건 → 20건 → 비용 확인 → AGREED 전체. 로컬은 Qwen3-4B 만 비교 후보로 유지(1.5B · 3B 전체 실행 안 함, 7B 는 GPU 환경 전까지 전체 실행 안 함)
+**(옛) T-099 남은 것 — 연속 평가로 전환되어 보류**: OpenAI · Gemini live 평가(필요하면 Anthropic) · Jev live 평가 · 상용 vs 로컬 비교 · 추출 공급자/모델 선정 · Decision 공급자/모델 선정 · Live LLM Agent E2E · ADR-037 Accepted. 평가 순서 5건 → 20건 → 비용 확인 → AGREED 전체. 로컬은 Qwen3-4B 만 비교 후보로 유지(1.5B · 3B 전체 실행 안 함, 7B 는 GPU 환경 전까지 전체 실행 안 함)
 **다음 한 걸음**: `ai/.env` 의 `OPENAI_API_KEY` · `GEMINI_API_KEY`(필요하면 `ANTHROPIC_API_KEY` · Jev 는 `OPENROUTER_API_KEY`)가 준비되면 상용 모델 평가
 
 ### T-099 진행 (2026-10-22)

@@ -17,6 +17,7 @@ import { Instant } from '../shared/time/instant.js';
 import { DraftService } from './draft.service.js';
 import { EXTRACTION_COMPONENT, type ExtractionInsert, ExtractionRepository } from './extraction.repository.js';
 import { buildAsk, validateAnswers } from './extraction-rules.js';
+import { PromotionService } from '../truth/promotion.service.js';
 
 export type ExtractResult = 'EXTRACTED' | 'NO_CANDIDATE' | 'FAILED' | 'SKIPPED' | 'DUPLICATE';
 
@@ -30,7 +31,8 @@ const UNIT_FORMAT = /^[A-Z0-9][A-Z0-9_]*$/;
  *   3. 응답은 후보일 뿐: 결정론 검증기가 답마다 검사(질문 범위 · 인용 원문 대조 · 형식 · 단위 · 값-인용 · 상충)
  *   4. 인용을 내용 저장소에 넣고(트랜잭션 밖) → 한 트랜잭션: 추출 행(통과 = PENDING, 탈락 = REJECTED · SYSTEM) + 완료 감사
  *
- * **사실을 만들지 않는다**: Event · 현재 사실 · 확인은 다음 단위(U8). 기술 실패는 `system_error` — 원문 · 회신은 그대로, 다음 주기에 재시도.
+ * **추출은 사실을 만들지 않는다** — 통과한 후보를 임시 사실(사건)로 올릴지는 승격 판정(`PromotionService`, T-093)이 같은 트랜잭션에서 따로 정한다.
+ * 기술 실패는 `system_error` — 원문 · 회신은 그대로, 다음 주기에 재시도.
  */
 @Injectable()
 export class ExtractionProcessor {
@@ -40,6 +42,7 @@ export class ExtractionProcessor {
   constructor(
     @Inject(ExtractionRepository) private readonly repo: ExtractionRepository,
     @Inject(DraftService) private readonly drafts: DraftService,
+    @Inject(PromotionService) private readonly promotion: PromotionService,
     @Inject(ContentService) private readonly content: ContentService,
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
@@ -73,11 +76,11 @@ export class ExtractionProcessor {
     // AI 가 읽는 텍스트 = 검증기가 인용을 찾는 텍스트(같은 원문 바이트에서 같은 함수로)
     const bytes = subject.payloadRef ? await this.store.get(subject.payloadRef as Parameters<ContentStore['get']>[0]) : ABSENT;
     const surface = bytes === ABSENT ? null : readInboundSurface(subject.sourceName, bytes);
-    if (!surface) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_CONTENT, []);
+    if (!surface) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_CONTENT, [], '');
     const asks = subject.questions
       .map((q) => buildAsk({ askId: q.askId, questionType: q.questionType, questionText: q.questionText, expectedUnit: q.expectedUnit, values: subject.askedValues }))
       .filter((a): a is Ask => a !== null);
-    if (asks.length === 0) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_QUESTION, []);
+    if (asks.length === 0) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_QUESTION, [], '');
 
     const request: ExtractionRequest = {
       schema_version: REPLY_EXTRACT_SCHEMA,
@@ -143,7 +146,7 @@ export class ExtractionProcessor {
       validatorResult: v.checks,
     }));
     const action = (rows.length > 0 ? AUDIT_ACTION.EXTRACTION_COMPLETED : `EXTRACTION_NO_CANDIDATE_${response.outcome}`) as AuditAction;
-    const outcome = await this.finish(messageId, subject.isSimulated, system, action, rows);
+    const outcome = await this.finish(messageId, subject.isSimulated, system, action, rows, surface.bodyText);
     this.logger.log({
       msg: 'reply extraction stored',
       message_id: messageId,
@@ -158,14 +161,22 @@ export class ExtractionProcessor {
   }
 
   /** 한 트랜잭션: 같은 회신을 줄 세우고, 이미 끝났으면 아무것도 하지 않는다(재시도 · 동시 Worker — 중복 행 없음). */
-  private async finish(messageId: string, isSimulated: boolean, system: string, action: AuditAction, rows: ExtractionInsert[]): Promise<ExtractResult> {
-    return this.tx.run(async (tx) => {
+  private async finish(messageId: string, isSimulated: boolean, system: string, action: AuditAction, rows: ExtractionInsert[], sourceText: string): Promise<ExtractResult> {
+    let promoted: { entityId: string; factKey: string }[] = [];
+    const outcome = await this.tx.run(async (tx) => {
       await this.repo.lockMessage(tx, messageId);
       if (await this.repo.hasExtractions(tx, messageId)) return 'DUPLICATE' as const;
       await this.repo.insert(tx, rows);
       await this.audit.record(tx, { actorId: system, action, targetType: 'COMM_MESSAGE', targetId: messageId, result: 'SUCCESS', isSimulated });
       if (action.startsWith('EXTRACTION_SKIPPED')) return 'SKIPPED' as const;
+      // 통과한 후보를 임시 사실로 올릴 자격이 있는가(T-093) — 추출 저장과 한 트랜잭션: 추출이 끝났다고 보이면 승격 판정도 끝나 있다
+      if (rows.some((r) => r.reviewStatus === 'PENDING')) {
+        const summary = await this.promotion.promoteMessage(tx, messageId, system, sourceText);
+        promoted = summary.promoted.map((p) => p.coordinate);
+      }
       return rows.length > 0 ? ('EXTRACTED' as const) : ('NO_CANDIDATE' as const);
     });
+    for (const c of promoted) this.signals.emit({ type: 'FACT_CHANGED', entityId: c.entityId, factKey: c.factKey });
+    return outcome;
   }
 }

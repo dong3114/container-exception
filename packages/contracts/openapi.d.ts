@@ -549,6 +549,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/truth/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Facts a recovery run asked about: current value + state + every candidate event with its role (the AI quote, who said it, whether a human confirmed it) */
+        get: operations["TruthController_facts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/truth/events/{eventId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm a candidate value (VERIFICATION · CONFIRM by a human). The value becomes CONFIRMED; nothing else changes */
+        post: operations["TruthController_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/truth/events/{eventId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a candidate value (VERIFICATION · REJECT by a human, reason required). It leaves the judgement; the event stays on record */
+        post: operations["TruthController_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/truth/events/{eventId}/correct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct a candidate value: the old event is superseded (kept on record) and the operator’s value becomes a new CONFIRMED event */
+        post: operations["TruthController_correct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -958,10 +1026,17 @@ export interface components {
             /** @description Failed checks: QUOTE_NOT_IN_SOURCE, FIELD_NOT_ASKED, UNIT_MISMATCH:x, VALUE_NOT_IN_QUOTE, CONFLICTING_CANDIDATES, ... */
             failed_reasons: string[];
             /**
-             * @description PENDING = passed and waiting to become an event (next step). Nothing is a fact yet
+             * @description PENDING = passed validation but did not qualify to become a provisional fact (see promotion_blocked_reasons) · ACCEPTED = it became an event (a provisional fact — see fact_event_id) · REJECTED = failed validation
              * @enum {string}
              */
             review_status: "PENDING" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
+            /**
+             * Format: uuid
+             * @description The event this candidate became (T-093). A provisional fact until a human confirms it
+             */
+            fact_event_id: string | null;
+            /** @description Why a validated candidate was not turned into a provisional fact (SENDER_NOT_AUTHORITY · WINDOW_OUT_OF_SCOPE · DATE_OUT_OF_SCOPE · DATE_UNVERIFIED · AMBIGUOUS_REPLY · PLAN_SUPERSEDED …). A person decides */
+            promotion_blocked_reasons: string[];
             /**
              * @description RECORDED_REPLAY = recorded response, no LLM was run
              * @enum {string}
@@ -1310,6 +1385,129 @@ export interface components {
         };
         FetchLedgerDto: {
             fetches: components["schemas"]["FetchLedgerEntryDto"][];
+        };
+        ApplicabilityScopeDto: {
+            type: string;
+            ref: string;
+        };
+        FactCurrentDto: {
+            /** Format: uuid */
+            event_id: string;
+            value: number | null;
+            unit: string | null;
+            valid_from: string | null;
+            valid_until: string | null;
+            evidence_strength: number;
+            verified_by_human: boolean;
+            /** @enum {string|null} */
+            verification_basis: "HUMAN_VERIFICATION" | "AUTHORITATIVE_SYSTEM" | null;
+        };
+        FactCandidateDto: {
+            /** Format: uuid */
+            event_id: string;
+            /** @enum {string} */
+            event_class: "OBSERVATION" | "CORRECTION";
+            /**
+             * @description What this event is in the current judgement. WINNER = the current value
+             * @enum {string}
+             */
+            role: "WINNER" | "CORROBORATING" | "OUTDATED" | "DISSENTING" | "CONTESTING" | "HELD_CANDIDATE" | "INELIGIBLE" | "REJECTED" | "SUPERSEDED";
+            value: number | null;
+            unit: string | null;
+            /** @description The value applies from here (Asia/Seoul) — the asked date / time window */
+            valid_from: string | null;
+            valid_until: string | null;
+            /** @description EMAIL · HUMAN_UI · … */
+            source_type: string;
+            source_role: string | null;
+            /** @description Evidence strength 0..3 (docs/05 3.3) */
+            evidence_strength: number;
+            /** @enum {string} */
+            verification: "UNVERIFIED" | "CONFIRMED" | "REJECTED";
+            /** @description Entered by a human or confirmed by one */
+            verified_by_human: boolean;
+            received_at: string;
+            /** @description Evidence time used for ordering (Q-44 sent time, else received time) */
+            evidence_time: string;
+            /** Format: uuid */
+            supersedes_event_id: string | null;
+            /**
+             * Format: uuid
+             * @description The AI extraction this event came from
+             */
+            extraction_id: string | null;
+            /** @description Verbatim quote from the reply (null when none or the stored quote is gone) */
+            evidence_quote: string | null;
+            /**
+             * @description RECORDED_REPLAY = recorded response, no LLM was run
+             * @enum {string}
+             */
+            generated_by: "LLM" | "RECORDED_REPLAY" | "HUMAN" | "SYSTEM";
+            model_version: string | null;
+            prompt_version: string | null;
+        };
+        FactCoordinateDto: {
+            entity_type: string;
+            /** Format: uuid */
+            entity_id: string;
+            entity_name: string | null;
+            /** @description e.g. available.slot(2026-10-13T15:00-17:00) · capacity.day(2026-10-13) */
+            fact_key: string;
+            applicability_scope: components["schemas"]["ApplicabilityScopeDto"];
+            is_simulated: boolean;
+            /** @enum {string} */
+            fact_state: "PROVISIONAL" | "CONFIRMED" | "OBSERVED" | "NEEDS_REVIEW" | "UNKNOWN";
+            /** @enum {string} */
+            value_status: "UNKNOWN" | "PROVISIONAL" | "OBSERVED" | "CONFIRMED";
+            /** @enum {string} */
+            conflict_status: "NONE" | "DISSENT" | "OPEN";
+            /** @enum {string} */
+            hold_status: "NONE" | "HELD";
+            /** @enum {string} */
+            decision_usability: "USABLE" | "USABLE_WITH_WARNING" | "APPROVAL_BLOCKED" | "UNUSABLE";
+            /** @description Reconciliation rule that picked the current value (R4-a · R4-b · R6 · R10) */
+            applied_rule: string | null;
+            rule_version: string;
+            /** @description The current value — null when no eligible value exists */
+            current: components["schemas"]["FactCurrentDto"] | null;
+            /**
+             * Format: uuid
+             * @description A weaker, adverse change held for human review (the current value stays)
+             */
+            held_event_id: string | null;
+            /** @description Every event for this fact, newest first, with its role in the judgement */
+            candidates: components["schemas"]["FactCandidateDto"][];
+        };
+        FactListDto: {
+            evaluated_at: string;
+            rule_version: string;
+            /** @description What this judgement does not cover yet */
+            limitations: string[];
+            facts: components["schemas"]["FactCoordinateDto"][];
+        };
+        ConfirmFactRequestDto: {
+            /**
+             * Format: uuid
+             * @description Retry key — the same command id never creates a second event
+             */
+            command_id?: string;
+            note?: string;
+        };
+        RejectFactRequestDto: {
+            /** Format: uuid */
+            command_id?: string;
+            /** @enum {string} */
+            reason_code: "MODEL_MISREAD" | "CONDITIONAL_ANSWER" | "OUTDATED_REPLY" | "WRONG_SENDER_CONTEXT" | "WRONG_UNIT" | "CONFLICTING_EVIDENCE" | "OPERATOR_CORRECTION";
+            note?: string;
+        };
+        CorrectFactRequestDto: {
+            /** Format: uuid */
+            command_id?: string;
+            /** @description The value the operator reads from the reply (whole number, same unit as the current value) */
+            value: number;
+            /** @enum {string} */
+            reason_code: "MODEL_MISREAD" | "CONDITIONAL_ANSWER" | "OUTDATED_REPLY" | "WRONG_SENDER_CONTEXT" | "WRONG_UNIT" | "CONFLICTING_EVIDENCE" | "OPERATOR_CORRECTION";
+            note?: string;
         };
         ErrorResponse: {
             /** @description Stable error code */
@@ -2676,6 +2874,246 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    TruthController_facts: {
+        parameters: {
+            query: {
+                recovery_run_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactListDto"];
+                };
+            };
+            /** @description INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RUN_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_confirm: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmFactRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactCoordinateDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_SUPERSEDED · ALREADY_REJECTED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_reject: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectFactRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactCoordinateDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_SUPERSEDED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_correct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectFactRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactCoordinateDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_SUPERSEDED · ALREADY_REJECTED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description VALUE_UNCHANGED · NOT_CORRECTABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

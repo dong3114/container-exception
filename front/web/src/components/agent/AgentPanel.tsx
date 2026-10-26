@@ -3,6 +3,7 @@ import { type AgentRun, cancelAgentRun, createAgentRun, getAgentRun, listAgentRu
 import { type Draft, getDraft, listApprovers, listRuns } from "@/api/drafts";
 import { describeApiError } from "@/api/errors";
 import { DraftView } from "@/components/drafts/DraftView";
+import { FactsPanel } from "@/components/facts/FactsPanel";
 import { useAsyncAction } from "@/state/async";
 import { STATUS_BADGE, STATUS_LABEL, isActive, milestones, nodeLabel, resultLabel, summaryRows, terminalCode, waitingLabel } from "./agentLabels";
 
@@ -274,6 +275,8 @@ export function AgentPanel() {
               </ul>
             </div>
           </div>
+
+          <FactsPanel recoveryRunId={run.recovery_run_id} actorId={actor} refreshKey={`${run.status}:${run.updated_at ?? ""}:${run.current_node ?? ""}`} />
 
           {draft && run.status === "WAITING_HUMAN" && (
             <div style={{ borderTop: "1px solid var(--line)", paddingTop: 8 }} data-testid="agent-pending-draft">

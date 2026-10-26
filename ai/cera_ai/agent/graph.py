@@ -7,7 +7,8 @@
       │                                             ├─ AWAIT_SEND_REQUEST → wait_send_request ⟲ INTERRUPT(HUMAN) → track_message
       │                                             ├─ AWAIT_DELIVERY     → wait_delivery ⟲ INTERRUPT(EXTERNAL) → track_message
       │                                             ├─ AWAIT_REPLY        → wait_reply ⟲ INTERRUPT(EXTERNAL) → track_message
-      │                                             ├─ REPLY_READY        → read_reply → reassess_gaps → build_result
+      │                                             ├─ REPLY_READY        → read_reply → reassess_gaps ─┬─ PROVISIONAL → wait_fact_verification ⟲ INTERRUPT(HUMAN) → reassess_gaps
+      │                                             │                                               └─ otherwise   → build_result
       │                                             └─ REJECTED · WITHDRAWN · DELIVERY_FAILED → build_result
       ├─ PUBLIC_DATA   → fetch_public_data → inspect_gaps (loop, bounded)
       ├─ WAIT_EXTERNAL → wait_external ⟲ INTERRUPT → refresh_context → inspect_gaps
@@ -15,8 +16,9 @@
     every node: step limit (whole run) / tool-call limit (per active stretch between waits) → LOOP_LIMIT_REACHED · TOOL_CALL_LIMIT_REACHED
 
 The agent never sends: after approval a person requests the send, the backend Outbox/Worker sends (T-090 rules),
-and the graph only observes the message status and waits. A reply's extraction candidates are suggestions —
-the run ends with "candidate received", never with a confirmed fact (T-093 promotes candidates).
+and the graph only observes the message status and waits. A reply's extraction candidates are suggestions: the backend
+may promote a validated one to a *provisional* fact (never confirmed). While a provisional fact waits for a person, the run
+waits too (AWAITING_FACT_VERIFICATION) and re-reads the gap when the fact changes — only a human confirmation closes the gap (T-093).
 
 Rules this graph keeps (ADR-036):
 - the graph is **not** an authority: it never approves, sends or confirms; it calls Backend tools only
@@ -42,6 +44,7 @@ from .tooling import LimitReached, ToolCaller, ToolSession
 
 log = logging.getLogger("cera_ai.agent")
 KST = timezone(timedelta(hours=9))
+HUMAN_HELD_STATES = ("PROVISIONAL_AVAILABLE", "NEEDS_REVIEW")  # a value exists but a person must confirm / decide — not a gap the agent can ask about
 Action = Literal["COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "FAIL"]
 ACTIONS: tuple[Action, ...] = ("COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "FAIL")
 
@@ -94,8 +97,9 @@ class DeterministicPolicy:
             return "PUBLIC_DATA"
         if pick_inquiry_gap(gaps):
             return "COMMUNICATION"
-        if all(g.get("state") == "ASKED" for g in gaps):
-            return "WAIT_EXTERNAL"
+        if all(g.get("state") in HUMAN_HELD_STATES or g.get("state") == "ASKED" for g in gaps):
+            # what is left is already asked (a reply may come) or waits for a person (confirmation / review) — nothing for the agent to ask
+            return "WAIT_EXTERNAL" if any(g.get("state") == "ASKED" for g in gaps) else "COMPLETE"
         return "FAIL"
 
 
@@ -287,9 +291,12 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
             return failed(r.error.code if r.error else "REPLY_UNAVAILABLE")
         replies = r.output["replies"]
         candidates = [c for rep in replies for c in rep["candidates"]]
-        passed = [c for c in candidates if c["validation"] == "PASSED" and c["review_status"] == "PENDING"]
+        passed = [c for c in candidates if c["validation"] == "PASSED" and c["review_status"] == "PENDING"]  # validated but not promoted: a person decides
+        promoted = [c for c in candidates if c["validation"] == "PASSED" and c["review_status"] == "ACCEPTED"]  # became a provisional fact
         if passed:
             outcome = "CANDIDATES_RECEIVED"
+        elif promoted:
+            outcome = "FACTS_PROMOTED"
         elif replies and all(rep["extraction_state"] == "FAILED" for rep in replies):
             outcome = "EXTRACTION_FAILED"
         else:
@@ -298,16 +305,17 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
             "reply_summary": {
                 "outcome": outcome,
                 "reply_count": len(replies),
-                "candidate_fields": sorted({c["field"] for c in passed}),
+                "candidate_fields": sorted({c["field"] for c in passed + promoted}),
                 "extraction_ids": sorted(c["extraction_id"] for c in passed)[:50],
+                "fact_event_ids": sorted({c["fact_event_id"] for c in promoted if c.get("fact_event_id")})[:50],
                 "rejected_count": sum(1 for c in candidates if c["validation"] == "REJECTED"),
                 "generated_by": sorted({c["generated_by"] for c in candidates}),
             }
         }
 
     def reassess_gaps(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
-        # workflow vs truth: a validated candidate satisfies the inquiry for now, but the business gap stays open
-        # until a confirmed fact exists (T-093). The graph does not turn candidates into facts.
+        # workflow vs truth: the backend decides what became of the reply (promoted to a provisional fact, or left for a person).
+        # The business gap closes only when a human-confirmed fact exists (T-093) — the graph never turns a candidate into a fact.
         r = s.call("get_information_gaps", {})
         if not r.ok:
             return failed(r.error.code if r.error else "GAPS_UNAVAILABLE")
@@ -339,11 +347,11 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         if halt:
             return {"result": {"status": "FAILED", "result_code": None, "error_code": halt, "summary": summary}}
         if state.get("next_action") == "COMPLETE":
-            return {"result": {"status": "COMPLETED", "result_code": "NO_INFORMATION_GAPS", "error_code": None, "summary": summary}}
+            held = any(g.get("state") in HUMAN_HELD_STATES for g in state.get("information_gaps") or [])
+            return {"result": {"status": "COMPLETED", "result_code": "OPEN_GAPS_AWAIT_HUMAN" if held else "NO_INFORMATION_GAPS", "error_code": None, "summary": summary}}
         reply = state.get("reply_summary")
         if reply:
-            code = "CANDIDATE_RECEIVED_PENDING_CONFIRMATION" if reply["outcome"] == "CANDIDATES_RECEIVED" else "REPLY_NEEDS_HUMAN_REVIEW"
-            return {"result": {"status": "COMPLETED", "result_code": code, "error_code": None, "summary": summary}}
+            return {"result": {"status": "COMPLETED", "result_code": reply_result_code(reply, state.get("reassessment") or {}), "error_code": None, "summary": summary}}
         phase = state.get("message_phase")
         if phase == "DELIVERY_FAILED":
             return {"result": {"status": "FAILED", "result_code": None, "error_code": "DELIVERY_FAILED", "summary": summary}}
@@ -359,7 +367,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         ("wait_external", wait_external), ("refresh_context", load_context), ("build_result", build_result),
         ("observe_public_data", observe_public_data), ("wait_send_request", _wait("HUMAN", "AWAITING_SEND_REQUEST")),
         ("wait_delivery", _wait("EXTERNAL", "AWAITING_DELIVERY")), ("wait_reply", _wait("EXTERNAL", "AWAITING_REPLY")),
-        ("read_reply", read_reply), ("reassess_gaps", reassess_gaps),
+        ("read_reply", read_reply), ("reassess_gaps", reassess_gaps), ("wait_fact_verification", _wait("HUMAN", "AWAITING_FACT_VERIFICATION")),
     ]:
         g.add_node(name, node(name, fn))
 
@@ -388,7 +396,13 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     for w in ("wait_send_request", "wait_delivery", "wait_reply"):
         g.add_edge(w, "track_message")
     g.add_conditional_edges("read_reply", ok("reassess_gaps"), ["reassess_gaps", "build_result"])
-    g.add_edge("reassess_gaps", "build_result")
+    # a provisional fact waits for a person: the run waits with it, then re-reads the gap (confirmed → closed · rejected / corrected → re-read)
+    g.add_conditional_edges(
+        "reassess_gaps",
+        lambda state: "wait_fact_verification" if not state.get("halt") and (state.get("reassessment") or {}).get("business_gap_state") == "PROVISIONAL_AVAILABLE" else "build_result",
+        ["wait_fact_verification", "build_result"],
+    )
+    g.add_edge("wait_fact_verification", "reassess_gaps")
     g.add_conditional_edges("fetch_public_data", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
     g.add_edge("wait_external", "refresh_context")
     g.add_conditional_edges("refresh_context", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
@@ -396,7 +410,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     return g.compile(checkpointer=checkpointer)
 
 
-WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external")
+WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification")
 EXTRACTION_SETTLED = ("DONE", "NO_CANDIDATE", "SKIPPED", "FAILED")
 
 
@@ -412,6 +426,22 @@ def message_phase(m: dict[str, Any]) -> str:
         return "DELIVERY_FAILED"
     outcome = approval_outcome(status, m["approval_state"])
     return "AWAIT_SEND_REQUEST" if outcome == "APPROVED" else outcome
+
+
+def reply_result_code(reply: dict[str, Any], reassessment: dict[str, Any]) -> str:
+    """What the run found after reading the reply — decided by the backend's gap state, not by the agent's reading of the candidates."""
+    gap_state = reassessment.get("business_gap_state")
+    if reply["outcome"] == "CANDIDATES_RECEIVED":
+        return "CANDIDATE_RECEIVED_PENDING_CONFIRMATION"  # validated but the backend did not promote it — a person must look
+    if gap_state == "KNOWN":
+        return "FACT_CONFIRMED"
+    if gap_state == "NEEDS_REVIEW":
+        return "FACT_NEEDS_HUMAN_REVIEW"
+    if gap_state == "PROVISIONAL_AVAILABLE":
+        return "FACT_AWAITING_CONFIRMATION"
+    if reply["outcome"] == "FACTS_PROMOTED":
+        return "FACT_REJECTED_GAP_OPEN"  # the provisional fact was rejected / withdrawn — the gap is open again
+    return "REPLY_NEEDS_HUMAN_REVIEW"
 
 
 def result_summary(state: RecoveryState) -> dict[str, Any]:
@@ -430,9 +460,10 @@ def result_summary(state: RecoveryState) -> dict[str, Any]:
         "reply_count": reply.get("reply_count"),
         "candidate_fields": reply.get("candidate_fields"),
         "candidate_extraction_ids": reply.get("extraction_ids"),
+        "fact_event_ids": reply.get("fact_event_ids"),
         "business_gap_state": re_.get("business_gap_state"),
         "candidate_state": re_.get("candidate_state"),
-        "facts_confirmed": False,  # T-093 promotes candidates; this graph never confirms
+        "facts_confirmed": re_.get("business_gap_state") == "KNOWN",  # only the backend's gap state says so — this graph never confirms
         "public_data_mode": pub.get("mode"),
         "public_data_outcome": pub.get("outcome"),
         "public_vessel_call_count": pub.get("vessel_call_count"),

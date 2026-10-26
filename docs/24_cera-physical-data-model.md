@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: **T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
+- 상태: **T-093(2026-10-26, DONE): 사실 파이프라인 — 표 · 열 변경 없음, M20 가드 3(22.41). 구현 기록 18.14.** T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -825,7 +825,7 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | --- | --- |
 | S-1 | **발송 권한은 그대로 사람 · Backend**: Tool 은 10개(READ `get_reply_candidates` 추가 — 회신 · 검증된 추출 후보, 원문 · 인용 없음). send · approve Tool 없음. 승인 뒤 그래프는 `track_message` 로 상태만 보고 `AWAITING_SEND_REQUEST`(사람) → `AWAITING_DELIVERY` · `AWAITING_REPLY`(외부)로 기다린다. 발송 요청 · Outbox · Worker 는 T-090 규칙 그대로 |
 | S-2 | **깨우기**: 대기 사유별 판정 `wake-rules.ts` — 승인 결정 · 발송 진행(APPROVED 를 벗어남 · QUEUED 를 벗어남) · 회신(정상 회신 + 추출이 끝남: DONE · NO_CANDIDATE · SKIPPED · FAILED). 수신 · 추출 Worker 가 커밋 뒤 `INBOUND_REPLY_RECEIVED` · `REPLY_EXTRACTED` 알림 → 재조정 즉시 실행(최적화). 알림을 놓쳐도 Worker 주기 재조정이 같은 판정으로 깨운다 |
-| S-3 | **후보 ≠ 사실**: 회신 추출은 PENDING 후보로 남고 사건 · 현재 사실을 만들지 않는다(T-093 전). 공백 출력 `gap-rules/1` 이 둘을 나눈다 — `state`(업무 공백: MISSING · ASKED, 사실 기준) · `candidate_state`(작업 흐름: NONE · REPLY_RECEIVED · CANDIDATE_RECEIVED · NO_VALID_CANDIDATE) · `candidate_extraction_ids`. 결과 코드 `CANDIDATE_RECEIVED_PENDING_CONFIRMATION`(통과 후보 있음) · `REPLY_NEEDS_HUMAN_REVIEW`(통과 후보 없음 · 추출 실패) |
+| S-3 | **후보 ≠ 사실**: 회신 추출은 PENDING 후보로 남고 사건 · 현재 사실을 만들지 않는다(T-093 전 — **T-093 이후는 18.14**: 자격 있는 후보는 임시 사실 사건이 되고 `gap-rules/2` 가 사실 상태를 따른다). 공백 출력 `gap-rules/1` 이 둘을 나눈다 — `state`(업무 공백: MISSING · ASKED, 사실 기준) · `candidate_state`(작업 흐름: NONE · REPLY_RECEIVED · CANDIDATE_RECEIVED · NO_VALID_CANDIDATE) · `candidate_extraction_ids`. 결과 코드 `CANDIDATE_RECEIVED_PENDING_CONFIRMATION`(통과 후보 있음) · `REPLY_NEEDS_HUMAN_REVIEW`(통과 후보 없음 · 추출 실패) |
 | S-4 | **결과 요약** `agent_run.result_summary`: 목표 공백 · 메시지 id · 회신 결과 · 후보 항목 · 후보 id · 업무 공백 상태 · 후보 상태 · `facts_confirmed=false` · 공공데이터 모드(LIVE · REPLAY) · 결과 · 입항 건수 · fetch id. 후보 값 · 원문은 넣지 않는다 |
 | S-5 | **상한**: 단계 상한은 실행 전체, Tool 호출 상한은 **대기와 대기 사이 한 구간마다**(대기 뒤 0 부터) — 오래 기다리는 실행이 상태 재조회만으로 예산을 다 쓰지 않게. 무한 반복은 단계 상한이 막는다. 값은 기본값 [ASSUMPTION] |
 | S-6 | **실제 프로세스 E2E(2026-10-22)**: 개발 DB(M19) · `npx tsx src/main.ts` · `src/worker.ts` · `python -m cera_ai`(그래프 + 추출 녹화 재생) · 실제 data.go.kr. 공공데이터 LIVE 4쪽 · 입항 189건(원장 행위자 AI_AGENT · `is_simulated=false`) → 가상 ODCY A 수용량 공백 → 초안 → 승인(API) → 발송 요청(**브라우저 화면 클릭**) → Worker Mock 발송 → `AWAITING_REPLY` 에서 **Python 종료 · 재기동** → Mock 회신 → 추출(합성 녹화 `odcy-capacity-yes.json`) → 재평가 → COMPLETED(`CANDIDATE_RECEIVED_PENDING_CONFIRMATION`, 업무 공백 ASKED 유지). 실제 공공데이터는 합성 계획 실행과 억지로 잇지 않았다(REAL PUBLIC · SYNTHETIC PRIVATE 출처 유지 — T-107) |
@@ -839,8 +839,57 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 - **이미지 3개**: `back`(API · Worker · migrate 가 한 이미지, 명령만 다름) · `ai`(AI 서버 · 평가 CLI) · `front/web`(빌드 맥락 = 저장소 루트 — `data/scenarios` · `packages/contracts` 참조).
 - **연결 방향은 기존 경계와 같다**: 브라우저 → `web` → `api`(`/backend/*`) 만. `api` → `ai`(추출 · Agent Runtime), `ai` → `api`(typed Tool, 서비스 토큰), `ai` → `llm`(`CERA_LLM_PROVIDER=local`). AI · 모델 서버는 DB 에 가지 않는다(ADR-033 · 036).
 - **설정은 `.env` 를 컨테이너 안 주소로 덮어쓴다**(DB `postgres:5432` 등). 비밀값은 이미지에 굽지 않는다.
-- **로컬 모델 공급자 `local`**(OpenAI 호환 Chat Completions + `json_schema` 문법 강제)은 평가용 선택지이다. 공급자 선택은 여전히 ADR-037(Proposed) 몫이며, 출력은 후보일 뿐 판정은 Backend 검증기(ADR-029).
+- **로컬 모델 공급자 `local`**(OpenAI 호환 Chat Completions + `json_schema` 문법 강제)은 평가용 선택지이다. 공급자 선택은 ADR-037(구조 한정 Accepted · 선정 Deferred) 몫이며, 출력은 후보일 뿐 판정은 Backend 검증기(ADR-029).
 - 큐(Redis 등)는 도입하지 않았다 — Outbox · 작업 큐는 PostgreSQL 그대로(위 18.5·18.11).
+
+### 18.14 T-093 사실 파이프라인 구현 확인 결과 (2026-10-26 · DONE — 사용자 승인)
+
+**표 · 열 변경 없음.** M20 = 가드 3개만(22.41). `event` · `extraction` · `canonical_fact` · `conflict` 는 M05 · M06 이 이미 설계해 둔 표를 그대로 쓴다(새 Event 엔진 · 새 사실 표 없음). 한 줄: **AI 가 읽은 답은 사실이 아니다 → 검증을 통과해 자격이 있으면 임시 사실(PROVISIONAL) 사건 → 사람이 확인하면 정식 사실(CONFIRMED) → 사실이 바뀌면 기다리던 Agent 가 다시 판단한다.**
+
+
+**쉬운 말로 — 값의 단계**
+
+| 단계 | 뜻 | 저장 위치 |
+| --- | --- | --- |
+| 후보(Candidate) | **AI 가 읽은 값**. 사실이 아니다 | `extraction`(PENDING · 검증 탈락은 REJECTED) |
+| 임시 사실(PROVISIONAL) | **검증을 통과한 임시 사실**. 쓸 수는 있지만 "주의"(사람 확인 전) | 사건 OBSERVATION · `value_status=PROVISIONAL` |
+| 확정 사실(CONFIRMED) | **사람이 확인한 사실**(또는 권한자 시스템) | 사건 VERIFICATION(CONFIRM) · HUMAN_UI 입력 |
+| 거절됨(REJECTED) | **사용하지 않기로 한 값**. 기록은 남는다 | 사건 VERIFICATION(REJECT) |
+| 대체됨(SUPERSEDED) | **새 사실로 대체된 이전 값**. 기록은 남는다 | 사건 CORRECTION(`supersedes_event_id`) |
+| 검토 필요(NEEDS_REVIEW) | 값끼리 충돌하거나 큰 감소가 보류됨 — 사람이 정해야 한다 | `conflict_status=OPEN` · `hold_status=HELD` |
+
+```text
+회신 → 추출(후보, Backend 검증기) ──[같은 트랜잭션]──▶ 승격 판정(PromotionService)
+   PASSED + 자격 있음 ─▶ event(OBSERVATION · LLM_EXTRACTED · EMAIL, 강도 1) = PROVISIONAL      extraction → ACCEPTED(created_event_id)
+   PASSED + 자격 없음 ─▶ extraction PENDING 으로 남음 + 감사 FACT_PROMOTION_BLOCKED_<사유>    = 사람이 판단
+사람 ─▶ VERIFICATION(CONFIRM) → CONFIRMED · VERIFICATION(REJECT) → 판정에서 빠짐 · CORRECTION(supersedes) → 대상 SUPERSEDED + 새 값 CONFIRMED
+사건 → 사실 판정(reconcile/1) → canonical_fact · conflict(파생) → gap-rules/2 · get_recovery_context.facts → Agent 깨우기
+```
+
+| # | 구현 메모 |
+| --- | --- |
+| F-1 | **원칙**: AI 출력 ≠ 사실 · 검증된 후보 ≠ 확정 · PROVISIONAL ≠ CONFIRMED · 회신 한 통 ≠ 권위 있는 사실 · 모델 확신도 ≠ 권한. 상태를 바꾸는 것은 Backend 뿐이고 CONFIRMED 의 근거는 사람(`HUMAN_VERIFICATION`) 또는 권한자 시스템(`AUTHORITATIVE_SYSTEM`)뿐이다. 계획 승인은 근거가 아니다(docs/05 6.2). 모델이 틀리는 것(예: 수량 `"Yeah"`)은 정상 상황이다 — 검증기가 후보에서 거절하고 사실은 생기지 않는다 |
+| F-2 | **승격 조건** `promotion-rules.ts`(순수, `promotion/2`): 발신자 판정 · 스레드 연결 · 정상(NORMAL) 회신(U6 — 보류 메일은 메시지가 없어 대상이 아님) · 정확한 인용 · 질문 범위의 칸 · 값 형식 · 단위 · 값-인용 · 같은 답 안의 상충(U7 검증기) 위에 더해: 후보 PENDING(대체 · 소비되지 않음) · 수량 칸 · 질문에 대상(개체 · 사실 키) · 질문 취소 아님 · 근거 계획 미교체(`PLAN_SUPERSEDED`) · 모호 표현 없음(`AMBIGUOUS_REPLY`) · 발신자 권한(`SENDER_NOT_AUTHORITY`: 역할이 사실 계열과 맞고 자기 자원이면 A, 소유 확인 불가면 S, 아니면 W=탈락) · **시간창**(F-7 — `WINDOW_OUT_OF_SCOPE` · `WINDOW_UNVERIFIED`) · **날짜**(F-7 — `DATE_OUT_OF_SCOPE` · `DATE_UNVERIFIED`) · 시뮬레이션이면 시나리오 · 중복 승격 없음(PENDING 한 번 전이 + 멱등 키 + 값이 다른 같은 주장은 `DUPLICATE_CLAIM`). **모델 확신도(`model_confidence`)는 어떤 조건에도 쓰지 않는다** — 0.99 여도 강도 1 · PROVISIONAL(시험). 탈락 사유는 감사 `FACT_PROMOTION_BLOCKED_<사유>`(대상 = 추출 id), 후보 DTO `promotion_blocked_reasons` |
+| F-3 | **사건 모양**: `event_type` 은 docs/05 4.4 카탈로그 그대로(차량 `TRUCK_AVAILABILITY_REPORTED` · 창고 `WAREHOUSE_CAPACITY_CHANGED` · ODCY `YARD_CAPACITY_REPORTED`), `fact_kind` OFFER(차량 · ODCY) / STATE(창고), `extraction_method=LLM_EXTRACTED` + `extraction_id`, `input_confidence_level=MEDIUM`, 출처 역할 · 거래처 = 등록부 판정(AI 아님), SUBJECT 링크(개체) + CONTEXT 링크(거래처), `raw_input_id` = 회신 원문(복제 없음), 근거 시각 = Q-44 `source_recorded_at`(없으면 받은 시각). 멱등 키 `evk/1` 주장 위치 = `ask:<ask_id>` — 같은 회신 · 같은 질문은 사건 하나. `payload` 에는 **원문 · 인용 본문을 넣지 않는다**: 수신 때의 권한 판정(`authority`) + 추출 연결 고리(추출 id · 모델 · prompt · schema 버전 · 입력 지문 · 인용 참조 · 인용 지문) |
+| F-4 | **사실 판정** `reconcile-rules.ts`(순수 · `asOf` 주입 · 사건 도착 순서와 무관): R1 제외(REJECT) · R2 강도 · R4-a 최근 우선 · **R4-b 강도 가드**(더 강한 현직과 다른 값을 약한 새 값이 말하면 OPEN, 현직 유지 — 사람이 확인한 값을 AI 후보가 덮지 못한다) · R4-d 제안 시간창 만료 · **R6 동시 충돌**(가장 강한 값끼리 τ 안에서 다르면 OPEN, 먼저 받은 값 유지) · R9 정정(철회 포함) · **R10 불리한 큰 변경 보류**(약한 근거가 현직을 θ 이상 줄이면 HELD) · R11 결정 가능성. **정책 값은 `truth-policy.ts` 한 곳**(`TRUTH_POLICY_VERSION=truth-policy/1`): `materialChangeRatio=0.30`(θ) · `nearTimeConflictWindowMs=5분`(τ) — **둘 다 실운영 데이터 없이 정한 휴리스틱 `[ASSUMPTION]`**, 제품의 확정 진리가 아니다. 실제 충돌 빈도 · 사람 정정 · 잘못된 보류 · 놓친 충돌을 보고 조정한다(판정 함수가 정책 객체를 인자로 받아 경계 시험이 있다: 29%/30%, 5:00/5:01). **출처 강도(0~3)** = 출처 종류 × 사실 계열별 출처 권한(A · S · W) × 검증기 입력 신뢰도(+ 사람 확인이면 최소 2) — 표는 `truth-policy.ts` 머리. 사람 입력 S=2 · 사람 확인 ≥2 · 권한자 시스템 A=3 · 공공 API A=2 · 이메일 추출 A/S=1 · W 또는 모호(LOW)=0. 공공데이터와 상대 회신 사이에 **전역 순위를 두지 않는다**(권한이 사실 계열별) — 계열 · 출처를 늘릴 때 이 표와 `promotion-rules.ts` 계열 → 역할 표를 늘린다. 안 한 것: R3 신선도(Q-24 — `freshness_status=UNKNOWN`) · R5 · R7 · R8. `value_status`: CONFIRMED / OBSERVED(강도 ≥ 2, 사람 확인 없음) / PROVISIONAL(강도 1) / UNKNOWN(**canonical_fact 행 없음**) |
+| F-5 | **사람 행위** `POST /truth/events/{id}/confirm · reject · correct`(헤더 `X-CERA-Actor-Id` = 활성 HUMAN): 모두 **새 사건**(append-only). 확인 = VERIFICATION(CONFIRM · `DIRECT_REVIEW`) · 거절 = VERIFICATION(REJECT, 사유 코드 7종) · 정정 = CORRECTION(`supersedes_event_id`, 같은 fact_kind · 주체 · 범위 · 단위, 대상의 근거 시각 · 적용 시간을 이어받음, `HUMAN_UI` 직접 입력이라 CONFIRMED). 명령은 `raw_input`(HUMAN_UI, `cera-ui`, 명령 id 로 멱등) + 내용 저장소 사본을 가진다. 이미 원하는 상태면 새 사건을 만들지 않는다. 409 `EVENT_SUPERSEDED` · `ALREADY_REJECTED`, 422 `VALUE_UNCHANGED`. AI · Agent · 시스템 행위자는 403. `REVOKE` 규칙은 판정에 있으나 API 는 아직 없다 |
+| F-6 | **충돌 · 덮어쓰기 금지**: 같은 좌표의 사건은 모두 남는다. 최신 답이라고 자동 승격하지 않는다 — 더 약한 새 값이 강한 현직과 다르면 OPEN, 큰 감소는 HELD, 같은 강도의 동시 불일치는 OPEN. `decision_usability`: OPEN · HELD → `APPROVAL_BLOCKED`(이 사실 계열은 모두 critical), PROVISIONAL · DISSENT → `USABLE_WITH_WARNING`, 만료 · 값 없음 → `UNUSABLE`. 풀리는 길은 사람뿐. `conflict` 행은 OPEN · DISSENT 일 때 재생성 |
+| F-7 | **시간(temporal)**: 사실의 유효 범위 = 질문이 정한 날짜 · 시간창 **안에서** 회신이 말한 범위(Asia/Seoul → UTC). 질문 09–18시 · 회신 "15시 이후" → `valid_from` 15:00 · `valid_until` 18:00(더 구체적인 정상 답 — 허용). 질문 창을 넘는 부분은 잘라 낸다(묻지 않은 시간의 값을 만들지 않음). 겹치는 시간이 없으면 `WINDOW_OUT_OF_SCOPE`, 검증 못 한 시간 칸이 있으면 `WINDOW_UNVERIFIED` → 자동 승격 안 함(사람). 창고 · ODCY 일별 용량 = 그날 00:00~익일 00:00. **날짜**: 회신 계약(`reply-extract/1`)에는 답의 날짜 칸이 없다 — 숨기지 않는다. 그래서 인용이 든 문장의 날짜 표현을 결정론으로 확인한다(`date-scope.ts`): 오늘 · 내일 · 모레 · 글피 · 어제 · "10월 27일" · "27일"(회신 근거 날짜 기준)이 질문 날짜와 다르면 `DATE_OUT_OF_SCOPE`, 요일 · 다음 주 · 주말처럼 풀 수 없으면 `DATE_UNVERIFIED`. **표현할 수 없는 날짜를 질문 날짜로 임의 해석해 임시 사실로 올리지 않는다.** 날짜 칸을 가진 계약(`reply-extract/2`)은 T-111 |
+| F-8 | **정보 공백 `gap-rules/2`**: 업무 `state` 가 사실 상태를 따른다 — 사람이 확인한(CONFIRMED · OBSERVED) 사실만 공백을 닫아 `known` 으로 옮기고, 임시 사실은 `PROVISIONAL_AVAILABLE`(공백 유지 · `fact` 첨부), 충돌 · 보류는 `NEEDS_REVIEW`, 사실 없음은 `MISSING`/`ASKED`. 만료된 제안은 사실 없음으로 본다(판정 기준 시각 = **계획 스냅샷 시각**, 시스템 시계가 아니다). 작업 흐름 `candidate_state` 에 `CANDIDATE_ACCEPTED` 추가. 후보 · 임시 · 확인 세 단계를 뭉치지 않는다 |
+| F-9 | **Agent 맥락**: `get_recovery_context` 에 `facts`(값 + `fact_state` + `verified_by_human` + 근거 + 충돌 · 보류 + `decision_usability`) 추가 — `latest_observations` 는 판정 전 원본 주장. `get_reply_candidates` 후보에 `fact_event_id` · `promotion_blocked_reasons`. 계약 파일 `agent-tools.v1.json` 재생성 |
+| F-10 | **Agent 깨우기**: 그래프에 `wait_fact_verification`(HUMAN interrupt, `AWAITING_FACT_VERIFICATION`, 대기 대상 = 문의 메시지) 추가 — 답이 임시 사실이 되면 실행은 사람 확인을 기다린다. 깨우기 판정 `wake-rules.ts`: 문의가 물은 좌표 중 PROVISIONAL 이 없으면 깨운다. 판정은 **DB 상태**(사건에서 바로 계산)이고 알림(`FACT_CHANGED`)은 최적화 — 신호를 잃어도 재조정(Worker)이 깨운다(시험). 깨어난 그래프는 공백을 다시 읽는다: 닫힘 → `FACT_CONFIRMED`(`facts_confirmed=true`) · 거절 → `FACT_REJECTED_GAP_OPEN` · 충돌 → `FACT_NEEDS_HUMAN_REVIEW`. 승격되지 못한 후보 → `CANDIDATE_RECEIVED_PENDING_CONFIRMATION`(= 사람이 봐야 함) |
+| F-11 | **DB 가드(M20)**: 사람이 한 일은 HUMAN 행위자만 · 추출 ACCEPTED 는 LLM 추출 OBSERVATION 에 이어져야 함 · CONFIRMED 는 사람 근거 사건이 있어야 함(22.41). AI · Agent · 시스템은 SQL 로도 CONFIRMED 의 근거를 만들 수 없다 |
+| F-12 | **읽기 ≠ 파생 표**: Agent · 화면은 사건에서 바로 판정한다. `canonical_fact` · `conflict` 는 쓰기와 같은 커밋에서 갱신되는 재생성 가능한 투영(후속 소비자용)이라 지워도 읽기 결과가 같다(시험). 자격 있는 값이 없으면 행을 지운다 |
+| F-13 | **학습 데이터 고리**(별도 export 없음): 원문(`raw_input`) → 질문(`question_item`) → 추출(후보 · 인용 참조 · 지문 · 모델 · prompt · schema · 입력 지문 · 검증 결과) → 승격 사건(`event.extraction_id` · payload.extraction) → 사람 결정(VERIFICATION 사유 코드 / CORRECTION `corrected_event_id` · 새 값) → 최종 상태. "어떤 모델이 만든 오류인가"를 가를 수 있다. 파인튜닝은 하지 않는다 |
+| F-14 | **하지 않은 것**: 신선도(Q-24) · 확인 요청 큐(`verification_request` · 처리 기록 — T-094) · `REVOKE` API · 후보 없이 사람이 값을 직접 입력 · 회신의 날짜 칸 · 정책 값 외부화(`policy.yaml`) · Solver · 비용 · 위험 · 상용 모델 호출 · fallback 공급자 |
+
+**시험(2026-10-26 · 최종)**: Backend unit 163 · db 209(`truth.test.ts` 15 · `agent-runtime.test.ts` 13 — 두 프로세스 E2E: 임시 사실에서 실행이 기다림 → 사람 확인 → 깨어나 `FACT_CONFIRMED` / 신호를 잃어도 재조정이 깨움 / 거절 → `FACT_REJECTED_GAP_OPEN`) · Python 71 · Front 57 · typecheck · lint · build · `drizzle-kit check` · OpenAPI · Tool 계약 최신.
+
+**Docker 실제 실행(2026-10-26, 별도 프로젝트 `-p cera-e2e` — 개발 DB 볼륨 미접촉)**:
+- **CASE B(실제 로컬 모델 Qwen3-4B, GPU)**: Agent 실행 → 승인 → 발송 → Mock 회신("15:00부터 17:00까지 차량 2대 배차 가능합니다" · "차량 2대 가능합니다") → 모델이 수량을 `"Yeah"` · `"Yes"` 로 냄 → 검증기 `BAD_QUANTITY` 거절 → **사실 생성 없음**, Run 은 `CANDIDATE_RECEIVED_PENDING_CONFIRMATION`(시간 칸 후보만 남아 사람이 봄). 모델 튜닝 안 함. (앞선 같은 날 시도에서는 같은 문장이 수량 2 로 읽혀 PROVISIONAL → 확인까지 갔다 — 모델 출력이 일정하지 않다)
+- **CASE A(통제된 회신 — 녹화 재생, LLM 미실행으로 표시)**: 같은 스택에서 AI 를 replay 로 두고 녹화가 있는 문장("오후 3시 이후 차량 4대 가능합니다") → 검증 → PROVISIONAL(4대, 15:00–17:00) → Run `WAITING_HUMAN · AWAITING_FACT_VERIFICATION` → **브라우저(Edge, playwright-core)에서 [확인] 클릭** → 화면 PROVISIONAL → CONFIRMED → Agent 깨어남 → `FACT_CONFIRMED`, 공백 `KNOWN`, `facts_confirmed=true`. 같은 스레드에 회신을 더 넣어 **[거절]**(새 후보 REJECTED, 현재 값 유지) · **[정정]**(대상 SUPERSEDED + 사람 값 사건)도 브라우저로 눌렀다. 정정 값 3 은 2분 전 사람이 확인한 4 와 τ 안에서 달라 R6 충돌(NEEDS_REVIEW)이 됐다 — 정책대로의 동작(두 사람 근거가 다르면 사람이 정한다)
+- 이 과정에서 기존 설정 결함 하나를 찾았다: `ai/.env` 에 `CERA_AI_REPLAY_DIR=`(빈 값)이 있으면 녹화 폴더 대신 현재 폴더를 읽는다 → T-093 밖, 후속 커밋에서 고친다
+
 
 
 
@@ -2269,6 +2318,14 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
   - base64 형식 · 크기 상한
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**:
   - (agent_run_id, checkpoint_ns, checkpoint_id)
+
+### 22.41 M20 사실 파이프라인 가드 **(T-093 · 표 · 열 변경 없음)**
+
+- 파일: `back/drizzle/migrations/0019_m20_fact_guards.sql`(사람이 쓴 custom migration, 함수 3 · 트리거 3 — 함수 25 → 28, `now()` 호출 없음)
+- `tg_event__guard_authority` BEFORE INSERT ON `event`: `source_type = HUMAN_UI` 이거나 `event_class = VERIFICATION` 이면 `entered_by_actor_id` 의 `actor_type` 이 `HUMAN` 이어야 한다(CE005). `extraction_method = LLM_EXTRACTED` 는 `OBSERVATION` 만
+- `tg_extraction__guard_accept` BEFORE UPDATE ON `extraction`: `ACCEPTED` 로 가는 후보의 `created_event_id` 는 LLM 추출 `OBSERVATION` 이어야 한다
+- `tg_canonical_fact__guard_confirmed` BEFORE INSERT OR UPDATE ON `canonical_fact`: `value_status = CONFIRMED` 이면 `verification_basis` 가 `HUMAN_VERIFICATION`(같은 좌표 · 같은 값의 HUMAN_UI 사건 또는 사람의 CONFIRM 이 가리킨 사건 필요) 또는 `AUTHORITATIVE_SYSTEM`(PARTNER_SYSTEM 사건 필요). `POLICY_EVIDENCE` 는 정책이 비어 있어 거부
+- 앱 역할 권한은 M10 그대로
 
 ---
 

@@ -58,6 +58,8 @@
 | 033 | **Main Backend = TypeScript + NestJS**(모듈형 모놀리스, 같은 코드베이스의 API + Worker 프로세스) · **AI Server = 별도 Python 런타임**(권한 없음, HTTP/JSON) · 큐 제품 없이 DB Outbox · OpenAPI → 생성 TS 타입 · 스키마 단일 원천 · 정확성 규칙 5가지 | **Accepted** (2026-09-21 사용자 결정 — Q-64 CLOSED) |
 | 034 | **영속 계층 = PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용** · SQLite 미사용 · DB 권한은 Main Backend 만 · 운영 자동 동기화 금지 | **Accepted** (2026-09-22 사용자 결정 — Q-68 CLOSED) |
 | 035 | **프론트엔드 = Vite + React SPA, 클라이언트 렌더링(CSR)만** — 서버 렌더링(SSR·RSC) 없음, `vite build` → 정적 파일. Backend 는 개발 서버 `/backend` 프록시로 부른다. 라우터 라이브러리는 아직 고르지 않음. ADR-022 결정 1(Next.js)·4(Turbopack root) 대체 | **Accepted** (2026-10-06 사용자 결정) |
+| 036 | **Agent Runtime = Python + LangGraph** — 권한은 NestJS Backend, Agent 는 typed Tool 로만 부작용 · Agent 는 권한 주체가 아니다 (ADR-015 일부 대체 · ADR-033 결정 3·4 일부 개정) | **Accepted** (2026-10-22) |
+| 037 | **AI 공급자 · 모델 선정 방식 — 공급자는 ADR, 모델은 설정** · 평가(CERA Eval)로 교체 · AI 는 권한 없음. 선정(공급자 · 모델)은 비워 둠 — MVP 임시 기본값 = 로컬 Qwen3-4B-Instruct-2507 Q4_K_M | **Accepted (구조 한정)** (2026-10-26 사용자 지시) · 선정 Deferred |
 
 ---
 
@@ -505,8 +507,9 @@
 - 결과: `docs/06` 1·3절 · `docs/18` O절 책임표 · `docs/23` 관측성 · `ai/README.md` · `back/README.md` · AGENTS.md 1.1 표 갱신. T-102 ~ T-107 큐 등록 · T-005/T-006 DEPRECATED · T-099 재배치. 미결: checkpoint 표 구조 · Tool 시간 제한 값 · `system_error` boundary 추가 여부 · Decision 임계값(T-099).
 
 ## ADR-037: AI 공급자 · 모델 선정 방식 — 공급자는 ADR, 모델은 설정 (T-099)
-- 상태: **Proposed** (2026-10-22, T-099 재개). **선정 자체는 비어 있다** — 실제 공급자 호출 결과(CERA Eval)가 나온 뒤 채운다
-- 날짜: 2026-10-22
+- 상태: **Accepted (구조 한정)** — 구조 결정(결정 1~5) 확정 (2026-10-26 사용자 지시) · **공급자 · 모델 선정은 Deferred** (최종 Production 모델은 정해지지 않았다). 제안 2026-10-22, T-099 재개
+- 날짜: 2026-10-22 (구조 결정 확정 2026-10-26)
+- **2026-10-26 개정(사용자 지시)**: 이 ADR 의 **구조**("공급자 추상화 · 모델은 설정 · 평가로 교체 · AI 는 권한 없음")는 모델 이름과 무관하므로 확정한다. **선정**(어느 공급자 · 모델)은 비워 둔다 — 상용 평가(OpenAI · Gemini · Anthropic · Jev)는 필요할 때 다시 하며 T-099 는 *연속 평가*(Continuous Model Evaluation)로 둔다. 그동안의 **MVP 임시 기본값(provisional)** 은 로컬 `Qwen3-4B-Instruct-2507 Q4_K_M`(llama.cpp, OpenAI 호환) — 이유: API 비용 0 · 현재 로컬 하드웨어에서 동작 · 설정만 바꿔 교체 가능 · **결정론 검증(Backend 검증기 + 사실 파이프라인)이 정확도를 대신 보호한다**. "최종 Production 모델 선정 완료"가 아니다. 모델 출력은 언제나 후보이고 모델 정확도 자체를 제품 안전성의 전제로 두지 않는다(T-093).
 - 맥락: T-105 로 실제 Agent Runtime 이 회신 → 추출 → (판정) → 공백 재평가로 이어진다. 어느 AI 를 넣을지가 품질 · 비용을 정한다. 모델 이름은 몇 달마다 바뀌므로(2026-10-12 메모 대비 10-22 에 Jev 1.13 → 1.14, Gemini 4 Argon · 3.5 Flash-Lite 신규 등) 모델 이름마다 아키텍처 ADR 을 새로 쓰면 안 된다.
 - 결정(제안):
   1. **공급자(vendor) 선정은 ADR**, **모델(model id) 은 설정**(`CERA_LLM_PROVIDER` · `CERA_LLM_MODEL` · `CERA_DECISION_PROVIDER` · `CERA_DECISION_MODEL`). 모델 교체 = 같은 Eval 을 다시 돌려 기준을 넘는지 확인 + 설정 변경(코드 · ADR 변경 없음).
@@ -516,4 +519,4 @@
   5. 권한은 그대로: 모델 출력은 후보, 판정은 확률뿐. 문턱값(threshold) 은 Backend 업무 정책으로 나중에 정한다(이 ADR 은 추천만 할 수 있다). 추출 후보 ≠ CanonicalFact(T-105 결정 유지).
 - 후보(2026-10-22 공식 문서 확인, 첫 비교 대상): Anthropic `claude-sonnet-5-5` · `claude-haiku-5-5`(+ `claude-opus-5-5`) · OpenAI `gpt-6.1-sol` · `gpt-6-luna` · Google `gemini-3.8-flash` · `gemini-3.1-flash-lite`(+ `gemini-4-argon`). 판정: TypeSafe Jev(`typesafe/jev-1.14`, OpenRouter Decisions API — Alpha · 독점 · 데이터 보존 정책 문서 없음) · LLM judge · 로컬 baseline `MoritzLaurer/bge-m3-zeroshot-v2.0-c`(MIT · 상업 친화 데이터 — 2026-10-22 측정: 일부 분류력은 있으나 보정 · 높은 확신 오답이 Production 기준 미달, 무료 참고 기준선으로만) — `mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` 는 학습 데이터에 비상업(ANLI) 이 있어 **연구 비교용만**. 최상위 단가(`claude-fable-5-1` · `gpt-6-astra`, $10/$50) 는 하위 모델이 기준에 못 미칠 때만 추가한다.
 - 대안: (a) 공급자 + 모델을 한 번에 ADR 로 고정 — 모델 교체마다 ADR 이 필요해 거부. (b) 외부 벤치마크 순위로 선정 — CERA 의 한국어 업무 회신 · 근거 인용 · 권한 경계를 재지 않아 거부.
-- 결과: 선정 결과(공급자 · 기본 모델 · 근거 run id) 를 이 ADR 에 채우고 Accepted 를 받는다. 그 전까지 Runtime 기본은 녹화 재생(replay) 그대로.
+- 결과: 구조(1~5)는 확정, **선정 결과(공급자 · 기본 모델 · 근거 run id) 는 Deferred** — 채워지면 이 ADR 의 "선정" 절만 갱신한다(구조 변경 없음). Runtime 코드 기본은 녹화 재생(replay) 그대로이고, 모델을 켜는 환경(Docker `llm` 프로필)의 임시 기본값만 Qwen3-4B 다(`ai/.env.example` · `infra/local/.env.example`). 회신 추출 기록은 모델 출처(`model_version` · `prompt_version` · `schema_version` · 입력 지문)를 남기므로 "어느 모델이 만든 오류인가"를 나중에 가를 수 있다(T-093).

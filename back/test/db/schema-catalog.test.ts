@@ -4,7 +4,7 @@ import { closedValues, normalizeDbDefault, normalizeSpecType, readPhysicalSpec, 
 import { ownerPool } from './support.js';
 
 /**
- * Phase A 커버리지 — 빈 DB 에 M01 → M19 을 적용한 결과(global-setup)를 PostgreSQL 카탈로그로 읽어
+ * Phase A 커버리지 — 빈 DB 에 M01 → M20 을 적용한 결과(global-setup)를 PostgreSQL 카탈로그로 읽어
  * docs/24 22절 명세와 컬럼 하나씩 대조한다(이름 · 순서 · 타입 · NULL · 기본값 · CLOSED/CATALOG/해시/내용참조 CHECK).
  */
 let owner: pg.Pool;

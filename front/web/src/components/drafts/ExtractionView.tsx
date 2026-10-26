@@ -1,4 +1,5 @@
 import type { InboundItem } from "@/api/drafts";
+import { blockedReasonLabel } from "@/components/facts/factLabels";
 
 type Extraction = NonNullable<InboundItem["extraction"]>;
 type Candidate = Extraction["candidates"][number];
@@ -30,6 +31,13 @@ const STATE_TEXT: Record<Extraction["state"], string> = {
 };
 
 const reason = (r: string) => (r.startsWith("UNIT_MISMATCH:") ? `단위가 맞지 않음(${r.slice(14)})` : (REASON_LABEL[r] ?? r));
+/** Where the candidate stands after validation: still a candidate, a provisional fact, or left for a person. */
+function promotionNote(c: Candidate): { text: string; badge: string } | null {
+  if (c.review_status === "ACCEPTED") return { text: "임시 사실로 올라감 — 아직 사람이 확인하지 않았습니다(‘사실 판단’에서 확인·거절·정정)", badge: "b-amber" };
+  if (c.review_status === "PENDING" && c.validation === "PASSED") return { text: "자동 승격 안 됨 — 사람이 판단", badge: "b-orange" };
+  return null;
+}
+
 const show = (c: Candidate) => `${c.value}${c.unit ? (UNIT_LABEL[c.unit] ?? ` ${c.unit}`) : ""}`;
 
 /**
@@ -38,12 +46,13 @@ const show = (c: Candidate) => `${c.value}${c.unit ? (UNIT_LABEL[c.unit] ?? ` ${
  */
 export function ExtractionView({ extraction }: { extraction: Extraction }) {
   const replay = extraction.candidates.some((c) => c.generated_by === "RECORDED_REPLAY");
+  const candidates: Candidate[] = extraction.candidates;
   return (
     <div data-testid="extraction-view" data-extraction-state={extraction.state} style={{ display: "grid", gap: 4, borderLeft: "3px solid var(--line-strong)", paddingLeft: 8 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <span className="badge b-violet">AI 제안</span>
         {replay && <span className="badge b-sim">녹화 재생 — LLM 미실행</span>}
-        <span className="muted" style={{ fontSize: 11 }}>후보일 뿐 — 확정되지 않았고 업무에 반영되지 않았습니다</span>
+        <span className="muted" style={{ fontSize: 11 }}>후보일 뿐 — 확정되지 않았고 업무에 반영되지 않았습니다. 검증을 통과해 조건을 채운 값만 ‘임시 사실’이 되며, 그것도 사람이 확인해야 확정됩니다</span>
       </div>
       {extraction.state !== "DONE" && (
         <div style={{ fontSize: 12 }} data-testid="extraction-state">
@@ -52,7 +61,10 @@ export function ExtractionView({ extraction }: { extraction: Extraction }) {
           {extraction.last_error_code && extraction.state !== "NO_CANDIDATE" ? ` · ${extraction.last_error_code}` : ""}
         </div>
       )}
-      {extraction.candidates.map((c) => (
+      {candidates.map((c) => {
+        const note = promotionNote(c);
+        const blocked = c.promotion_blocked_reasons;
+        return (
         <div key={c.extraction_id} data-testid="extraction-candidate" data-validation={c.validation} style={{ fontSize: 12, display: "grid", gap: 1 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span>{FIELD_LABEL[c.field] ?? c.field}:</span>
@@ -60,9 +72,16 @@ export function ExtractionView({ extraction }: { extraction: Extraction }) {
             <span className={`badge ${c.validation === "PASSED" ? "b-green" : "b-red"}`}>{c.validation === "PASSED" ? "검증 통과" : "검증 실패"}</span>
             {c.validation === "REJECTED" && <span className="muted">업무에 반영되지 않음 — {c.failed_reasons.map(reason).join(" · ")}</span>}
           </div>
+          {note && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }} data-testid="extraction-promotion">
+              <span className={`badge ${note.badge}`}>{note.text}</span>
+              {note.badge === "b-orange" && blocked.length > 0 && <span className="muted">이유: {blocked.map(blockedReasonLabel).join(" · ")}</span>}
+            </div>
+          )}
           <div className="muted" style={{ fontSize: 11.5 }}>근거: “{c.evidence_quote ?? "(인용을 찾을 수 없음)"}”</div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

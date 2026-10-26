@@ -159,6 +159,28 @@ const factObservation = z
   })
   .strict();
 
+/** 판정된 현재 사실(T-093). 값만이 아니라 상태를 함께 준다 — Agent 가 "4" 만 보고 상태를 모르는 일이 없게 한다. */
+export const factViewSchema = z
+  .object({
+    subject_type: z.string(),
+    subject_id: uuid,
+    fact_key: z.string(),
+    fact_state: z.enum(['PROVISIONAL', 'CONFIRMED', 'OBSERVED', 'NEEDS_REVIEW']).describe('PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide'),
+    value_number: z.string().nullable().describe('Decimal as string'),
+    value_unit: z.string().nullable(),
+    valid_from: timestamp.nullable(),
+    valid_until: timestamp.nullable(),
+    verified_by_human: z.boolean(),
+    verification_basis: z.string().nullable(),
+    conflict_status: z.enum(['NONE', 'DISSENT', 'OPEN']),
+    hold_status: z.enum(['NONE', 'HELD']),
+    decision_usability: z.enum(['USABLE', 'USABLE_WITH_WARNING', 'APPROVAL_BLOCKED', 'UNUSABLE']),
+    evidence: z
+      .object({ event_id: uuid, source_type: z.string(), received_at: timestamp, extraction_id: uuid.nullable(), generated_by: z.enum(['LLM', 'RECORDED_REPLAY', 'HUMAN', 'SYSTEM']) })
+      .strict(),
+  })
+  .strict();
+
 export const messageStatusSchema = z
   .object({
     message_id: uuid,
@@ -205,7 +227,8 @@ export const recoveryContextOutput = z
         truck_pools: z.array(z.object({ truck_pool_id: uuid, pool_name: z.string(), ownership: z.string(), owner_counterparty_id: uuid.nullable() }).strict()),
       })
       .strict(),
-    latest_observations: z.array(factObservation).describe('Latest observed claims per subject and fact — NOT reconciled current facts'),
+    latest_observations: z.array(factObservation).describe('Latest raw claims per subject and fact — NOT reconciled; read `facts` for the judged current values'),
+    facts: z.array(factViewSchema).describe('Current facts after reconciliation, with their state. PROVISIONAL is usable with a warning, not confirmed'),
     communications: z.array(messageStatusSchema),
     limitations: z.array(z.string()),
   })
@@ -219,7 +242,10 @@ const gapSchema = z
     subject_id: uuid,
     subject_name: z.string(),
     required_fact: z.string().describe('Fact key pattern that would close the gap'),
-    state: z.enum(['MISSING', 'ASKED']),
+    state: z
+      .enum(['MISSING', 'ASKED', 'PROVISIONAL_AVAILABLE', 'NEEDS_REVIEW'])
+      .describe('MISSING · ASKED · PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists — a human must confirm) · NEEDS_REVIEW (conflict or hold). A confirmed fact moves the gap to `known`'),
+    fact: factViewSchema.nullable().describe('The provisional / disputed value behind the state, when there is one'),
     open_question_message_ids: z.array(uuid),
     public_data_can_resolve: z.boolean(),
     suggested_source: z.enum(['PARTNER_INQUIRY', 'HUMAN_VERIFICATION']),
@@ -227,9 +253,9 @@ const gapSchema = z
     suggested_counterparty_role: z.enum(['TRUCKING', 'ODCY', 'WAREHOUSE']),
     owner_counterparty_id: uuid.nullable(),
     candidate_state: z
-      .enum(['NONE', 'REPLY_RECEIVED', 'CANDIDATE_RECEIVED', 'NO_VALID_CANDIDATE'])
-      .describe('Workflow only: whether an asked partner replied and the backend validated an extraction candidate. NOT a fact — the business gap (state) stays open until a confirmed fact exists (T-093)'),
-    candidate_extraction_ids: z.array(uuid).describe('Validated (PASSED) extraction candidates still PENDING review — suggestions, not facts'),
+      .enum(['NONE', 'REPLY_RECEIVED', 'CANDIDATE_RECEIVED', 'CANDIDATE_ACCEPTED', 'NO_VALID_CANDIDATE'])
+      .describe('Workflow only: whether an asked partner replied and what became of the validated extraction candidate (CANDIDATE_RECEIVED = validated but not promoted · CANDIDATE_ACCEPTED = became a provisional fact). NOT a fact itself — the business gap `state` says what is known'),
+    candidate_extraction_ids: z.array(uuid).describe('Validated (PASSED) extraction candidates that did not qualify to become a provisional fact (a person decides) — suggestions, not facts'),
   })
   .strict();
 
@@ -239,7 +265,7 @@ export const informationGapsOutput = z
     plan_date: isoDate,
     rule_version: z.string(),
     gaps: z.array(gapSchema),
-    known: z.array(z.object({ subject_type: z.string(), subject_id: uuid, required_fact: z.string(), evidence: factObservation }).strict()),
+    known: z.array(z.object({ subject_type: z.string(), subject_id: uuid, required_fact: z.string(), evidence: factObservation, fact: factViewSchema }).strict()),
   })
   .strict();
 
@@ -301,13 +327,15 @@ export const replyCandidatesOutput = z
                 failed_reasons: z.array(z.string()),
                 review_status: z.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'SUPERSEDED']),
                 generated_by: z.enum(['RECORDED_REPLAY', 'LLM']),
+                fact_event_id: uuid.nullable().describe('The event this candidate became (a provisional fact) — null if it did not qualify'),
+                promotion_blocked_reasons: z.array(z.string()).describe('Why a validated candidate did not become a provisional fact'),
               })
               .strict(),
           ),
         })
         .strict(),
     ),
-    note: z.literal('Candidates are suggestions validated by the backend. None is a fact until confirmed (T-093).'),
+    note: z.literal('Candidates are suggestions validated by the backend. A qualifying one becomes a provisional fact; only a human confirmation makes it CONFIRMED (T-093).'),
   })
   .strict();
 

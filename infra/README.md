@@ -42,7 +42,7 @@ bash infra/local/eval-ladder.sh 5                                # 작은 모델
 CERA_COMPOSE_EXTRA=infra/local/compose.gpu.yaml bash infra/local/eval-ladder.sh 5
 ```
 
-- 모델은 처음 켤 때 Hugging Face 에서 받아 `llm-cache` 볼륨에 둔다(저장소에 넣지 않는다). `infra/local/.env` 의 `CERA_LLM_HF` 가 `llm` 이 올리는 모델이다.
+- 모델은 처음 켤 때 Hugging Face 에서 받아 `llm-cache` 볼륨에 둔다(저장소에 넣지 않는다). `infra/local/.env` 의 `CERA_LLM_HF` 가 `llm` 이 올리는 모델이다. **MVP 임시 기본값은 `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M`**(최종 Production 선정 아님 — ADR-037, 설정만 바꿔 교체). 이 모델을 AI 서버가 쓰게 하려면 `ai/.env` 에서 `CERA_LLM_MODE=live` 만 바꾼다(`CERA_LLM_PROVIDER=local` · `CERA_LLM_MODEL=qwen3-4b-instruct-2507-q4_k_m` 은 `ai/.env.example` 에 이미 있다). 모델이 값을 틀리게 읽는 것은 정상이다 — Backend 검증과 사실 파이프라인(후보 → 임시 사실 → 사람 확인)이 사실이 되기 전에 걸러 낸다.
 - **Windows Git Bash**: `/srv/...` 같은 컨테이너 경로를 인자로 주지 않는다 — `C:/Program Files/Git/...` 로 바뀌어 결과가 컨테이너 안에 갇힌다(`--out-dir` 를 생략하면 기본 경로가 `ai/evals/runs/` 로 연결돼 있다).
 - 로컬 모델의 출력도 후보일 뿐이다. 판정은 Backend 검증기가 한다(ADR-029). 평가 결과는 모델 선정 근거이지 Production 결정이 아니다(규칙 9).
 

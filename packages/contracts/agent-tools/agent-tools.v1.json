@@ -1950,7 +1950,7 @@
       "name": "get_recovery_context",
       "version": "1",
       "category": "READ",
-      "description": "Read the recovery run this agent run is bound to: run status and trigger, snapshot date, facilities and truck pools in play, latest observed claims (not reconciled facts) and the inquiries already drafted or sent for it. Use first, to understand the situation before choosing any other tool.",
+      "description": "Read the recovery run this agent run is bound to: run status and trigger, snapshot date, facilities and truck pools in play, raw observed claims, the judged current facts with their state (PROVISIONAL is not confirmed) and the inquiries already drafted or sent for it. Use first, to understand the situation before choosing any other tool.",
       "timeout_ms": 5000,
       "idempotency": "NONE",
       "input_schema": {
@@ -2224,7 +2224,168 @@
               ],
               "additionalProperties": false
             },
-            "description": "Latest observed claims per subject and fact — NOT reconciled current facts"
+            "description": "Latest raw claims per subject and fact — NOT reconciled; read `facts` for the judged current values"
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject_type": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "fact_key": {
+                  "type": "string"
+                },
+                "fact_state": {
+                  "type": "string",
+                  "enum": [
+                    "PROVISIONAL",
+                    "CONFIRMED",
+                    "OBSERVED",
+                    "NEEDS_REVIEW"
+                  ],
+                  "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide"
+                },
+                "value_number": {
+                  "description": "Decimal as string",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "value_unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "valid_from": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "valid_until": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "verified_by_human": {
+                  "type": "boolean"
+                },
+                "verification_basis": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "conflict_status": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "DISSENT",
+                    "OPEN"
+                  ]
+                },
+                "hold_status": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "HELD"
+                  ]
+                },
+                "decision_usability": {
+                  "type": "string",
+                  "enum": [
+                    "USABLE",
+                    "USABLE_WITH_WARNING",
+                    "APPROVAL_BLOCKED",
+                    "UNUSABLE"
+                  ]
+                },
+                "evidence": {
+                  "type": "object",
+                  "properties": {
+                    "event_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "source_type": {
+                      "type": "string"
+                    },
+                    "received_at": {
+                      "type": "string",
+                      "description": "ISO 8601 with +09:00"
+                    },
+                    "extraction_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "generated_by": {
+                      "type": "string",
+                      "enum": [
+                        "LLM",
+                        "RECORDED_REPLAY",
+                        "HUMAN",
+                        "SYSTEM"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "event_id",
+                    "source_type",
+                    "received_at",
+                    "extraction_id",
+                    "generated_by"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "subject_type",
+                "subject_id",
+                "fact_key",
+                "fact_state",
+                "value_number",
+                "value_unit",
+                "valid_from",
+                "valid_until",
+                "verified_by_human",
+                "verification_basis",
+                "conflict_status",
+                "hold_status",
+                "decision_usability",
+                "evidence"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Current facts after reconciliation, with their state. PROVISIONAL is usable with a warning, not confirmed"
           },
           "communications": {
             "type": "array",
@@ -2346,6 +2507,7 @@
           "snapshot",
           "resources",
           "latest_observations",
+          "facts",
           "communications",
           "limitations"
         ],
@@ -2356,7 +2518,7 @@
       "name": "get_information_gaps",
       "version": "1",
       "category": "READ",
-      "description": "Ask the CERA backend which facts the recovery plan needs but does not have (deterministic rules, not a judgement): warehouse/ODCY capacity for the plan date and partner truck availability. Each gap says whether an inquiry is already open and which counterparty role can answer it. Use to decide what to investigate or ask next; do not invent gaps yourself.",
+      "description": "Ask the CERA backend which facts the recovery plan needs but does not have (deterministic rules, not a judgement): warehouse/ODCY capacity for the plan date and partner truck availability. Each gap says its state — MISSING, ASKED, PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists; a human must confirm) or NEEDS_REVIEW — whether an inquiry is already open, and which counterparty role can answer it. Only a human-confirmed fact closes a gap (it moves to `known`). Use to decide what to investigate or ask next; do not invent gaps yourself.",
       "timeout_ms": 5000,
       "idempotency": "NONE",
       "input_schema": {
@@ -2424,8 +2586,176 @@
                   "type": "string",
                   "enum": [
                     "MISSING",
-                    "ASKED"
-                  ]
+                    "ASKED",
+                    "PROVISIONAL_AVAILABLE",
+                    "NEEDS_REVIEW"
+                  ],
+                  "description": "MISSING · ASKED · PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists — a human must confirm) · NEEDS_REVIEW (conflict or hold). A confirmed fact moves the gap to `known`"
+                },
+                "fact": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "subject_type": {
+                          "type": "string"
+                        },
+                        "subject_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "fact_key": {
+                          "type": "string"
+                        },
+                        "fact_state": {
+                          "type": "string",
+                          "enum": [
+                            "PROVISIONAL",
+                            "CONFIRMED",
+                            "OBSERVED",
+                            "NEEDS_REVIEW"
+                          ],
+                          "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide"
+                        },
+                        "value_number": {
+                          "description": "Decimal as string",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "value_unit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "valid_from": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "valid_until": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "verified_by_human": {
+                          "type": "boolean"
+                        },
+                        "verification_basis": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "conflict_status": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "DISSENT",
+                            "OPEN"
+                          ]
+                        },
+                        "hold_status": {
+                          "type": "string",
+                          "enum": [
+                            "NONE",
+                            "HELD"
+                          ]
+                        },
+                        "decision_usability": {
+                          "type": "string",
+                          "enum": [
+                            "USABLE",
+                            "USABLE_WITH_WARNING",
+                            "APPROVAL_BLOCKED",
+                            "UNUSABLE"
+                          ]
+                        },
+                        "evidence": {
+                          "type": "object",
+                          "properties": {
+                            "event_id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "source_type": {
+                              "type": "string"
+                            },
+                            "received_at": {
+                              "type": "string",
+                              "description": "ISO 8601 with +09:00"
+                            },
+                            "extraction_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "generated_by": {
+                              "type": "string",
+                              "enum": [
+                                "LLM",
+                                "RECORDED_REPLAY",
+                                "HUMAN",
+                                "SYSTEM"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "event_id",
+                            "source_type",
+                            "received_at",
+                            "extraction_id",
+                            "generated_by"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "subject_type",
+                        "subject_id",
+                        "fact_key",
+                        "fact_state",
+                        "value_number",
+                        "value_unit",
+                        "valid_from",
+                        "valid_until",
+                        "verified_by_human",
+                        "verification_basis",
+                        "conflict_status",
+                        "hold_status",
+                        "decision_usability",
+                        "evidence"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The provisional / disputed value behind the state, when there is one"
                 },
                 "open_question_message_ids": {
                   "type": "array",
@@ -2478,9 +2808,10 @@
                     "NONE",
                     "REPLY_RECEIVED",
                     "CANDIDATE_RECEIVED",
+                    "CANDIDATE_ACCEPTED",
                     "NO_VALID_CANDIDATE"
                   ],
-                  "description": "Workflow only: whether an asked partner replied and the backend validated an extraction candidate. NOT a fact — the business gap (state) stays open until a confirmed fact exists (T-093)"
+                  "description": "Workflow only: whether an asked partner replied and what became of the validated extraction candidate (CANDIDATE_RECEIVED = validated but not promoted · CANDIDATE_ACCEPTED = became a provisional fact). NOT a fact itself — the business gap `state` says what is known"
                 },
                 "candidate_extraction_ids": {
                   "type": "array",
@@ -2489,7 +2820,7 @@
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   },
-                  "description": "Validated (PASSED) extraction candidates still PENDING review — suggestions, not facts"
+                  "description": "Validated (PASSED) extraction candidates that did not qualify to become a provisional fact (a person decides) — suggestions, not facts"
                 }
               },
               "required": [
@@ -2500,6 +2831,7 @@
                 "subject_name",
                 "required_fact",
                 "state",
+                "fact",
                 "open_question_message_ids",
                 "public_data_can_resolve",
                 "suggested_source",
@@ -2590,13 +2922,171 @@
                     "is_simulated"
                   ],
                   "additionalProperties": false
+                },
+                "fact": {
+                  "type": "object",
+                  "properties": {
+                    "subject_type": {
+                      "type": "string"
+                    },
+                    "subject_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "fact_key": {
+                      "type": "string"
+                    },
+                    "fact_state": {
+                      "type": "string",
+                      "enum": [
+                        "PROVISIONAL",
+                        "CONFIRMED",
+                        "OBSERVED",
+                        "NEEDS_REVIEW"
+                      ],
+                      "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide"
+                    },
+                    "value_number": {
+                      "description": "Decimal as string",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "value_unit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "valid_from": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "description": "ISO 8601 with +09:00"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "valid_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "description": "ISO 8601 with +09:00"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "verified_by_human": {
+                      "type": "boolean"
+                    },
+                    "verification_basis": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "conflict_status": {
+                      "type": "string",
+                      "enum": [
+                        "NONE",
+                        "DISSENT",
+                        "OPEN"
+                      ]
+                    },
+                    "hold_status": {
+                      "type": "string",
+                      "enum": [
+                        "NONE",
+                        "HELD"
+                      ]
+                    },
+                    "decision_usability": {
+                      "type": "string",
+                      "enum": [
+                        "USABLE",
+                        "USABLE_WITH_WARNING",
+                        "APPROVAL_BLOCKED",
+                        "UNUSABLE"
+                      ]
+                    },
+                    "evidence": {
+                      "type": "object",
+                      "properties": {
+                        "event_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "source_type": {
+                          "type": "string"
+                        },
+                        "received_at": {
+                          "type": "string",
+                          "description": "ISO 8601 with +09:00"
+                        },
+                        "extraction_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "generated_by": {
+                          "type": "string",
+                          "enum": [
+                            "LLM",
+                            "RECORDED_REPLAY",
+                            "HUMAN",
+                            "SYSTEM"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "event_id",
+                        "source_type",
+                        "received_at",
+                        "extraction_id",
+                        "generated_by"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "subject_type",
+                    "subject_id",
+                    "fact_key",
+                    "fact_state",
+                    "value_number",
+                    "value_unit",
+                    "valid_from",
+                    "valid_until",
+                    "verified_by_human",
+                    "verification_basis",
+                    "conflict_status",
+                    "hold_status",
+                    "decision_usability",
+                    "evidence"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "required": [
                 "subject_type",
                 "subject_id",
                 "required_fact",
-                "evidence"
+                "evidence",
+                "fact"
               ],
               "additionalProperties": false
             }
@@ -3098,7 +3588,7 @@
       "name": "get_reply_candidates",
       "version": "1",
       "category": "READ",
-      "description": "Read the replies to one inquiry of this recovery run and the extraction candidates the backend validated (field, candidate value, PASSED/REJECTED and why, review status). Candidates are suggestions, not facts. Use after a reply arrived to judge whether the asked information came back. No raw mail text or quotes are returned.",
+      "description": "Read the replies to one inquiry of this recovery run and the extraction candidates the backend validated (field, candidate value, PASSED/REJECTED and why, review status). Candidates are suggestions; a qualifying one has already become a provisional fact (fact_event_id) — not a confirmed one. Use after a reply arrived to judge whether the asked information came back. No raw mail text or quotes are returned.",
       "timeout_ms": 5000,
       "idempotency": "NONE",
       "input_schema": {
@@ -3210,6 +3700,26 @@
                           "RECORDED_REPLAY",
                           "LLM"
                         ]
+                      },
+                      "fact_event_id": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The event this candidate became (a provisional fact) — null if it did not qualify"
+                      },
+                      "promotion_blocked_reasons": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Why a validated candidate did not become a provisional fact"
                       }
                     },
                     "required": [
@@ -3220,7 +3730,9 @@
                       "validation",
                       "failed_reasons",
                       "review_status",
-                      "generated_by"
+                      "generated_by",
+                      "fact_event_id",
+                      "promotion_blocked_reasons"
                     ],
                     "additionalProperties": false
                   }
@@ -3238,7 +3750,7 @@
           },
           "note": {
             "type": "string",
-            "const": "Candidates are suggestions validated by the backend. None is a fact until confirmed (T-093)."
+            "const": "Candidates are suggestions validated by the backend. A qualifying one becomes a provisional fact; only a human confirmation makes it CONFIRMED (T-093)."
           }
         },
         "required": [

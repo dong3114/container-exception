@@ -45,19 +45,26 @@ export const AUDIT_ACTION = {
   PUBLIC_DATA_FETCHED: 'PUBLIC_DATA_FETCHED',
   // T-103 Agent Tool — 초안을 사람의 승인 대기로 올렸다(승인이 아니다)
   APPROVAL_REQUESTED: 'APPROVAL_REQUESTED',
+  // T-093 사실 — 후보가 임시 사실(사건)이 되었다 / 사람이 확인 · 거절 · 정정했다. 승격이 막히면 `FACT_PROMOTION_BLOCKED_<사유>`(대상 = 추출)
+  FACT_PROVISIONAL_CREATED: 'FACT_PROVISIONAL_CREATED',
+  FACT_CONFIRMED: 'FACT_CONFIRMED',
+  FACT_REJECTED: 'FACT_REJECTED',
+  FACT_CORRECTED: 'FACT_CORRECTED',
 } as const;
-export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];
+export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION] | `FACT_PROMOTION_BLOCKED_${string}`;
 
 /** 감사 대상 종류. 내용 파기 감사는 내용 범주를 그대로 쓴다(docs/24 16.3 · 17절). 승인 결정은 승인 행을 가리킨다. */
-export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH')[] = [
+export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT')[] = [
   ...CONTENT_CATEGORIES,
   'MESSAGE_APPROVAL',
   'COMM_MESSAGE',
   'SEND_ATTEMPT',
   'RAW_INPUT',
   'PUBLIC_DATA_FETCH',
+  'EXTRACTION',
+  'EVENT',
 ];
-export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH';
+export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT';
 
 export const SYSTEM_ERROR_CATEGORY = {
   UNEXPECTED: 'UNEXPECTED',

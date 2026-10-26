@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TruthModule } from '../truth/truth.module.js';
 import { ApprovalController } from './approval.controller.js';
 import { ApprovalRepository } from './approval.repository.js';
 import { ApprovalService } from './approval.service.js';
@@ -25,6 +26,7 @@ import { SendService } from './send.service.js';
  * API 프로세스는 컨트롤러를, Worker 프로세스는 `OutboxDispatcher` · `InboundProcessor` · `ExtractionProcessor` 를 쓴다(같은 코드, 다른 프로세스 — ADR-033).
  */
 @Module({
+  imports: [TruthModule],
   controllers: [DraftController, ApprovalController, SendController, InboundController, PlanningRunController],
   providers: [
     DraftRepository,

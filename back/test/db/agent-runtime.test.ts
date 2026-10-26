@@ -246,7 +246,7 @@ describe('CeraRecoveryGraph across two processes', () => {
     expect((await db.query('SELECT current_status FROM cera.comm_message WHERE message_id = $1', [messageId])).rows[0].current_status).toBe('APPROVED');
   });
 
-  it('T-105 slice: a person requests the send → worker sends (Mock) → WAITING_EXTERNAL → Python restarts → reply → extraction → resume → reassess → COMPLETED', async () => {
+  it('T-105 · T-093 slice: send → Mock → Python restarts → reply → extraction → provisional fact → run waits → person confirms → resume → gap closed → COMPLETED', async () => {
     await http.post(`/communication/drafts/${messageId}/send`).set(ACTOR, w.humanId).send({ content_hash: await draftHash(messageId) }).expect(200);
     await tick(); // outbox → Mock channel SENT; the reconciler sees SENT and wakes the run
     const awaiting = await until(runId, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_REPLY' || v.status === 'FAILED');
@@ -257,38 +257,95 @@ describe('CeraRecoveryGraph across two processes', () => {
     await stopPython();
     await startPython(); // restart while waiting for the partner
     await mock().simulateReply({ replyToCeraMessageId: messageId, body: '오후 3시 이후 차량 4대 가능합니다.' });
-    await tick(); // inbound (NORMAL, thread) → extraction (Python replay) → reconciler wakes the same run
+    await tick(); // inbound (NORMAL, thread) → extraction (Python replay) → promotion to a provisional fact → reconciler wakes the same run
+    // T-093: the reply became a PROVISIONAL fact (validated, not confirmed) — the run waits for a person to confirm it
+    const provisional = await until(runId, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_FACT_VERIFICATION' || v.status === 'FAILED' || v.status === 'COMPLETED', 40_000);
+    expect(provisional).toMatchObject({ status: 'WAITING_HUMAN', waiting_reason: 'AWAITING_FACT_VERIFICATION', pending_ref: { type: 'COMM_MESSAGE', id: messageId } });
+    const facts = (await http.get(`/truth/facts?recovery_run_id=${w.runId}`).expect(200)).body.facts as { fact_key: string; fact_state: string; decision_usability: string; current: { event_id: string; value: number; verified_by_human: boolean } | null }[];
+    const slot = facts.find((f) => f.fact_key.startsWith('available.slot') && f.current !== null);
+    expect(slot).toMatchObject({ fact_state: 'PROVISIONAL', decision_usability: 'USABLE_WITH_WARNING', current: { value: 4, verified_by_human: false } });
+    // the gap is not closed by a provisional fact; the candidate is no longer "waiting" — it became an event
+    const exRows = (await db.query("SELECT review_status, created_event_id FROM cera.extraction WHERE message_id = (SELECT message_id FROM cera.comm_message WHERE direction = 'INBOUND' ORDER BY created_at DESC LIMIT 1)")).rows;
+    expect(exRows.some((r) => r.review_status === 'ACCEPTED' && r.created_event_id === slot?.current?.event_id)).toBe(true);
+
+    // a person confirms → the fact becomes CONFIRMED (HUMAN_VERIFICATION) → the waiting run wakes, re-reads the gap and finishes
+    await http.post(`/truth/events/${slot?.current?.event_id}/confirm`).set(ACTOR, w.humanId).send({}).expect(200);
     const done = await until(runId, (v) => v.status === 'COMPLETED' || v.status === 'FAILED', 40_000);
     expect(done).toMatchObject({ status: 'COMPLETED', waiting_reason: null, pending_ref: null });
-    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'CANDIDATE_RECEIVED_PENDING_CONFIRMATION' });
+    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'FACT_CONFIRMED' });
     expect(done.result_summary).toMatchObject({
       message_id: messageId,
-      reply_outcome: 'CANDIDATES_RECEIVED',
-      candidate_state: 'CANDIDATE_RECEIVED',
-      business_gap_state: 'ASKED', // the business gap stays open: a candidate is not a fact (T-093)
-      facts_confirmed: false,
+      reply_outcome: 'FACTS_PROMOTED',
+      business_gap_state: 'KNOWN', // closed only by the human-confirmed fact
+      facts_confirmed: true,
       public_data_mode: 'REPLAY',
       public_data_outcome: 'SUCCESS',
     });
     expect(done.result_summary.candidate_fields).toContain('quantity');
     const resumes = done.steps.filter((x: { kind: string }) => x.kind === 'RESUME').map((x: { detail_code: string }) => x.detail_code);
-    expect(resumes).toEqual(['APPROVAL_DECIDED', 'SEND_PROGRESS', 'INBOUND_REPLY_RECEIVED']);
+    expect(resumes).toEqual(['APPROVAL_DECIDED', 'SEND_PROGRESS', 'INBOUND_REPLY_RECEIVED', 'FACT_STATE_CHANGED']);
     const nodes = done.steps.filter((x: { kind: string }) => x.kind === 'NODE').map((x: { node: string }) => x.node);
-    expect(nodes.slice(-4)).toEqual(['track_message', 'read_reply', 'reassess_gaps', 'build_result']);
-    // still no fact: the extraction is a PENDING candidate, no event was created from it
-    const ex = await db.query("SELECT review_status, created_event_id FROM cera.extraction WHERE extraction_id = ANY($1::uuid[])", [done.result_summary.candidate_extraction_ids]);
-    expect(ex.rows.length).toBeGreaterThan(0);
-    expect(ex.rows.every((r) => r.review_status === 'PENDING' && r.created_event_id === null)).toBe(true);
+    expect(nodes.slice(-6)).toEqual(['track_message', 'read_reply', 'reassess_gaps', 'wait_fact_verification', 'reassess_gaps', 'build_result']);
     // one draft, one approval request; the agent never called a send or approve tool
     const calls = (await db.query('SELECT tool_name FROM cera.agent_tool_call WHERE agent_run_id = $1 ORDER BY started_at', [runId])).rows.map((c) => c.tool_name);
     expect(calls.filter((t) => t === 'create_inquiry_draft')).toHaveLength(1);
     expect(calls.filter((t) => t === 'request_approval')).toHaveLength(1);
-    expect(calls.slice(-2)).toEqual(['get_reply_candidates', 'get_information_gaps']);
+    expect(calls.slice(-3)).toEqual(['get_reply_candidates', 'get_information_gaps', 'get_information_gaps']);
     expect(Number((await db.query("SELECT count(*) AS n FROM cera.send_attempt WHERE message_id = $1 AND result = 'SUCCESS'", [messageId])).rows[0].n)).toBe(1);
     // a resume of a finished run is a no-op; the finished run is frozen
     const late = (await http.post(`/agent-runs/${runId}/resume`).set(ACTOR, w.humanId).send({ reason: 'MANUAL' }).expect(200)).body;
     expect(late.status).toBe('COMPLETED');
     await expectSql(db.query("UPDATE cera.agent_run SET status = 'RUNNING' WHERE agent_run_id = $1", [runId]), 'CE004');
+  });
+
+  /** 새 차량 풀 → 실행 → 승인 → 발송 → 회신 → 추출 → 임시 사실. 사실 확인을 기다리는 실행(AWAITING_FACT_VERIFICATION)과 그 사건 id. */
+  async function driveToProvisionalFact() {
+    await newTruckPool();
+    const id = await createRun();
+    const started = (await http.post(`/agent-runs/${id}/start`).set(ACTOR, w.humanId).expect(200)).body;
+    const mid = started.pending_ref.id as string;
+    await http.post(`/communication/drafts/${mid}/approve`).set(ACTOR, w.humanId).send({ content_hash: await draftHash(mid) }).expect(200);
+    await until(id, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_SEND_REQUEST' || v.status === 'FAILED');
+    await http.post(`/communication/drafts/${mid}/send`).set(ACTOR, w.humanId).send({ content_hash: await draftHash(mid) }).expect(200);
+    await tick();
+    await until(id, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_REPLY' || v.status === 'FAILED');
+    await mock().simulateReply({ replyToCeraMessageId: mid, body: '오후 3시 이후 차량 4대 가능합니다.' });
+    await tick();
+    const waiting = await until(id, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_FACT_VERIFICATION' || v.status === 'FAILED' || v.status === 'COMPLETED', 40_000);
+    expect(waiting).toMatchObject({ status: 'WAITING_HUMAN', waiting_reason: 'AWAITING_FACT_VERIFICATION', pending_ref: { type: 'COMM_MESSAGE', id: mid } });
+    const facts = (await http.get(`/truth/facts?recovery_run_id=${w.runId}`).expect(200)).body.facts as { current: { event_id: string; value: number } | null; fact_state: string; entity_id: string }[];
+    const newest = (await db.query('SELECT target_entity_id FROM cera.question_item WHERE thread_id = (SELECT thread_id FROM cera.comm_message WHERE message_id = $1)', [mid])).rows[0].target_entity_id as string;
+    const fact = facts.find((f) => f.entity_id === newest);
+    expect(fact).toMatchObject({ fact_state: 'PROVISIONAL' });
+    return { id, mid, eventId: fact?.current?.event_id as string };
+  }
+
+  it('lost wake-up (T-093): the confirmation commits but its signal never arrives; the reconciler wakes the waiting run from the fact state alone', async () => {
+    const { id, eventId } = await driveToProvisionalFact();
+    // fault injection: the in-process signal is dropped (the signal hub is one shared object in this test process — restore it afterwards)
+    const signals = api.get(DOMAIN_SIGNALS) as DomainSignals;
+    const emit = signals.emit;
+    signals.emit = () => undefined;
+    try {
+      await http.post(`/truth/events/${eventId}/confirm`).set(ACTOR, w.humanId).send({}).expect(200);
+      await sleep(300);
+      expect((await view(id)).status).toBe('WAITING_HUMAN'); // nothing woke it
+      expect((await reconcile()).woken).toBeGreaterThanOrEqual(1); // the worker's periodic reconcile reads the fact state, not the signal
+    } finally {
+      signals.emit = emit;
+    }
+    const done = await until(id, (v) => v.status === 'COMPLETED' || v.status === 'FAILED');
+    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'FACT_CONFIRMED' });
+    expect(done.steps.filter((x: { kind: string }) => x.kind === 'RESUME').map((x: { detail_code: string }) => x.detail_code).at(-1)).toBe('FACT_STATE_CHANGED');
+    expect((await reconcile()).woken).toBe(0);
+  });
+
+  it('a rejected provisional fact wakes the run too: the gap is open again and the run ends FACT_REJECTED_GAP_OPEN — no fact was invented', async () => {
+    const { id, eventId } = await driveToProvisionalFact();
+    await http.post(`/truth/events/${eventId}/reject`).set(ACTOR, w.humanId).send({ reason_code: 'CONDITIONAL_ANSWER' }).expect(200);
+    const done = await until(id, (v) => v.status === 'COMPLETED' || v.status === 'FAILED');
+    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'FACT_REJECTED_GAP_OPEN' });
+    expect(done.result_summary).toMatchObject({ business_gap_state: 'ASKED', facts_confirmed: false });
   });
 
   it('a rejected draft ends the run with INQUIRY_REJECTED', async () => {
