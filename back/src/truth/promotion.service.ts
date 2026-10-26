@@ -7,7 +7,7 @@ import { eventIdempotencyKey } from '../persistence/event-writer.js';
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
-import { sentenceAround } from './date-scope.js';
+import { replyDateOf, sentenceAround } from './date-scope.js';
 import { parseFactKey } from './fact-key.js';
 import { type BlockReason, evaluatePromotion } from './promotion-rules.js';
 import { type Coordinate, TruthRepository } from './truth.repository.js';
@@ -97,7 +97,7 @@ export class PromotionService {
         isSimulated: ctx.isSimulated,
         scenarioId: ctx.scenarioId,
         replySentence: sourceText ? sentenceAround(sourceText, quoteText(sourceText, first.row.quoteLocation)) : '',
-        replyDate: Instant.fromDb(ctx.rawSourceRecordedAt ?? ctx.rawReceivedAt).toSeoulIso().slice(0, 10),
+        replyDate: replyDateOf(ctx.rawSourceRecordedAt, ctx.rawReceivedAt),
       });
 
       if (!decision.ok) {

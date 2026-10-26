@@ -1,3 +1,5 @@
+import { Instant } from '../shared/time/instant.js';
+
 /**
  * 회신 문장의 날짜 표현 확인(T-093) — 회신 계약(`reply-extract/1`)에는 답의 **날짜 칸이 없다**. 그래서 "모레 4대" 를 모델이 수량 4 로만 돌려주면
  * 질문 날짜의 값처럼 보인다. 표현할 수 없는 날짜를 질문 날짜라고 **임의로 해석해 임시 사실로 올리지 않는다**.
@@ -41,7 +43,6 @@ export function dateMentions(text: string, replyDate: string, askDate: string): 
   const unresolved: string[] = [];
   for (const [re, days] of RELATIVE) if (re.test(text)) resolved.add(addDays(replyDate, days));
   const year = Number(askDate.slice(0, 4));
-  const month = Number(askDate.slice(5, 7));
   for (const m of text.matchAll(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/g)) {
     const d = ymd(year, Number(m[1]), Number(m[2]));
     if (d) resolved.add(d);
@@ -51,13 +52,21 @@ export function dateMentions(text: string, replyDate: string, askDate: string): 
   for (const m of text.matchAll(/(?<!\d)(\d{1,2})\s*일(?!\s*(?:간|동안|째|치))/g)) {
     const before = text.slice(0, m.index ?? 0);
     if (/\d\s*월\s*$/.test(before)) continue;
-    const d = ymd(year, month, Number(m[1]));
-    if (d) resolved.add(d);
+    // 월이 없는 "N일": 질문 날짜의 일과 같을 때만 질문 날짜로 본다. 다르면 이번 달인지 다음 달인지(월말 · 월초 경계) 정할 수 없다 → 확인 불가
+    if (Number(m[1]) === Number(askDate.slice(8, 10))) resolved.add(askDate);
     else unresolved.push(m[0]);
   }
   const u = UNRESOLVABLE.exec(text);
   if (u) unresolved.push(u[0]);
   return { resolved: [...resolved].sort(), unresolved };
+}
+
+/**
+ * 상대 날짜의 기준 = **회신의 근거 시각**(Q-44 로 정해 저장한 `source_recorded_at`, 없으면 받은 시각)의 **Asia/Seoul 날짜**.
+ * 처리 시각(시스템 시계)이 아니다 — 같은 회신을 언제 다시 처리해도 같은 날짜가 나온다.
+ */
+export function replyDateOf(sourceRecordedAt: string | null, receivedAt: string): string {
+  return Instant.fromDb(sourceRecordedAt ?? receivedAt).toSeoulIso().slice(0, 10);
 }
 
 /** 원문에서 인용이 들어 있는 문장(인용 앞뒤의 문장 경계까지). 인용 위치를 모르면 인용 자신. */

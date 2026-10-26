@@ -47,7 +47,10 @@ export interface CoordinateData {
 
 export function toFactEvent(r: EventRow): FactEvent {
   const payload = (r.payload ?? {}) as Record<string, unknown>;
-  const authority = payload.authority === 'A' || payload.authority === 'W' ? (payload.authority as Authority) : 'S';
+  // 권한은 수신 때 **사실 계열별로** 판정해 사건에 남긴 값만 쓴다. 판정이 없는 사건은 권한 없음(NONE → 강도 0) —
+  // 시스템 · 공공데이터 · 파트너 출처라는 이유만으로 강해지지 않는다. 사람(HUMAN_UI) 직접 입력만 운영자 권한 S 를 기본으로 갖는다
+  const assessed = payload.authority === 'A' || payload.authority === 'S' || payload.authority === 'W' ? (payload.authority as Authority) : null;
+  const authority: Authority = assessed ?? (r.sourceType === 'HUMAN_UI' ? 'S' : 'NONE');
   const evidence = r.sourceEventTime ?? r.sourceRecordedAt ?? r.receivedAt;
   return {
     eventId: r.eventId,

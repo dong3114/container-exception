@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { wakeReason } from '../../src/agent-tools/wake-rules.js';
 import { parseFactKey } from '../../src/truth/fact-key.js';
-import { dateMentions, sentenceAround } from '../../src/truth/date-scope.js';
+import { dateMentions, replyDateOf, sentenceAround } from '../../src/truth/date-scope.js';
 import { evaluatePromotion, senderAuthority, type PromotionInput } from '../../src/truth/promotion-rules.js';
 import { DEFAULT_TRUTH_POLICY } from '../../src/truth/truth-policy.js';
 import { type FactEvent, type VerificationEvent, factState, reconcile, verificationStates } from '../../src/truth/reconcile-rules.js';
@@ -72,6 +72,17 @@ describe('reconcile — truth states', () => {
     // 값 없는 정정은 철회: 대상도 정정 자신도 후보가 아니다
     const withdrawn = ev({ at: T('01:00'), value: null, eventClass: 'CORRECTION', supersedesEventId: ai.eventId, sourceType: 'HUMAN_UI', authority: 'S', confidence: 'HIGH' });
     expect(run([ai, withdrawn]).status).toBe('UNKNOWN');
+  });
+
+  it('3 · 4. strength comes from per-field authority only: a source with no authority for this field is ineligible whoever entered it; model confidence is not an input', () => {
+    const human = ev({ at: T('01:00'), value: 4, sourceType: 'HUMAN_UI', authority: 'S', confidence: 'HIGH' });
+    // SYSTEM 행위자가 넣은 파트너 시스템 값 — 이 사실 계열의 권한 판정 없음(NONE) → 강도 0, 사람 값을 덮지 못한다
+    const system = ev({ at: T('03:00'), value: 9, sourceType: 'PARTNER_SYSTEM', authority: 'NONE', confidence: 'HIGH' });
+    const r = run([human, system]);
+    expect(r.winner?.eventId).toBe(human.eventId);
+    expect(r.roles.get(system.eventId)).toBe('INELIGIBLE');
+    expect(r.conflictStatus).toBe('NONE');
+    for (const sourceType of ['PUBLIC_API', 'PARTNER_SYSTEM', 'FILE_IMPORT', 'EMAIL']) expect(run([ev({ at: T('01:00'), value: 4, sourceType, authority: 'NONE', confidence: 'HIGH' })]).status).toBe('UNKNOWN');
   });
 
   it('a public-API value (strength 2, no human) is OBSERVED, not CONFIRMED; an authoritative partner system value is CONFIRMED', () => {
@@ -231,14 +242,47 @@ describe('promotion — who may become a provisional fact', () => {
   });
 });
 
+function evaluatePromotionFor(replySentence: string, askDate: string): string[] {
+  const d = evaluatePromotion({
+    extraction: { extractionId: 'x1', askId: 'Q1', field: 'quantity', value: '4', unit: 'TRUCK', validated: true, ambiguous: false, reviewStatus: 'PENDING', createdEventId: null },
+    siblings: [],
+    question: { questionType: 'SLOT', status: 'SENT', expectedUnit: 'TRUCK', target: { entityType: 'TRUCK_POOL', entityId: 'p1', factKey: `available.slot(${askDate}T15:00-17:00)`, scopeType: 'GLOBAL', scopeRef: '' }, asked: { date: askDate, windowFrom: '15:00', windowTo: '17:00' } },
+    entity: { type: 'TRUCK_POOL', facilityType: null, ownerCounterpartyId: 'c1' },
+    sender: { counterpartyId: 'c1', role: 'TRUCKING' },
+    planSuperseded: false,
+    isSimulated: false,
+    scenarioId: null,
+    replySentence,
+    replyDate: '2026-10-26',
+  });
+  return d.ok ? [] : d.reasons;
+}
+
 describe('date scope and policy boundaries', () => {
   it('dateMentions resolves relative and explicit dates from the reply date; flags the unresolvable', () => {
     expect(dateMentions('내일 오후 3시 이후 4대', '2026-10-26', '2026-10-27')).toEqual({ resolved: ['2026-10-27'], unresolved: [] });
-    expect(dateMentions('10월 27일 · 28일 둘 다 가능', '2026-10-26', '2026-10-27').resolved).toEqual(['2026-10-27', '2026-10-28']);
+    expect(dateMentions('10월 27일 · 28일 둘 다 가능', '2026-10-26', '2026-10-27')).toEqual({ resolved: ['2026-10-27'], unresolved: ['28일'] });
     expect(dateMentions('주말에 가능', '2026-10-26', '2026-10-27').unresolved).toEqual(['주말']);
     expect(dateMentions('2월 30일', '2026-10-26', '2026-10-27').unresolved).toEqual(['2월 30일']);
     expect(dateMentions('오후 3시 이후 4대', '2026-10-26', '2026-10-27')).toEqual({ resolved: [], unresolved: [] });
     expect(sentenceAround('안녕하세요. 모레 차량 4대 가능합니다. 감사합니다.', '차량 4대')).toBe(' 모레 차량 4대 가능합니다');
+  });
+
+  it('1. the reference for relative dates is the reply evidence time in Asia/Seoul — never the processing clock', () => {
+    // 2026-10-26 23:50 KST(= 14:50Z) 에 보낸 "내일" → 10-27. 언제 다시 처리해도 같다(시스템 시계를 읽지 않는다)
+    const d = replyDateOf('2026-10-26 14:50:00+00', '2026-10-26 15:10:00+00');
+    expect(d).toBe('2026-10-26');
+    expect(dateMentions('내일 가능합니다', d, '2026-10-27').resolved).toEqual(['2026-10-27']);
+    // 자정 넘어(00:30 KST = 전날 15:30Z) 보낸 "내일" 은 10-28 — UTC 날짜가 아니라 서울 날짜
+    expect(replyDateOf('2026-10-26 15:30:00+00', '2026-10-26 15:31:00+00')).toBe('2026-10-27');
+    expect(replyDateOf(null, '2026-10-26 14:50:00+00')).toBe('2026-10-26'); // 근거 시각이 없으면 받은 시각
+  });
+
+  it('2. a day without a month is only read as the asked day; any other day is month-ambiguous → DATE_UNVERIFIED', () => {
+    expect(evaluatePromotionFor('1일에 4대 가능', '2026-11-01')).toEqual([]);
+    expect(evaluatePromotionFor('1일에 4대 가능', '2026-10-31')).toEqual(['DATE_UNVERIFIED']); // 10-01? 11-01? — 추론하지 않는다
+    expect(evaluatePromotionFor('31일에 4대 가능', '2026-11-01')).toEqual(['DATE_UNVERIFIED']);
+    expect(evaluatePromotionFor('11월 1일에 4대 가능', '2026-10-31')).toEqual(['DATE_OUT_OF_SCOPE']); // 월이 있으면 정확히 다른 날
   });
 
   it('D. the material-change ratio (30%) is a policy value: 29% adopts, 30% holds; another policy moves the boundary', () => {

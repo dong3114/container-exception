@@ -33,11 +33,13 @@ export const DEFAULT_TRUTH_POLICY: TruthPolicy = {
  * | FILE_IMPORT      | 2      | 2      | 1      |                                                   |
  * | EMAIL(LLM 추출)  | 1      | 1      | 0      | 신뢰도 LOW 면 0. 자원 · 제안 · 견적 사실만        |
  * | 그 밖            | 0      | 0      | 0      | DOCUMENT · INFERENCE — 이 슬라이스에서 후보 아님 |
+ * 권한 NONE(그 계열에 대한 권한 판정이 없음)은 출처 종류와 무관하게 0 이다 — SYSTEM 행위자 · 공공데이터 · 파트너 시스템이라는 사실만으로는 근거가 되지 않는다.
  *
  * 권한은 **사실 계열별**이다(창고 담당자는 창고 수용량의 A 지만 통관의 A 가 아니다 — docs/05 3.2). 그래서 "공공데이터 vs 상대 회신" 같은
  * 전역 순위를 두지 않는다. 계열 · 출처 정책을 늘릴 때는 이 표와 `promotion-rules.ts` 의 계열 → 역할 표를 함께 늘린다.
  */
 export function baseStrength(sourceType: string, authority: Authority, confidence: Confidence): Strength {
+  if (authority === 'NONE') return 0; // 이 사실 계열에 대한 권한 판정이 없다 — 출처 종류 · 행위자만으로 강해지지 않는다
   switch (sourceType) {
     case 'HUMAN_UI':
     case 'PARTNER_SYSTEM':

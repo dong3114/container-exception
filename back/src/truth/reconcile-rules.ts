@@ -15,7 +15,8 @@ export { baseStrength };
 export const RECONCILE_RULE_VERSION = 'reconcile/1';
 export const EVIDENCE_POLICY_VERSION = 'strength/1';
 
-export type Authority = 'A' | 'S' | 'W';
+/** 그 사실 계열에 대한 출처 권한(docs/05 3.2). NONE = 판정되지 않음 · 권한 없음(매트릭스의 `–`) — 후보 자격이 없다 */
+export type Authority = 'A' | 'S' | 'W' | 'NONE';
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW';
 export type Strength = 0 | 1 | 2 | 3;
 

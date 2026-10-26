@@ -315,6 +315,37 @@ describe('B. a candidate that does not qualify never becomes a fact', () => {
     const [f] = await factsOf(w);
     expect(f).toMatchObject({ fact_state: 'PROVISIONAL', current: { verified_by_human: false, evidence_strength: 1 } });
     expect((await canonical(w.truckPoolId))[0]).toMatchObject({ value_status: 'PROVISIONAL', evidence_strength: '1' });
+    // 4. 확신도 0.55 도 같은 출처 · 같은 권한이면 같은 강도
+    const w2 = await world();
+    await extractWith(await reply(await sentInquiry(w2), '12월 1일 차량 4대 가능합니다.'), [{ ...qty(4), confidence: 0.55 }]);
+    expect((await factsOf(w2))[0]).toMatchObject({ fact_state: 'PROVISIONAL', current: { evidence_strength: 1 } });
+  });
+
+  it('3. a SYSTEM actor value from a source with no authority for this field cannot overwrite a human-confirmed fact', async () => {
+    const w = await world();
+    await extractWith(await reply(await sentInquiry(w), '12월 1일 차량 4대 가능합니다.'), [qty(4)]);
+    const first = (await factsOf(w))[0]?.current?.event_id as string;
+    await http.post(`/truth/events/${first}/confirm`).set(ACTOR, w.humanId).send({}).expect(200);
+    // 시스템이 넣은 더 새로운 파트너 시스템 값(이 계열의 권한 판정 없음) — 서비스 경로가 없어 SQL 로 직접
+    const raw = (await db.query('SELECT raw_input_id FROM cera.event WHERE event_id = $1', [first])).rows[0].raw_input_id;
+    const e = v7();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO cera.event (event_id, schema_version, raw_input_id, event_class, event_type, fact_kind, fact_key, value_number, value_unit, valid_from, valid_until, received_at, source_type, extraction_method, input_quality, input_confidence_level,
+           entered_by_actor_id, idempotency_key, payload, recorded_at, is_simulated, scenario_id)
+         VALUES ($1, 'ev-1', $2, 'OBSERVATION', 'TRUCK_AVAILABILITY_REPORTED', 'OFFER', $3, 9, 'TRUCK', '2026-12-01T06:00:00Z', '2026-12-01T08:00:00Z', now(), 'PARTNER_SYSTEM', 'DIRECT', 'STRUCTURED', 'HIGH', $4, $5, '{}'::jsonb, now(), true, $6)`,
+        [e, raw, `available.slot(${PLAN_DATE}T15:00-17:00)`, sysId, hashOf(`sys-${e}`), w.scenarioId],
+      );
+      await client.query("INSERT INTO cera.event_entity_link (event_id, entity_type, entity_id, link_role) VALUES ($1, 'TRUCK_POOL', $2, 'SUBJECT')", [e, w.truckPoolId]);
+      await client.query('COMMIT');
+    } finally {
+      client.release();
+    }
+    const [f] = await factsOf(w);
+    expect(f).toMatchObject({ fact_state: 'CONFIRMED', conflict_status: 'NONE', current: { value: 4, verified_by_human: true } });
+    expect(f?.candidates.find((c) => c.event_id === e)).toMatchObject({ role: 'INELIGIBLE', evidence_strength: 0 });
   });
 
   it('I. a reply to a question of a superseded plan is not promoted automatically', async () => {
