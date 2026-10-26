@@ -15,6 +15,7 @@ from cera_ai.llm_adapters import LocalProvider
 from cera_ai.providers import ProviderError, provider_from_env
 
 from test_agent_graph import MSG, PARAMS, RR, RUN, FakeTools, fail, ok, runtime
+from test_agent_graph import gap as gap_state
 
 
 def test_defaults_are_generous_emergency_ceilings_not_product_policy():
@@ -98,3 +99,12 @@ def test_an_empty_replay_dir_setting_means_the_default_recordings(monkeypatch: p
 def _unused() -> None:  # keep fixtures referenced for linters
     ok("x", None)
     assert MSG
+
+
+def test_a_stale_or_withdrawn_value_is_asked_again_with_its_own_draft_key():
+    refresh = {**gap_state("NEEDS_REFRESH"), "refresh_basis_event_id": "01a1a4c0-7e10-7a3b-9c21-5d0f00a0ffff"}
+    tools = FakeTools(gaps=[refresh])
+    out = runtime(tools).start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "HUMAN_APPROVAL_REQUIRED")
+    draft = next(c for c in tools.calls if c[0] == "create_inquiry_draft")
+    assert draft[2] == f"{RUN}:gap:1:draft:r5d0f00a0ffff" and len(draft[2]) <= 100  # a refresh is a new question; the key fits the backend limit

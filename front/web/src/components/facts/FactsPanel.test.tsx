@@ -39,6 +39,9 @@ const fact = (over: Partial<FactCoordinate> = {}): FactCoordinate => ({
   conflict_status: "NONE",
   hold_status: "NONE",
   decision_usability: "USABLE_WITH_WARNING",
+  freshness_status: "FRESH",
+  evaluated_as_of: "2026-12-01T10:30:00+09:00",
+  revoked_by_event_id: null,
   applied_rule: "R4-a",
   rule_version: "v1",
   current: { event_id: "01a11040-0000-7000-8000-0000000000e1", value: 4, unit: "TRUCK", valid_from: "2026-12-01T15:00:00+09:00", valid_until: "2026-12-01T17:00:00+09:00", evidence_strength: 2, verified_by_human: false, verification_basis: null },
@@ -84,6 +87,37 @@ describe("FactCard — AI values are provisional until a person decides", () => 
     expect(review).toContain("불리한 변경이 보류됨");
     expect(review).toContain("승인 판단에는 쓸 수 없음");
     expect(render(fact({ candidates: [candidate({ generated_by: "LLM" })] }))).toContain("AI(LLM)");
+  });
+
+  it("shows freshness and the reference time it was judged at", () => {
+    const html = render(fact({ freshness_status: "AGING" }));
+    expect(html).toContain("오래되는 중(주의)");
+    expect(html).toContain("신선도 판단 기준 시각 2026-12-01 10:30");
+  });
+
+  it("a stale fact keeps its guarantee visible and is not called wrong", () => {
+    const html = render(fact({ fact_state: "STALE", value_status: "CONFIRMED", freshness_status: "EXPIRED", candidates: [candidate({ verification: "CONFIRMED", generated_by: "HUMAN" })] }));
+    expect(html).toContain("오래됨 — 다시 확인 필요(틀린 것은 아님)");
+    expect(html).toContain("사람 확인 완료 · 오래됨");
+    expect(html).toContain("유효 시간 지남");
+    expect(html).toContain('<b class="num">4대</b>');
+  });
+
+  it("a revoked fact shows no current value and its withdrawn evidence has no actions", () => {
+    const html = render(
+      fact({ fact_state: "REVOKED", value_status: "UNKNOWN", current: null, revoked_by_event_id: "e9", candidates: [candidate({ role: "REVOKED", verification: "CONFIRMED" })] }),
+    );
+    expect(html).toContain("철회됨 — 지금 값 없음");
+    expect(html).toContain("지금 쓸 값이 없습니다");
+    expect(html).not.toContain("쓸 수 있는 값이 아직 없습니다");
+    expect(html).not.toContain('data-testid="fact-revoke-open"');
+    expect(html).not.toContain('data-testid="fact-confirm"');
+  });
+
+  it("withdrawal is offered on actionable candidates, confirmed ones included", () => {
+    const html = render(fact({ fact_state: "CONFIRMED", candidates: [candidate({ verification: "CONFIRMED" }), candidate({ event_id: "e2", role: "SUPERSEDED" })] }));
+    expect(html.match(/data-testid="fact-revoke-open"/g)).toHaveLength(1);
+    expect(html).toContain(">철회</button>");
   });
 
   it("a fact without a usable value says so", () => {

@@ -2094,6 +2094,15 @@
         "operationId": "TruthController_facts",
         "parameters": [
           {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge freshness / expiry at this time (ISO 8601 with offset). Default: the plan scenario time for simulated runs, now for real ones"
+          },
+          {
             "name": "recovery_run_id",
             "required": true,
             "in": "query",
@@ -2141,6 +2150,199 @@
         ]
       }
     },
+    "/truth/events/{eventId}/revoke": {
+      "post": {
+        "operationId": "TruthController_revoke",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now"
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeFactRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactCoordinateDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "EVENT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EVENT_SUPERSEDED · ALREADY_REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Withdraw a value without a replacement (a human only): it — and every older value of this fact — stops being the current fact; nothing is deleted",
+        "tags": [
+          "truth"
+        ]
+      }
+    },
+    "/truth/facts/manual": {
+      "post": {
+        "operationId": "TruthController_enter",
+        "parameters": [
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now"
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualFactRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactCoordinateDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_FACT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TARGET_NOT_FOUND · SCENARIO_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "TARGET_NOT_SUPPORTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "An operator enters a fact they confirmed directly (phone, visit …) — no AI candidate. CONFIRMED at once (human input) with its source note and audit",
+        "tags": [
+          "truth"
+        ]
+      }
+    },
     "/truth/events/{eventId}/confirm": {
       "post": {
         "operationId": "TruthController_confirm",
@@ -2153,6 +2355,15 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now"
           },
           {
             "name": "X-CERA-Actor-Id",
@@ -2247,6 +2458,15 @@
             }
           },
           {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now"
+          },
+          {
             "name": "X-CERA-Actor-Id",
             "in": "header",
             "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm.",
@@ -2337,6 +2557,15 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now"
           },
           {
             "name": "X-CERA-Actor-Id",
@@ -5047,7 +5276,8 @@
               "HELD_CANDIDATE",
               "INELIGIBLE",
               "REJECTED",
-              "SUPERSEDED"
+              "SUPERSEDED",
+              "REVOKED"
             ],
             "description": "What this event is in the current judgement. WINNER = the current value"
           },
@@ -5188,6 +5418,8 @@
               "CONFIRMED",
               "OBSERVED",
               "NEEDS_REVIEW",
+              "STALE",
+              "REVOKED",
               "UNKNOWN"
             ]
           },
@@ -5223,6 +5455,27 @@
               "APPROVAL_BLOCKED",
               "UNUSABLE"
             ]
+          },
+          "freshness_status": {
+            "type": "string",
+            "enum": [
+              "FRESH",
+              "AGING",
+              "STALE",
+              "EXPIRED",
+              "UNKNOWN"
+            ],
+            "description": "Freshness at evaluated_as_of: an explicit valid_until wins (EXPIRED after it); otherwise the per-family policy [ASSUMPTION]. UNKNOWN = no policy for this fact family"
+          },
+          "evaluated_as_of": {
+            "type": "string",
+            "description": "The reference time this judgement used (+09:00) — the plan scenario time for simulated runs, now for real ones, or the as_of the caller gave"
+          },
+          "revoked_by_event_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The withdrawal (revoke) event that left this fact without a current value"
           },
           "applied_rule": {
             "type": "string",
@@ -5268,6 +5521,9 @@
           "conflict_status",
           "hold_status",
           "decision_usability",
+          "freshness_status",
+          "evaluated_as_of",
+          "revoked_by_event_id",
           "applied_rule",
           "rule_version",
           "current",
@@ -5303,6 +5559,107 @@
           "rule_version",
           "limitations",
           "facts"
+        ]
+      },
+      "RevokeFactRequestDto": {
+        "type": "object",
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Retry key — the same command id never creates a second event"
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "SOURCE_WITHDREW",
+              "OPERATOR_INVALIDATED",
+              "OUTDATED_OPERATIONAL_STATE"
+            ],
+            "description": "SOURCE_WITHDREW (the partner took it back) · OPERATOR_INVALIDATED · OUTDATED_OPERATIONAL_STATE (no longer true, no new value yet)"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "reason_code"
+        ]
+      },
+      "ManualFactRequestDto": {
+        "type": "object",
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "OPERATOR_DIRECT_ENTRY"
+            ],
+            "description": "Explicit intent — keeps operator entry apart from the AI / agent flow"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "TRUCK_SLOT",
+              "FACILITY_CAPACITY"
+            ]
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Truck pool (TRUCK_SLOT) or warehouse / ODCY (FACILITY_CAPACITY)"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-27",
+            "description": "Date in Asia/Seoul"
+          },
+          "window_from": {
+            "type": "string",
+            "example": "15:00",
+            "description": "TRUCK_SLOT: window start (Asia/Seoul)"
+          },
+          "window_to": {
+            "type": "string",
+            "example": "18:00"
+          },
+          "size_type": {
+            "type": "string",
+            "example": "40DRY",
+            "description": "ODCY capacity per size type"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "source_note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Where the operator confirmed it (phone, visit …) — required provenance"
+          },
+          "observed_at": {
+            "type": "string",
+            "description": "When the partner said it (ISO 8601 with offset, not in the future). Default: now"
+          },
+          "scenario_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Scenario for simulated (MOCK) data"
+          }
+        },
+        "required": [
+          "intent",
+          "kind",
+          "target_id",
+          "date",
+          "value",
+          "source_note"
         ]
       },
       "ConfirmFactRequestDto": {

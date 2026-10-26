@@ -566,6 +566,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/truth/events/{eventId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw a value without a replacement (a human only): it — and every older value of this fact — stops being the current fact; nothing is deleted */
+        post: operations["TruthController_revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/truth/facts/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An operator enters a fact they confirmed directly (phone, visit …) — no AI candidate. CONFIRMED at once (human input) with its source note and audit */
+        post: operations["TruthController_enter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/truth/events/{eventId}/confirm": {
         parameters: {
             query?: never;
@@ -1411,7 +1445,7 @@ export interface components {
              * @description What this event is in the current judgement. WINNER = the current value
              * @enum {string}
              */
-            role: "WINNER" | "CORROBORATING" | "OUTDATED" | "DISSENTING" | "CONTESTING" | "HELD_CANDIDATE" | "INELIGIBLE" | "REJECTED" | "SUPERSEDED";
+            role: "WINNER" | "CORROBORATING" | "OUTDATED" | "DISSENTING" | "CONTESTING" | "HELD_CANDIDATE" | "INELIGIBLE" | "REJECTED" | "SUPERSEDED" | "REVOKED";
             value: number | null;
             unit: string | null;
             /** @description The value applies from here (Asia/Seoul) — the asked date / time window */
@@ -1456,7 +1490,7 @@ export interface components {
             applicability_scope: components["schemas"]["ApplicabilityScopeDto"];
             is_simulated: boolean;
             /** @enum {string} */
-            fact_state: "PROVISIONAL" | "CONFIRMED" | "OBSERVED" | "NEEDS_REVIEW" | "UNKNOWN";
+            fact_state: "PROVISIONAL" | "CONFIRMED" | "OBSERVED" | "NEEDS_REVIEW" | "STALE" | "REVOKED" | "UNKNOWN";
             /** @enum {string} */
             value_status: "UNKNOWN" | "PROVISIONAL" | "OBSERVED" | "CONFIRMED";
             /** @enum {string} */
@@ -1465,6 +1499,18 @@ export interface components {
             hold_status: "NONE" | "HELD";
             /** @enum {string} */
             decision_usability: "USABLE" | "USABLE_WITH_WARNING" | "APPROVAL_BLOCKED" | "UNUSABLE";
+            /**
+             * @description Freshness at evaluated_as_of: an explicit valid_until wins (EXPIRED after it); otherwise the per-family policy [ASSUMPTION]. UNKNOWN = no policy for this fact family
+             * @enum {string}
+             */
+            freshness_status: "FRESH" | "AGING" | "STALE" | "EXPIRED" | "UNKNOWN";
+            /** @description The reference time this judgement used (+09:00) — the plan scenario time for simulated runs, now for real ones, or the as_of the caller gave */
+            evaluated_as_of: string;
+            /**
+             * Format: uuid
+             * @description The withdrawal (revoke) event that left this fact without a current value
+             */
+            revoked_by_event_id: string | null;
             /** @description Reconciliation rule that picked the current value (R4-a · R4-b · R6 · R10) */
             applied_rule: string | null;
             rule_version: string;
@@ -1484,6 +1530,62 @@ export interface components {
             /** @description What this judgement does not cover yet */
             limitations: string[];
             facts: components["schemas"]["FactCoordinateDto"][];
+        };
+        RevokeFactRequestDto: {
+            /**
+             * Format: uuid
+             * @description Retry key — the same command id never creates a second event
+             */
+            command_id?: string;
+            /**
+             * @description SOURCE_WITHDREW (the partner took it back) · OPERATOR_INVALIDATED · OUTDATED_OPERATIONAL_STATE (no longer true, no new value yet)
+             * @enum {string}
+             */
+            reason_code: "SOURCE_WITHDREW" | "OPERATOR_INVALIDATED" | "OUTDATED_OPERATIONAL_STATE";
+            note?: string;
+        };
+        ManualFactRequestDto: {
+            /** Format: uuid */
+            command_id?: string;
+            /**
+             * @description Explicit intent — keeps operator entry apart from the AI / agent flow
+             * @enum {string}
+             */
+            intent: "OPERATOR_DIRECT_ENTRY";
+            /** @enum {string} */
+            kind: "TRUCK_SLOT" | "FACILITY_CAPACITY";
+            /**
+             * Format: uuid
+             * @description Truck pool (TRUCK_SLOT) or warehouse / ODCY (FACILITY_CAPACITY)
+             */
+            target_id: string;
+            /**
+             * @description Date in Asia/Seoul
+             * @example 2026-10-27
+             */
+            date: string;
+            /**
+             * @description TRUCK_SLOT: window start (Asia/Seoul)
+             * @example 15:00
+             */
+            window_from?: string;
+            /** @example 18:00 */
+            window_to?: string;
+            /**
+             * @description ODCY capacity per size type
+             * @example 40DRY
+             */
+            size_type?: string;
+            value: number;
+            /** @description Where the operator confirmed it (phone, visit …) — required provenance */
+            source_note: string;
+            /** @description When the partner said it (ISO 8601 with offset, not in the future). Default: now */
+            observed_at?: string;
+            /**
+             * Format: uuid
+             * @description Scenario for simulated (MOCK) data
+             */
+            scenario_id?: string;
         };
         ConfirmFactRequestDto: {
             /**
@@ -2881,6 +2983,8 @@ export interface operations {
     TruthController_facts: {
         parameters: {
             query: {
+                /** @description Judge freshness / expiry at this time (ISO 8601 with offset). Default: the plan scenario time for simulated runs, now for real ones */
+                as_of?: string;
                 recovery_run_id: string;
             };
             header?: never;
@@ -2917,9 +3021,144 @@ export interface operations {
             };
         };
     };
+    TruthController_revoke: {
+        parameters: {
+            query?: {
+                /** @description Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now */
+                as_of?: string;
+            };
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeFactRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactCoordinateDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EVENT_SUPERSEDED · ALREADY_REJECTED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_enter: {
+        parameters: {
+            query?: {
+                /** @description Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now */
+                as_of?: string;
+            };
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualFactRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactCoordinateDto"];
+                };
+            };
+            /** @description INVALID_FACT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TARGET_NOT_FOUND · SCENARIO_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TARGET_NOT_SUPPORTED */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     TruthController_confirm: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now */
+                as_of?: string;
+            };
             header: {
                 /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
                 "X-CERA-Actor-Id": string;
@@ -2983,7 +3222,10 @@ export interface operations {
     };
     TruthController_reject: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now */
+                as_of?: string;
+            };
             header: {
                 /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
                 "X-CERA-Actor-Id": string;
@@ -3047,7 +3289,10 @@ export interface operations {
     };
     TruthController_correct: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now */
+                as_of?: string;
+            };
             header: {
                 /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
                 "X-CERA-Actor-Id": string;

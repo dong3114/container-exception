@@ -1,0 +1,43 @@
+{
+  "schema_version": "reply-extract/2",
+  "inbound_message_id": "01a11040-0000-7000-8000-0000000000e1",
+  "reference_date": "2026-10-13",
+  "counterparty_name": "K운송 (가상)",
+  "asks": [
+    {
+      "ask_id": "Q1",
+      "question": "10월 13일(화) 15:00~17:00 트럭 2대 추가 배차 가능 여부",
+      "answer_shape": "QUANTITY_IN_TIME_WINDOW",
+      "fields": [
+        {
+          "name": "quantity",
+          "kind": "QUANTITY",
+          "unit": "TRUCK"
+        },
+        {
+          "name": "available_from",
+          "kind": "TIME",
+          "unit": null
+        },
+        {
+          "name": "available_until",
+          "kind": "TIME",
+          "unit": null
+        },
+        {
+          "name": "answer_date",
+          "kind": "DATE",
+          "unit": null
+        }
+      ],
+      "window": {
+        "date": "2026-10-13",
+        "from": "15:00",
+        "to": "17:00"
+      }
+    }
+  ],
+  "message_text": "오후 3시 이후 차량 4대 가능합니다.",
+  "reply_date": "2026-10-13",
+  "timezone": "Asia/Seoul"
+}

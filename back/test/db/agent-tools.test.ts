@@ -161,7 +161,7 @@ describe('CERA read tools', () => {
     expect(ctx.body.output.snapshot.plan_date).toBe('2026-10-01');
     expect(ctx.body.output.limitations.join(' ')).toContain('RAW_CLAIMS');
     const gaps = (await tool('get_information_gaps', runId, {}).expect(200)).body.output;
-    expect(gaps.rule_version).toBe('gap-rules/2');
+    expect(gaps.rule_version).toBe('gap-rules/3');
     expect(gaps.gaps.every((g: { candidate_state: string }) => g.candidate_state === 'NONE')).toBe(true); // nothing asked yet
     const ours = gaps.gaps.filter((g: { subject_id: string }) => g.subject_id === w.facilityId || g.subject_id === w.truckPoolId);
     expect(ours.map((g: { gap_kind: string; state: string; public_data_can_resolve: boolean }) => [g.gap_kind, g.state, g.public_data_can_resolve]).sort()).toEqual([

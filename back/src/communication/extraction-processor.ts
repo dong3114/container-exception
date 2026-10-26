@@ -1,6 +1,7 @@
 import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { AI_CLIENT, type AiClient, type Ask, type ExtractionRequest, REPLY_EXTRACT_SCHEMA } from '../ai/ai-client.js';
+import { AI_CLIENT, type AiClient, type Ask, type ExtractionRequest, REPLY_EXTRACT_SCHEMA, REPLY_TIMEZONE } from '../ai/ai-client.js';
+import { replyDateOf } from '../truth/date-scope.js';
 import { readInboundSurface } from '../channel/inbound-raw.js';
 import { ContentService } from '../content/content-service.js';
 import { ABSENT, CONTENT_STORE, type ContentStore } from '../content/content-store.js';
@@ -90,6 +91,9 @@ export class ExtractionProcessor {
       counterparty_name: subject.counterpartyName.slice(0, 100),
       asks,
       message_text: surface.bodyText,
+      // v2: 회신 속 상대 날짜의 기준 = 회신의 근거 시각(Q-44)의 서울 날짜 — 처리 시각이 아니다
+      reply_date: replyDateOf(subject.rawSourceRecordedAt, subject.rawReceivedAt),
+      timezone: REPLY_TIMEZONE,
     };
     // extract-input/1(docs/24 8.2): AI 포트에 보낸 요청 문서 전체 — 같은 입력이면 같은 지문
     const inputHash = canonicalHash({ k: 'extract-input', v: 1, request: request as unknown as MaterialValue });
@@ -141,7 +145,7 @@ export class ExtractionProcessor {
       reviewedByActorId: v.passed ? null : system,
       reviewedAt: v.passed ? null : now,
       isSimulated: subject.isSimulated,
-      schemaVersion: REPLY_EXTRACT_SCHEMA,
+      schemaVersion: response.schema_version, // 실제로 쓰인 계약판(v1 AI Server 의 응답이면 v1)
       inputHash,
       validatorResult: v.checks,
     }));

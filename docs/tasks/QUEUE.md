@@ -443,7 +443,7 @@
 - 완료 조건: [ ] 순환 제거 또는 의도 문서화 [ ] CI 가 conformance 두 시험을 돌림 [ ] ai lockfile
 
 ### T-111: Truth Lifecycle Hardening (Solver 전 필수)
-- 상태: TODO | 우선: P0 | 단계: Phase 1 | 담당: -
+- 상태: **DONE (2026-10-26, 사용자 승인)** | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26 · 기록 `docs/24` 18.16
 - 의존: ~~T-093~~
 - 목표: 사실이 바뀌거나 틀렸을 때 안전하게 되돌린다 — Solver 가 낡은 · 철회된 값을 현재 사실로 쓰지 않게.
   (1) **철회 · 무효화**: 확정 값이 더는 유효하지 않은데 새 값이 없는 경우(예: 10:00 CONFIRMED 4대 → 14:00 업체 사정 변경). 현재 스키마의 `VERIFICATION(REVOKE)` · 값 없는 `CORRECTION`(철회 — 판정 규칙은 이미 있음) 중 무엇으로 표현할지 설계 + 사람 API
@@ -451,7 +451,25 @@
   (3) **사람 직접 입력**: AI 후보 없이 운영자가 사실을 입력("창고 B 오늘 6대", 전화 확인) — HUMAN_UI 사건 · 감사 · 출처
   (4) **날짜를 담는 회신 계약** `reply-extract/2`(답의 날짜 칸) + 검증기 · conformance — 지금은 `date-scope.ts` 가 날짜 표현이 질문 날짜와 다르면 막기만 한다
   (5) **확인 요청 큐** 필요성 검토(`verification_request` V1/V4 · 처리 기록 — T-094 와 합칠지)
-- 완료 조건: [ ] 철회 · 무효화 → 현재 사실에서 빠짐 · 공백 다시 열림 · Agent 깨움 [ ] 신선도가 판정 · R11 에 반영 [ ] 직접 입력 API + 화면 [ ] `reply-extract/2` [ ] 시험
+- 완료 조건: [x] 철회 · 무효화 → 현재 사실에서 빠짐 · 공백 다시 열림 · Agent 깨움 [x] 신선도가 판정 · R11 에 반영 [x] 직접 입력 API + 화면 [x] `reply-extract/2` [x] 시험 · Docker E2E · 브라우저. (5) 확인 요청 큐 = T-098 로 미룸(검토 결과)
+- 후속 후보(작게): 차량 풀 목록 API(화면 직접 입력 대상) · 화면의 as_of 선택기 · 신선도 시작값 조정(관측 후)
+
+### T-112: Cost / Risk Engine (결정론)
+- 상태: IN_PROGRESS | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26
+- 의존: ~~T-111~~
+- 목표: 컨테이너 × 복구 선택지마다 비용 · 위험을 결정론으로 계산(순수 함수, LLM · DB · HTTP 없음). 비용 항목별 출처 · 가정 표시, 사실 상태(CONFIRMED · PROVISIONAL · AGING · STALE · REVOKED · CONFLICTED · UNKNOWN) 반영, 실행 가능 여부 · 이유, Baseline 도 같은 엔진
+- 완료 조건: [ ] 30대 시나리오 비용 계산 [ ] 시험(A~N)
+
+### T-113: Recovery Solver
+- 상태: IN_PROGRESS | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26
+- 의존: T-112
+- 목표: Cost Engine 출력으로 총 예상 손실 최소 할당(용량 · 차량 · 시간창 · 한 컨테이너 한 행동). 결과 상태(OPTIMAL · FEASIBLE · INFEASIBLE · TIME_LIMIT · ERROR) · 불가 원인 설명 · 결정론
+- 완료 조건: [ ] 30대 해 [ ] 시험
+
+### T-114: Recovery Plan Integration
+- 상태: TODO | 우선: P0 | 단계: Phase 1 | 담당: -
+- 의존: T-113
+- 목표: 제안 계획 저장(PROPOSED · 판 관리) · 사용한 사실 기록 · 사실 변경 → 계획 OUTDATED → Agent 재계산 · 화면 · Docker E2E
 
 ### T-038: Three.js Simulator 상세 명세
 - 상태: TODO | 우선: P2 | 단계: Phase 0~3 | 담당: -
@@ -939,5 +957,8 @@
 T-041 ~ T-059: `docs/12_roadmap.md` 3~5절. 의존이 풀리면 위 템플릿으로 옮겨 적는다.
 
 
-### T-093 후속 순서 (2026-10-26 사용자 지시 — Solver 전에 Truth Lifecycle 보강)
+### Truth Layer 완료 → 핵심 계산 단계 (2026-10-26 사용자 지시 — 남은 개발 약 2일, 모델 · 후순위 작업 중단)
+**~~T-111~~ DONE → T-112 Cost / Risk Engine → T-113 Recovery Solver → T-114 Recovery Plan Integration(Agent · 재계산 · 화면 · E2E)**
+
+### (옛) T-093 후속 순서 (2026-10-26 사용자 지시 — Solver 전에 Truth Lifecycle 보강)
 **T-111 Truth Lifecycle Hardening → Cost / Risk Engine → Solver(Q-65) → Recovery Plan 생성 → 실제 이메일 채널 → 역할 · 인증 UI(T-098) → 연속 모델 평가 / 파인튜닝(사람 보정 데이터 이후)**

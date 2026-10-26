@@ -2,17 +2,20 @@ import { z } from 'zod';
 import { assertOutsideTransaction } from '../db/transaction.js';
 
 /**
- * Python AI Server 호출 계약(T-092 · docs/18 D.3 · ADR-033). 정본 계약 파일: `packages/contracts/ai/reply-extract.v1.*`
+ * Python AI Server 호출 계약(T-092 · T-111 · docs/18 D.3 · ADR-033). 정본 계약 파일: `packages/contracts/ai/reply-extract.v2.*`
+ * (v2 = 답의 날짜 칸 `DATE` + 회신 날짜 `reply_date` · `timezone`. v1 파일은 기록으로 남는다 — AI Server 는 v1 요청도 받는다)
  * (Python 이 스키마를 내보내고, 양쪽 시험이 같은 견본을 읽는다).
  *
  * AI 응답은 **믿지 않는다**: 여기서는 모양만(엄격 — 모르는 키 거부) 확인하고, 의미(인용 · 단위 · 질문 범위 · 값)는
  * 결정론 검증기(`extraction-rules.ts`)가 본다. 출력에는 신원 · 사실 키 · 근거 강도 자리가 없다.
  */
-export const REPLY_EXTRACT_SCHEMA = 'reply-extract/1';
+export const REPLY_EXTRACT_SCHEMA = 'reply-extract/2';
+/** 운영 지역의 시간대(MVP). 계약에 드러낸다 — 숨은 가정으로 두지 않는다 */
+export const REPLY_TIMEZONE = 'Asia/Seoul';
 
 export interface AskField {
   name: string;
-  kind: 'QUANTITY' | 'TIME' | 'MONEY';
+  kind: 'QUANTITY' | 'TIME' | 'MONEY' | 'DATE';
   unit: string | null;
 }
 
@@ -31,6 +34,9 @@ export interface ExtractionRequest {
   counterparty_name: string;
   asks: Ask[];
   message_text: string;
+  /** 회신의 근거 시각(Asia/Seoul)의 날짜 — 회신 속 상대 날짜("내일")의 기준. 모델이 낸 날짜는 후보이고 Backend 가 인용에서 다시 계산한다 */
+  reply_date: string;
+  timezone: typeof REPLY_TIMEZONE;
 }
 
 const answerSchema = z
@@ -47,7 +53,8 @@ const answerSchema = z
 
 export const extractionResponseSchema = z
   .object({
-    schema_version: z.literal(REPLY_EXTRACT_SCHEMA),
+    // v1 응답도 받는다(하위 호환 — 날짜 칸 없는 옛 AI Server). 판정은 같은 검증기 · 승격 규칙이 한다
+    schema_version: z.enum(['reply-extract/1', REPLY_EXTRACT_SCHEMA]),
     outcome: z.enum(['VALUES', 'NO_CHANGE', 'REFUSAL', 'UNPARSEABLE']),
     answers: z.array(answerSchema).max(50),
     unmapped_statements: z.array(z.string()).max(50),

@@ -276,7 +276,13 @@ export function AgentPanel() {
             </div>
           </div>
 
-          <FactsPanel recoveryRunId={run.recovery_run_id} actorId={actor} refreshKey={`${run.status}:${run.updated_at ?? ""}:${run.current_node ?? ""}`} />
+          <FactsPanel
+            recoveryRunId={run.recovery_run_id}
+            actorId={actor}
+            refreshKey={`${run.status}:${run.updated_at ?? ""}:${run.current_node ?? ""}`}
+            isSimulated={run.is_simulated}
+            scenarioId={planList.find((p) => p.run_id === run.recovery_run_id)?.scenario_id ?? null}
+          />
 
           {draft && run.status === "WAITING_HUMAN" && (
             <div style={{ borderTop: "1px solid var(--line)", paddingTop: 8 }} data-testid="agent-pending-draft">

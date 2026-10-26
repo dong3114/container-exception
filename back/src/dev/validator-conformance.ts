@@ -12,6 +12,7 @@
  *   데이터셋 항목은 `case_id` 로 ask · 원문을 데이터셋에서 찾는다(파일 크기를 줄이려고 복사하지 않는다).
  * - 순수 도구다: DB · 네트워크 · LLM 없음.
  */
+import { REPLY_EXTRACT_SCHEMA } from '../ai/ai-client.js';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Ask, ExtractionAnswer, ExtractionResponse } from '../ai/ai-client.js';
@@ -29,6 +30,7 @@ const ASK_T1: Ask = {
     { name: 'quantity', kind: 'QUANTITY', unit: 'TRUCK' },
     { name: 'available_from', kind: 'TIME', unit: null },
     { name: 'available_until', kind: 'TIME', unit: null },
+    { name: 'answer_date', kind: 'DATE', unit: null },
   ],
   window: { date: '2026-10-13', from: '15:00', to: '17:00' },
 };
@@ -53,6 +55,10 @@ const from = (value: string, quote: string) => q('available_from', value, null, 
 /** 손으로 고른 표현. 일부는 "Backend 가 거르는 알려진 한계"도 그대로 적는다(예: `오후 세 시`) — 판정을 바꾸려면 검증기를 고치고 파일을 다시 만든다. */
 export const HAND_CASES: HandCase[] = [
   { name: 'digit 4대', source: '차량 4대까지 가능합니다', answers: [qty('4', '차량 4대까지 가능합니다')] },
+  // reply-extract/2 날짜 칸 — 검증기는 형식 · 단위만 본다(날짜의 의미는 승격 단계가 인용에서 다시 푼다)
+  { name: 'v2 answer_date valid', source: '13일 오후 3시 이후 4대', answers: [{ ask_id: 'Q1', field: 'answer_date', value: '2026-10-13', unit: null, quote: '13일' }] },
+  { name: 'v2 answer_date not normalized', source: '10월 13일 가능', answers: [{ ask_id: 'Q1', field: 'answer_date', value: '10월 13일', unit: null, quote: '10월 13일' }] },
+  { name: 'v2 answer_date with a unit', source: '내일 가능', answers: [{ ask_id: 'Q1', field: 'answer_date', value: '2026-10-14', unit: 'DAY', quote: '내일' }] },
   { name: 'korean 네 대', source: '네 대 가능합니다', answers: [qty('4', '네 대')] },
   { name: 'korean 네대 (붙임)', source: '네대 가능합니다', answers: [qty('4', '네대')] },
   { name: 'korean 두 대', source: '두 대 가능', answers: [qty('2', '두 대')] },
@@ -156,7 +162,7 @@ export interface ConformanceEntry {
 
 function judge(ask: Ask, sourceText: string, answers: CompactAnswer[]): ExpectedAnswer[] {
   const response: ExtractionResponse = {
-    schema_version: 'reply-extract/1',
+    schema_version: REPLY_EXTRACT_SCHEMA,
     outcome: answers.length > 0 ? 'VALUES' : 'NO_CHANGE',
     answers: answers.map(
       (a): ExtractionAnswer => ({ ask_id: a.ask_id, field: a.field, raw_value: a.value, value: a.value, unit: a.unit, evidence: { quote: a.quote }, confidence: null }),

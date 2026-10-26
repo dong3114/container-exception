@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-26 · T-111 DONE — Truth Lifecycle Hardening · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(`feat: harden truth lifecycle and freshness`). origin push
+- 한 일: 철회(값 없는 CORRECTION · 사람만 · M21) · 신선도(명시 유효 시간 우선 + 계열별 시작값 [ASSUMPTION]) · as_of 규칙 · `gap-rules/3` NEEDS_REFRESH · Agent 다시 묻기 · 사람 직접 입력(바로 CONFIRMED) · `reply-extract/2`(날짜 칸, v1 호환) · Worker 파생 표 재판정 · 화면. 기록 `docs/24` 18.16
+- 검증: Backend 390 · Python 80 · Front 74 · Docker FLOW 1 · 2 · 브라우저
+- 남은 일: T-112 Cost / Risk → T-113 Solver → T-114 Plan Integration (남은 개발 약 2일 — 모델 · 후순위 작업 중단)
+- 주의: 차량 풀 목록 API 없음(화면 직접 입력 대상 제한) · 화면 as_of 선택기 없음
+
 ## 2026-10-26 · T-093 DONE — 사실 파이프라인 · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(`feat: add provisional truth verification pipeline`). push 없음
 - 한 일: 검증된 추출 후보 → 임시 사실(PROVISIONAL) 사건(추출과 같은 트랜잭션의 승격 판정) → 사람 확인 · 거절 · 정정(모두 새 사건) → 사실 판정 `reconcile/1`(R4-b · R6 · R10 등, 정책 값 `truth-policy.ts` [ASSUMPTION]) · `canonical_fact` · `conflict` 파생 · M20 DB 가드 3(표 변경 없음) · `gap-rules/2` · `get_recovery_context.facts` · 그래프 `wait_fact_verification` · 깨우기 `AWAITING_FACT_VERIFICATION` · 화면(Agent 패널 사실 확인). 최종 보완: 시간창 subset 허용(질문 창 안의 더 좁은 창이 유효 범위) · 날짜 표현 확인(질문 날짜와 다르거나 풀 수 없으면 승격 안 함) · 정책 상수 분리 · 출처 강도 정의 문서화. ADR-037 = 구조 한정 Accepted · 선정 Deferred. T-099 = 연속 평가, MVP 임시 기본값 Qwen3-4B

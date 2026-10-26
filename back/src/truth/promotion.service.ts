@@ -76,7 +76,9 @@ export class PromotionService {
       const first = quantity[0];
       if (!first) continue;
       const entity = q.target ? await this.repo.entityFacts(tx, q.target.entityType, q.target.entityId) : null;
-      const siblings = mine.filter((c) => c.field !== 'quantity').map((c) => ({ extractionId: c.row.extractionId, field: c.field, value: c.row.candidateValueText, validated: c.validated, reviewStatus: c.row.reviewStatus }));
+      const siblings = mine
+        .filter((c) => c.field !== 'quantity')
+        .map((c) => ({ extractionId: c.row.extractionId, field: c.field, value: c.row.candidateValueText, validated: c.validated, reviewStatus: c.row.reviewStatus, sentence: sourceText ? sentenceAround(sourceText, quoteText(sourceText, c.row.quoteLocation)) : '' }));
       const decision = evaluatePromotion({
         extraction: {
           extractionId: first.row.extractionId,

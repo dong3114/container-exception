@@ -9,7 +9,7 @@
  * R11 은 신선도를 보지 않는다. R3 · R5 · R7 · R8 은 이 슬라이스의 사실 계열(자원 수용량 · 차량 가용)에 해당하지 않는다.
  */
 
-import { DEFAULT_TRUTH_POLICY, type TruthPolicy, baseStrength } from './truth-policy.js';
+import { DEFAULT_TRUTH_POLICY, type FreshnessPolicy, type TruthPolicy, baseStrength } from './truth-policy.js';
 
 export { baseStrength };
 export const RECONCILE_RULE_VERSION = 'reconcile/1';
@@ -23,6 +23,7 @@ export type Strength = 0 | 1 | 2 | 3;
 export type FactStatus = 'UNKNOWN' | 'PROVISIONAL' | 'OBSERVED' | 'CONFIRMED';
 export type ConflictStatus = 'NONE' | 'DISSENT' | 'OPEN';
 export type HoldStatus = 'NONE' | 'HELD';
+export type Freshness = 'FRESH' | 'AGING' | 'STALE' | 'EXPIRED' | 'UNKNOWN';
 export type Usability = 'USABLE' | 'USABLE_WITH_WARNING' | 'APPROVAL_BLOCKED' | 'UNUSABLE';
 export type Role =
   | 'WINNER'
@@ -33,7 +34,8 @@ export type Role =
   | 'HELD_CANDIDATE'
   | 'INELIGIBLE'
   | 'REJECTED'
-  | 'SUPERSEDED';
+  | 'SUPERSEDED'
+  | 'REVOKED';
 
 export interface FactEvent {
   eventId: string;
@@ -81,7 +83,9 @@ export interface Reconciled {
   conflictEventIds: string[];
   holdStatus: HoldStatus;
   heldEventId: string | null;
-  freshness: 'EXPIRED' | 'UNKNOWN';
+  freshness: Freshness;
+  /** 값 없는 정정(철회)이 지금 값을 없앴다 — 그 철회 사건. 철회 뒤의 새 근거가 있으면 null */
+  revokedBy: string | null;
   usability: Usability;
   contributingEventCount: number;
   roles: Map<string, Role>;
@@ -220,25 +224,40 @@ function select(eligible: readonly ScoredEvent[], policy: TruthPolicy): Pick {
 
 /**
  * 한 좌표 판정. `events` 는 그 좌표의 OBSERVATION · CORRECTION, `verifications` 는 그 사건들을 대상으로 한 VERIFICATION.
- * `asOf` 는 제안 만료(R4-d) 판정에만 쓴다.
+ * `asOf` = 판정 기준 시각(만료 · 신선도). 호출자가 정해 넘긴다 — 이 함수는 시계를 읽지 않는다(같은 `asOf` 면 같은 결과).
+ * `freshness` = 이 좌표의 사실 계열 신선도 정책(없으면 평가하지 않음).
  */
-export function reconcile(events: readonly FactEvent[], verifications: readonly VerificationEvent[], asOf: string, policy: TruthPolicy = DEFAULT_TRUTH_POLICY): Reconciled {
+export function reconcile(
+  events: readonly FactEvent[],
+  verifications: readonly VerificationEvent[],
+  asOf: string,
+  policy: TruthPolicy = DEFAULT_TRUTH_POLICY,
+  freshnessPolicy: FreshnessPolicy | null = null,
+): Reconciled {
   const scored = score(events, verifications);
   const roles = new Map<string, Role>();
 
-  // R9 정정: 대체된 사건은 후보에서 빠진다. 값이 없는 정정은 철회 — 정정 사건 자신도 후보가 아니다
-  const superseded = new Set(scored.filter((e) => e.eventClass === 'CORRECTION' && e.supersedesEventId).map((e) => e.supersedesEventId as string));
+  // R9 정정: 대체된 사건은 후보에서 빠진다.
+  // 철회(T-111) = 값이 없는 정정(사람만 — M20). "그 시점까지의 값은 더는 현재 사실이 아니다": 대상과, 근거 시각이 철회보다 이르거나 같은
+  // 모든 후보가 빠진다(오래된 다른 값이 되살아나지 않게). 철회 뒤에 들어온 새 근거는 정상 경쟁한다
+  // 철회는 사람의 직접 행위(HUMAN_UI)만 — 다른 출처의 값 없는 정정은 아무것도 철회하지 못한다(M21 이 DB 에서도 막는다)
+  const withdrawals = scored.filter((e) => e.eventClass === 'CORRECTION' && e.value === null && e.sourceType === 'HUMAN_UI');
+  const superseded = new Set(scored.filter((e) => e.eventClass === 'CORRECTION' && e.value !== null && e.supersedesEventId).map((e) => e.supersedesEventId as string));
+  const withdrawnTargets = new Set(withdrawals.map((w) => w.supersedesEventId).filter((x): x is string => x !== null));
+  const revokedBy = (e: ScoredEvent) => withdrawals.find((w) => w !== e && (withdrawnTargets.has(e.eventId) || ms(e.evidenceTime) <= ms(w.evidenceTime)));
   const candidates: ScoredEvent[] = [];
   for (const e of scored) {
-    if (superseded.has(e.eventId)) roles.set(e.eventId, 'SUPERSEDED');
+    if (e.value === null) roles.set(e.eventId, e.sourceType === 'HUMAN_UI' ? 'SUPERSEDED' : 'INELIGIBLE'); // 철회 사건 자신은 값이 아니다
+    else if (superseded.has(e.eventId)) roles.set(e.eventId, 'SUPERSEDED');
+    else if (revokedBy(e)) roles.set(e.eventId, 'REVOKED');
     else if (e.verification === 'REJECTED') roles.set(e.eventId, 'REJECTED'); // R1
-    else if (e.value === null) roles.set(e.eventId, 'SUPERSEDED');
     else if (e.strength === 0) roles.set(e.eventId, 'INELIGIBLE'); // R2
     else candidates.push(e);
   }
 
   if (candidates.length === 0) {
-    return { status: 'UNKNOWN', winner: null, verificationBasis: null, appliedRule: null, conflictStatus: 'NONE', conflictType: null, conflictEventIds: [], holdStatus: 'NONE', heldEventId: null, freshness: 'UNKNOWN', usability: 'UNUSABLE', contributingEventCount: 0, roles, scored };
+    const latestWithdrawal = [...withdrawals].sort((a, b) => cmp(b.receivedAt, a.receivedAt) || cmp(b.eventId, a.eventId))[0];
+    return { status: 'UNKNOWN', winner: null, verificationBasis: null, appliedRule: null, conflictStatus: 'NONE', conflictType: null, conflictEventIds: [], holdStatus: 'NONE', heldEventId: null, freshness: 'UNKNOWN', revokedBy: latestWithdrawal?.eventId ?? null, usability: 'UNUSABLE', contributingEventCount: 0, roles, scored };
   }
 
   const pick = select(candidates, policy);
@@ -250,15 +269,15 @@ export function reconcile(events: readonly FactEvent[], verifications: readonly 
   const status: FactStatus = human || authoritative ? 'CONFIRMED' : winner.strength >= 2 ? 'OBSERVED' : 'PROVISIONAL';
   const basis = human ? 'HUMAN_VERIFICATION' : authoritative ? 'AUTHORITATIVE_SYSTEM' : null;
 
-  // R4-d 제안 만료: 시간창이 있는 제안(OFFER)이 지났으면 판단에 쓰지 않는다
-  const expired = winner.factKind === 'OFFER' && winner.validUntil !== null && ms(asOf) >= ms(winner.validUntil);
+  // R3 · R4-d 신선도(T-111): 명시적 유효 기간이 먼저(지나면 EXPIRED), 없으면 계열별 정책으로 근거 시각부터의 나이
+  const freshness = freshnessOf(winner, asOf, freshnessPolicy);
   const hold: HoldStatus = pick.hold ? 'HELD' : 'NONE';
 
-  // R11 결정 가능성 — 이 슬라이스의 사실 계열은 모두 중요 사실(critical_families: 창고 · 트럭 · ODCY). 신선도는 보지 않는다
+  // R11 결정 가능성 — 이 슬라이스의 사실 계열은 모두 중요 사실(critical_families: 창고 · 트럭 · ODCY)
   let usability: Usability;
-  if (expired) usability = 'UNUSABLE';
-  else if (pick.conflictStatus === 'OPEN' || hold === 'HELD') usability = 'APPROVAL_BLOCKED';
-  else if (status === 'PROVISIONAL' || pick.conflictStatus === 'DISSENT') usability = 'USABLE_WITH_WARNING';
+  if (freshness === 'EXPIRED') usability = 'UNUSABLE';
+  else if (pick.conflictStatus === 'OPEN' || hold === 'HELD' || freshness === 'STALE') usability = 'APPROVAL_BLOCKED';
+  else if (status === 'PROVISIONAL' || pick.conflictStatus === 'DISSENT' || freshness === 'AGING') usability = 'USABLE_WITH_WARNING';
   else usability = 'USABLE';
 
   return {
@@ -271,7 +290,8 @@ export function reconcile(events: readonly FactEvent[], verifications: readonly 
     conflictEventIds: pick.conflictIds,
     holdStatus: hold,
     heldEventId: pick.hold?.heldId ?? null,
-    freshness: expired ? 'EXPIRED' : 'UNKNOWN',
+    freshness,
+    revokedBy: null,
     usability,
     contributingEventCount: candidates.length,
     roles,
@@ -279,11 +299,24 @@ export function reconcile(events: readonly FactEvent[], verifications: readonly 
   };
 }
 
-/** 사람이 보는 한 줄 상태(화면 · Agent 공통 어휘의 뼈대). 내부 enum 을 그대로 보여 주지 않기 위한 코드 — 한국어는 화면이 입힌다. */
-export type FactState = 'PROVISIONAL' | 'CONFIRMED' | 'OBSERVED' | 'NEEDS_REVIEW' | 'UNKNOWN';
+export function freshnessOf(winner: FactEvent, asOf: string, policy: FreshnessPolicy | null): Freshness {
+  if (winner.validUntil !== null) return ms(asOf) >= ms(winner.validUntil) ? 'EXPIRED' : 'FRESH';
+  if (!policy) return 'UNKNOWN';
+  const age = ms(asOf) - ms(winner.evidenceTime);
+  if (age < policy.freshForMs) return 'FRESH'; // 근거가 기준 시각보다 뒤(음수)여도 신선
+  return age < policy.staleAfterMs ? 'AGING' : 'STALE';
+}
 
-export function factState(r: { status: FactStatus; conflictStatus: ConflictStatus; holdStatus: HoldStatus }): FactState {
-  if (r.status === 'UNKNOWN') return 'UNKNOWN';
+/**
+ * 사람이 보는 한 줄 상태(화면 · Agent · 이후 Solver 공통 어휘). 내부 enum 을 그대로 보여 주지 않기 위한 코드 — 한국어는 화면이 입힌다.
+ * 우선순위: REVOKED(철회돼 값 없음) · UNKNOWN(값 없음) → NEEDS_REVIEW(충돌 · 보류) → STALE(오래됨 · 만료) → CONFIRMED · OBSERVED · PROVISIONAL.
+ * 값의 보증 수준(`value_status`)과 신선도(`freshness`)는 따로 남는다 — "CONFIRMED 인데 STALE" 도 구분된다.
+ */
+export type FactState = 'PROVISIONAL' | 'CONFIRMED' | 'OBSERVED' | 'NEEDS_REVIEW' | 'STALE' | 'REVOKED' | 'UNKNOWN';
+
+export function factState(r: { status: FactStatus; conflictStatus: ConflictStatus; holdStatus: HoldStatus; freshness?: Freshness; revokedBy?: string | null }): FactState {
+  if (r.status === 'UNKNOWN') return r.revokedBy ? 'REVOKED' : 'UNKNOWN';
   if (r.conflictStatus === 'OPEN' || r.holdStatus === 'HELD') return 'NEEDS_REVIEW';
+  if (r.freshness === 'STALE' || r.freshness === 'EXPIRED') return 'STALE';
   return r.status;
 }

@@ -13,11 +13,12 @@ import {
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { ConfirmFactRequestDto, CorrectFactRequestDto, FactCoordinateDto, FactListDto, RejectFactRequestDto } from './dto.js';
+import { ConfirmFactRequestDto, CorrectFactRequestDto, FactCoordinateDto, FactListDto, ManualFactRequestDto, RejectFactRequestDto, RevokeFactRequestDto } from './dto.js';
 import { FACT_ACTOR_HEADER, FactActionService } from './fact-actions.service.js';
 import { TruthQueryService } from './truth-query.service.js';
 
 const ERROR_SCHEMA = { $ref: '#/components/schemas/ErrorResponse' };
+const AS_OF = { name: 'as_of', required: false, schema: { type: 'string' as const }, description: 'Judge the returned coordinate at this time (ISO 8601 with offset) — pass the list evaluated_at so a replaced row matches the list. Default: now' };
 const EVENT_ID = { name: 'eventId', required: true, schema: { type: 'string' as const, format: 'uuid' } };
 const ACTOR = {
   name: 'X-CERA-Actor-Id',
@@ -44,8 +45,40 @@ export class TruthController {
   @ApiOkResponse({ type: FactListDto })
   @ApiBadRequestResponse({ description: 'INVALID_ID', schema: ERROR_SCHEMA })
   @ApiNotFoundResponse({ description: 'RUN_NOT_FOUND', schema: ERROR_SCHEMA })
-  facts(@Query('recovery_run_id') runId: string | undefined): Promise<FactListDto> {
-    return this.query.forRun(runId);
+  @ApiQuery({ name: 'as_of', required: false, schema: { type: 'string' }, description: 'Judge freshness / expiry at this time (ISO 8601 with offset). Default: the plan scenario time for simulated runs, now for real ones' })
+  facts(@Query('recovery_run_id') runId: string | undefined, @Query('as_of') asOf: string | undefined): Promise<FactListDto> {
+    return this.query.forRun(runId, asOf);
+  }
+
+  @Post('events/:eventId/revoke')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Withdraw a value without a replacement (a human only): it — and every older value of this fact — stops being the current fact; nothing is deleted' })
+  @ApiParam(EVENT_ID)
+  @ApiHeader(ACTOR)
+  @ApiQuery(AS_OF)
+  @ApiBody({ type: RevokeFactRequestDto })
+  @ApiOkResponse({ type: FactCoordinateDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'EVENT_SUPERSEDED · ALREADY_REJECTED', schema: ERROR_SCHEMA })
+  revoke(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown, @Query('as_of') asOf: string | undefined): Promise<FactCoordinateDto> {
+    return this.actions.revoke(eventId, actor, body, asOf);
+  }
+
+  @Post('facts/manual')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'An operator enters a fact they confirmed directly (phone, visit …) — no AI candidate. CONFIRMED at once (human input) with its source note and audit' })
+  @ApiHeader(ACTOR)
+  @ApiQuery(AS_OF)
+  @ApiBody({ type: ManualFactRequestDto })
+  @ApiOkResponse({ type: FactCoordinateDto })
+  @ApiBadRequestResponse({ description: 'INVALID_FACT_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'TARGET_NOT_FOUND · SCENARIO_NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiUnprocessableEntityResponse({ description: 'TARGET_NOT_SUPPORTED', schema: ERROR_SCHEMA })
+  enter(@Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown, @Query('as_of') asOf: string | undefined): Promise<FactCoordinateDto> {
+    return this.actions.enter(actor, body, asOf);
   }
 
   @Post('events/:eventId/confirm')
@@ -53,14 +86,15 @@ export class TruthController {
   @ApiOperation({ summary: 'Confirm a candidate value (VERIFICATION · CONFIRM by a human). The value becomes CONFIRMED; nothing else changes' })
   @ApiParam(EVENT_ID)
   @ApiHeader(ACTOR)
+  @ApiQuery(AS_OF)
   @ApiBody({ type: ConfirmFactRequestDto })
   @ApiOkResponse({ type: FactCoordinateDto })
   @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
   @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED', schema: ERROR_SCHEMA })
   @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND', schema: ERROR_SCHEMA })
   @ApiConflictResponse({ description: 'EVENT_SUPERSEDED · ALREADY_REJECTED', schema: ERROR_SCHEMA })
-  confirm(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown): Promise<FactCoordinateDto> {
-    return this.actions.confirm(eventId, actor, body);
+  confirm(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown, @Query('as_of') asOf: string | undefined): Promise<FactCoordinateDto> {
+    return this.actions.confirm(eventId, actor, body, asOf);
   }
 
   @Post('events/:eventId/reject')
@@ -68,14 +102,15 @@ export class TruthController {
   @ApiOperation({ summary: 'Reject a candidate value (VERIFICATION · REJECT by a human, reason required). It leaves the judgement; the event stays on record' })
   @ApiParam(EVENT_ID)
   @ApiHeader(ACTOR)
+  @ApiQuery(AS_OF)
   @ApiBody({ type: RejectFactRequestDto })
   @ApiOkResponse({ type: FactCoordinateDto })
   @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
   @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED', schema: ERROR_SCHEMA })
   @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND', schema: ERROR_SCHEMA })
   @ApiConflictResponse({ description: 'EVENT_SUPERSEDED', schema: ERROR_SCHEMA })
-  reject(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown): Promise<FactCoordinateDto> {
-    return this.actions.reject(eventId, actor, body);
+  reject(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown, @Query('as_of') asOf: string | undefined): Promise<FactCoordinateDto> {
+    return this.actions.reject(eventId, actor, body, asOf);
   }
 
   @Post('events/:eventId/correct')
@@ -83,6 +118,7 @@ export class TruthController {
   @ApiOperation({ summary: 'Correct a candidate value: the old event is superseded (kept on record) and the operator’s value becomes a new CONFIRMED event' })
   @ApiParam(EVENT_ID)
   @ApiHeader(ACTOR)
+  @ApiQuery(AS_OF)
   @ApiBody({ type: CorrectFactRequestDto })
   @ApiOkResponse({ type: FactCoordinateDto })
   @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_FACT_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
@@ -90,7 +126,7 @@ export class TruthController {
   @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND', schema: ERROR_SCHEMA })
   @ApiConflictResponse({ description: 'EVENT_SUPERSEDED · ALREADY_REJECTED', schema: ERROR_SCHEMA })
   @ApiUnprocessableEntityResponse({ description: 'VALUE_UNCHANGED · NOT_CORRECTABLE', schema: ERROR_SCHEMA })
-  correct(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown): Promise<FactCoordinateDto> {
-    return this.actions.correct(eventId, actor, body);
+  correct(@Param('eventId') eventId: string, @Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown, @Query('as_of') asOf: string | undefined): Promise<FactCoordinateDto> {
+    return this.actions.correct(eventId, actor, body, asOf);
   }
 }

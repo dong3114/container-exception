@@ -22,6 +22,8 @@ export interface ExtractionSubject {
   threadId: string;
   rawInputId: string;
   sourceName: string;
+  rawReceivedAt: string;
+  rawSourceRecordedAt: string | null;
   payloadRef: string | null;
   isSimulated: boolean;
   counterpartyName: string;
@@ -64,6 +66,8 @@ export class ExtractionRepository {
           threadId: commMessage.threadId,
           rawInputId: rawInput.rawInputId,
           sourceName: rawInput.sourceName,
+          rawReceivedAt: rawInput.receivedAt,
+          rawSourceRecordedAt: rawInput.sourceRecordedAt,
           payloadRef: rawInput.payloadRef,
           isSimulated: rawInput.isSimulated,
           counterpartyName: counterparty.displayName,

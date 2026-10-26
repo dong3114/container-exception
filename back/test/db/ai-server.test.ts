@@ -53,7 +53,7 @@ describe('Python AI Server — the real process behind the same client the worke
   it('returns recorded candidates that the backend schema accepts', async () => {
     const res = await new HttpAiClient(baseUrl, 5000).extractReply(SAMPLE, 'req-x');
     if (!res.ok) throw new Error(`expected ok, got ${res.code}`);
-    expect(res.response.meta).toMatchObject({ provider: 'replay', model_version: 'replay:fixtures-1', prompt_version: 'reply-extract-v1' });
+    expect(res.response.meta).toMatchObject({ provider: 'replay', model_version: 'replay:fixtures-1', prompt_version: 'reply-extract-v2' }); // one prompt (v2) also serves v1 requests;
     expect(res.response.answers.map((a) => [a.field, a.value, a.evidence.quote])).toEqual([
       ['quantity', '4', '차량 4대 가능합니다'],
       ['available_from', '15:00', '오후 3시 이후'],

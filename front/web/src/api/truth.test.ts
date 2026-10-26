@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmFact, correctFact, listFacts, rejectFact } from "./truth";
+import { confirmFact, correctFact, enterFact, listFacts, rejectFact, revokeFact } from "./truth";
 
 const capture = (status: number, body: unknown) => {
   const seen: { url: string; init: RequestInit }[] = [];
@@ -42,6 +42,63 @@ describe("truth client", () => {
     await correctFact(EVENT, 3, "OPERATOR_CORRECTION", "메모", ACTOR, undefined, c.impl);
     expect(c.seen[0].url).toContain("/correct");
     expect(bodyOf(c.seen[0].init)).toMatchObject({ value: 3, reason_code: "OPERATOR_CORRECTION", note: "메모" });
+  });
+
+  it("passes an optional as_of reference time", async () => {
+    const { seen, impl } = capture(200, { facts: [] });
+    await listFacts("r1", undefined, impl, "2026-12-01T10:00:00+09:00");
+    expect(seen[0].url).toContain("/truth/facts?recovery_run_id=r1&as_of=2026-12-01T10%3A00%3A00%2B09%3A00");
+    const plain = capture(200, { facts: [] });
+    await listFacts("r1", undefined, plain.impl);
+    expect(plain.seen[0].url).not.toContain("as_of");
+  });
+
+  it("revoke sends the reason, the operator header and a command id", async () => {
+    const { seen, impl } = capture(200, {});
+    await revokeFact(EVENT, ACTOR, { reason_code: "SOURCE_WITHDREW", note: "전화로 취소" }, undefined, impl);
+    expect(seen[0].url).toContain(`/truth/events/${EVENT}/revoke`);
+    expect(seen[0].init.method).toBe("POST");
+    expect(headersOf(seen[0].init)["X-CERA-Actor-Id"]).toBe(ACTOR);
+    expect(bodyOf(seen[0].init)).toMatchObject({ reason_code: "SOURCE_WITHDREW", note: "전화로 취소" });
+    expect(typeof bodyOf(seen[0].init).command_id).toBe("string");
+    const bare = capture(200, {});
+    await revokeFact(EVENT, ACTOR, { reason_code: "OPERATOR_INVALIDATED" }, undefined, bare.impl);
+    expect(bodyOf(bare.seen[0].init)).not.toHaveProperty("note");
+  });
+
+  it("manual entry posts the explicit operator intent with the operator header", async () => {
+    const { seen, impl } = capture(200, {});
+    await enterFact(
+      ACTOR,
+      { kind: "TRUCK_SLOT", target_id: EVENT, date: "2026-12-01", window_from: "15:00", window_to: "17:00", value: 3, source_note: "전화 확인", scenario_id: "s1" },
+      undefined,
+      impl,
+    );
+    expect(seen[0].url).toContain("/truth/facts/manual");
+    expect(seen[0].init.method).toBe("POST");
+    expect(headersOf(seen[0].init)["X-CERA-Actor-Id"]).toBe(ACTOR);
+    expect(bodyOf(seen[0].init)).toMatchObject({ intent: "OPERATOR_DIRECT_ENTRY", kind: "TRUCK_SLOT", value: 3, source_note: "전화 확인", window_from: "15:00", scenario_id: "s1" });
+    expect(typeof bodyOf(seen[0].init).command_id).toBe("string");
+  });
+
+  it("every action can be judged at the list's reference time (as_of)", async () => {
+    const AS_OF = "2026-12-01T10:00:00+09:00";
+    const encoded = "as_of=2026-12-01T10%3A00%3A00%2B09%3A00";
+    const calls: [string, (impl: typeof fetch) => Promise<unknown>][] = [
+      [`/truth/events/${EVENT}/confirm?${encoded}`, (impl) => confirmFact(EVENT, undefined, ACTOR, undefined, impl, AS_OF)],
+      [`/truth/events/${EVENT}/reject?${encoded}`, (impl) => rejectFact(EVENT, "MODEL_MISREAD", undefined, ACTOR, undefined, impl, AS_OF)],
+      [`/truth/events/${EVENT}/correct?${encoded}`, (impl) => correctFact(EVENT, 2, "OPERATOR_CORRECTION", undefined, ACTOR, undefined, impl, AS_OF)],
+      [`/truth/events/${EVENT}/revoke?${encoded}`, (impl) => revokeFact(EVENT, ACTOR, { reason_code: "SOURCE_WITHDREW" }, undefined, impl, AS_OF)],
+      [`/truth/facts/manual?${encoded}`, (impl) => enterFact(ACTOR, { kind: "FACILITY_CAPACITY", target_id: EVENT, date: "2026-12-01", value: 5, source_note: "방문" }, undefined, impl, AS_OF)],
+    ];
+    for (const [path, call] of calls) {
+      const { seen, impl } = capture(200, {});
+      await call(impl);
+      expect(seen[0].url).toContain(path);
+    }
+    const plain = capture(200, {});
+    await confirmFact(EVENT, undefined, ACTOR, undefined, plain.impl);
+    expect(plain.seen[0].url).not.toContain("as_of");
   });
 
   it("maps the common error body", async () => {

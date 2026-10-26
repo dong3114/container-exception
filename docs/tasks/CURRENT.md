@@ -10,7 +10,12 @@
 
 ## Status
 
-**IMPLEMENTING — Runtime 안전 상한 재정의(T-093 후속 지시 · 2026-10-26)** · Orchestrator: Claude Code. **T-093 DONE**(커밋, push 없음 — `LOG.md` 맨 위 · `docs/24` 18.14). 다음 Task: **T-111 Truth Lifecycle Hardening**(Solver 전). T-099 는 연속 평가.
+**IMPLEMENTING — T-112 Cost / Risk Engine → T-113 Recovery Solver (2026-10-26 사용자 지시 · 남은 개발 약 2일)** · Orchestrator: Claude Code. **T-111 DONE**(커밋 · push). Truth Layer = MVP 안정 checkpoint.
+
+### 진행 원칙 (사용자 지시 2026-10-26)
+- 모델 작업 · 후순위 작업 중단(상용 benchmark · 파인튜닝 · 프롬프트 튜닝 · Redis · Multi-Agent · 대규모 리팩터 · T-098 · Gmail · 대시보드). MVP 모델 Qwen3-4B 그대로
+- 목표: 30대 시나리오(부산항 수입 FCL)를 실제 계산으로 관통 — 비용 · 위험 결정론 엔진 → Solver → 제안 계획 → 사실 변경 시 재계산
+- 숫자는 결정론 엔진에서만 · 기존 시나리오 결과(v1 · v2 숫자)는 참고 · 회귀 비교로만 · Cost/Solver 는 검토 전 커밋하지 않음
 
 ### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"
 

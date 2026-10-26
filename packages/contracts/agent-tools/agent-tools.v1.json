@@ -2248,9 +2248,21 @@
                     "PROVISIONAL",
                     "CONFIRMED",
                     "OBSERVED",
-                    "NEEDS_REVIEW"
+                    "NEEDS_REVIEW",
+                    "STALE"
                   ],
-                  "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide"
+                  "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide · STALE = too old (or past its validity) to decide on now — not wrong, needs a refresh"
+                },
+                "freshness_status": {
+                  "type": "string",
+                  "enum": [
+                    "FRESH",
+                    "AGING",
+                    "STALE",
+                    "EXPIRED",
+                    "UNKNOWN"
+                  ],
+                  "description": "FRESH · AGING (use with care) · STALE · EXPIRED (past valid_until) · UNKNOWN (no freshness policy for this fact family)"
                 },
                 "value_number": {
                   "description": "Decimal as string",
@@ -2372,6 +2384,7 @@
                 "subject_id",
                 "fact_key",
                 "fact_state",
+                "freshness_status",
                 "value_number",
                 "value_unit",
                 "valid_from",
@@ -2548,6 +2561,10 @@
           "rule_version": {
             "type": "string"
           },
+          "evaluated_as_of": {
+            "type": "string",
+            "description": "Freshness / expiry were judged at this time (scenario time for simulated runs, now for real ones)"
+          },
           "gaps": {
             "type": "array",
             "items": {
@@ -2588,9 +2605,10 @@
                     "MISSING",
                     "ASKED",
                     "PROVISIONAL_AVAILABLE",
-                    "NEEDS_REVIEW"
+                    "NEEDS_REVIEW",
+                    "NEEDS_REFRESH"
                   ],
-                  "description": "MISSING · ASKED · PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists — a human must confirm) · NEEDS_REVIEW (conflict or hold). A confirmed fact moves the gap to `known`"
+                  "description": "MISSING · ASKED · PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists — a human must confirm) · NEEDS_REVIEW (conflict or hold) · NEEDS_REFRESH (the value went stale / expired or was withdrawn — ask again). Only a fresh confirmed fact moves the gap to `known`"
                 },
                 "fact": {
                   "anyOf": [
@@ -2614,9 +2632,21 @@
                             "PROVISIONAL",
                             "CONFIRMED",
                             "OBSERVED",
-                            "NEEDS_REVIEW"
+                            "NEEDS_REVIEW",
+                            "STALE"
                           ],
-                          "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide"
+                          "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide · STALE = too old (or past its validity) to decide on now — not wrong, needs a refresh"
+                        },
+                        "freshness_status": {
+                          "type": "string",
+                          "enum": [
+                            "FRESH",
+                            "AGING",
+                            "STALE",
+                            "EXPIRED",
+                            "UNKNOWN"
+                          ],
+                          "description": "FRESH · AGING (use with care) · STALE · EXPIRED (past valid_until) · UNKNOWN (no freshness policy for this fact family)"
                         },
                         "value_number": {
                           "description": "Decimal as string",
@@ -2738,6 +2768,7 @@
                         "subject_id",
                         "fact_key",
                         "fact_state",
+                        "freshness_status",
                         "value_number",
                         "value_unit",
                         "valid_from",
@@ -2755,7 +2786,20 @@
                       "type": "null"
                     }
                   ],
-                  "description": "The provisional / disputed value behind the state, when there is one"
+                  "description": "The provisional / disputed / stale value behind the state, when there is one"
+                },
+                "refresh_basis_event_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "NEEDS_REFRESH: the stale value or the withdrawal that reopened the gap — a new inquiry for this basis is a new question"
                 },
                 "open_question_message_ids": {
                   "type": "array",
@@ -2832,6 +2876,7 @@
                 "required_fact",
                 "state",
                 "fact",
+                "refresh_basis_event_id",
                 "open_question_message_ids",
                 "public_data_can_resolve",
                 "suggested_source",
@@ -2943,9 +2988,21 @@
                         "PROVISIONAL",
                         "CONFIRMED",
                         "OBSERVED",
-                        "NEEDS_REVIEW"
+                        "NEEDS_REVIEW",
+                        "STALE"
                       ],
-                      "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide"
+                      "description": "PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide · STALE = too old (or past its validity) to decide on now — not wrong, needs a refresh"
+                    },
+                    "freshness_status": {
+                      "type": "string",
+                      "enum": [
+                        "FRESH",
+                        "AGING",
+                        "STALE",
+                        "EXPIRED",
+                        "UNKNOWN"
+                      ],
+                      "description": "FRESH · AGING (use with care) · STALE · EXPIRED (past valid_until) · UNKNOWN (no freshness policy for this fact family)"
                     },
                     "value_number": {
                       "description": "Decimal as string",
@@ -3067,6 +3124,7 @@
                     "subject_id",
                     "fact_key",
                     "fact_state",
+                    "freshness_status",
                     "value_number",
                     "value_unit",
                     "valid_from",
@@ -3096,6 +3154,7 @@
           "recovery_run_id",
           "plan_date",
           "rule_version",
+          "evaluated_as_of",
           "gaps",
           "known"
         ],

@@ -33,12 +33,23 @@ export function buildAsk(q: QuestionContext): Ask | null {
         { name: 'quantity', kind: 'QUANTITY', unit: q.expectedUnit },
         { name: 'available_from', kind: 'TIME', unit: null },
         { name: 'available_until', kind: 'TIME', unit: null },
+        // v2(T-111): 답이 말한 날짜. 질문 날짜와 다르거나 인용에서 결정론으로 같은 날짜가 나오지 않으면 승격하지 않는다(promotion-rules)
+        { name: 'answer_date', kind: 'DATE', unit: null },
       ],
       window: date && from && to ? { date, from, to } : null,
     };
   }
   if (q.questionType === 'CAPACITY' && q.expectedUnit) {
-    return { ask_id: q.askId, question: q.questionText, answer_shape: 'QUANTITY_ON_DATE', fields: [{ name: 'quantity', kind: 'QUANTITY', unit: q.expectedUnit }], window: null };
+    return {
+      ask_id: q.askId,
+      question: q.questionText,
+      answer_shape: 'QUANTITY_ON_DATE',
+      fields: [
+        { name: 'quantity', kind: 'QUANTITY', unit: q.expectedUnit },
+        { name: 'answer_date', kind: 'DATE', unit: null },
+      ],
+      window: null,
+    };
   }
   return null;
 }
@@ -79,7 +90,7 @@ function timeInQuote(value: string, quote: string): boolean {
   return new RegExp(`${meridiem}\\s*${h12}\\s*시`).test(quote) && minuteOk(quote);
 }
 
-const FORMAT: Record<string, RegExp> = { QUANTITY: /^\d{1,6}$/, TIME: /^([01]\d|2[0-3]):[0-5]\d$/, MONEY: /^\d{1,12}$/ };
+const FORMAT: Record<string, RegExp> = { QUANTITY: /^\d{1,6}$/, TIME: /^([01]\d|2[0-3]):[0-5]\d$/, MONEY: /^\d{1,12}$/, DATE: /^\d{4}-\d{2}-\d{2}$/ };
 
 /**
  * 답마다 검사(docs/05 4.6 의 일곱 검사 안에서): 질문 범위 · 인용이 원문에 그대로 있음 · 값 형식 · 단위 · 값이 인용에 있음 · 상충.
@@ -102,7 +113,8 @@ export function validateAnswers(asks: readonly Ask[], sourceText: string, respon
       checks.push({ check: 'VALUE_FORMAT', passed: formatOk, detail_code: formatOk ? null : `BAD_${field.kind}` });
       const unitOk = (answer.unit ?? null) === (field.unit ?? null);
       checks.push({ check: 'UNIT', passed: unitOk, detail_code: unitOk ? null : `UNIT_MISMATCH:${answer.unit ?? 'NONE'}` });
-      const inQuote = formatOk && (field.kind === 'TIME' ? timeInQuote(answer.value, answer.evidence.quote) : quantityInQuote(answer.value, answer.evidence.quote));
+      // 날짜(v2)는 인용의 날짜 표현을 회신 날짜 기준으로 다시 풀어야 맞는지 안다 — 그 판정은 승격 단계(date-scope)가 한다. 여기서는 형식만
+      const inQuote = formatOk && (field.kind === 'DATE' ? true : field.kind === 'TIME' ? timeInQuote(answer.value, answer.evidence.quote) : quantityInQuote(answer.value, answer.evidence.quote));
       checks.push({ check: 'VALUE_IN_QUOTE', passed: inQuote, detail_code: inQuote ? null : 'VALUE_NOT_IN_QUOTE' });
     }
     if (response.ambiguity_flags.length > 0) {

@@ -103,6 +103,11 @@ export class RuntimeStoreRepository {
       .limit(limit);
   }
 
+  async recoveryRunOf(agentRunId: string): Promise<string | null> {
+    const rows = await this.db.select({ id: agentRun.recoveryRunId }).from(agentRun).where(eq(agentRun.agentRunId, agentRunId)).limit(1);
+    return rows[0]?.id ?? null;
+  }
+
   /** 다시 시도할 시각이 된 WAITING_RUNTIME 실행. */
   async dueRetries(now: string, limit: number): Promise<string[]> {
     const rows = await this.db

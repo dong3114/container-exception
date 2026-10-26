@@ -164,11 +164,12 @@ describe('A. a normal reply → AI candidates → backend validation → candida
 
     // AI 에 간 것: 물은 질문 · 기준일 · 정확한 원문 텍스트 — DB 전체나 신원 판정은 가지 않는다
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({ schema_version: 'reply-extract/1', inbound_message_id: inboundId, reference_date: '2026-10-13', message_text: text });
+    expect(calls[0]).toMatchObject({ schema_version: 'reply-extract/2', inbound_message_id: inboundId, reference_date: '2026-10-13', message_text: text, timezone: 'Asia/Seoul' });
+    expect(calls[0]?.reply_date).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/); // the reply's own (Q-44) date in Asia/Seoul — the base for "tomorrow"
     expect(calls[0]?.asks).toEqual([
       expect.objectContaining({ ask_id: 'Q1', answer_shape: 'QUANTITY_IN_TIME_WINDOW', window: { date: '2026-10-13', from: '15:00', to: '17:00' } }),
     ]);
-    expect(Object.keys(calls[0] ?? {}).sort()).toEqual(['asks', 'counterparty_name', 'inbound_message_id', 'message_text', 'reference_date', 'schema_version']);
+    expect(Object.keys(calls[0] ?? {}).sort()).toEqual(['asks', 'counterparty_name', 'inbound_message_id', 'message_text', 'reference_date', 'reply_date', 'schema_version', 'timezone']);
 
     const rows = await rowsOf(inboundId);
     expect(rows).toHaveLength(3);

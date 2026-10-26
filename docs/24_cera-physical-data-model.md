@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: **T-093(2026-10-26, DONE): 사실 파이프라인 — 표 · 열 변경 없음, M20 가드 3(22.41). 구현 기록 18.14.** T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
+- 상태: **T-111(2026-10-26, DONE): 철회 · 신선도 · 직접 입력 · 날짜 계약 — 표 · 열 변경 없음, M21 가드 1(22.42). 구현 기록 18.16.** T-093(2026-10-26, DONE): 사실 파이프라인 — 표 · 열 변경 없음, M20 가드 3(22.41). 구현 기록 18.14.** T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -915,6 +915,38 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 - **관측**: `npm run runtime:stats`(back) — 기존 기록(`agent_step` · `agent_tool_call` · `agent_run` · `public_data_fetch` · `system_error`)만 읽어 그래프 구동 시간 · 노드 시간 · Tool 시간 · 공공데이터 지연 · 실행당 단계 · Tool 호출 · 재시도 · Runtime 재시도의 p50 · p90 · p95 · p99 · max 와 상한 · 시간 초과 코드 수를 낸다. **새 저장 구조 없음.** 모델 추론 시간은 DB 에 두지 않는다 — AI Server 로그 한 줄(`local llm call model=… server=… total_ms=… first_call_in_process=…`, 프롬프트 · 회신 본문 없음)과 평가 결과(`metrics.json` 의 `latency_ms_p50 · p90 · p95 · p99 · max`). RAM · VRAM 은 평가 스크립트(`infra/local/eval-ladder.sh`)가 기록한다 — 운영 Runtime 에 무거운 profiler 를 넣지 않는다
 - **줄이는 기준(예)**: 정상 실행 500건의 단계 p99 = 22 → 100 을 40 으로 · 로컬 추론 p99 = 18초 → 300초를 60초로. 줄일 때는 이 표와 `.env.example` 을 같이 고친다
 - 함께 고친 결함: `ai/.env` 의 `CERA_AI_REPLAY_DIR=`(빈 값)이 녹화 폴더 대신 현재 폴더를 가리키던 것 → 빈 값 = 기본 폴더
+
+
+### 18.16 T-111 Truth Lifecycle Hardening 구현 확인 결과 (2026-10-26 · DONE — 사용자 승인)
+
+**표 · 열 변경 없음.** M21 = 철회 가드 1개(22.42). 한 줄: **한 번 확정된 사실도 영원히 믿지 않는다** — 사람이 철회하면 현재 사실에서 빠지고, 시간이 지나면 "오래됨"이 되며, 운영자가 전화로 확인한 사실은 AI 없이 바로 넣을 수 있다. 답의 날짜도 계약에 담는다.
+
+**쉬운 말로 — 값의 단계(T-093 표에 더한 것)**
+
+| 단계 | 뜻 | 기록 |
+| --- | --- | --- |
+| 철회됨(REVOKED) | **사람이 "그 값은 더는 유효하지 않다"고 거둔 값** — 새 값 없이. 그 시점까지의 값이 모두 현재 사실에서 빠진다 | 값 없는 CORRECTION(사람 · HUMAN_UI) |
+| 오래됨(STALE) | **틀린 것이 아니라 지금 결정에 쓰기에 오래된 값** — 유효 시간이 지났거나(EXPIRED) 계열별 신선도 기준을 넘김 | 기록 없음 — 기준 시각으로 판정 |
+| 사람 직접 입력 | **운영자가 전화 · 방문으로 확인해 넣은 사실** — 바로 확정(CONFIRMED) | HUMAN_UI OBSERVATION(의도 · 출처 메모 · 감사) |
+
+| # | 구현 메모 |
+| --- | --- |
+| L-1 | **철회** `POST /truth/events/{id}/revoke`(사유 3종 `SOURCE_WITHDREW` · `OPERATOR_INVALIDATED` · `OUTDATED_OPERATIONAL_STATE` + 메모): 기존 스키마의 **값 없는 CORRECTION**(docs/05 10절 "철회")을 쓴다 — 새 상태 열 · 표 없음. 판정 규칙(`reconcile-rules.ts`): 사람(HUMAN_UI)의 철회는 대상과 **근거 시각이 철회 시각 이하인 모든 값**을 빼낸다(옛 다른 값이 되살아나지 않게). 철회 뒤에 들어온 새 근거는 정상 경쟁한다. 결과 `fact_state = REVOKED`(값 없음 · `revoked_by_event_id`), 파생 행 삭제, 사건은 모두 남음. 사람만: 서비스(활성 HUMAN) + M20(HUMAN_UI = HUMAN 행위자) + **M21(값 없는 CORRECTION 은 HUMAN_UI 만)** + 판정 규칙(다른 출처의 값 없는 정정은 아무것도 철회하지 못함). 결정론 시스템 출처의 철회는 정의하지 않았다(필요하면 계열별 권한과 함께). 같은 철회의 재요청 = 사건 하나. 철회된 값은 확인 · 정정 409 `EVENT_REVOKED` |
+| L-2 | **신선도**(`truth-policy.ts` `truth-policy/2`): ① 사실의 명시적 `valid_until` 이 먼저 — 지나면 **EXPIRED**(모든 fact_kind; 옛 규칙은 OFFER 만), 그 전에는 FRESH ② 없으면 **계열별 정책** — 근거 시각부터 FRESH → AGING(주의) → STALE: 차량 가용 · 창고 수용량 6시간 / 24시간, ODCY 12시간 / 48시간 — **실운영 데이터 없이 정한 넉넉한 시작값 `[ASSUMPTION]`**(docs/05 15절 PoC 값 1~4시간보다 길게). 실제 STALE 빈도 · 재확인 · 정정을 보고 줄인다 ③ 정책 없는 계열은 평가하지 않음(UNKNOWN). 전역 TTL 없음. **STALE ≠ 틀림**: `value_status`(보증 수준)는 그대로 두고 `freshness_status` 와 `fact_state = STALE` 로 따로 보인다(REJECTED · REVOKED · SUPERSEDED 와 구분). R11: EXPIRED → UNUSABLE, STALE → APPROVAL_BLOCKED, AGING → USABLE_WITH_WARNING |
+| L-3 | **기준 시각(as_of)**: 판정 함수는 시계를 읽지 않고 `asOf` 를 받는다. 실제 계획 실행 = 지금(시계 포트), **시뮬레이션 실행 = 그 시나리오 시각**(스냅샷 기준 시각 — 가상 시나리오는 실제 시간에 늙지 않는다), 호출자가 주면 그 시각(`GET /truth/facts?as_of=` · 행위 API `?as_of=` · `informationGaps(run, override)`). 같은 as_of 면 같은 답(시험). 사실 응답에 `evaluated_as_of`. 화면은 목록의 기준 시각을 행위 요청에 넘긴다 |
+| L-4 | **시간 경과 반영**: 읽기(Agent · 화면)는 사건에서 바로 판정하므로 항상 그 기준 시각의 답이다. 파생 표(`canonical_fact`)는 Worker 가 60초 `[ASSUMPTION]` 마다 다시 쓴다(`refreshDerived` — 잠금 `cera.truth.refresh`, 바뀐 수 · 걸린 시간 기록). 기다리는 Agent 의 깨우기도 DB + 실행의 기준 시각으로 판정한다(알림 · 프로세스 타이머에 기대지 않음) |
+| L-5 | **정보 공백 `gap-rules/3`**: 확인됐어도 오래됐거나(STALE · EXPIRED) 철회된 사실은 공백을 닫지 못한다 → **NEEDS_REFRESH**(`refresh_basis_event_id` = 오래된 값 또는 철회 사건). 그 근거보다 뒤에 보낸 문의가 있으면 ASKED. 새 상태는 이것 하나다(공백 id 재료는 판 1 그대로 — 도는 실행이 공백을 잃지 않음). Agent 그래프: NEEDS_REFRESH 는 MISSING 처럼 다시 묻는다 — 초안 멱등 키에 근거 사건을 붙여(`…:draft:r<근거 12자>`) 옛 초안을 되돌려 주지 않는다. 사실 확인을 기다리던 실행은 철회 · 만료로 깨어나 `FACT_NEEDS_REFRESH` 로 끝난다 |
+| L-6 | **사람 직접 입력** `POST /truth/facts/manual`: 명시 의도 `intent = OPERATOR_DIRECT_ENTRY` · 출처 메모 필수(200자) · 상대가 말한 시각(선택, 미래 불가) · 종류(차량 슬롯 · 창고/ODCY 수용량) · 대상 · 날짜 · 시간창 · 값 · (시뮬레이션이면 시나리오). 사실 키는 문의와 같은 규칙(`targetFactKey`)이라 같은 좌표에 모인다. HUMAN_UI OBSERVATION(권한 S, 강도 2) → **바로 CONFIRMED** — Confirm 을 한 번 더 누르지 않는다. AI · Agent · 시스템 403 + M20. 명령 id 로 멱등. 고칠 때는 정정(대체 + 새 사건), 철회도 같다 |
+| L-7 | **날짜를 담는 회신 계약 `reply-extract/2`**: 질문의 칸에 `answer_date`(DATE, YYYY-MM-DD) · 요청에 `reply_date`(회신 근거 시각의 Asia/Seoul 날짜 — 상대 날짜의 기준) · `timezone: Asia/Seoul`(계약에 드러냄). 검증기는 DATE 의 형식 · 단위만 본다(conformance 포함 — Python 포팅 일치). **승격 단계가 인용 문장을 회신 날짜 기준으로 다시 풀어**(`date-scope.ts`) 모델 날짜와 맞을 때만 믿는다: 다른 날 → `DATE_OUT_OF_SCOPE`, 인용이 뒷받침 못 함 → `DATE_UNVERIFIED`. 프롬프트 `reply-extract-v2` |
+| L-8 | **하위 호환**: AI Server 는 v1 · v2 요청을 모두 받고 요청한 판으로 답한다. Backend 는 v1 응답도 받는다(날짜 칸 없음 → 문장 날짜 확인만). 추출 행 `schema_version` = 실제로 쓰인 응답 판. 녹화 재생은 회신 본문 지문으로 찾으므로 녹화 파일은 고치지 않았다. v1 계약 파일 · 견본은 기록으로 그대로 두고 v2 파일을 더했다(`packages/contracts/ai/reply-extract.v2.*`). 평가 데이터셋(141건)은 v1 요청 그대로 돈다 |
+| L-9 | **Solver 가 읽을 사실 계약**: `fact_state` 로 구분된다 — CONFIRMED(+ `freshness_status` FRESH · AGING) · PROVISIONAL(+ 신선) · STALE(+ `value_status` 가 CONFIRMED 인지 PROVISIONAL 인지) · REVOKED · NEEDS_REVIEW(충돌 · 보류) · UNKNOWN. 무엇을 어떤 위험 가중으로 쓸지는 Cost / Risk / Solver Task 가 정한다(숫자 없음) |
+| L-10 | **확인 요청 큐 검토**: 지금은 Agent 패널의 사실 카드가 PROVISIONAL · 충돌 · 보류 · 오래됨 · 철회를 계획 실행 단위로 보여 주고 행위(확인 · 거절 · 정정 · 철회 · 직접 입력)를 받는다. 여러 실행을 가로지르는 한곳 목록은 **T-098(역할별 화면)로 미룬다** — 이번에 새 대시보드를 만들지 않았다(`verification_request` 표는 그대로 비어 있음) |
+| L-11 | **학습 데이터 고리**: 회신 → 추출(후보 · 인용 · 모델 · 검증) → 임시 사실 → 사람 확인 · 거절 · 정정 → **철회(사유) · 오래됨(기준 시각)** → 최종 현재 사실. 직접 입력은 `entry` · `source_note` 로 구분된다 |
+| L-12 | **알려진 빈틈**: 차량 풀 목록 API 가 없어 화면의 직접 입력은 이미 사실이 있는 차량 풀만 고를 수 있다(창고 · ODCY 는 `/registry/facilities`). 화면에 as_of 를 고르는 선택기는 없다(API 인자만). 시뮬레이션 사실의 신선도는 시나리오 시각으로만 판정된다 |
+
+**시험(2026-10-26)**: Backend 390(unit 169 · db 221 — `truth.test.ts` 철회 · 권한 · 신선도 · 재현성 · 직접 입력 · 정정 · 날짜 계약 · v1 호환 · `agent-runtime.test.ts` 철회 → 신호 유실에도 재조정이 깨움 → `FACT_NEEDS_REFRESH`) · Python 80 · Front 74 · typecheck · lint · build · `drizzle-kit check` · OpenAPI · Tool 계약 · AI 계약 · conformance 최신.
+
+**Docker 실제 실행(2026-10-26, 별도 프로젝트 · 통제된 회신 = 녹화 재생 — LLM 미실행)**: FLOW 2 — 운영자 직접 입력 → CONFIRMED → 공백 `known` → 철회 → REVOKED · 공백 NEEDS_REFRESH → 새 Agent 실행이 그 공백을 골라 다시 물음(초안 `available.slot(2026-10-13T15:00-17:00)`). FLOW 1 — 그 문의 승인 → 발송 → 회신 → PROVISIONAL → 실행 `AWAITING_FACT_VERIFICATION` → 확인 → 깨어나 `FACT_CONFIRMED` → `as_of` 14:00 = CONFIRMED · FRESH / 17:00(시간창 끝) = STALE(EXPIRED · UNUSABLE, 보증은 CONFIRMED 그대로) / 다시 14:00 = 같은 답. **브라우저(Edge)**: 사실 카드 "사람 확인 완료 · 신선" → [철회] → "철회됨 — 지금 값 없음" → 직접 입력 폼(종류 · 대상 · 날짜 · 시간창 · 값 · 확인 출처) → "사람 확인 완료 5대". 오래됨 표시는 컴포넌트 시험으로 확인(화면에 as_of 선택기 없음). 관측(`runtime:stats`, 이 스택): 그래프 구동 p99 0.5초 · 노드 p99 82ms · Tool p99 69ms — 표본이 작아 상한을 줄이지 않았다.
 
 
 ```
@@ -2349,6 +2381,11 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - `tg_extraction__guard_accept` BEFORE UPDATE ON `extraction`: `ACCEPTED` 로 가는 후보의 `created_event_id` 는 LLM 추출 `OBSERVATION` 이어야 한다
 - `tg_canonical_fact__guard_confirmed` BEFORE INSERT OR UPDATE ON `canonical_fact`: `value_status = CONFIRMED` 이면 `verification_basis` 가 `HUMAN_VERIFICATION`(같은 좌표 · 같은 값의 HUMAN_UI 사건 또는 사람의 CONFIRM 이 가리킨 사건 필요) 또는 `AUTHORITATIVE_SYSTEM`(PARTNER_SYSTEM 사건 필요). `POLICY_EVIDENCE` 는 정책이 비어 있어 거부
 - 앱 역할 권한은 M10 그대로
+
+### 22.42 M21 철회 가드 **(T-111 · 표 · 열 변경 없음)**
+
+- 파일: `back/drizzle/migrations/0020_m21_withdrawal_guard.sql`(함수 1 · 트리거 1 — 함수 28 → 29, `now()` 없음)
+- `tg_event__guard_withdrawal` BEFORE INSERT ON `event`: 값이 하나도 없는 CORRECTION(철회)은 `source_type = HUMAN_UI` 여야 한다(CE005) — M20 과 합쳐 사람 행위자만 철회한다
 
 ---
 

@@ -1,0 +1,417 @@
+{
+  "request": {
+    "$defs": {
+      "Ask": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_shape": {
+            "enum": [
+              "QUANTITY_IN_TIME_WINDOW",
+              "QUANTITY_ON_DATE"
+            ],
+            "title": "Answer Shape",
+            "type": "string"
+          },
+          "ask_id": {
+            "maxLength": 40,
+            "title": "Ask Id",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/$defs/AskField"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Fields",
+            "type": "array"
+          },
+          "question": {
+            "maxLength": 500,
+            "title": "Question",
+            "type": "string"
+          },
+          "window": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AskWindow"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "ask_id",
+          "question",
+          "answer_shape",
+          "fields"
+        ],
+        "title": "Ask",
+        "type": "object"
+      },
+      "AskField": {
+        "additionalProperties": false,
+        "description": "A field the Backend asked for. kind decides the value format; unit is the expected unit (null for times and dates).\nDATE (v2) = the calendar day the answer is about, YYYY-MM-DD in the request timezone.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "QUANTITY",
+              "TIME",
+              "MONEY",
+              "DATE"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z0-9][A-Z0-9_]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "AskField",
+        "type": "object"
+      },
+      "AskWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "title": "Date",
+            "type": "string"
+          },
+          "from": {
+            "pattern": "^\\d{2}:\\d{2}$",
+            "title": "From",
+            "type": "string"
+          },
+          "to": {
+            "pattern": "^\\d{2}:\\d{2}$",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "from",
+          "to"
+        ],
+        "title": "AskWindow",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "asks": {
+        "items": {
+          "$ref": "#/$defs/Ask"
+        },
+        "maxItems": 10,
+        "minItems": 1,
+        "title": "Asks",
+        "type": "array"
+      },
+      "counterparty_name": {
+        "maxLength": 100,
+        "title": "Counterparty Name",
+        "type": "string"
+      },
+      "inbound_message_id": {
+        "maxLength": 40,
+        "title": "Inbound Message Id",
+        "type": "string"
+      },
+      "message_text": {
+        "maxLength": 20000,
+        "title": "Message Text",
+        "type": "string"
+      },
+      "reference_date": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "title": "Reference Date",
+        "type": "string"
+      },
+      "reply_date": {
+        "anyOf": [
+          {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Reply Date"
+      },
+      "schema_version": {
+        "enum": [
+          "reply-extract/1",
+          "reply-extract/2"
+        ],
+        "title": "Schema Version",
+        "type": "string"
+      },
+      "timezone": {
+        "anyOf": [
+          {
+            "const": "Asia/Seoul",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Timezone"
+      }
+    },
+    "required": [
+      "schema_version",
+      "inbound_message_id",
+      "reference_date",
+      "counterparty_name",
+      "asks",
+      "message_text"
+    ],
+    "title": "ExtractionRequest",
+    "type": "object"
+  },
+  "response": {
+    "$defs": {
+      "Answer": {
+        "additionalProperties": false,
+        "properties": {
+          "ask_id": {
+            "maxLength": 40,
+            "title": "Ask Id",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Confidence"
+          },
+          "evidence": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "field": {
+            "maxLength": 60,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Field",
+            "type": "string"
+          },
+          "raw_value": {
+            "maxLength": 200,
+            "title": "Raw Value",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Unit"
+          },
+          "value": {
+            "maxLength": 100,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ask_id",
+          "field",
+          "raw_value",
+          "value",
+          "evidence"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "quote": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quote"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "Meta": {
+        "additionalProperties": false,
+        "properties": {
+          "latency_ms": {
+            "minimum": 0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model_version": {
+            "maxLength": 60,
+            "title": "Model Version",
+            "type": "string"
+          },
+          "prompt_version": {
+            "maxLength": 20,
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 40,
+            "title": "Provider",
+            "type": "string"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Usage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "provider",
+          "model_version",
+          "prompt_version",
+          "latency_ms"
+        ],
+        "title": "Meta",
+        "type": "object"
+      },
+      "Usage": {
+        "additionalProperties": false,
+        "properties": {
+          "input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Output Tokens"
+          }
+        },
+        "title": "Usage",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "ambiguity_flags": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "title": "Ambiguity Flags",
+        "type": "array"
+      },
+      "answers": {
+        "items": {
+          "$ref": "#/$defs/Answer"
+        },
+        "maxItems": 50,
+        "title": "Answers",
+        "type": "array"
+      },
+      "meta": {
+        "$ref": "#/$defs/Meta"
+      },
+      "outcome": {
+        "enum": [
+          "VALUES",
+          "NO_CHANGE",
+          "REFUSAL",
+          "UNPARSEABLE"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
+      "schema_version": {
+        "enum": [
+          "reply-extract/1",
+          "reply-extract/2"
+        ],
+        "title": "Schema Version",
+        "type": "string"
+      },
+      "unmapped_statements": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "title": "Unmapped Statements",
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema_version",
+      "outcome",
+      "meta"
+    ],
+    "title": "ExtractionResponse",
+    "type": "object"
+  },
+  "title": "CERA reply extraction v2 (Main Backend <-> AI Server; also accepts v1 requests)"
+}

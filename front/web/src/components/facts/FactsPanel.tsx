@@ -1,16 +1,34 @@
 import { useEffect, useState } from "react";
-import { type FactCandidate, type FactCoordinate, type FactList, type FactReasonCode, confirmFact, correctFact, listFacts, rejectFact } from "@/api/truth";
+import {
+  type FactCandidate,
+  type FactCoordinate,
+  type FactList,
+  type FactReasonCode,
+  type RevokeReasonCode,
+  confirmFact,
+  correctFact,
+  listFacts,
+  rejectFact,
+  revokeFact,
+} from "@/api/truth";
 import { useAsyncAction } from "@/state/async";
+import { ManualFactForm } from "./ManualFactForm";
 import {
   CONFLICT_LABEL,
   FACT_STATE_BADGE,
   FACT_STATE_LABEL,
+  FRESHNESS_BADGE,
+  FRESHNESS_LABEL,
   GENERATED_BY_LABEL,
   HOLD_LABEL,
   PROVISIONAL_NOTE,
   REASON_OPTIONS,
+  REVOKED_NOTE,
+  REVOKE_REASON_OPTIONS,
   ROLE_LABEL,
+  STALE_NOTE,
   USABILITY_LABEL,
+  VALUE_STATUS_LABEL,
   factErrorText,
   factTitle,
   formatTime,
@@ -20,12 +38,13 @@ import {
   sourceLabel,
 } from "./factLabels";
 
-type Mode = "reject" | "correct" | null;
+type Mode = "reject" | "correct" | "revoke" | null;
 
-/** 한 후보(근거) 줄 — 값 · 역할 · 누가 말했나 · 원문 인용 · 만든 방식, 그리고 사람의 확인 · 거절 · 정정. */
-function CandidateRow({ c, actorId, onUpdated }: { c: FactCandidate; actorId: string | null; onUpdated: (f: FactCoordinate) => void }) {
+/** 한 후보(근거) 줄 — 값 · 역할 · 누가 말했나 · 원문 인용 · 만든 방식, 그리고 사람의 확인 · 거절 · 정정 · 철회. */
+function CandidateRow({ c, actorId, asOf, onUpdated }: { c: FactCandidate; actorId: string | null; asOf?: string; onUpdated: (f: FactCoordinate) => void }) {
   const [mode, setMode] = useState<Mode>(null);
   const [reason, setReason] = useState<FactReasonCode>("MODEL_MISREAD");
+  const [revokeReason, setRevokeReason] = useState<RevokeReasonCode>("SOURCE_WITHDREW");
   const [note, setNote] = useState("");
   const [value, setValue] = useState("");
   const done = (res: { data: FactCoordinate; requestId: string | null }) => {
@@ -34,11 +53,12 @@ function CandidateRow({ c, actorId, onUpdated }: { c: FactCandidate; actorId: st
     onUpdated(res.data);
     return res;
   };
-  const confirm = useAsyncAction(async (signal, actor: string) => done(await confirmFact(c.event_id, note.trim() || undefined, actor, signal)));
-  const reject = useAsyncAction(async (signal, actor: string) => done(await rejectFact(c.event_id, reason, note.trim() || undefined, actor, signal)));
-  const correct = useAsyncAction(async (signal, actor: string, n: number) => done(await correctFact(c.event_id, n, reason, note.trim() || undefined, actor, signal)));
-  const busy = [confirm, reject, correct].some((a) => a.state.status === "LOADING");
-  const failed = [confirm, reject, correct].map((a) => a.state).find((s) => s.status === "FAILED");
+  const confirm = useAsyncAction(async (signal, actor: string) => done(await confirmFact(c.event_id, note.trim() || undefined, actor, signal, undefined, asOf)));
+  const reject = useAsyncAction(async (signal, actor: string) => done(await rejectFact(c.event_id, reason, note.trim() || undefined, actor, signal, undefined, asOf)));
+  const correct = useAsyncAction(async (signal, actor: string, n: number) => done(await correctFact(c.event_id, n, reason, note.trim() || undefined, actor, signal, undefined, asOf)));
+  const revoke = useAsyncAction(async (signal, actor: string) => done(await revokeFact(c.event_id, actor, { reason_code: revokeReason, note: note.trim() || undefined }, signal, undefined, asOf)));
+  const busy = [confirm, reject, correct, revoke].some((a) => a.state.status === "LOADING");
+  const failed = [confirm, reject, correct, revoke].map((a) => a.state).find((s) => s.status === "FAILED");
   const parsed = Number(value);
   const validValue = value.trim() !== "" && Number.isInteger(parsed) && parsed >= 0 && parsed <= 999999;
   const actionable = isActionable(c);
@@ -68,6 +88,9 @@ function CandidateRow({ c, actorId, onUpdated }: { c: FactCandidate; actorId: st
           <button type="button" className="act-btn" disabled={!actorId || busy} onClick={() => setMode(mode === "correct" ? null : "correct")} data-testid="fact-correct-open">
             정정
           </button>
+          <button type="button" className="act-btn" disabled={!actorId || busy} onClick={() => setMode(mode === "revoke" ? null : "revoke")} data-testid="fact-revoke-open">
+            철회
+          </button>
           {!actorId && <span className="muted">확인할 담당자를 불러오지 못해 누를 수 없습니다</span>}
         </div>
       )}
@@ -78,6 +101,7 @@ function CandidateRow({ c, actorId, onUpdated }: { c: FactCandidate; actorId: st
             e.preventDefault();
             if (!actorId) return;
             if (mode === "reject") reject.run(actorId);
+            else if (mode === "revoke") revoke.run(actorId);
             else if (validValue) correct.run(actorId, parsed);
           }}
         >
@@ -87,22 +111,35 @@ function CandidateRow({ c, actorId, onUpdated }: { c: FactCandidate; actorId: st
               <input type="number" min={0} max={999999} step={1} value={value} onChange={(e) => setValue(e.target.value)} style={{ width: 90 }} data-testid="fact-correct-value" />
             </label>
           )}
-          <label style={{ display: "grid", gap: 2 }}>
-            <span className="muted">사유</span>
-            <select value={reason} onChange={(e) => setReason(e.target.value as FactReasonCode)} data-testid="fact-reason">
-              {REASON_OPTIONS.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {mode === "revoke" ? (
+            <label style={{ display: "grid", gap: 2 }}>
+              <span className="muted">철회 사유</span>
+              <select value={revokeReason} onChange={(e) => setRevokeReason(e.target.value as RevokeReasonCode)} data-testid="fact-revoke-reason">
+                {REVOKE_REASON_OPTIONS.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label style={{ display: "grid", gap: 2 }}>
+              <span className="muted">사유</span>
+              <select value={reason} onChange={(e) => setReason(e.target.value as FactReasonCode)} data-testid="fact-reason">
+                {REASON_OPTIONS.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label style={{ display: "grid", gap: 2 }}>
             <span className="muted">메모(선택)</span>
             <input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} style={{ width: 180 }} />
           </label>
           <button type="submit" className="act-btn primary" disabled={busy || (mode === "correct" && !validValue)} data-testid="fact-submit">
-            {mode === "reject" ? "거절하기" : "정정하기"}
+            {mode === "reject" ? "거절하기" : mode === "revoke" ? "철회하기" : "정정하기"}
           </button>
         </form>
       )}
@@ -116,7 +153,8 @@ function CandidateRow({ c, actorId, onUpdated }: { c: FactCandidate; actorId: st
 }
 
 /** 사실 하나(좌표) — 이름 · 상태 · 현재 값, 그리고 펼치면 근거 후보 목록. */
-export function FactCard({ fact, actorId, onUpdated }: { fact: FactCoordinate; actorId: string | null; onUpdated: (f: FactCoordinate) => void }) {
+/** `asOf` = the `evaluated_at` of the list on screen — actions are judged at the same time as the rest of the list. */
+export function FactCard({ fact, actorId, asOf, onUpdated }: { fact: FactCoordinate; actorId: string | null; asOf?: string; onUpdated: (f: FactCoordinate) => void }) {
   const hints = [USABILITY_LABEL[fact.decision_usability], HOLD_LABEL[fact.hold_status], CONFLICT_LABEL[fact.conflict_status]].filter(Boolean);
   const cur = fact.current;
   return (
@@ -127,10 +165,20 @@ export function FactCard({ fact, actorId, onUpdated }: { fact: FactCoordinate; a
         <span className={`badge ${FACT_STATE_BADGE[fact.fact_state]}`} data-testid="fact-state">
           {FACT_STATE_LABEL[fact.fact_state]}
         </span>
+        {fact.fact_state === "STALE" && (
+          <span className="badge b-outline" data-testid="fact-guarantee">
+            {VALUE_STATUS_LABEL[fact.value_status]} · 오래됨
+          </span>
+        )}
+        <span className={`badge ${FRESHNESS_BADGE[fact.freshness_status]}`} data-testid="fact-freshness">
+          {FRESHNESS_LABEL[fact.freshness_status]}
+        </span>
         {fact.is_simulated && <span className="badge b-sim">시뮬레이션</span>}
       </div>
       <div style={{ fontSize: 12.5 }} data-testid="fact-current">
-        {cur ? (
+        {fact.fact_state === "REVOKED" ? (
+          <span className="muted">{REVOKED_NOTE}</span>
+        ) : cur ? (
           <>
             현재 값 <b className="num">{formatValue(cur.value, cur.unit)}</b>
             {formatWindow(cur.valid_from, cur.valid_until) ? <span className="muted"> · 적용 {formatWindow(cur.valid_from, cur.valid_until)}</span> : null}
@@ -140,12 +188,16 @@ export function FactCard({ fact, actorId, onUpdated }: { fact: FactCoordinate; a
         )}
       </div>
       {fact.fact_state === "PROVISIONAL" && <div className="muted" style={{ fontSize: 11.5 }}>{PROVISIONAL_NOTE}</div>}
+      {fact.fact_state === "STALE" && <div className="muted" style={{ fontSize: 11.5 }}>{STALE_NOTE}</div>}
+      <div className="muted" style={{ fontSize: 11 }}>
+        신선도 판단 기준 시각 {formatTime(fact.evaluated_as_of)}
+      </div>
       {hints.length > 0 && <div className="muted" style={{ fontSize: 11.5 }}>{hints.join(" · ")}</div>}
       <details>
         <summary style={{ fontSize: 12, cursor: "pointer" }}>근거 {fact.candidates.length}건 보기</summary>
         <ul style={{ margin: "4px 0 0", paddingLeft: 16, display: "grid", gap: 8, listStyle: "none" }}>
           {fact.candidates.map((c) => (
-            <CandidateRow key={c.event_id} c={c} actorId={actorId} onUpdated={onUpdated} />
+            <CandidateRow key={c.event_id} c={c} actorId={actorId} asOf={asOf} onUpdated={onUpdated} />
           ))}
         </ul>
       </details>
@@ -160,7 +212,20 @@ const sameCoordinate = (a: FactCoordinate, b: FactCoordinate) => a.entity_id ===
  * AI 가 낸 값은 임시 사실일 뿐이며 이 화면의 사람 확인 없이는 확정되지 않는다.
  * `refreshKey` 가 바뀌면(Agent 상태가 바뀜) 다시 읽는다.
  */
-export function FactsPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunId: string; actorId: string | null; refreshKey?: string | null }) {
+export function FactsPanel({
+  recoveryRunId,
+  actorId,
+  refreshKey,
+  isSimulated = false,
+  scenarioId = null,
+}: {
+  recoveryRunId: string;
+  actorId: string | null;
+  refreshKey?: string | null;
+  /** The recovery run is simulated — a direct entry is then recorded under `scenarioId`. */
+  isSimulated?: boolean;
+  scenarioId?: string | null;
+}) {
   const facts = useAsyncAction((signal) => listFacts(recoveryRunId, signal));
   const { run: load } = facts;
   // Coordinates replaced by an action answer belong to the list they were made on; a fresh read drops them.
@@ -173,7 +238,8 @@ export function FactsPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRun
   const loaded = facts.state.status === "SUCCESS" ? facts.state.data : null;
   const replaced = replacedOn.base === loaded ? replacedOn.items : [];
   const onUpdated = (f: FactCoordinate) => setReplacedOn({ base: loaded, items: [...replaced.filter((p) => !sameCoordinate(p, f)), f] });
-  const list = loaded ? loaded.facts.map((f) => replaced.find((r) => sameCoordinate(r, f)) ?? f) : [];
+  // A direct entry may land on a coordinate the run's list does not have yet — show it too.
+  const list = loaded ? [...loaded.facts.map((f) => replaced.find((r) => sameCoordinate(r, f)) ?? f), ...replaced.filter((r) => !loaded.facts.some((f) => sameCoordinate(f, r)))] : [];
 
   return (
     <div data-testid="facts-panel" style={{ display: "grid", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 8 }}>
@@ -190,8 +256,9 @@ export function FactsPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRun
       )}
       {loaded && list.length === 0 && <div className="muted" style={{ fontSize: 12 }}>아직 판단할 사실이 없습니다 — 회신이 오면 여기에 올라옵니다.</div>}
       {list.map((f) => (
-        <FactCard key={`${f.entity_id}:${f.fact_key}`} fact={f} actorId={actorId} onUpdated={onUpdated} />
+        <FactCard key={`${f.entity_id}:${f.fact_key}`} fact={f} actorId={actorId} asOf={loaded?.evaluated_at} onUpdated={onUpdated} />
       ))}
+      {loaded && <ManualFactForm facts={list} actorId={actorId} isSimulated={isSimulated} scenarioId={scenarioId} asOf={loaded.evaluated_at} onEntered={onUpdated} />}
       {loaded && loaded.limitations.length > 0 && (
         <ul className="muted" style={{ margin: 0, paddingLeft: 16, fontSize: 11 }} data-testid="facts-limitations">
           {loaded.limitations.map((l) => (

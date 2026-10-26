@@ -165,7 +165,10 @@ export const factViewSchema = z
     subject_type: z.string(),
     subject_id: uuid,
     fact_key: z.string(),
-    fact_state: z.enum(['PROVISIONAL', 'CONFIRMED', 'OBSERVED', 'NEEDS_REVIEW']).describe('PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide'),
+    fact_state: z
+      .enum(['PROVISIONAL', 'CONFIRMED', 'OBSERVED', 'NEEDS_REVIEW', 'STALE'])
+      .describe('PROVISIONAL = validated but not human-confirmed · CONFIRMED = a human confirmed or entered it · NEEDS_REVIEW = conflicting or held, a human must decide · STALE = too old (or past its validity) to decide on now — not wrong, needs a refresh'),
+    freshness_status: z.enum(['FRESH', 'AGING', 'STALE', 'EXPIRED', 'UNKNOWN']).describe('FRESH · AGING (use with care) · STALE · EXPIRED (past valid_until) · UNKNOWN (no freshness policy for this fact family)'),
     value_number: z.string().nullable().describe('Decimal as string'),
     value_unit: z.string().nullable(),
     valid_from: timestamp.nullable(),
@@ -243,9 +246,10 @@ const gapSchema = z
     subject_name: z.string(),
     required_fact: z.string().describe('Fact key pattern that would close the gap'),
     state: z
-      .enum(['MISSING', 'ASKED', 'PROVISIONAL_AVAILABLE', 'NEEDS_REVIEW'])
-      .describe('MISSING · ASKED · PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists — a human must confirm) · NEEDS_REVIEW (conflict or hold). A confirmed fact moves the gap to `known`'),
-    fact: factViewSchema.nullable().describe('The provisional / disputed value behind the state, when there is one'),
+      .enum(['MISSING', 'ASKED', 'PROVISIONAL_AVAILABLE', 'NEEDS_REVIEW', 'NEEDS_REFRESH'])
+      .describe('MISSING · ASKED · PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists — a human must confirm) · NEEDS_REVIEW (conflict or hold) · NEEDS_REFRESH (the value went stale / expired or was withdrawn — ask again). Only a fresh confirmed fact moves the gap to `known`'),
+    fact: factViewSchema.nullable().describe('The provisional / disputed / stale value behind the state, when there is one'),
+    refresh_basis_event_id: uuid.nullable().describe('NEEDS_REFRESH: the stale value or the withdrawal that reopened the gap — a new inquiry for this basis is a new question'),
     open_question_message_ids: z.array(uuid),
     public_data_can_resolve: z.boolean(),
     suggested_source: z.enum(['PARTNER_INQUIRY', 'HUMAN_VERIFICATION']),
@@ -264,6 +268,7 @@ export const informationGapsOutput = z
     recovery_run_id: uuid,
     plan_date: isoDate,
     rule_version: z.string(),
+    evaluated_as_of: timestamp.describe('Freshness / expiry were judged at this time (scenario time for simulated runs, now for real ones)'),
     gaps: z.array(gapSchema),
     known: z.array(z.object({ subject_type: z.string(), subject_id: uuid, required_fact: z.string(), evidence: factObservation, fact: factViewSchema }).strict()),
   })

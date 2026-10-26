@@ -105,7 +105,8 @@ class DeterministicPolicy:
 
 def inquiry_candidates(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Deterministic order: partner-owned resources first (the owner can answer), trucks before facilities, then id."""
-    candidates = [g for g in gaps if g.get("state") == "MISSING" and g.get("suggested_source") == "PARTNER_INQUIRY"]
+    # MISSING = never known · NEEDS_REFRESH = the known value went stale / expired or was withdrawn (T-111) — both are asked again
+    candidates = [g for g in gaps if g.get("state") in ("MISSING", "NEEDS_REFRESH") and g.get("suggested_source") == "PARTNER_INQUIRY"]
     return sorted(candidates, key=lambda g: (g.get("owner_counterparty_id") is None, g.get("gap_kind") != "TRUCK_AVAILABILITY", str(g.get("gap_id"))))
 
 
@@ -184,7 +185,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         r = s.call("get_information_gaps", {})
         if not r.ok:
             return failed(r.error.code if r.error else "GAPS_UNAVAILABLE")
-        keep = ("gap_id", "gap_kind", "subject_type", "subject_id", "state", "public_data_can_resolve", "suggested_source", "suggested_intent", "suggested_counterparty_role", "owner_counterparty_id", "candidate_state")
+        keep = ("gap_id", "gap_kind", "subject_type", "subject_id", "state", "public_data_can_resolve", "suggested_source", "suggested_intent", "suggested_counterparty_role", "owner_counterparty_id", "candidate_state", "refresh_basis_event_id")
         gaps = [{k: g.get(k) for k in keep} for g in r.output["gaps"]]
         known = [k["evidence"]["event_id"] for k in r.output["known"]]
         return {"information_gaps": gaps, "known_fact_refs": sorted(set((state.get("known_fact_refs") or []) + known))[:100]}
@@ -235,7 +236,10 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         else:
             values = [{"key": "quantity", "value_number": inquiry["quantity"], "unit": "CONTAINER"}, *values]
         args = {"address_id": state["address_id"], "intent": gap.get("suggested_intent"), "target_id": gap.get("subject_id"), "values": values}
-        r = s.call("create_inquiry_draft", args, idempotency_key=f"{state['agent_run_id']}:{gap.get('gap_id')}:draft")
+        # a refresh of a stale / withdrawn value is a new question: the basis is part of the key (a retry still returns the same draft)
+        basis = gap.get("refresh_basis_event_id")
+        key = f"{state['agent_run_id']}:{gap.get('gap_id')}:draft" + (f":r{basis[-12:]}" if basis else "")  # keys are <= 100 chars
+        r = s.call("create_inquiry_draft", args, idempotency_key=key)
         if not r.ok:
             return failed(r.error.code if r.error else "DRAFT_FAILED")
         if not r.output["number_check_passed"]:
@@ -440,6 +444,8 @@ def reply_result_code(reply: dict[str, Any], reassessment: dict[str, Any]) -> st
         return "FACT_NEEDS_HUMAN_REVIEW"
     if gap_state == "PROVISIONAL_AVAILABLE":
         return "FACT_AWAITING_CONFIRMATION"
+    if gap_state == "NEEDS_REFRESH":
+        return "FACT_NEEDS_REFRESH"  # the value was withdrawn or went stale while the run waited — ask again in a new run
     if reply["outcome"] == "FACTS_PROMOTED":
         return "FACT_REJECTED_GAP_OPEN"  # the provisional fact was rejected / withdrawn — the gap is open again
     return "REPLY_NEEDS_HUMAN_REVIEW"

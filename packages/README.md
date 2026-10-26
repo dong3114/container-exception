@@ -17,3 +17,8 @@ front·back·ai가 함께 쓰는 계약을 둘 자리다: API 스키마, OpenAPI
 - Frontend TypeScript 타입은 OpenAPI에서 **자동 생성**해 여기에 두고, `cera.ts`의 손 작성 타입을 대체한다. Backend 언어가 무엇이 되든(미결 — `docs/23` 3절) 같은 계약이 두 벌 생기지 않게 하기 위해서다.
 - Desktop 앱(검토 중 — Web First, 첫 후보 Electron, `docs/23` 8~9절)이 생기면 같은 계약·클라이언트를 공유한다.
 - 외부 통신 슬라이스부터 OpenAPI 정본 전환을 시작한다(ADR-028). 오류 응답 모양(코드 · 문장 · `request_id`)도 계약에 들어간다(`docs/23` 12절).
+
+
+## AI 회신 추출 계약 (`contracts/ai/`)
+
+현재판은 `reply-extract.v2.*`(T-111 — 답의 날짜 칸 `DATE` · `reply_date` · `timezone`). `python -m cera_ai.emit_schema` 가 v2 스키마를 쓴다. `reply-extract.v1.*` 는 기록으로 남기며 AI Server 는 v1 요청도 받는다(평가 데이터셋 · 옛 녹화 호환). 모델이 낸 날짜는 후보이고 Backend 가 인용에서 다시 계산한다(`back/src/truth/date-scope.ts`).

@@ -1,4 +1,4 @@
-"""Reply extraction contract v1 (docs/18 D.3) — NestJS Main Backend <-> Python AI Server.
+"""Reply extraction contract v2 (docs/18 D.3 · T-111; v1 requests are still accepted) — NestJS Main Backend <-> Python AI Server.
 
 The AI Server receives the asks the Backend already made (ask_id, question, the fields it may answer, units)
 and the exact source text. It returns value *candidates* with a verbatim quote. The output has **no place**
@@ -12,7 +12,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "reply-extract/1"
+SCHEMA_VERSION = "reply-extract/2"
+SCHEMA_VERSIONS = ("reply-extract/1", "reply-extract/2")
+ContractVersion = Literal["reply-extract/1", "reply-extract/2"]
 
 
 class _Strict(BaseModel):
@@ -20,10 +22,11 @@ class _Strict(BaseModel):
 
 
 class AskField(_Strict):
-    """A field the Backend asked for. kind decides the value format; unit is the expected unit (null for times)."""
+    """A field the Backend asked for. kind decides the value format; unit is the expected unit (null for times and dates).
+    DATE (v2) = the calendar day the answer is about, YYYY-MM-DD in the request timezone."""
 
     name: str = Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=60)
-    kind: Literal["QUANTITY", "TIME", "MONEY"]
+    kind: Literal["QUANTITY", "TIME", "MONEY", "DATE"]
     unit: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9_]*$")
 
 
@@ -42,7 +45,7 @@ class Ask(_Strict):
 
 
 class ExtractionRequest(_Strict):
-    schema_version: Literal["reply-extract/1"]
+    schema_version: ContractVersion
     # Identifies the inbound message the text came from (the Backend's id — opaque to the AI Server).
     inbound_message_id: str = Field(max_length=40)
     # Relative expressions ("tomorrow afternoon") are read against this date — never the server clock.
@@ -51,6 +54,10 @@ class ExtractionRequest(_Strict):
     asks: list[Ask] = Field(min_length=1, max_length=10)
     # The exact text the Backend will check quotes against (same representation on both sides).
     message_text: str = Field(max_length=20_000)
+    # v2: the date the reply was sent (its evidence time) in `timezone` — relative days in the reply ("tomorrow") are
+    # relative to this, not to the asked date. The Backend re-derives dates from the quote; a model date is a candidate.
+    reply_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    timezone: Literal["Asia/Seoul"] | None = None
 
 
 class Evidence(_Strict):
@@ -81,7 +88,7 @@ class Meta(_Strict):
 
 
 class ExtractionResponse(_Strict):
-    schema_version: Literal["reply-extract/1"]
+    schema_version: ContractVersion
     outcome: Literal["VALUES", "NO_CHANGE", "REFUSAL", "UNPARSEABLE"]
     answers: list[Answer] = Field(default_factory=list, max_length=50)
     unmapped_statements: list[str] = Field(default_factory=list, max_length=50)

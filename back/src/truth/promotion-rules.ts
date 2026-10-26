@@ -54,7 +54,7 @@ export interface PromotionInput {
     createdEventId: string | null;
   };
   /** 같은 회신 · 같은 질문의 다른 칸 후보(시간창 칸이 질문 창과 맞는지 본다) */
-  siblings: { extractionId: string; field: string; value: string; validated: boolean; reviewStatus: string }[];
+  siblings: { extractionId: string; field: string; value: string; validated: boolean; reviewStatus: string; sentence?: string }[];
   question: {
     questionType: string;
     status: string;
@@ -151,6 +151,19 @@ export function evaluatePromotion(i: PromotionInput): PromotionDecision {
     if (i.replySentence.trim() === '') reasons.push('DATE_UNVERIFIED'); // 문장을 모른다 — 날짜를 확인할 수 없다
     else if (mentioned.resolved.some((d) => d !== date)) reasons.push('DATE_OUT_OF_SCOPE');
     else if (mentioned.unresolved.length > 0) reasons.push('DATE_UNVERIFIED');
+    // v2 날짜 칸(T-111): 모델이 정규화한 날짜는 후보다. 그 인용에서 CERA 가 회신 날짜 기준으로 다시 푼 날짜와 맞을 때만 믿는다
+    for (const d of i.siblings.filter((s) => s.field === 'answer_date')) {
+      if (!d.validated) {
+        reasons.push('DATE_UNVERIFIED');
+        continue;
+      }
+      const derived = dateMentions(d.sentence ?? '', i.replyDate, date);
+      const backed = derived.resolved.includes(d.value);
+      if (derived.resolved.some((x) => x !== date)) reasons.push('DATE_OUT_OF_SCOPE');
+      else if (d.value !== date) reasons.push(backed ? 'DATE_OUT_OF_SCOPE' : 'DATE_UNVERIFIED'); // 모델이 다른 날을 말함(인용이 뒷받침하지 못하면 확인 불가)
+      else if (derived.unresolved.length > 0) reasons.push('DATE_UNVERIFIED');
+      siblingIds.push(d.extractionId); // 질문 날짜와 같고 인용이 다른 날을 말하지 않음 — 같은 사건에 반영
+    }
     if (family === 'truck_availability') {
       if (!windowFrom || !windowTo || !TIME.test(windowFrom) || !TIME.test(windowTo)) {
         reasons.push('QUESTION_TARGET_MISSING');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRun } from "@/api/agentRuns";
-import { milestones, nodeLabel, resultLabel, summaryRows, waitingLabel } from "./agentLabels";
+import { gapStateLabel, milestones, nodeLabel, resultLabel, summaryRows, waitingLabel } from "./agentLabels";
 
 const run = (steps: AgentRun["steps"], extra: Partial<AgentRun> = {}): AgentRun => ({
   agent_run_id: "r",
@@ -52,6 +52,13 @@ describe("agent progress labels", () => {
       { label: "확정된 사실", value: "아니오 — 아직 사람이 확인하지 않음" },
       { label: "공공데이터 출처", value: "LIVE" },
     ]);
+  });
+
+  it("a value that went stale or was withdrawn while waiting asks for a new run", () => {
+    expect(resultLabel("FACT_NEEDS_REFRESH")).toContain("새 실행으로 다시 물어보세요");
+    expect(gapStateLabel("NEEDS_REFRESH")).toContain("다시 확인 필요");
+    expect(gapStateLabel("ASKED")).toBe("ASKED");
+    expect(summaryRows({ business_gap_state: "NEEDS_REFRESH" })).toEqual([{ label: "업무 공백 상태(사실 기준)", value: "NEEDS_REFRESH (값이 오래됐거나 철회됨 — 다시 확인 필요)" }]);
   });
 
   it("fact summary rows: provisional fact ids and an accepted candidate", () => {

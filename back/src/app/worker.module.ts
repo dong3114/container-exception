@@ -14,9 +14,15 @@ import { DatabaseHealth, DatabaseModule } from '../db/database.module.js';
 import { PersistenceModule } from '../persistence/persistence.module.js';
 import { newJobContext, runWithContext } from '../shared/context/request-context.js';
 import { SharedModule } from '../shared/shared.module.js';
+import { TransactionRunner } from '../db/transaction.js';
+import { TruthModule } from '../truth/truth.module.js';
+import { TruthService } from '../truth/truth.service.js';
 
 /** advisory lock 키(docs/24 14 — 코드 한 곳에서 관리). 64비트 키는 SQL 의 hashtextextended 로 만든다. */
-export const ADVISORY_LOCK_KEYS = { OUTBOX_WORKER: 'cera.outbox.worker', INBOUND_POLLER: 'cera.inbound.poller', EXTRACTION_WORKER: 'cera.extraction.worker', AGENT_RECONCILER: 'cera.agent.reconciler' } as const;
+export const ADVISORY_LOCK_KEYS = { OUTBOX_WORKER: 'cera.outbox.worker', INBOUND_POLLER: 'cera.inbound.poller', EXTRACTION_WORKER: 'cera.extraction.worker', AGENT_RECONCILER: 'cera.agent.reconciler', TRUTH_REFRESH: 'cera.truth.refresh' } as const;
+
+/** 사실 파생 표의 신선도 재판정 간격 [ASSUMPTION] — 읽기는 사건에서 직접 판정하므로 이 간격은 정확성이 아니라 투영 갱신 주기다 */
+export const TRUTH_REFRESH_INTERVAL_MS = 60_000;
 type LockKey = (typeof ADVISORY_LOCK_KEYS)[keyof typeof ADVISORY_LOCK_KEYS];
 
 /**
@@ -35,6 +41,7 @@ type LockKey = (typeof ADVISORY_LOCK_KEYS)[keyof typeof ADVISORY_LOCK_KEYS];
 export class WorkerRunner {
   private readonly logger = new Logger('WorkerRunner');
   private readonly locks = new Map<LockKey, pg.PoolClient>();
+  private lastTruthRefresh = 0; // 주기 판단용 프로세스 시계(업무 판정에는 쓰지 않는다)
 
   constructor(
     @Inject(DatabaseHealth) private readonly database: DatabaseHealth,
@@ -43,6 +50,8 @@ export class WorkerRunner {
     @Inject(InboundProcessor) private readonly inbound: InboundProcessor,
     @Inject(ExtractionProcessor) private readonly extraction: ExtractionProcessor,
     @Inject(AgentReconciler) private readonly agents: AgentReconciler,
+    @Inject(TruthService) private readonly truth: TruthService,
+    @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -104,7 +113,17 @@ export class WorkerRunner {
           this.logger.error({ msg: 'extraction cycle failed', error: error instanceof Error ? error.message : String(error) });
         }
       }
-      // Agent 재조정 — 발송 · 수신 · 추출 결과를 본 뒤 기다리던 실행을 깨운다(같은 주기에 바로 이어진다)
+      // 사실 신선도 재판정(T-111) — 시간이 지나 AGING · STALE · EXPIRED 가 된 것을 파생 표에 반영. 걸린 시간을 남긴다(관측)
+      if (Date.now() - this.lastTruthRefresh >= TRUTH_REFRESH_INTERVAL_MS && (await this.holdLock(ADVISORY_LOCK_KEYS.TRUTH_REFRESH))) {
+        this.lastTruthRefresh = Date.now();
+        try {
+          const summary = await this.truth.refreshDerived((work) => this.tx.run(work));
+          if (summary.changed > 0 || summary.ms > 1_000) this.logger.log({ msg: 'truth refresh', ...summary });
+        } catch (error) {
+          this.logger.error({ msg: 'truth refresh failed', error: error instanceof Error ? error.message : String(error) });
+        }
+      }
+      // Agent 재조정 — 발송 · 수신 · 추출 결과를 본 뒤 기다리던 실행을 깨운다(같은 주기에 바로 이어진다). 시간 경과로 바뀐 사실도 DB 와 기준 시각으로 다시 판정한다
       if (await this.holdLock(ADVISORY_LOCK_KEYS.AGENT_RECONCILER)) {
         try {
           const summary = await this.agents.runOnce();
@@ -133,7 +152,7 @@ export class WorkerModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: WorkerModule,
-      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, ChannelModule, CommunicationModule, AgentToolsModule],
+      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule],
       providers: [WorkerRunner],
     };
   }

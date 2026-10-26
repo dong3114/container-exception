@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { type ExtractionRequest, type ExtractionResponse, HttpAiClient, extractionResponseSchema } from '../../src/ai/ai-client.js';
 import { buildAsk, failedCodes, validateAnswers } from '../../src/communication/extraction-rules.js';
 
-const SAMPLE_REQUEST = JSON.parse(readFileSync('../packages/contracts/ai/reply-extract.v1.request.sample.json', 'utf8')) as ExtractionRequest;
-const SAMPLE_RESPONSE = JSON.parse(readFileSync('../packages/contracts/ai/reply-extract.v1.response.sample.json', 'utf8')) as unknown;
+const SAMPLE_REQUEST = JSON.parse(readFileSync('../packages/contracts/ai/reply-extract.v2.request.sample.json', 'utf8')) as ExtractionRequest;
+const SAMPLE_RESPONSE = JSON.parse(readFileSync('../packages/contracts/ai/reply-extract.v2.response.sample.json', 'utf8')) as unknown;
+// 하위 호환(T-111): 날짜 칸 없는 v1 AI Server 의 응답도 받는다
+const V1_RESPONSE = JSON.parse(readFileSync('../packages/contracts/ai/reply-extract.v1.response.sample.json', 'utf8')) as unknown;
 
 const ask = buildAsk({
   askId: 'Q1',
@@ -25,7 +27,7 @@ const answer = (field: string, value: string, unit: string | null, quote: string
   confidence: 0.9,
 });
 const response = (answers: ExtractionResponse['answers'], flags: string[] = []): ExtractionResponse => ({
-  schema_version: 'reply-extract/1',
+  schema_version: 'reply-extract/2',
   outcome: 'VALUES',
   answers,
   unmapped_statements: [],
@@ -36,8 +38,9 @@ const response = (answers: ExtractionResponse['answers'], flags: string[] = []):
 describe('shared contract (packages/contracts/ai) — the same samples are checked by the Python tests', () => {
   it('the backend builds exactly the sample request shape and accepts the sample response', () => {
     expect(ask).toEqual(SAMPLE_REQUEST.asks[0]);
-    expect(Object.keys(SAMPLE_REQUEST).sort()).toEqual(['asks', 'counterparty_name', 'inbound_message_id', 'message_text', 'reference_date', 'schema_version']);
+    expect(Object.keys(SAMPLE_REQUEST).sort()).toEqual(['asks', 'counterparty_name', 'inbound_message_id', 'message_text', 'reference_date', 'reply_date', 'schema_version', 'timezone']);
     expect(extractionResponseSchema.safeParse(SAMPLE_RESPONSE).success).toBe(true);
+    expect(extractionResponseSchema.safeParse(V1_RESPONSE).success).toBe(true);
   });
 
   it('the response schema has no place for identity, fact keys or strength — unknown keys are rejected', () => {

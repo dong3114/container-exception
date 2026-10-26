@@ -5,6 +5,7 @@ import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
 import { parseFactKey } from './fact-key.js';
+import { freshnessPolicyFor } from './truth-policy.js';
 import {
   EVIDENCE_POLICY_VERSION,
   type FactState,
@@ -23,6 +24,8 @@ export interface CoordinateResult {
   state: FactState;
   /** 판정에 이긴 사건의 원본 행 */
   winnerRow: EventRow | null;
+  /** 판정 기준 시각(+09:00) — 신선도 · 만료가 이 시각 기준이다 */
+  asOf: string;
 }
 
 const sourceRoleFor = (r: EventRow) => r.sourceRoleAtIngestion;
@@ -42,9 +45,9 @@ export class TruthService {
 
   /** 사건에서 바로 판정(파생 표를 거치지 않는다). */
   evaluate(data: CoordinateData, asOf = this.clock.now()): CoordinateResult {
-    const result = reconcile(data.events, data.verifications, asOf.toIsoUtc());
+    const result = reconcile(data.events, data.verifications, asOf.toIsoUtc(), undefined, freshnessPolicyFor(data.coordinate.factKey));
     const winnerRow = result.winner ? (data.rows.find((r) => r.eventId === result.winner?.eventId) ?? null) : null;
-    return { data, result, state: factState(result), winnerRow };
+    return { data, result, state: factState(result), winnerRow, asOf: asOf.toSeoulIso() };
   }
 
   /**
@@ -65,7 +68,7 @@ export class TruthService {
    * 자격 있는 후보가 없으면 행을 지운다 — 행이 없다 = 값 없음(UNKNOWN).
    */
   async materialize(tx: DbTransaction, c: Coordinate): Promise<CoordinateResult> {
-    const asOf = this.clock.now();
+    const asOf = this.clock.now(); // 파생 표의 신선도는 "쓴 시각" 기준(`computed_as_of`). 읽기는 각자의 기준 시각으로 다시 판정한다
     const out = this.evaluate(await this.repo.coordinateData(c, tx), asOf);
     const { result, winnerRow } = out;
     if (!result.winner || !winnerRow) {
@@ -139,6 +142,25 @@ export class TruthService {
     return out;
   }
 
+  /**
+   * 신선도 재판정(Worker 주기 · T-111): 파생 표의 각 좌표를 지금 기준 시각으로 다시 써서 FRESH → AGING → STALE · EXPIRED 가
+   * 파생 표에도 반영되게 한다. 읽기(Agent · 화면)는 원래 사건에서 직접 판정하므로 이 작업이 늦어도 답은 같다 — 이것은 투영 갱신이다.
+   * 바뀐 좌표 수와 걸린 시간을 돌려준다(관측: 실행 시간 기록).
+   */
+  async refreshDerived(run: (work: (tx: DbTransaction) => Promise<void>) => Promise<void>, limit = 500): Promise<{ checked: number; changed: number; ms: number }> {
+    const started = performance.now(); // 소요 시간 관측용(단조 시계) — 판정 기준 시각이 아니다
+    const rows = await this.repo.canonicalCoordinates(limit);
+    let changed = 0;
+    for (const c of rows) {
+      await run(async (tx) => {
+        await this.repo.lockCoordinate(tx, c.coordinate);
+        const out = await this.materialize(tx, c.coordinate);
+        if (out.result.freshness !== c.freshness || out.result.usability !== c.usability || !out.result.winner) changed += 1;
+      });
+    }
+    return { checked: rows.length, changed, ms: Math.round(performance.now() - started) };
+  }
+
   // ── 화면 · API 용 보기 ──
   async view(results: readonly CoordinateResult[]): Promise<FactCoordinateView[]> {
     const names = await this.repo.entityNames([...new Set(results.map((r) => r.data.coordinate.entityId))]);
@@ -189,6 +211,9 @@ export class TruthService {
         conflict_status: r.result.conflictStatus,
         hold_status: r.result.holdStatus,
         decision_usability: r.result.usability,
+        freshness_status: r.result.freshness,
+        evaluated_as_of: r.asOf,
+        revoked_by_event_id: r.result.revokedBy,
         applied_rule: r.result.appliedRule,
         rule_version: RECONCILE_RULE_VERSION,
         current: w
@@ -255,6 +280,9 @@ export interface FactCoordinateView {
   conflict_status: string;
   hold_status: string;
   decision_usability: string;
+  freshness_status: string;
+  evaluated_as_of: string;
+  revoked_by_event_id: string | null;
   applied_rule: string | null;
   rule_version: string;
   current: {

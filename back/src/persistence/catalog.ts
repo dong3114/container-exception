@@ -50,6 +50,9 @@ export const AUDIT_ACTION = {
   FACT_CONFIRMED: 'FACT_CONFIRMED',
   FACT_REJECTED: 'FACT_REJECTED',
   FACT_CORRECTED: 'FACT_CORRECTED',
+  // T-111 철회(새 값 없이 현재 사실에서 뺌) · 운영자 직접 입력
+  FACT_REVOKED: 'FACT_REVOKED',
+  FACT_ENTERED_MANUALLY: 'FACT_ENTERED_MANUALLY',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION] | `FACT_PROMOTION_BLOCKED_${string}`;
 

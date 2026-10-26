@@ -3,7 +3,7 @@ import { wakeReason } from '../../src/agent-tools/wake-rules.js';
 import { parseFactKey } from '../../src/truth/fact-key.js';
 import { dateMentions, replyDateOf, sentenceAround } from '../../src/truth/date-scope.js';
 import { evaluatePromotion, senderAuthority, type PromotionInput } from '../../src/truth/promotion-rules.js';
-import { DEFAULT_TRUTH_POLICY } from '../../src/truth/truth-policy.js';
+import { DEFAULT_TRUTH_POLICY, freshnessPolicyFor } from '../../src/truth/truth-policy.js';
 import { type FactEvent, type VerificationEvent, factState, reconcile, verificationStates } from '../../src/truth/reconcile-rules.js';
 
 /** T-093 순수 규칙 — 모델이 틀리는 것은 정상이고, 사실 상태는 규칙(출처 강도 · 사람 확인 · 시각 · 충돌)만 정한다. */
@@ -144,8 +144,8 @@ describe('reconcile — conflicts are never overwritten silently', () => {
     const a = ev({ at: T('01:00'), value: 4, validUntil: '2026-11-30T08:00:00.000Z' });
     expect(run([a], [], AS_OF)).toMatchObject({ freshness: 'EXPIRED', usability: 'UNUSABLE' });
     expect(run([a], [], '2026-11-29T00:00:00.000Z').usability).toBe('USABLE_WITH_WARNING');
-    // 상태(STATE) 사실은 시간창이 지나도 만료하지 않는다
-    expect(run([ev({ at: T('01:00'), value: 4, factKind: 'STATE', validUntil: '2026-11-30T08:00:00.000Z' })], [], AS_OF).freshness).toBe('UNKNOWN');
+    // T-111: 명시적 유효 기간은 사실 종류와 무관하게 먼저다 — 일별 수용량(STATE)도 그날이 지나면 만료
+    expect(run([ev({ at: T('01:00'), value: 4, factKind: 'STATE', validUntil: '2026-11-30T08:00:00.000Z' })], [], AS_OF).freshness).toBe('EXPIRED');
   });
 
   it('is deterministic: the order the events arrive in does not change the answer', () => {
@@ -297,6 +297,43 @@ describe('date scope and policy boundaries', () => {
     expect(run([a, ev({ at: '2026-11-20T01:05:00.000Z', value: 5 })]).conflictStatus).toBe('OPEN');
     expect(run([a, ev({ at: '2026-11-20T01:05:01.000Z', value: 5 })]).conflictStatus).toBe('NONE');
     expect(run([a, ev({ at: '2026-11-20T01:05:01.000Z', value: 5 })], [], AS_OF, { ...DEFAULT_TRUTH_POLICY, nearTimeConflictWindowMs: 10 * 60_000 }).conflictStatus).toBe('OPEN');
+  });
+});
+
+describe('T-111 lifecycle rules', () => {
+  const HUMAN = { sourceType: 'HUMAN_UI', authority: 'S' as const, confidence: 'HIGH' as const };
+
+  it('a withdrawal (a human CORRECTION without a value) removes its target and every value up to its time; later values compete again', () => {
+    const old = ev({ at: T('01:00'), value: 3 });
+    const confirmed = ev({ at: T('02:00'), value: 4 });
+    const withdrawal = ev({ at: T('05:00'), value: null, eventClass: 'CORRECTION', supersedesEventId: confirmed.eventId, ...HUMAN, validFrom: null, validUntil: null });
+    const r = run([old, confirmed, withdrawal], [verify('CONFIRM', confirmed.eventId, T('02:30'))]);
+    expect(r).toMatchObject({ status: 'UNKNOWN', revokedBy: withdrawal.eventId, usability: 'UNUSABLE' });
+    expect(factState(r)).toBe('REVOKED');
+    expect([r.roles.get(old.eventId), r.roles.get(confirmed.eventId)]).toEqual(['REVOKED', 'REVOKED']);
+    const later = ev({ at: T('06:00'), value: 2 });
+    const again = run([old, confirmed, withdrawal, later]);
+    expect(again).toMatchObject({ status: 'PROVISIONAL', revokedBy: null });
+    expect(again.winner?.eventId).toBe(later.eventId);
+    // a value-less correction from anything but a human withdraws nothing
+    const systemWithdrawal = ev({ at: T('05:00'), value: null, eventClass: 'CORRECTION', supersedesEventId: confirmed.eventId, sourceType: 'PARTNER_SYSTEM', authority: 'A', confidence: 'HIGH' });
+    expect(run([old, confirmed, systemWithdrawal]).winner?.eventId).toBe(confirmed.eventId);
+  });
+
+  it('freshness: an explicit valid_until wins; otherwise the per-family policy [ASSUMPTION] ages FRESH → AGING → STALE; no policy = not evaluated', () => {
+    const noWindow = { validFrom: null, validUntil: null };
+    const policy = freshnessPolicyFor('capacity.day(2026-11-20)');
+    expect(policy).toMatchObject({ family: 'warehouse_capacity' });
+    const fact = ev({ at: T('00:00'), value: 4, factKind: 'STATE', ...noWindow, ...HUMAN });
+    const at = (h: number) => reconcile([fact], [], new Date(Date.parse(T('00:00')) + h * 3_600_000).toISOString(), DEFAULT_TRUTH_POLICY, policy);
+    expect(at(1)).toMatchObject({ freshness: 'FRESH', usability: 'USABLE' });
+    expect(at(7)).toMatchObject({ freshness: 'AGING', usability: 'USABLE_WITH_WARNING' });
+    expect(at(25)).toMatchObject({ freshness: 'STALE', usability: 'APPROVAL_BLOCKED', status: 'CONFIRMED' }); // stale ≠ wrong: still CONFIRMED
+    expect(factState(at(25))).toBe('STALE');
+    expect(reconcile([fact], [], T('23:00'), DEFAULT_TRUTH_POLICY, null).freshness).toBe('UNKNOWN');
+    expect(freshnessPolicyFor('something.else')).toBeNull();
+    // the same as_of always gives the same answer
+    expect(at(7)).toEqual(at(7));
   });
 });
 

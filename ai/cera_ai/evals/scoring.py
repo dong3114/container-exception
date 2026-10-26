@@ -21,7 +21,7 @@ from ..decision import ANSWER_TYPES, COMMITMENTS
 # (made from the real TypeScript validator) pins this port: ``tests/test_validator_conformance.py``.
 _WS = r"[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]"
 _KOREAN_NUMBERS = {"한": 1, "하나": 1, "두": 2, "둘": 2, "세": 3, "셋": 3, "네": 4, "넷": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10}
-_FORMAT = {"QUANTITY": re.compile(r"[0-9]{1,6}"), "TIME": re.compile(r"([01][0-9]|2[0-3]):[0-5][0-9]"), "MONEY": re.compile(r"[0-9]{1,12}")}
+_FORMAT = {"QUANTITY": re.compile(r"[0-9]{1,6}"), "TIME": re.compile(r"([01][0-9]|2[0-3]):[0-5][0-9]"), "MONEY": re.compile(r"[0-9]{1,12}"), "DATE": re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")}
 
 
 def _quantity_in_quote(value: str, quote: str) -> bool:
@@ -70,7 +70,8 @@ def backend_checks(ask: dict[str, Any], source_text: str, answers: list[dict[str
             unit = a.get("unit")
             if unit != field.get("unit"):
                 failed.append(f"UNIT_MISMATCH:{'NONE' if unit is None else unit}")
-            in_quote = format_ok and (_time_in_quote(a["value"], quote) if field["kind"] == "TIME" else _quantity_in_quote(a["value"], quote))
+            # DATE (reply-extract/2): format only here — the backend re-derives the date from the quote at promotion
+            in_quote = format_ok and (True if field["kind"] == "DATE" else _time_in_quote(a["value"], quote) if field["kind"] == "TIME" else _quantity_in_quote(a["value"], quote))
             if not in_quote:
                 failed.append("VALUE_NOT_IN_QUOTE")
         out.append({"field": a["field"], "value": a["value"], "failed": failed})

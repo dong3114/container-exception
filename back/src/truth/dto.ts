@@ -1,15 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { REJECT_REASONS } from './fact-actions.service.js';
+import { MANUAL_ENTRY_INTENT, REJECT_REASONS, REVOKE_REASONS } from './fact-actions.service.js';
 
 /**
  * 사실 계약(T-093 — OpenAPI 정본). JSON 은 snake_case, 시각은 +09:00. 모든 속성에 type 을 명시한다(tsx 는 decorator metadata 를 만들지 않는다).
  *
  * `fact_state` 는 사람이 보는 한 단계다: PROVISIONAL(검증된 임시 사실 — 사람 확인 전) · CONFIRMED(사람 확인 완료) ·
- * OBSERVED(공식 기록, 사람 확인은 아님) · NEEDS_REVIEW(충돌 · 보류 — 사람 판단 필요) · UNKNOWN(자격 있는 값 없음).
+ * OBSERVED(공식 기록, 사람 확인은 아님) · NEEDS_REVIEW(충돌 · 보류 — 사람 판단 필요) · STALE(오래돼 지금 결정에 쓰기 어려움 · 만료 — 틀린 것은 아님) ·
+ * REVOKED(사람이 철회해 지금 값 없음) · UNKNOWN(자격 있는 값 없음). 보증 수준(`value_status`)과 신선도(`freshness_status`)는 따로 준다.
  * AI 후보(PENDING)는 사실이 아니라서 여기 나오지 않는다 — 회신 화면의 후보 목록에 있다.
  */
-export const FACT_STATES = ['PROVISIONAL', 'CONFIRMED', 'OBSERVED', 'NEEDS_REVIEW', 'UNKNOWN'] as const;
-export const CANDIDATE_ROLES = ['WINNER', 'CORROBORATING', 'OUTDATED', 'DISSENTING', 'CONTESTING', 'HELD_CANDIDATE', 'INELIGIBLE', 'REJECTED', 'SUPERSEDED'] as const;
+export const FACT_STATES = ['PROVISIONAL', 'CONFIRMED', 'OBSERVED', 'NEEDS_REVIEW', 'STALE', 'REVOKED', 'UNKNOWN'] as const;
+export const CANDIDATE_ROLES = ['WINNER', 'CORROBORATING', 'OUTDATED', 'DISSENTING', 'CONTESTING', 'HELD_CANDIDATE', 'INELIGIBLE', 'REJECTED', 'SUPERSEDED', 'REVOKED'] as const;
 
 export class FactCandidateDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -141,6 +142,15 @@ export class FactCoordinateDto {
   @ApiProperty({ type: String, enum: ['USABLE', 'USABLE_WITH_WARNING', 'APPROVAL_BLOCKED', 'UNUSABLE'] })
   decision_usability!: string;
 
+  @ApiProperty({ type: String, enum: ['FRESH', 'AGING', 'STALE', 'EXPIRED', 'UNKNOWN'], description: 'Freshness at evaluated_as_of: an explicit valid_until wins (EXPIRED after it); otherwise the per-family policy [ASSUMPTION]. UNKNOWN = no policy for this fact family' })
+  freshness_status!: string;
+
+  @ApiProperty({ type: String, description: 'The reference time this judgement used (+09:00) — the plan scenario time for simulated runs, now for real ones, or the as_of the caller gave' })
+  evaluated_as_of!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The withdrawal (revoke) event that left this fact without a current value' })
+  revoked_by_event_id!: string | null;
+
   @ApiProperty({ type: String, nullable: true, description: 'Reconciliation rule that picked the current value (R4-a · R4-b · R6 · R10)' })
   applied_rule!: string | null;
 
@@ -202,4 +212,53 @@ export class CorrectFactRequestDto {
 
   @ApiPropertyOptional({ type: String, maxLength: 200 })
   note?: string;
+}
+
+export class RevokeFactRequestDto {
+  @ApiPropertyOptional({ type: String, format: 'uuid', description: 'Retry key — the same command id never creates a second event' })
+  command_id?: string;
+
+  @ApiProperty({ enum: REVOKE_REASONS, description: 'SOURCE_WITHDREW (the partner took it back) · OPERATOR_INVALIDATED · OUTDATED_OPERATIONAL_STATE (no longer true, no new value yet)' })
+  reason_code!: (typeof REVOKE_REASONS)[number];
+
+  @ApiPropertyOptional({ type: String, maxLength: 200 })
+  note?: string;
+}
+
+export class ManualFactRequestDto {
+  @ApiPropertyOptional({ type: String, format: 'uuid' })
+  command_id?: string;
+
+  @ApiProperty({ enum: [MANUAL_ENTRY_INTENT], description: 'Explicit intent — keeps operator entry apart from the AI / agent flow' })
+  intent!: typeof MANUAL_ENTRY_INTENT;
+
+  @ApiProperty({ enum: ['TRUCK_SLOT', 'FACILITY_CAPACITY'] })
+  kind!: 'TRUCK_SLOT' | 'FACILITY_CAPACITY';
+
+  @ApiProperty({ type: String, format: 'uuid', description: 'Truck pool (TRUCK_SLOT) or warehouse / ODCY (FACILITY_CAPACITY)' })
+  target_id!: string;
+
+  @ApiProperty({ type: String, example: '2026-10-27', description: 'Date in Asia/Seoul' })
+  date!: string;
+
+  @ApiPropertyOptional({ type: String, example: '15:00', description: 'TRUCK_SLOT: window start (Asia/Seoul)' })
+  window_from?: string;
+
+  @ApiPropertyOptional({ type: String, example: '18:00' })
+  window_to?: string;
+
+  @ApiPropertyOptional({ type: String, example: '40DRY', description: 'ODCY capacity per size type' })
+  size_type?: string;
+
+  @ApiProperty({ type: Number, minimum: 0, maximum: 999999 })
+  value!: number;
+
+  @ApiProperty({ type: String, minLength: 1, maxLength: 200, description: 'Where the operator confirmed it (phone, visit …) — required provenance' })
+  source_note!: string;
+
+  @ApiPropertyOptional({ type: String, description: 'When the partner said it (ISO 8601 with offset, not in the future). Default: now' })
+  observed_at?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', description: 'Scenario for simulated (MOCK) data' })
+  scenario_id?: string;
 }

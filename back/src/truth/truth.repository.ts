@@ -17,6 +17,7 @@ import {
   questionItem,
   rawInput,
   recoveryRun,
+  scenario,
   truckPool,
 } from '../db/schema/index.js';
 import { Instant } from '../shared/time/instant.js';
@@ -98,7 +99,17 @@ export interface PromotionContext {
 /** 사실 판정에 필요한 읽기 · 파생 표(canonical_fact · conflict) 쓰기. 사건 쓰기는 서비스가 한다(트랜잭션 경계). */
 @Injectable()
 export class TruthRepository {
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
+  constructor(@Inject(DATABASE) readonly db: Database) {}
+
+  async activeResourceIds(): Promise<string[]> {
+    const f = await this.db.select({ id: facility.facilityId }).from(facility).where(eq(facility.isActive, true));
+    const p = await this.db.select({ id: truckPool.truckPoolId }).from(truckPool).where(eq(truckPool.isActive, true));
+    return [...f.map((r) => r.id), ...p.map((r) => r.id)];
+  }
+
+  async scenarioExists(scenarioId: string): Promise<boolean> {
+    return (await this.db.select({ id: scenario.scenarioId }).from(scenario).where(eq(scenario.scenarioId, scenarioId)).limit(1)).length > 0;
+  }
 
   /** 같은 좌표의 판정 · 쓰기를 줄 세운다(트랜잭션 끝까지). */
   async lockCoordinate(tx: DbTransaction, c: Coordinate): Promise<void> {
@@ -228,6 +239,21 @@ export class TruthRepository {
       .delete(conflict)
       .where(and(eq(conflict.entityType, c.entityType), eq(conflict.entityId, c.entityId), eq(conflict.factKey, c.factKey), eq(conflict.applicabilityScopeType, c.scopeType), eq(conflict.applicabilityScopeRef, c.scopeRef), eq(conflict.isSimulated, c.isSimulated)));
     if (rows.length > 0) await tx.insert(conflict).values(rows);
+  }
+
+  /** 파생 표의 좌표들(신선도 재판정 대상) — 이미 만료된 것은 다시 볼 필요가 없다. */
+  async canonicalCoordinates(limit: number, q: Q = this.db): Promise<{ coordinate: Coordinate; freshness: string; usability: string }[]> {
+    const rows = await q
+      .select()
+      .from(canonicalFact)
+      .where(sql`${canonicalFact.freshnessStatus} <> 'EXPIRED'`)
+      .orderBy(asc(canonicalFact.computedAt))
+      .limit(limit);
+    return rows.map((r) => ({
+      coordinate: { entityType: r.entityType, entityId: r.entityId, factKey: r.factKey, scopeType: r.applicabilityScopeType, scopeRef: r.applicabilityScopeRef, isSimulated: r.isSimulated },
+      freshness: r.freshnessStatus,
+      usability: r.decisionUsability,
+    }));
   }
 
   async canonicalFacts(subjectIds: readonly string[], q: Q = this.db) {

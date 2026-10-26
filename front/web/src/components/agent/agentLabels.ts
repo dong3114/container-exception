@@ -75,7 +75,14 @@ const RESULT_LABEL: Record<string, string> = {
   INQUIRY_REJECTED: "문의 초안이 반려되어 이번 실행을 마쳤습니다.",
   APPROVAL_WITHDRAWN: "승인이 취소 · 무효화되어 이번 실행을 마쳤습니다.",
   NO_INFORMATION_GAPS: "지금 계획에 필요한 정보 공백이 없습니다.",
+  FACT_NEEDS_REFRESH: "기다리는 동안 값이 오래됐거나 철회됐습니다 — 지금 쓸 수 없습니다. 새 실행으로 다시 물어보세요.",
 };
+
+/** Business gap states that need a plain explanation beside the code. */
+const GAP_STATE_LABEL: Record<string, string> = {
+  NEEDS_REFRESH: "NEEDS_REFRESH (값이 오래됐거나 철회됨 — 다시 확인 필요)",
+};
+export const gapStateLabel = (state: string) => GAP_STATE_LABEL[state] ?? state;
 
 export const resultLabel = (code: string | null) => (code ? (RESULT_LABEL[code] ?? code) : null);
 
@@ -134,7 +141,9 @@ export function summaryRows(summary: AgentRun["result_summary"]): { label: strin
           ? v ? "예 — 사람이 확인함" : "아니오 — 아직 사람이 확인하지 않음"
           : k === "candidate_state" && v === "CANDIDATE_ACCEPTED"
             ? "CANDIDATE_ACCEPTED (임시 사실로 올라감)"
-            : String(v);
+            : k === "business_gap_state"
+              ? gapStateLabel(String(v))
+              : String(v);
       return { label: SUMMARY_LABEL[k] ?? k, value };
     });
 }

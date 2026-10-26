@@ -1,0 +1,37 @@
+{
+  "schema_version": "reply-extract/2",
+  "outcome": "VALUES",
+  "answers": [
+    {
+      "ask_id": "Q1",
+      "field": "quantity",
+      "raw_value": "4대",
+      "value": "4",
+      "unit": "TRUCK",
+      "evidence": {
+        "quote": "차량 4대 가능합니다"
+      },
+      "confidence": 0.9
+    },
+    {
+      "ask_id": "Q1",
+      "field": "available_from",
+      "raw_value": "오후 3시 이후",
+      "value": "15:00",
+      "unit": null,
+      "evidence": {
+        "quote": "오후 3시 이후"
+      },
+      "confidence": 0.9
+    }
+  ],
+  "unmapped_statements": [],
+  "ambiguity_flags": [],
+  "meta": {
+    "provider": "replay",
+    "model_version": "replay:fixtures-1",
+    "prompt_version": "reply-extract-v2",
+    "latency_ms": 1,
+    "usage": null
+  }
+}

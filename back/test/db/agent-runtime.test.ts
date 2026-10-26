@@ -341,6 +341,24 @@ describe('CeraRecoveryGraph across two processes', () => {
     expect((await reconcile()).woken).toBe(0);
   });
 
+  it('T-111 E · Q. a revoked provisional fact wakes the waiting run even when the signal is lost; the gap needs a refresh', async () => {
+    const { id, eventId } = await driveToProvisionalFact();
+    const signals = api.get(DOMAIN_SIGNALS) as DomainSignals;
+    const emit = signals.emit;
+    signals.emit = () => undefined; // the in-process signal is dropped
+    try {
+      await http.post(`/truth/events/${eventId}/revoke`).set(ACTOR, w.humanId).send({ reason_code: 'SOURCE_WITHDREW' }).expect(200);
+      await sleep(300);
+      expect((await view(id)).status).toBe('WAITING_HUMAN');
+      expect((await reconcile()).woken).toBeGreaterThanOrEqual(1); // DB state alone
+    } finally {
+      signals.emit = emit;
+    }
+    const done = await until(id, (v) => v.status === 'COMPLETED' || v.status === 'FAILED');
+    expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'FACT_NEEDS_REFRESH' });
+    expect(done.result_summary).toMatchObject({ business_gap_state: 'NEEDS_REFRESH', facts_confirmed: false });
+  });
+
   it('a rejected provisional fact wakes the run too: the gap is open again and the run ends FACT_REJECTED_GAP_OPEN — no fact was invented', async () => {
     const { id, eventId } = await driveToProvisionalFact();
     await http.post(`/truth/events/${eventId}/reject`).set(ACTOR, w.humanId).send({ reason_code: 'CONDITIONAL_ANSWER' }).expect(200);

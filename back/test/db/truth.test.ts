@@ -22,6 +22,7 @@ import { OutboxDispatcher } from '../../src/communication/outbox-dispatcher.js';
 import type { Env } from '../../src/config/env.js';
 import { TransactionRunner } from '../../src/db/transaction.js';
 import { PromotionService } from '../../src/truth/promotion.service.js';
+import { Instant } from '../../src/shared/time/instant.js';
 import { T0, actor, hashOf, registry, type Registry } from './fixtures.js';
 import { appPool, testEnv } from './support.js';
 
@@ -576,5 +577,184 @@ describe('K · L. the recovery context and the information gaps follow the fact 
     const before = await factsOf(w);
     await db.query('DELETE FROM cera.canonical_fact WHERE entity_id = $1', [w.truckPoolId]);
     expect(await factsOf(w)).toEqual(before);
+  });
+});
+
+// ───────────────────────── T-111 Truth Lifecycle Hardening ─────────────────────────
+const factsAt = async (w: World, asOf: string) =>
+  ((await http.get(`/truth/facts?recovery_run_id=${w.runId}&as_of=${encodeURIComponent(asOf)}`).expect(200)).body.facts as (FactView & { freshness_status: string; revoked_by_event_id: string | null; evaluated_as_of: string })[]).filter(
+    (f) => f.entity_id === w.truckPoolId,
+  );
+const gapOf = async (w: World, asOf?: string) => {
+  const ctx = worker.get(RecoveryContextService, { strict: false });
+  const out = await ctx.informationGaps(w.runId, asOf ? Instant.parseIso(asOf) : null);
+  return { gap: out.gaps.find((g) => g.subject_id === w.truckPoolId), known: out.known.find((k) => k.subject_id === w.truckPoolId) };
+};
+const manual = (w: World, over: Record<string, unknown> = {}) => ({
+  intent: 'OPERATOR_DIRECT_ENTRY',
+  kind: 'TRUCK_SLOT',
+  target_id: w.truckPoolId,
+  date: PLAN_DATE,
+  window_from: '15:00',
+  window_to: '17:00',
+  value: 6,
+  source_note: '전화 확인 — 배차 담당',
+  scenario_id: w.scenarioId,
+  ...over,
+});
+
+describe('T-111 A · C · D · R. a confirmed fact can be withdrawn without a new value — it stops being current truth, nothing is deleted', () => {
+  it('revoke → REVOKED (no current value), older values do not come back, the gap reopens, a newer reply competes again', async () => {
+    const w = await world();
+    const draft = await sentInquiry(w);
+    await extractWith(await reply(draft, '12월 1일 차량 3대 가능합니다.', '2026-10-20T01:00:00.000Z'), [qty(3)]);
+    await extractWith(await reply(draft, '12월 1일 차량 4대 가능합니다.', '2026-10-20T02:00:00.000Z'), [qty(4)]);
+    const current = (await factsOf(w))[0]?.current?.event_id as string;
+    await http.post(`/truth/events/${current}/confirm`).set(ACTOR, w.humanId).send({}).expect(200);
+    const revoked = (await http.post(`/truth/events/${current}/revoke`).set(ACTOR, w.humanId).send({ reason_code: 'SOURCE_WITHDREW', note: '아까 정보 취소 — 확답 불가' }).expect(200)).body;
+    expect(revoked).toMatchObject({ fact_state: 'REVOKED', current: null, decision_usability: 'UNUSABLE' });
+    expect(revoked.revoked_by_event_id).toMatch(/^[0-9a-f-]{36}$/);
+    // 옛 3대도 되살아나지 않는다(그 시점까지의 값이 모두 현재 사실에서 빠진다)
+    expect(revoked.candidates.filter((c: { role: string }) => c.role === 'REVOKED').map((c: { value: number }) => c.value).sort()).toEqual([3, 4]);
+    const events = await eventsOf(w.truckPoolId);
+    const withdrawal = events.find((e) => e.event_id === revoked.revoked_by_event_id);
+    expect(withdrawal).toMatchObject({ event_class: 'CORRECTION', value_number: null, supersedes_event_id: current, source_type: 'HUMAN_UI', entered_by_actor_id: w.humanId, supersede_reason: 'SOURCE_WITHDREW' });
+    expect(withdrawal.payload).toMatchObject({ withdrawal: true, revoke_reason: 'SOURCE_WITHDREW', revoked_event_id: current });
+    expect(events.filter((e) => e.event_class === 'OBSERVATION')).toHaveLength(2); // 삭제 · 덮어쓰기 없음
+    expect(await canonical(w.truckPoolId)).toHaveLength(0);
+    expect((await db.query("SELECT 1 FROM cera.audit_log WHERE action = 'FACT_REVOKED' AND actor_id = $1", [w.humanId])).rowCount).toBe(1);
+    // D: 공백이 다시 열린다 — 근거 = 철회
+    expect((await gapOf(w)).gap).toMatchObject({ state: 'NEEDS_REFRESH', refresh_basis_event_id: revoked.revoked_by_event_id });
+    // R: 같은 철회를 다시 눌러도 사건 하나, 철회된 값은 확인 · 정정할 수 없다
+    await http.post(`/truth/events/${current}/revoke`).set(ACTOR, w.humanId).send({ reason_code: 'SOURCE_WITHDREW' }).expect(200);
+    expect((await eventsOf(w.truckPoolId)).filter((e) => e.event_class === 'CORRECTION')).toHaveLength(1);
+    await http.post(`/truth/events/${current}/confirm`).set(ACTOR, w.humanId).send({}).expect(409);
+    // 철회 뒤의 새 회신은 정상 경쟁한다
+    await extractWith(await reply(draft, '12월 1일 차량 2대 가능합니다.', '2026-11-30T00:00:00.000Z'), [qty(2)]);
+    expect((await factsOf(w))[0]).toMatchObject({ fact_state: 'PROVISIONAL', current: { value: 2 } });
+  });
+
+  it('B. AI agents, the system and unknown actors cannot revoke — over HTTP or in SQL', async () => {
+    const w = await world();
+    await extractWith(await reply(await sentInquiry(w), '12월 1일 차량 4대 가능합니다.'), [qty(4)]);
+    const id = (await factsOf(w))[0]?.current?.event_id as string;
+    for (const who of [aiAgentId, sysId, v7()]) await http.post(`/truth/events/${id}/revoke`).set(ACTOR, who).send({ reason_code: 'OPERATOR_INVALIDATED' }).expect(403);
+    const raw = (await db.query('SELECT raw_input_id FROM cera.event WHERE event_id = $1', [id])).rows[0].raw_input_id;
+    const withdrawal = (sourceType: string, actorId: string) =>
+      db.query(
+        `INSERT INTO cera.event (event_id, schema_version, raw_input_id, event_class, event_type, fact_kind, fact_key, received_at, source_type, extraction_method, input_quality, input_confidence_level,
+           entered_by_actor_id, supersedes_event_id, idempotency_key, recorded_at, is_simulated, scenario_id)
+         VALUES ($1, 'ev-1', $2, 'CORRECTION', 'CORRECTION', 'OFFER', $3, now(), $4, 'DIRECT', 'STRUCTURED', 'HIGH', $5, $6, $7, now(), true, $8)`,
+        [v7(), raw, `available.slot(${PLAN_DATE}T15:00-17:00)`, sourceType, actorId, id, hashOf(`wd-${v7()}`), w.scenarioId],
+      );
+    await expect(withdrawal('PARTNER_SYSTEM', sysId)).rejects.toMatchObject({ code: 'CE005' }); // M21: 철회는 사람(HUMAN_UI)만
+    await expect(withdrawal('HUMAN_UI', aiAgentId)).rejects.toMatchObject({ code: 'CE005' }); // M20: HUMAN_UI 는 HUMAN 행위자만
+    expect((await factsOf(w))[0]?.fact_state).toBe('PROVISIONAL');
+  });
+});
+
+describe('T-111 F · G · H · I. facts age against an explicit as_of — stale is not wrong, it is just not current', () => {
+  it('a slot past its valid_until is STALE (expired) at that as_of, not deleted, not shown as fresh, and the judgement is reproducible', async () => {
+    const w = await world();
+    await extractWith(await reply(await sentInquiry(w), '12월 1일 차량 4대 가능합니다.'), [qty(4)]);
+    const before = '2026-12-01T14:00:00+09:00';
+    const after = '2026-12-01T17:00:00+09:00'; // 질문 시간창 15–17시가 끝난 순간
+    let [f] = await factsAt(w, before);
+    expect(f).toMatchObject({ fact_state: 'PROVISIONAL', freshness_status: 'FRESH', evaluated_as_of: '2026-12-01T14:00:00.000+09:00' });
+    [f] = await factsAt(w, after);
+    expect(f).toMatchObject({ fact_state: 'STALE', value_status: 'PROVISIONAL', freshness_status: 'EXPIRED', decision_usability: 'UNUSABLE', current: { value: 4 } }); // 값은 그대로 남는다
+    expect((await gapOf(w, after)).gap).toMatchObject({ state: 'NEEDS_REFRESH', fact: { fact_state: 'STALE', freshness_status: 'EXPIRED' } });
+    expect((await gapOf(w, before)).gap).toMatchObject({ state: 'PROVISIONAL_AVAILABLE' });
+    // I: 같은 as_of 는 같은 답(시계를 읽지 않는다)
+    expect(await factsAt(w, before)).toEqual(await factsAt(w, before));
+    // G: 사건 · 파생 행은 지워지지 않는다
+    expect(await eventsOf(w.truckPoolId)).toHaveLength(1);
+    expect(await canonical(w.truckPoolId)).toHaveLength(1);
+  });
+
+  it('a confirmed fact that went stale does not close the gap', async () => {
+    const w = await world();
+    const [f0] = (await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w)).expect(200).then((r) => [r.body])) as FactView[];
+    expect(f0).toMatchObject({ fact_state: 'CONFIRMED' });
+    expect((await gapOf(w, '2026-12-01T10:00:00+09:00')).known).toMatchObject({ fact: { fact_state: 'CONFIRMED' } });
+    expect((await gapOf(w, '2026-12-01T18:00:00+09:00')).gap).toMatchObject({ state: 'NEEDS_REFRESH', fact: { fact_state: 'STALE' } });
+  });
+});
+
+describe('T-111 J · K · L. an operator enters a fact directly (phone, visit) — CONFIRMED with provenance; corrections supersede', () => {
+  it('manual entry → CONFIRMED (human source, note, audit), gap resolved; a correction supersedes it; a revoke reopens the gap; a retried command is one event', async () => {
+    const w = await world();
+    const commandId = v7();
+    const entered = (await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w, { command_id: commandId, observed_at: '2026-10-26T09:30:00+09:00' })).expect(200)).body;
+    expect(entered).toMatchObject({ fact_state: 'CONFIRMED', value_status: 'CONFIRMED', current: { value: 6, verified_by_human: true, verification_basis: 'HUMAN_VERIFICATION' } });
+    expect(entered.candidates[0]).toMatchObject({ generated_by: 'HUMAN', source_type: 'HUMAN_UI', extraction_id: null });
+    const [ev] = await eventsOf(w.truckPoolId);
+    expect(ev).toMatchObject({ event_class: 'OBSERVATION', source_type: 'HUMAN_UI', extraction_method: 'DIRECT', entered_by_actor_id: w.humanId, value_number: '6.0000', fact_key: `available.slot(${PLAN_DATE}T15:00-17:00)` });
+    expect(ev.payload).toMatchObject({ entry: 'OPERATOR_DIRECT_ENTRY', source_note: '전화 확인 — 배차 담당', authority: 'S' });
+    expect(new Date(ev.source_event_time).toISOString()).toBe('2026-10-26T00:30:00.000Z');
+    expect((await db.query("SELECT 1 FROM cera.audit_log WHERE action = 'FACT_ENTERED_MANUALLY' AND target_id = $1", [ev.event_id])).rowCount).toBe(1);
+    expect((await gapOf(w)).known).toMatchObject({ fact: { fact_state: 'CONFIRMED' } });
+    // R: 같은 명령의 재시도 → 사건 하나
+    await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w, { command_id: commandId })).expect(200);
+    expect(await eventsOf(w.truckPoolId)).toHaveLength(1);
+    // L: 고칠 때는 대체(UPDATE 없음)
+    const corrected = (await http.post(`/truth/events/${ev.event_id}/correct`).set(ACTOR, w.humanId).send({ value: 5, reason_code: 'OPERATOR_CORRECTION' }).expect(200)).body;
+    expect(corrected).toMatchObject({ fact_state: 'CONFIRMED', current: { value: 5 } });
+    expect(corrected.candidates.find((c: { event_id: string }) => c.event_id === ev.event_id)).toMatchObject({ role: 'SUPERSEDED', value: 6 });
+    // 철회 → 공백 다시 열림
+    await http.post(`/truth/events/${corrected.current.event_id}/revoke`).set(ACTOR, w.humanId).send({ reason_code: 'OUTDATED_OPERATIONAL_STATE' }).expect(200);
+    expect((await gapOf(w)).gap).toMatchObject({ state: 'NEEDS_REFRESH' });
+  });
+
+  it('K. only an active human with the explicit intent and a source note can enter a fact', async () => {
+    const w = await world();
+    for (const who of [aiAgentId, sysId]) await http.post('/truth/facts/manual').set(ACTOR, who).send(manual(w)).expect(403);
+    await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w, { intent: 'AGENT_SUGGESTION' })).expect(400);
+    await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w, { source_note: '' })).expect(400);
+    await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w, { window_from: '17:00', window_to: '15:00' })).expect(400);
+    await http.post('/truth/facts/manual').set(ACTOR, w.humanId).send(manual(w, { observed_at: '2099-01-01T00:00:00+09:00' })).expect(400);
+    expect(await eventsOf(w.truckPoolId)).toHaveLength(0);
+  });
+});
+
+describe('T-111 M · N · O · P. the reply contract carries a date (reply-extract/2) — the model date is a candidate, CERA re-derives it', () => {
+  const dated = (value: string, quote: string) => answer('answer_date', value, null, quote);
+  const v2 = (answers: unknown[]) => ({ ...ok(answers), body: { ...ok(answers).body, schema_version: 'reply-extract/2', meta: { ...ok(answers).body.meta, prompt_version: 'reply-extract-v2' } } });
+
+  it('M · N. an explicit or relative date that CERA derives to the asked day is accepted with the quantity', async () => {
+    const w = await world();
+    const draft = await sentInquiry(w);
+    // "내일" 은 회신 근거 시각(11-30 KST)의 다음 날 = 질문 날짜 12-01
+    const inbound = await reply(draft, '내일 차량 4대 가능합니다.', '2026-11-30T03:00:00.000Z');
+    handler = () => v2([qty(4), dated('2026-12-01', '내일')]);
+    expect(await extractor.extractOne(inbound)).toBe('EXTRACTED');
+    const rows = (await db.query('SELECT candidate_value_text, review_status, created_event_id, schema_version FROM cera.extraction WHERE message_id = $1', [inbound])).rows;
+    expect(rows.every((r) => r.review_status === 'ACCEPTED' && r.created_event_id !== null && r.schema_version === 'reply-extract/2')).toBe(true);
+    expect((await factsOf(w))[0]).toMatchObject({ fact_state: 'PROVISIONAL', current: { value: 4 } });
+  });
+
+  it('N · O. a model date CERA cannot back, or a different day, blocks the value', async () => {
+    const a = await world();
+    const ia = await reply(await sentInquiry(a), '내일 차량 4대 가능합니다.', '2026-11-30T03:00:00.000Z');
+    handler = () => v2([qty(4), dated('2026-12-02', '내일')]); // 모델이 "내일"을 잘못 정규화
+    await extractor.extractOne(ia);
+    expect(await eventsOf(a.truckPoolId)).toHaveLength(0);
+    expect(await blockedOf(ia)).toEqual(['FACT_PROMOTION_BLOCKED_DATE_UNVERIFIED']);
+
+    const b = await world();
+    const ib = await reply(await sentInquiry(b), '모레 차량 4대 가능합니다.', '2026-11-30T03:00:00.000Z');
+    handler = () => v2([qty(4), dated('2026-12-02', '모레')]);
+    await extractor.extractOne(ib);
+    expect(await eventsOf(b.truckPoolId)).toHaveLength(0);
+    expect(await blockedOf(ib)).toEqual(['FACT_PROMOTION_BLOCKED_DATE_OUT_OF_SCOPE']);
+  });
+
+  it('P. a v1 AI Server reply (no date field) still works', async () => {
+    const w = await world();
+    const inbound = await reply(await sentInquiry(w), '12월 1일 차량 4대 가능합니다.');
+    handler = () => ok([qty(4)]); // schema_version reply-extract/1
+    expect(await extractor.extractOne(inbound)).toBe('EXTRACTED');
+    expect((await db.query('SELECT schema_version FROM cera.extraction WHERE message_id = $1', [inbound])).rows[0].schema_version).toBe('reply-extract/1');
+    expect((await factsOf(w))[0]).toMatchObject({ fact_state: 'PROVISIONAL' });
   });
 });

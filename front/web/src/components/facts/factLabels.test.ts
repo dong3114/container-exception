@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { FACT_STATE_LABEL, GENERATED_BY_LABEL, blockedReasonLabel, factErrorText, factTitle, formatValue, formatWindow, isActionable } from "./factLabels";
+import {
+  FACT_STATE_LABEL,
+  FRESHNESS_LABEL,
+  GENERATED_BY_LABEL,
+  REVOKE_REASON_OPTIONS,
+  ROLE_LABEL,
+  VALUE_STATUS_LABEL,
+  blockedReasonLabel,
+  factErrorText,
+  factTitle,
+  formatValue,
+  formatWindow,
+  isActionable,
+} from "./factLabels";
 
 describe("fact labels", () => {
   it("a provisional fact never reads as confirmed", () => {
@@ -30,9 +43,26 @@ describe("fact labels", () => {
     expect(factErrorText("OTHER", "msg")).toBe("OTHER — msg");
   });
 
-  it("superseded and rejected values have no actions", () => {
+  it("superseded, rejected and withdrawn values have no actions", () => {
     expect(isActionable({ role: "WINNER" } as never)).toBe(true);
     expect(isActionable({ role: "SUPERSEDED" } as never)).toBe(false);
     expect(isActionable({ role: "REJECTED" } as never)).toBe(false);
+    expect(isActionable({ role: "REVOKED" } as never)).toBe(false);
+  });
+
+  it("stale is old, not wrong; revoked has no current value", () => {
+    expect(FACT_STATE_LABEL.STALE).toBe("오래됨 — 다시 확인 필요(틀린 것은 아님)");
+    expect(FACT_STATE_LABEL.REVOKED).toBe("철회됨 — 지금 값 없음");
+    expect(ROLE_LABEL.REVOKED).toBe("철회됨");
+    expect(FRESHNESS_LABEL).toEqual({ FRESH: "신선", AGING: "오래되는 중(주의)", STALE: "오래됨", EXPIRED: "유효 시간 지남", UNKNOWN: "신선도 기준 없음" });
+    expect(VALUE_STATUS_LABEL.CONFIRMED).toBe("사람 확인 완료");
+  });
+
+  it("revoke reasons and new errors are in plain Korean", () => {
+    expect(REVOKE_REASON_OPTIONS.map((o) => o.label)).toEqual(["상대가 말을 거둠", "운영자가 무효화", "상황이 바뀌어 더는 유효하지 않음"]);
+    expect(factErrorText("EVENT_REVOKED", "x")).toContain("이미 철회된 기록");
+    expect(factErrorText("TARGET_NOT_FOUND", "x")).toContain("찾지 못했습니다");
+    expect(factErrorText("TARGET_NOT_SUPPORTED", "x")).toContain("직접 입력할 수 없습니다");
+    expect(factErrorText("SCENARIO_NOT_FOUND", "x")).toContain("시나리오를 찾지 못했습니다");
   });
 });
