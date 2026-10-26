@@ -2,7 +2,7 @@
 
 ``backend_checks`` is a **port** of ``back/src/communication/extraction-rules.ts`` (validateAnswers) used only to report
 how many model answers the current Backend validator would accept or reject. The TypeScript module stays the authority;
-``tests/test_evals.py`` pins the port on known cases.
+``tests/test_validator_conformance.py`` runs the port against a fixture made from the real validator (T-099).
 """
 
 from __future__ import annotations
@@ -16,15 +16,19 @@ from typing import Any
 from ..decision import ANSWER_TYPES, COMMITMENTS
 
 # ------------------------------------------------------------------------------------ Backend validator (port)
+# JavaScript regex semantics, on purpose: ``\d`` is ASCII only, ``$`` ends the string only (no trailing-newline match) and ``\s`` is the
+# JS whitespace set — Python's defaults differ on all three. ``packages/contracts/conformance/extraction-validator.v1.json``
+# (made from the real TypeScript validator) pins this port: ``tests/test_validator_conformance.py``.
+_WS = r"[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]"
 _KOREAN_NUMBERS = {"한": 1, "하나": 1, "두": 2, "둘": 2, "세": 3, "셋": 3, "네": 4, "넷": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10}
-_FORMAT = {"QUANTITY": re.compile(r"^\d{1,6}$"), "TIME": re.compile(r"^([01]\d|2[0-3]):[0-5]\d$"), "MONEY": re.compile(r"^\d{1,12}$")}
+_FORMAT = {"QUANTITY": re.compile(r"[0-9]{1,6}"), "TIME": re.compile(r"([01][0-9]|2[0-3]):[0-5][0-9]"), "MONEY": re.compile(r"[0-9]{1,12}")}
 
 
 def _quantity_in_quote(value: str, quote: str) -> bool:
     n = int(value)
     if re.search(rf"(^|[^0-9]){n}([^0-9]|$)", quote.replace(",", "")):
         return True
-    return any(num == n and re.search(rf"{word}\s*(대|개|명|칸|TEU|teu)", quote) for word, num in _KOREAN_NUMBERS.items())
+    return any(num == n and re.search(rf"{word}{_WS}*(대|개|명|칸|TEU|teu)", quote) for word, num in _KOREAN_NUMBERS.items())
 
 
 def _time_in_quote(value: str, quote: str) -> bool:
@@ -33,17 +37,20 @@ def _time_in_quote(value: str, quote: str) -> bool:
         return True
 
     def minute_ok(text: str) -> bool:
-        return m == 0 or bool(re.search(rf"{m}\s*분", text)) or (m == 30 and "반" in text)
+        return m == 0 or bool(re.search(rf"{m}{_WS}*분", text)) or (m == 30 and "반" in text)
 
-    if re.search(rf"(^|[^0-9]){h}\s*시", quote) and minute_ok(quote):
+    if re.search(rf"(^|[^0-9]){h}{_WS}*시", quote) and minute_ok(quote):
         return True
     h12 = h - 12 if h > 12 else h
     meridiem = "오후" if h >= 12 else "오전"
-    return bool(re.search(rf"{meridiem}\s*{h12}\s*시", quote)) and minute_ok(quote)
+    return bool(re.search(rf"{meridiem}{_WS}*{h12}{_WS}*시", quote)) and minute_ok(quote)
 
 
-def backend_checks(ask: dict[str, Any], source_text: str, answers: list[dict[str, Any]], ambiguity_flags: list[str]) -> list[dict[str, Any]]:
-    """Per answer: {passed, failed:[codes]} — same checks and order as validateAnswers (incl. CONSISTENCY)."""
+def backend_checks(ask: dict[str, Any], source_text: str, answers: list[dict[str, Any]], ambiguity_flags: list[str]) -> list[dict[str, Any]]:  # noqa: ARG001
+    """Per answer: {passed, failed:[codes]} — same checks, order and detail codes as validateAnswers (incl. CONSISTENCY).
+
+    ``failed`` equals the TypeScript ``failedCodes(checks)``: a failed check's ``detail_code`` (or its name when it has none).
+    """
     fields = {f["name"]: f for f in ask["fields"]}
     out = []
     for a in answers:
@@ -57,12 +64,12 @@ def backend_checks(ask: dict[str, Any], source_text: str, answers: list[dict[str
         if quote not in source_text:
             failed.append("QUOTE_NOT_IN_SOURCE")
         if field:
-            fmt = _FORMAT[field["kind"]]
-            format_ok = bool(fmt.match(a["value"]))
+            format_ok = bool(_FORMAT[field["kind"]].fullmatch(a["value"]))
             if not format_ok:
                 failed.append(f"BAD_{field['kind']}")
-            if (a.get("unit") or None) != (field.get("unit") or None):
-                failed.append("UNIT_MISMATCH")
+            unit = a.get("unit")
+            if unit != field.get("unit"):
+                failed.append(f"UNIT_MISMATCH:{'NONE' if unit is None else unit}")
             in_quote = format_ok and (_time_in_quote(a["value"], quote) if field["kind"] == "TIME" else _quantity_in_quote(a["value"], quote))
             if not in_quote:
                 failed.append("VALUE_NOT_IN_QUOTE")

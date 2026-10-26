@@ -25,7 +25,8 @@
     "mock:reply": "tsx src/dev/mock-reply.ts",
     "env:check": "tsx src/dev/env-check.ts",
     "openapi:emit": "tsx src/openapi/emit-openapi.ts",
-    "agent-tools:emit": "tsx src/agent-tools/emit-tool-contracts.ts"
+    "agent-tools:emit": "tsx src/agent-tools/emit-tool-contracts.ts",
+    "validator-conformance:emit": "tsx src/dev/validator-conformance.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.0.4",

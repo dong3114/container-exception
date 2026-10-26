@@ -52,7 +52,7 @@ def _a(field: str, value: str, unit: str | None, quote: str, ask_id: str = "Q1")
     [  # same expectations as back/test/unit/extraction-rules.test.ts
         ("차량 4대까지 가능합니다", _a("quantity", "4", "TRUCK", "차량 4대까지 가능합니다"), []),
         ("차량 4대 가능", _a("quantity", "4", "TRUCK", "트럭 4대"), ["QUOTE_NOT_IN_SOURCE"]),
-        ("대당 35만원", _a("quantity", "350000", "KRW", "대당 35만원"), ["UNIT_MISMATCH", "VALUE_NOT_IN_QUOTE"]),
+        ("대당 35만원", _a("quantity", "350000", "KRW", "대당 35만원"), ["UNIT_MISMATCH:KRW", "VALUE_NOT_IN_QUOTE"]),
         ("대당 35만원", _a("rate", "350000", "KRW", "대당 35만원"), ["FIELD_NOT_ASKED"]),
         ("두 대 가능", _a("quantity", "2", "TRUCK", "두 대"), []),
         ("15시부터", _a("available_from", "15:00", None, "15시부터"), []),

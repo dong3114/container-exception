@@ -4,6 +4,10 @@
 
 **`contracts/openapi.d.ts`** — 위 문서에서 **생성한** TypeScript 타입(openapi-typescript, T-087). `front/web/` 에서 `npm run openapi:types` 로 다시 만들고, 프론트 시험이 최신인지 검사한다. 프론트는 `@contracts/openapi` 로 import 한다. 순서: `back` `openapi:emit` → `front/web` `openapi:types` → 둘 다 커밋.
 
+**`contracts/conformance/extraction-validator.v1.json`** — 회신 추출 검증기의 **판정 정답 파일**(T-099). 정본은 Backend 의 TypeScript 검증기(`back/src/communication/extraction-rules.ts`)이고, 이 파일은 그 **출력**이다. 평가 도구(`ai/cera_ai/evals/scoring.py backend_checks`)의 Python 포팅이 같은 판정을 내는지 검사하려고 둔다. 손으로 고치지 않는다.
+- TypeScript 검증기를 고치면 `back/` 에서 `npm run validator-conformance:emit` → 파일이 바뀌고, 안 바꾸면 Backend 시험(`validator-conformance.test.ts`)이 깨진다.
+- 파일이 바뀌면 Python 포팅이 달라져 `ai/tests/test_validator_conformance.py` 가 깨진다 → 포팅을 맞춘다. Python 이 정본이 아니다.
+
 front·back·ai가 함께 쓰는 계약을 둘 자리다: API 스키마, OpenAPI에서 생성한 클라이언트, 공유 타입.
 
 현재 화면용 계약은 `front/web/src/contracts/cera.ts`(TypeScript, 손으로 작성)에 있다. 이번에는 옮기지 않는다.
