@@ -34,7 +34,7 @@ Git 저장소는 **하나**다. 안에서 코드 책임 영역만 나눈다. 배
 | `packages/` | 공유 계약(OpenAPI, 생성 타입) | `contracts/openapi.json`(생성, T-086 — health 뿐) |
 | `data/` | 공통 시나리오·테스트 데이터 (front·back·ai가 같이 씀) | `data/scenarios/busan-wh-capacity-01/` |
 | `docs/` | 정본 문서 | — |
-| `infra/` | 배포 구성 | 구현 전 |
+| `infra/` | 로컬 전체 실행(Docker Compose)·배포 구성. 사용법 정본 = `infra/README.md` | 로컬 compose 있음(DB · 앱 · 화면 · 로컬 모델 · 평가), 클라우드 배포 구현 전 |
 
 영역 사이 규칙: `front/`는 raw 데이터 파일이 아니라 계약(API / Provider)만 본다. 계약의 정본은 Backend가 생기면 OpenAPI로 옮긴다(`packages/README.md`). Desktop 앱은 **검토 중인 선택지이지 확정 기술이 아니다** — Web First, Desktop 은 중앙 Backend 의 Client, 첫 후보 Electron(ADR-031 Proposed, `docs/23`).
 
@@ -190,6 +190,11 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 켜기:        docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d --wait
 끄기:        docker compose -f infra/local/compose.yaml --env-file infra/local/.env down      # 데이터 삭제는 down -v
 
+[Docker 전체 실행]  (저장소 루트에서. 정본 = infra/README.md — profile app · web · llm · eval, GPU, 로컬 모델 평가. Docker 만이 유일한 개발 방식은 아니다)
+앱 전체:     DC="docker compose -f infra/local/compose.yaml --env-file infra/local/.env"
+             $DC --profile app --profile web up -d --build       # DB + migration + API + Worker + AI + 화면(http://127.0.0.1:3000)
+             $DC --profile app --profile web --profile llm --profile eval down   # 정지
+
 [back — Main Backend (NestJS)]  (모든 명령은 back 폴더에서. 처음 한 번: back/.env.example → back/.env)
 설치:        npm install
 설정 점검:    npm run env:check        # 로컬 .env 가 .env.example 보다 뒤처졌는지(키 이름만). ai 는 python -m cera_ai.config
@@ -198,6 +203,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 빌드:        npm run build
 API:         npm run dev:api          # http://127.0.0.1:3100/health  (빌드본: npm run start:api)
 Worker:      npm run dev:worker       # 발송 · 수신 Worker(Outbox · Mock 수신함 폴링). 한 주기만: npx tsx src/worker.ts --once  (빌드본: npm run start:worker)
+검증기 일치:  extraction-rules.ts 를 고치면 npm run validator-conformance:emit → packages/contracts/conformance/extraction-validator.v1.json 을 다시 만들고, ai 의 scoring.py backend_checks 포팅을 맞춘다(양쪽 시험이 검사)
 Agent Tool:  CERA_AGENT_TOOLS_ENABLED=true + CERA_AGENT_TOOL_TOKEN(32자+, ai/.env 와 같은 값) → POST /agent-runs {recovery_run_id, goal}(헤더 X-CERA-Actor-Id = 활성 HUMAN) → POST /internal/agent-tools/<tool>(Authorization: Bearer · X-CERA-Agent-Run-Id · Idempotency-Key). 계약: npm run agent-tools:emit → packages/contracts/agent-tools/agent-tools.v1.json
 공공데이터:   CERA_PUBLIC_DATA_MODE=replay(합성 fixture) | live(DATA_GO_KR_SERVICE_KEY) 로 API 를 띄우고 POST /public-data/vessel-calls/fetch {from,to} → POST /public-data/vessel-calls/<id>/manifest/fetch (헤더 X-CERA-Actor-Id = 활성 HUMAN). fixture 재생성: python data/fixtures/public-data/generate.py
 Mock 회신:   npm run mock:reply -- --reply-to <메시지 id>   # 개발 전용 — Mock 상대가 답장한 것처럼 수신함에 넣는다(production 거부). --from · --no-date · --date 등
@@ -212,4 +218,5 @@ OpenAPI:     npm run openapi:emit     # → packages/contracts/openapi.json (DB 
 실행:        python -m cera_ai          # 127.0.0.1:8100 · CERA_LLM_MODE=replay(녹화 재생, LLM 호출 없음) — 공급자 미정
 시험:        python -m pytest -q
 계약:        python -m cera_ai.emit_schema   # → packages/contracts/ai/ (양쪽 시험이 검사)
+평가:        python -m cera_ai.evals --help  # T-099 모델 평가(Docker: infra/README.md). pipeline 점수의 검증기 포팅은 아래 conformance 시험이 Backend 와 같은지 강제한다
 ```

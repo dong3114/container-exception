@@ -19,6 +19,24 @@
 - **Out of Scope**: T-093 Event · PROVISIONAL · CONFIRMED · Solver · RAG · Vector DB · Fine-tuning · Multi-Agent · threshold 업무 정책 확정.
 - **Existing Decisions**: 추출 = 후보(사실 아님) · Decision 은 권한 없음(확률만, threshold 는 Backend 가 향후) · 업무 fact state 와 candidate_state 분리(T-105 승인) · 비밀값 출력 · 커밋 금지.
 
+### T-099 추가 작업 (2026-10-26 · 사용자 승인 · 체크포인트 커밋 2개)
+
+**T-099 는 계속 IN_PROGRESS.** 이번 체크포인트의 완료사항 2가지: ① CERA 전체 Docker 실행 경로 ② Eval Validator ↔ Production Validator drift 방지.
+
+- **Docker 전체 실행**(정본 `infra/README.md`): profile `app`(migrate · api · worker · ai) · `web`(nginx 정적) · `llm`(llama.cpp) · `eval`, `compose.gpu.yaml`. 호스트 `npm run dev` · Vite HMR 개발은 그대로(Docker 가 유일한 방식 아님). 이미지 3개: `back` · `ai`(빌드 맥락 = 저장소 루트 — Agent Runtime 이 `packages/contracts` 를 읽는다) · `front/web`(맥락 = 루트)
+- **Docker 안에서 확인한 범위(구분)**: ① 업무 API 체인(초안 → 승인 → 발송 → Mock 회신 → 추출 → 후보 PASSED) ② **T-105 Agent 그래프 전체**: Agent Run → 공백 → 문의 → `WAITING_HUMAN` → 승인 → 발송 요청 → `WAITING_EXTERNAL` → Mock 회신 → 추출 → 재평가 → `COMPLETED`(노드 16 · Tool 7종 · 실패 Tool 0). 이 E2E 로 **`ai` 이미지에 Tool 계약 파일이 빠져 Agent 모드가 기동하지 않던 결함**을 찾아 고쳤다. 로컬 공급자 Qwen3-4B 의 추출은 `"Yeah"` 를 수량으로 내 Backend 검증기가 `BAD_QUANTITY` 로 거부했다(`NO_VALID_CANDIDATE`) — 모델 튜닝은 하지 않았다. 첫 추출은 모델 콜드 스타트로 `EXTRACTION_TIMEOUT`(20초 제한) 후 재시도됐다. 두 번째 Run 은 시드 데이터의 다른 공백에서 `NO_ELIGIBLE_CONTACT`(인프라 문제 아님)
+- **Validator conformance(방식 B 유지)**: 정본 = Backend TypeScript 검증기. 392건 · 판정 대상 답 563(합격 307 · 불합격 256)에서 Python 포팅이 완전 일치. 수정 전 포팅은 30건 차이 · pass/fail 반전 1건. TS 검증기 변경 → `npm run validator-conformance:emit` 안 하면 Backend 시험 실패, 포팅 불일치 → Python 시험 실패. 흐름은 `packages/README.md`. Node/Backend 를 평가 컨테이너에 넣는 방식 A 는 택하지 않았다
+- **로컬 모델 판정**(20건만으로 순위 확정 안 함, `ai/evals/runs/2026-10-26-local-ladder/README.md`): 0.5B = 연결 smoke 전용 · 1.5B = 제외(no-answer 환각) · 3B = 연구 기준선만(Qwen Research License) · **Qwen3-4B-Instruct-2507 = Local candidate 유지** · 7B = 충분한 GPU 에서 재평가. 모델 출처 `ai/evals/local-models.json`(저장소 · revision · 파일 해시 · 라이선스; Qwen3-4B 는 **unsloth 제3자 GGUF 변환**, 파일 sha256 직접 확인)
+- **GPU**: Docker Desktop GPU 전달 + CUDA 이미지 동작 확인(GTX 1650/Turing, p50 4182 → 1268ms). **GTX 1080(Pascal)은 미확인 `[TO VERIFY]`**
+- **run artifact 정책**: `ai/evals/runs/` 의 `smoke-*` · `ladder-*` 최상위는 gitignore(재생성 가능). 선정 근거 요약만 날짜 폴더(report · metrics · run)에 커밋. 기존 `2026-10-22-baselines` 는 그대로
+- **유지보수 후보(직접 대조한 것만)**: QUEUE T-108(os.environ) · T-109(큰 파일) · T-110(모듈 순환 · CI · ai lockfile). Validator drift 는 해결되어 별도 Task 없음. 큐잉 보강: T-110 은 "GitHub CI 가 conformance · contract · 시험을 자동 실행"하는 목적
+- **환경 파일**: `back/.env` DB 비밀번호를 `infra/local/.env` 에 맞춤 · 빠진 키 추가 · `ai/.env` 생성 · `CERA_AGENT_TOOL_TOKEN` 로컬 값(양쪽 동일). 상용 비밀번호는 사용자가 나중에 직접
+- **주의(Windows)**: Git Bash 는 컨테이너 경로 인자(`/srv/...`)를 `C:/Program Files/Git/...` 로 바꾼다 · curl 에 한글을 인자로 직접 주면 깨진다(`--data-binary @파일` 사용)
+
+**T-099 완료된 것**: 평가 인프라 · 141건 데이터셋 · AI 교차 검토 · HF Decision 기준선 · LocalProvider · Docker 모델 서빙 · 로컬 생성 모델 사다리 · Validator conformance · 전체 Docker 런타임.
+**T-099 남은 것**: OpenAI · Gemini live 평가(필요하면 Anthropic) · Jev live 평가 · 상용 vs 로컬 비교 · 추출 공급자/모델 선정 · Decision 공급자/모델 선정 · Live LLM Agent E2E · ADR-037 Accepted. 평가 순서 5건 → 20건 → 비용 확인 → AGREED 전체. 로컬은 Qwen3-4B 만 비교 후보로 유지(1.5B · 3B 전체 실행 안 함, 7B 는 GPU 환경 전까지 전체 실행 안 함)
+**다음 한 걸음**: `ai/.env` 의 `OPENAI_API_KEY` · `GEMINI_API_KEY`(필요하면 `ANTHROPIC_API_KEY` · Jev 는 `OPENROUTER_API_KEY`)가 준비되면 상용 모델 평가
+
 ### T-099 진행 (2026-10-22)
 
 - **Blocker — API 키 없음**: `ai/.env` 파일이 없고 셸 환경 · `back/.env` 에도 `ANTHROPIC_API_KEY` · `OPENAI_API_KEY` · `GEMINI_API_KEY` · `OPENROUTER_API_KEY` 가 없다 → 실제 공급자 호출 0건. 사용자에게 필요 키 · 발급처 · 예상 상한(약 $15, 상한 $20)을 한 번 알렸다

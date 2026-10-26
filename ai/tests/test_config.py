@@ -58,3 +58,9 @@ def test_agent_mode_needs_a_long_service_token_and_caps_are_bounded():
     assert load_settings({"CERA_AGENT_MODE": "on", "CERA_AGENT_TOOL_TOKEN": TOKEN}).agent_mode == "on"
     assert "CERA_AGENT_MAX_STEPS" in issues(CERA_AGENT_MAX_STEPS="0")
     assert "CERA_BACKEND_TOOL_URL" in issues(CERA_BACKEND_TOOL_URL="localhost:3100")
+
+
+def test_local_vendor_needs_no_key_but_a_url():
+    live = dict(CERA_LLM_MODE="live", CERA_LLM_PROVIDER="local", CERA_LLM_MODEL="qwen2.5-1.5b-instruct-q4_k_m")
+    assert load_settings(live).llm_provider == "local"
+    assert "CERA_LOCAL_LLM_BASE_URL" in issues(**live, CERA_LOCAL_LLM_BASE_URL="llm:8080")

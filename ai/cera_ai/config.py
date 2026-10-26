@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENVS = ("local", "test", "staging", "production")
-LLM_VENDORS = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"}
+LLM_VENDORS = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY", "local": None}  # vendor -> key (None = no key)
 DECISION_PROVIDERS = ("jev", "llm_judge", "nli")
 
 # key -> (default or None when there is none, what it switches on). Order follows ai/.env.example.
@@ -27,13 +27,16 @@ KEYS: dict[str, tuple[str | None, str]] = {
     "CERA_AI_LOG_LEVEL": ("INFO", "Python log level"),
     # Generative LLM (extraction candidates, prose) — ADR-033: outputs are candidates only
     "CERA_LLM_MODE": ("replay", "replay = recorded responses, no LLM call · live = CERA_LLM_PROVIDER + CERA_LLM_MODEL"),
-    "CERA_LLM_PROVIDER": (None, "live only: anthropic | openai | gemini"),
+    "CERA_LLM_PROVIDER": (None, "live only: anthropic | openai | gemini | local (OpenAI-compatible server, no key)"),
     "CERA_LLM_MODEL": (None, "live only: model id (choice is an ADR decision, T-099)"),
     "CERA_LLM_EFFORT": (None, "optional reasoning effort hint for the adapter"),
     "CERA_AI_REPLAY_DIR": (None, "replay fixtures directory (default ai/fixtures/replay)"),
     "ANTHROPIC_API_KEY": (None, "secret — needed when the anthropic vendor is used"),
     "OPENAI_API_KEY": (None, "secret — needed when the openai vendor is used"),
     "GEMINI_API_KEY": (None, "secret — needed when the gemini vendor is used"),
+    "CERA_LOCAL_LLM_BASE_URL": ("http://127.0.0.1:8080/v1", "local vendor: OpenAI-compatible server (compose: http://llm:8080/v1)"),
+    "CERA_LOCAL_LLM_API_KEY": (None, "secret, optional — only if the local server requires one"),
+    "CERA_LOCAL_LLM_TIMEOUT_S": ("300", "local vendor: request timeout in seconds (CPU inference is slow)"),
     # Decision model (did it answer? committed? conditional? needs a human?) — candidates only
     "CERA_DECISION_MODE": ("off", "off | replay | live — server-side decision step (T-099 evals run their own CLI)"),
     "CERA_DECISION_PROVIDER": (None, "live only: jev | llm_judge | nli"),
@@ -103,10 +106,13 @@ def load_settings(source: Mapping[str, str]) -> Settings:
     if llm_mode == "live":
         if vendor not in LLM_VENDORS:
             issues.append(f"CERA_LLM_PROVIDER: live needs one of {', '.join(LLM_VENDORS)}")
-        elif not _get(source, LLM_VENDORS[vendor]):
+        elif LLM_VENDORS[vendor] and not _get(source, LLM_VENDORS[vendor]):
             issues.append(f"{LLM_VENDORS[vendor]}: required for CERA_LLM_PROVIDER={vendor}")
         if not _get(source, "CERA_LLM_MODEL"):
             issues.append("CERA_LLM_MODEL: required in live mode")
+
+    if vendor == "local" and not re.match(r"^https?://", _get(source, "CERA_LOCAL_LLM_BASE_URL") or ""):
+        issues.append("CERA_LOCAL_LLM_BASE_URL: must be an http(s) URL")
 
     decision_mode, decision = _get(source, "CERA_DECISION_MODE"), _get(source, "CERA_DECISION_PROVIDER")
     if decision_mode not in ("off", "replay", "live"):

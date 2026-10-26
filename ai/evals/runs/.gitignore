@@ -1,1 +1,4 @@
 local/
+# 일회성 실행(재생성 가능한 smoke · ladder 원본 출력)은 커밋하지 않는다. 모델 선정 근거로 쓰는 요약만 날짜 폴더(예: 2026-10-26-local-ladder/)에 report.md · report.csv · 모델별 metrics.json · run.json 으로 커밋한다
+/smoke-*/
+/ladder-*/

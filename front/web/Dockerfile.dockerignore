@@ -1,0 +1,11 @@
+# 빌드 맥락이 저장소 루트라서 필요한 것만 남긴다 (Dockerfile.dockerignore = 이 Dockerfile 전용)
+*
+!front/web
+!data/scenarios
+!packages/contracts
+**/node_modules
+front/web/dist
+front/web/.smoke
+front/web/.env
+front/web/.env.*
+!front/web/.env.example

@@ -73,4 +73,7 @@ Gold:              python -m cera_ai.evals gold-agreement --labels <blind.jsonl>
 
 - 점수는 Gold 등급별(사람 검토 > AGREED = two-model-agreed · AI 교차 검토, 사람 검토 아님 > Draft) · 추출은 **raw**(모델 JSON) 와 **pipeline**(Backend 결정론 검증기 포팅을 통과한 값) 을 따로 낸다
 - 순서: 모델마다 5건 → 20건 → 비용 확인 → 전체. 결과는 `run.json` · `outputs.jsonl` · `metrics.json` · `per_case.csv`(재현 · 재채점 가능, 비밀값 없음)
+- 로컬 모델(`--provider local`, llama.cpp · OpenAI 호환): 모델 출처(저장소 · revision · 파일 해시 · 라이선스)는 `evals/local-models.json`, 실행은 Docker(`infra/README.md`). Qwen3-4B 는 **unsloth 의 제3자 GGUF 변환**이다(공식 Qwen 파일 아님).
+- pipeline 점수의 검증기 포팅(`evals/scoring.py backend_checks`)은 Backend TypeScript 검증기를 따른다 — 같은 판정인지 `packages/contracts/conformance/` 정답 파일로 검사한다(`packages/README.md`).
+- 실행 결과 폴더 정책: `evals/runs/` 의 일회성 출력(`smoke-*` · `ladder-*`)은 커밋하지 않는다. 모델 선정 근거로 쓰는 요약(report.md · report.csv · metrics.json · run.json)만 날짜 폴더에 남긴다.
 - HF NLI 기준선은 Windows 애플리케이션 제어가 scipy DLL 을 막아 **Docker(Linux, CPU)** 에서 돌린다: `evals/hf-nli-docker.sh`(실행 명령은 파일 머리말, 가중치는 docker volume — 저장소에 넣지 않는다). `mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` 는 학습 데이터에 비상업 데이터가 있어 연구 비교용만, 상용 후보는 `bge-m3-zeroshot-v2.0-c`(MIT)

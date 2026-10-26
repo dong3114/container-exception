@@ -1,0 +1,94 @@
+{
+  "cases": 5,
+  "case_exact_match": 0.0,
+  "field_exact_accuracy": 0.0,
+  "normalized_value_accuracy": 0.0,
+  "missing_answer_rate": 0.5,
+  "wrong_value_rate": 0.5,
+  "question_scope_violation_rate": 0.0,
+  "cases_with_scope_violation": 0.0,
+  "hallucinated_field_rate": 0.25,
+  "cases_with_hallucinated_field": 0.2,
+  "spurious_values_on_no_answer_cases": null,
+  "evidence_exact_grounding": 1.0,
+  "evidence_aligned_with_gold_span": null,
+  "correct_values_backend_accepts": null,
+  "bad_values_backend_rejects": 1.0,
+  "pipeline_field_accuracy": 0.0,
+  "bad_values_backend_accepts": 0.0,
+  "cases_with_bad_value_accepted": 0.0,
+  "schema_failure_rate": 0.4,
+  "call_failure_rate": 0.0,
+  "errors": {
+    "PROVIDER_OUTPUT_INVALID": 2
+  },
+  "per_field_accuracy": {
+    "available_from": {
+      "accuracy": 0.0,
+      "MISSING": 2,
+      "WRONG": 1
+    },
+    "available_until": {
+      "accuracy": 0.0,
+      "MISSING": 1,
+      "WRONG": 1
+    },
+    "quantity": {
+      "accuracy": 0.0,
+      "MISSING": 2,
+      "WRONG": 3
+    }
+  },
+  "case_exact_by_category": {
+    "A": 0.0
+  },
+  "case_exact_by_language": {
+    "ko": 0.0
+  },
+  "by_category": {
+    "A": {
+      "cases": 5,
+      "case_exact": 0.0,
+      "field_accuracy": 0.0,
+      "pipeline_accuracy": 0.0,
+      "missing_rate": 0.5,
+      "cases_scope_violation": 0,
+      "cases_invented_value": 1,
+      "errors": 2
+    }
+  },
+  "latency_ms_p50": 4372,
+  "latency_ms_p95": 4656,
+  "input_tokens": 1293,
+  "output_tokens": 719,
+  "estimated_cost_usd": 0.0,
+  "estimated_cost_usd_per_1k_replies": 0.0,
+  "by_gold_tier": {
+    "all_draft": {
+      "cases": 5,
+      "case_exact_match": 0.0,
+      "field_exact_accuracy": 0.0,
+      "normalized_value_accuracy": 0.0,
+      "missing_answer_rate": 0.5,
+      "wrong_value_rate": 0.5,
+      "question_scope_violation_rate": 0.0,
+      "hallucinated_field_rate": 0.25,
+      "evidence_exact_grounding": 1.0,
+      "pipeline_field_accuracy": 0.0,
+      "bad_values_backend_accepts": 0.0
+    },
+    "agreed_or_human": {
+      "cases": 5,
+      "case_exact_match": 0.0,
+      "field_exact_accuracy": 0.0,
+      "normalized_value_accuracy": 0.0,
+      "missing_answer_rate": 0.5,
+      "wrong_value_rate": 0.5,
+      "question_scope_violation_rate": 0.0,
+      "hallucinated_field_rate": 0.25,
+      "evidence_exact_grounding": 1.0,
+      "pipeline_field_accuracy": 0.0,
+      "bad_values_backend_accepts": 0.0
+    }
+  }
+}

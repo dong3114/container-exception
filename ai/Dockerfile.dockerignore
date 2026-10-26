@@ -1,0 +1,10 @@
+# 빌드 맥락이 저장소 루트라서 필요한 것만 남긴다 (Dockerfile.dockerignore = 이 Dockerfile 전용)
+*
+!ai
+!packages/contracts
+**/__pycache__
+**/.pytest_cache
+ai/.env
+ai/.env.*
+!ai/.env.example
+ai/evals/runs

@@ -32,6 +32,14 @@ PRICES: dict[str, tuple[float, float]] = {
 }
 
 
+# Self-hosted models (provider ``local``) cost nothing per token — electricity and hardware are not metered here.
+# Models are listed by the name the eval run is given (the GGUF repo:quant shipped in infra/local/compose.yaml).
+LOCAL_MODELS = (
+    "qwen2.5-0.5b-instruct-q4_k_m", "qwen2.5-1.5b-instruct-q4_k_m", "qwen2.5-3b-instruct-q4_k_m", "qwen3-4b-instruct-2507-q4_k_m", "qwen2.5-7b-instruct-q4_k_m",
+)
+PRICES.update({m: (0.0, 0.0) for m in LOCAL_MODELS})
+
+
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float | None:
     price = PRICES.get(model)
     if price is None:

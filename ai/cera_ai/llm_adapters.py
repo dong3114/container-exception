@@ -78,7 +78,7 @@ def _require_key(env: str) -> str:
 
 
 def _call_failed(error: Exception) -> ProviderError:
-    status = getattr(error, "status_code", None) or getattr(error, "code", None)
+    status = getattr(error, "status_code", None) or getattr(error, "code", None) or getattr(getattr(error, "response", None), "status_code", None)
     retryable = status in (408, 409, 429) or (isinstance(status, int) and status >= 500) or status is None
     return ProviderError("PROVIDER_CALL_FAILED", f"{type(error).__name__} status={status}", retryable=retryable)
 
@@ -209,10 +209,64 @@ class GeminiProvider:
         return ProviderResult(output=parse_provider_json(text), model_version=self.model, usage=usage)
 
 
-ADAPTERS = {"anthropic": AnthropicProvider, "openai": OpenAIProvider, "gemini": GeminiProvider}
+class LocalProvider:
+    """Any OpenAI-compatible Chat Completions server — llama.cpp ``llama-server`` (the compose ``llm`` service), Ollama, vLLM.
+
+    ``response_format: json_schema`` is turned into a grammar by llama.cpp, so even a very small quantized model can only
+    emit JSON that fits the schema. Fits ≠ right: the output is still a candidate and the Backend validators decide.
+    No SDK — plain HTTP through httpx (already a dependency). ``CERA_LOCAL_LLM_API_KEY`` is optional (local servers rarely need one).
+    """
+
+    name = "local"
+
+    def __init__(self, model: str, client: Any | None = None, base_url: str | None = None) -> None:
+        self.model = model
+        self.base_url = (base_url or os.environ.get("CERA_LOCAL_LLM_BASE_URL") or "http://127.0.0.1:8080/v1").rstrip("/")
+        self.timeout = float(os.environ.get("CERA_LOCAL_LLM_TIMEOUT_S") or 300)  # CPU inference of a larger model is slow
+        self._client = client
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            import httpx
+
+            key = os.environ.get("CERA_LOCAL_LLM_API_KEY")
+            headers = {"Authorization": f"Bearer {key}"} if key else {}
+            self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=self.timeout)
+        return self._client
+
+    def complete_json(self, prompt: str, schema: dict[str, Any]) -> tuple[str | None, Usage]:
+        body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": MAX_OUTPUT_TOKENS,
+            "temperature": 0,
+            "response_format": {"type": "json_schema", "json_schema": {"name": "cera_output", "strict": True, "schema": schema}},
+        }
+        try:
+            response = self._get_client().post("/chat/completions", json=body)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as error:
+            raise _call_failed(error) from None
+        try:
+            choice = data["choices"][0]
+            text = choice["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            raise ProviderError("PROVIDER_OUTPUT_EMPTY", "local server returned no choices", retryable=False) from None
+        if choice.get("finish_reason") == "length":
+            raise ProviderError("PROVIDER_OUTPUT_TRUNCATED", "max_tokens reached", retryable=False)
+        raw = data.get("usage") or {}
+        return text, Usage(input_tokens=raw.get("prompt_tokens"), output_tokens=raw.get("completion_tokens"))
+
+    def extract(self, request: ExtractionRequest, prompt: str) -> ProviderResult:  # noqa: ARG002
+        text, usage = self.complete_json(prompt, PROVIDER_OUTPUT_SCHEMA)
+        return ProviderResult(output=parse_provider_json(text), model_version=self.model, usage=usage)
 
 
-def make_provider(provider: str, model: str) -> AnthropicProvider | OpenAIProvider | GeminiProvider:
+ADAPTERS = {"anthropic": AnthropicProvider, "openai": OpenAIProvider, "gemini": GeminiProvider, "local": LocalProvider}
+
+
+def make_provider(provider: str, model: str) -> AnthropicProvider | OpenAIProvider | GeminiProvider | LocalProvider:
     try:
         return ADAPTERS[provider](model)
     except KeyError:

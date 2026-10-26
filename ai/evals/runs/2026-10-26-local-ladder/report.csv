@@ -1,0 +1,9 @@
+﻿run,task,provider,model,cases,real_api_call,case_exact_match,field_exact_accuracy,normalized_value_accuracy,missing_answer_rate,wrong_value_rate,hallucinated_field_rate,question_scope_violation_rate,spurious_values_on_no_answer_cases,evidence_exact_grounding,evidence_aligned_with_gold_span,correct_values_backend_accepts,bad_values_backend_rejects,schema_failure_rate,call_failure_rate,latency_ms_p50,latency_ms_p95,estimated_cost_usd_per_1k_replies
+smoke-local-0.5b-n5,extraction,local,qwen2.5-0.5b-instruct-q4_k_m,5,True,0.0,0.0,0.0,0.5,0.5,0.25,0.0,,1.0,,,1.0,0.4,0.0,4372,4656,0.0
+ladder-qwen2.5-1.5b-instruct-q4_k_m-n5,extraction,local,qwen2.5-1.5b-instruct-q4_k_m,5,True,0.4,0.5,0.5,0.5,0.0,0.0,0.0,,1.0,1.0,1.0,,0.0,0.0,1437,28913,0.0
+ladder-qwen2.5-3b-instruct-q4_k_m-n5,extraction,local,qwen2.5-3b-instruct-q4_k_m,5,True,0.2,0.2,0.2,0.5,0.3,0.0,0.0,,1.0,1.0,1.0,1.0,0.0,0.0,2544,28873,0.0
+ladder-qwen3-4b-instruct-2507-q4_k_m-n5,extraction,local,qwen3-4b-instruct-2507-q4_k_m,5,True,0.0,0.2,0.2,0.5,0.3,0.0,0.0,,1.0,1.0,1.0,1.0,0.0,0.0,3831,23943,
+ladder-qwen2.5-7b-instruct-q4_k_m-n5,extraction,local,qwen2.5-7b-instruct-q4_k_m,5,True,0.0,0.4,0.8,0.2,0.0,0.2,0.0,,1.0,0.75,0.25,1.0,0.0,0.0,41609,44640,0.0
+ladder-qwen2.5-1.5b-instruct-q4_k_m-n20,extraction,local,qwen2.5-1.5b-instruct-q4_k_m,20,True,0.3,0.5238,0.5238,0.381,0.0952,0.35,0.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,1541,1638,0.0
+ladder-qwen2.5-3b-instruct-q4_k_m-n20,extraction,local,qwen2.5-3b-instruct-q4_k_m,20,True,0.2,0.1905,0.1905,0.4286,0.381,0.2941,0.0,0.7143,1.0,1.0,1.0,1.0,0.0,0.0,2424,2867,0.0
+ladder-qwen3-4b-instruct-2507-q4_k_m-n20,extraction,local,qwen3-4b-instruct-2507-q4_k_m,20,True,0.35,0.3333,0.381,0.3333,0.2857,0.1765,0.0,0.0,1.0,1.0,0.875,1.0,0.0,0.0,2736,8134,

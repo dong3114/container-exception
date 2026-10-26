@@ -13,7 +13,7 @@ from cera_ai.decision import ANSWER_TYPES, COMMITMENTS, CRITERIA, DecisionInput,
 from cera_ai.evals.__main__ import main as cli
 from cera_ai.evals.dataset import DATASETS_DIR, load_dataset, validate_dataset
 from cera_ai.evals.scoring import backend_checks, binary_metrics, choice_metrics, score_extraction_case
-from cera_ai.llm_adapters import PROVIDER_OUTPUT_SCHEMA, AnthropicProvider, GeminiProvider, OpenAIProvider
+from cera_ai.llm_adapters import PROVIDER_OUTPUT_SCHEMA, AnthropicProvider, GeminiProvider, LocalProvider, OpenAIProvider
 from cera_ai.providers import LiveProviderSlot, ProviderError, provider_from_env
 
 DS_DIR = DATASETS_DIR / "cera-reply-eval-v1"
@@ -201,3 +201,59 @@ def test_runner_records_rescore_and_report(tmp_path: Path) -> None:
     assert cli(["report", "--runs", str(run), str(tmp_path / "prior-run"), "--out", str(out), "--csv", str(tmp_path / "r.csv")]) == 0
     text = out.read_text(encoding="utf-8")
     assert "## extraction" in text and "## decision" in text
+
+
+# ------------------------------------------------------------------------------------------ local (OpenAI-compatible) provider
+class FakeHttp:
+    """Stands in for httpx.Client: records the request, returns a canned chat-completions answer."""
+
+    def __init__(self, data: dict, status: int = 200) -> None:
+        self.data, self.status, self.sent = data, status, None
+
+    def post(self, path: str, json: dict) -> "FakeHttp":
+        self.sent = (path, json)
+        return self
+
+    def raise_for_status(self) -> None:
+        if self.status >= 400:
+            err = RuntimeError("boom")
+            err.response = SimpleNamespace(status_code=self.status)  # type: ignore[attr-defined]
+            raise err
+
+    def json(self) -> dict:
+        return self.data
+
+
+OK_OUTPUT = json.dumps({"outcome": "NO_CHANGE", "answers": [], "unmapped_statements": [], "ambiguity_flags": []})
+
+
+def test_local_provider_sends_schema_constrained_request_and_reads_usage() -> None:
+    http = FakeHttp({"choices": [{"message": {"content": OK_OUTPUT}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 12, "completion_tokens": 5}})
+    text, usage = LocalProvider("m", client=http).complete_json("hi", PROVIDER_OUTPUT_SCHEMA)
+    path, body = http.sent
+    assert path == "/chat/completions" and body["temperature"] == 0
+    assert body["response_format"]["json_schema"]["schema"] == PROVIDER_OUTPUT_SCHEMA
+    assert (text, usage.input_tokens, usage.output_tokens) == (OK_OUTPUT, 12, 5)
+
+
+def test_local_provider_error_codes() -> None:
+    cut = FakeHttp({"choices": [{"message": {"content": "{"}, "finish_reason": "length"}]})
+    with pytest.raises(ProviderError) as e:
+        LocalProvider("m", client=cut).complete_json("x", {})
+    assert e.value.code == "PROVIDER_OUTPUT_TRUNCATED"
+    with pytest.raises(ProviderError) as e:
+        LocalProvider("m", client=FakeHttp({}, 503)).complete_json("x", {})
+    assert (e.value.code, e.value.retryable) == ("PROVIDER_CALL_FAILED", True)  # server still loading the model
+    with pytest.raises(ProviderError) as e:
+        LocalProvider("m", client=FakeHttp({}, 400)).complete_json("x", {})
+    assert e.value.retryable is False
+    with pytest.raises(ProviderError) as e:
+        LocalProvider("m", client=FakeHttp({"choices": []})).complete_json("x", {})
+    assert e.value.code == "PROVIDER_OUTPUT_EMPTY"
+
+
+def test_vendor_registries_agree() -> None:
+    from cera_ai.config import LLM_VENDORS
+    from cera_ai.llm_adapters import ADAPTERS
+
+    assert set(ADAPTERS) == set(LLM_VENDORS)

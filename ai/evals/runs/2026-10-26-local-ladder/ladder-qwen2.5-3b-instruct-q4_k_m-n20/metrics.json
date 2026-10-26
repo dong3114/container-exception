@@ -1,0 +1,103 @@
+{
+  "cases": 20,
+  "case_exact_match": 0.2,
+  "field_exact_accuracy": 0.1905,
+  "normalized_value_accuracy": 0.1905,
+  "missing_answer_rate": 0.4286,
+  "wrong_value_rate": 0.381,
+  "question_scope_violation_rate": 0.0,
+  "cases_with_scope_violation": 0.0,
+  "hallucinated_field_rate": 0.2941,
+  "cases_with_hallucinated_field": 0.25,
+  "spurious_values_on_no_answer_cases": 0.7143,
+  "evidence_exact_grounding": 1.0,
+  "evidence_aligned_with_gold_span": 1.0,
+  "correct_values_backend_accepts": 1.0,
+  "bad_values_backend_rejects": 1.0,
+  "pipeline_field_accuracy": 0.1905,
+  "bad_values_backend_accepts": 0.0,
+  "cases_with_bad_value_accepted": 0.0,
+  "schema_failure_rate": 0.0,
+  "call_failure_rate": 0.0,
+  "errors": {},
+  "per_field_accuracy": {
+    "available_from": {
+      "accuracy": 0.0,
+      "MISSING": 4,
+      "WRONG": 1
+    },
+    "available_until": {
+      "accuracy": 0.0,
+      "MISSING": 3
+    },
+    "quantity": {
+      "accuracy": 0.3077,
+      "WRONG": 7,
+      "MISSING": 2,
+      "CORRECT": 4
+    }
+  },
+  "case_exact_by_category": {
+    "A": 0.1667,
+    "B": 0.25
+  },
+  "case_exact_by_language": {
+    "ko": 0.2
+  },
+  "by_category": {
+    "A": {
+      "cases": 12,
+      "case_exact": 0.1667,
+      "field_accuracy": 0.2,
+      "pipeline_accuracy": 0.2,
+      "missing_rate": 0.45,
+      "cases_scope_violation": 0,
+      "cases_invented_value": 0,
+      "errors": 0
+    },
+    "B": {
+      "cases": 8,
+      "case_exact": 0.25,
+      "field_accuracy": 0.0,
+      "pipeline_accuracy": 0.0,
+      "missing_rate": 0.0,
+      "cases_scope_violation": 0,
+      "cases_invented_value": 5,
+      "errors": 0
+    }
+  },
+  "latency_ms_p50": 2424,
+  "latency_ms_p95": 2867,
+  "input_tokens": 8504,
+  "output_tokens": 2061,
+  "estimated_cost_usd": 0.0,
+  "estimated_cost_usd_per_1k_replies": 0.0,
+  "by_gold_tier": {
+    "all_draft": {
+      "cases": 20,
+      "case_exact_match": 0.2,
+      "field_exact_accuracy": 0.1905,
+      "normalized_value_accuracy": 0.1905,
+      "missing_answer_rate": 0.4286,
+      "wrong_value_rate": 0.381,
+      "question_scope_violation_rate": 0.0,
+      "hallucinated_field_rate": 0.2941,
+      "evidence_exact_grounding": 1.0,
+      "pipeline_field_accuracy": 0.1905,
+      "bad_values_backend_accepts": 0.0
+    },
+    "agreed_or_human": {
+      "cases": 19,
+      "case_exact_match": 0.2105,
+      "field_exact_accuracy": 0.2,
+      "normalized_value_accuracy": 0.2,
+      "missing_answer_rate": 0.4,
+      "wrong_value_rate": 0.4,
+      "question_scope_violation_rate": 0.0,
+      "hallucinated_field_rate": 0.2941,
+      "evidence_exact_grounding": 1.0,
+      "pipeline_field_accuracy": 0.2,
+      "bad_values_backend_accepts": 0.0
+    }
+  }
+}

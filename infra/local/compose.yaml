@@ -1,11 +1,33 @@
-# CERA 로컬 개발·시험용 PostgreSQL (T-085 · docs/24 12.2)
-# 실행:  docker compose -f infra/local/compose.yaml --env-file infra/local/.env up -d
-# 정지:  docker compose -f infra/local/compose.yaml --env-file infra/local/.env down
-# 초기화(데이터 삭제): down -v
+# CERA 로컬 전체 실행 (T-085 · docs/24 12.2 → 앱 · AI · 로컬 모델 추가)
 #
+# 한 줄 시작 (저장소 루트에서, 아래 `...` = -f infra/local/compose.yaml --env-file infra/local/.env):
+#   docker compose ... up -d --wait                                  # DB 만
+#   docker compose ... --profile app up -d --build                   # DB + migration + API + Worker + AI
+#   docker compose ... --profile app --profile llm up -d --build     # + 로컬 소형 모델(CPU)
+#   -f infra/local/compose.gpu.yaml 를 하나 더 주면 llm 이 NVIDIA GPU 로 돈다(선택)
+# 정지: down     초기화(데이터 삭제): down -v
+# 첫 실행 뒤 시드: docker compose ... --profile app run --rm migrate npm run db:seed
+# 평가: docker compose ... --profile eval run --rm eval extract --dataset cera-reply-eval-v1 --provider local --model <이름> --limit 5
+#
+# 설정 파일: infra/local/.env(DB 비밀번호 · 모델) + back/.env + ai/.env(둘은 없어도 기동되지만 token · API 키가 비어 있다).
+# 컨테이너 안에서는 주소가 바뀌므로 아래 environment 가 .env 값을 덮어쓴다(DB 는 postgres:5432, AI 는 ai:8100 …).
 # 운영과 같은 PostgreSQL 을 쓴다(SQLite 없음 — ADR-034). 클라우드 제품이 아니다.
-# 비밀번호는 infra/local/.env(커밋 금지)에서 읽는다. 예시는 .env.example.
 name: cera-local
+
+x-back: &back
+  build: ../../back
+  image: cera-back:local
+  profiles: [app]
+  env_file:
+    - path: ../../back/.env
+      required: false
+  environment: &back-env
+    DATABASE_URL: postgres://cera_app:${CERA_APP_PASSWORD}@postgres:5432/${CERA_DB_NAME:-cera}
+    MIGRATION_DATABASE_URL: postgres://cera_owner:${CERA_OWNER_PASSWORD}@postgres:5432/${CERA_DB_NAME:-cera}
+    CERA_AI_SERVER_URL: http://ai:8100
+    CERA_AGENT_RUNTIME_URL: http://ai:8100
+  volumes:
+    - ../../data:/srv/data
 
 services:
   postgres:
@@ -30,5 +52,103 @@ services:
       timeout: 3s
       retries: 20
 
+  # 한 번 돌고 끝나는 작업: migration. 반복 실행 안전. (시드는 위 주석)
+  migrate:
+    <<: *back
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "db:migrate"]
+    restart: "no"
+
+  api:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${CERA_API_PORT:-3100}:3100"
+    environment:
+      <<: *back-env
+      API_PORT: "3100"
+    command: ["node", "dist/main.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["node", "dist/worker.js"]
+
+  # AI Server + Agent Runtime. 로컬 모델을 쓰려면 ai/.env 에 CERA_LLM_MODE=live · CERA_LLM_PROVIDER=local · CERA_LLM_MODEL=<이름>
+  ai:
+    build:
+      context: ../..
+      dockerfile: ai/Dockerfile
+    image: cera-ai:local
+    profiles: [app]
+    env_file:
+      - path: ../../ai/.env
+        required: false
+    environment:
+      CERA_AI_HOST: 0.0.0.0
+      CERA_BACKEND_TOOL_URL: http://api:3100
+      CERA_LOCAL_LLM_BASE_URL: http://llm:8080/v1
+    ports:
+      - "127.0.0.1:${CERA_AI_PORT:-8100}:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # 로컬 소형 모델 서버(llama.cpp, OpenAI 호환). 모델은 처음 켤 때 받아 llm-cache 에 보관한다. CPU 기본, GPU 는 compose.gpu.yaml
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: [llm]
+    command: ["-hf", "${CERA_LLM_HF:-Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M}", "--host", "0.0.0.0", "--port", "8080", "-c", "${CERA_LLM_CTX:-4096}", "--parallel", "1"]
+    ports:
+      - "127.0.0.1:${CERA_LLM_PORT:-8080}:8080"
+    volumes:
+      - llm-cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  # Control Tower(정적 빌드 + nginx). 화면 개발 중에는 이 서비스 대신 호스트의 `npm run dev`(HMR)를 쓴다. 브라우저 → /backend/* → api
+  web:
+    build:
+      context: ../..
+      dockerfile: front/web/Dockerfile
+    image: cera-web:local
+    profiles: [web]
+    ports:
+      - "127.0.0.1:${CERA_WEB_PORT:-3000}:80"
+
+  # 평가 CLI(T-099). ai 와 같은 이미지. 결과는 ai/evals/runs/ 에 남는다.
+  eval:
+    image: cera-ai:local
+    build:
+      context: ../..
+      dockerfile: ai/Dockerfile
+    profiles: [eval]
+    env_file:
+      - path: ../../ai/.env
+        required: false
+    environment:
+      CERA_LOCAL_LLM_BASE_URL: http://llm:8080/v1
+    volumes:
+      - ../../ai/evals/runs:/srv/ai/evals/runs
+    entrypoint: ["python", "-m", "cera_ai.evals"]
+
 volumes:
   cera-pgdata:
+  llm-cache:

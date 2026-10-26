@@ -831,6 +831,17 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 | S-6 | **실제 프로세스 E2E(2026-10-22)**: 개발 DB(M19) · `npx tsx src/main.ts` · `src/worker.ts` · `python -m cera_ai`(그래프 + 추출 녹화 재생) · 실제 data.go.kr. 공공데이터 LIVE 4쪽 · 입항 189건(원장 행위자 AI_AGENT · `is_simulated=false`) → 가상 ODCY A 수용량 공백 → 초안 → 승인(API) → 발송 요청(**브라우저 화면 클릭**) → Worker Mock 발송 → `AWAITING_REPLY` 에서 **Python 종료 · 재기동** → Mock 회신 → 추출(합성 녹화 `odcy-capacity-yes.json`) → 재평가 → COMPLETED(`CANDIDATE_RECEIVED_PENDING_CONFIRMATION`, 업무 공백 ASKED 유지). 실제 공공데이터는 합성 계획 실행과 억지로 잇지 않았다(REAL PUBLIC · SYNTHETIC PRIVATE 출처 유지 — T-107) |
 | S-7 | **화면**: Control Tower 에 "Agent 진행 (Backend)" 블록 — 실행 시작(계획 실행 · 수량 · 시간창 · 공공데이터 기간) · 상태 · 지금 하는 일 · 기다리는 이유 · 단계 체크(초안 · 승인 · 발송 · 회신/추출 · 재평가 · 결과) · 최근 단계 · 최근 Tool · 기다리는 초안(기존 DraftView 로 승인 · 발송 요청) · 결과 요약. 새 디자인 없음 |
 
+### 18.13 로컬 전체 실행 구성 (T-099 부수 작업 · 2026-10-26)
+
+**DB 변경 없음.** 로컬 PostgreSQL 만 띄우던 `infra/local/compose.yaml` 이 앱 전체를 띄운다 — 사용법 · 명령 · GPU 는 정본 `infra/README.md` 한 곳에 있다(여기에 복사하지 않는다). 구조 결정만 적는다.
+
+- **profile 로 나눈다**: 항상 `postgres`, `app`(`migrate` → `api` · `worker` · `ai`), `web`(정적 빌드 + nginx), `llm`(로컬 모델 서버), `eval`(평가 CLI). 호스트의 `npm run dev:*` · Vite HMR 개발을 대체하지 않는다.
+- **이미지 3개**: `back`(API · Worker · migrate 가 한 이미지, 명령만 다름) · `ai`(AI 서버 · 평가 CLI) · `front/web`(빌드 맥락 = 저장소 루트 — `data/scenarios` · `packages/contracts` 참조).
+- **연결 방향은 기존 경계와 같다**: 브라우저 → `web` → `api`(`/backend/*`) 만. `api` → `ai`(추출 · Agent Runtime), `ai` → `api`(typed Tool, 서비스 토큰), `ai` → `llm`(`CERA_LLM_PROVIDER=local`). AI · 모델 서버는 DB 에 가지 않는다(ADR-033 · 036).
+- **설정은 `.env` 를 컨테이너 안 주소로 덮어쓴다**(DB `postgres:5432` 등). 비밀값은 이미지에 굽지 않는다.
+- **로컬 모델 공급자 `local`**(OpenAI 호환 Chat Completions + `json_schema` 문법 강제)은 평가용 선택지이다. 공급자 선택은 여전히 ADR-037(Proposed) 몫이며, 출력은 후보일 뿐 판정은 Backend 검증기(ADR-029).
+- 큐(Redis 등)는 도입하지 않았다 — Outbox · 작업 큐는 PostgreSQL 그대로(위 18.5·18.11).
+
 
 
 
