@@ -37,6 +37,7 @@
     "canonicalize": "5.1.0",
     "drizzle-orm": "0.45.3",
     "fast-xml-parser": "5.11.1",
+    "highs": "1.15.3",
     "pg": "8.23.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",

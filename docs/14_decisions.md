@@ -59,6 +59,7 @@
 | 034 | **영속 계층 = PostgreSQL + Drizzle ORM(SQL-aware Hybrid) + drizzle-kit 생성 SQL migration 을 사람이 검토·커밋 뒤 명시 적용** · SQLite 미사용 · DB 권한은 Main Backend 만 · 운영 자동 동기화 금지 | **Accepted** (2026-09-22 사용자 결정 — Q-68 CLOSED) |
 | 035 | **프론트엔드 = Vite + React SPA, 클라이언트 렌더링(CSR)만** — 서버 렌더링(SSR·RSC) 없음, `vite build` → 정적 파일. Backend 는 개발 서버 `/backend` 프록시로 부른다. 라우터 라이브러리는 아직 고르지 않음. ADR-022 결정 1(Next.js)·4(Turbopack root) 대체 | **Accepted** (2026-10-06 사용자 결정) |
 | 036 | **Agent Runtime = Python + LangGraph** — 권한은 NestJS Backend, Agent 는 typed Tool 로만 부작용 · Agent 는 권한 주체가 아니다 (ADR-015 일부 대체 · ADR-033 결정 3·4 일부 개정) | **Accepted** (2026-10-22) |
+| 038 | **Recovery Solver = HiGHS(highs-js) 0-1 MIP, Backend 프로세스 안** — 결정론(단일 스레드 · gap 0 · 3단계 동률 해소) · 계수는 Cost Engine 의 KRW 정수 · LLM · Agent 는 숫자를 만들지 않는다. ADR-007(CP-SAT 후보) 대체 제안 | **Proposed** (2026-10-26, T-113 — 사용자 검토 대기) |
 | 037 | **AI 공급자 · 모델 선정 방식 — 공급자는 ADR, 모델은 설정** · 평가(CERA Eval)로 교체 · AI 는 권한 없음. 선정(공급자 · 모델)은 비워 둠 — MVP 임시 기본값 = 로컬 Qwen3-4B-Instruct-2507 Q4_K_M | **Accepted (구조 한정)** (2026-10-26 사용자 지시) · 선정 Deferred |
 
 ---
@@ -520,3 +521,15 @@
 - 후보(2026-10-22 공식 문서 확인, 첫 비교 대상): Anthropic `claude-sonnet-5-5` · `claude-haiku-5-5`(+ `claude-opus-5-5`) · OpenAI `gpt-6.1-sol` · `gpt-6-luna` · Google `gemini-3.8-flash` · `gemini-3.1-flash-lite`(+ `gemini-4-argon`). 판정: TypeSafe Jev(`typesafe/jev-1.14`, OpenRouter Decisions API — Alpha · 독점 · 데이터 보존 정책 문서 없음) · LLM judge · 로컬 baseline `MoritzLaurer/bge-m3-zeroshot-v2.0-c`(MIT · 상업 친화 데이터 — 2026-10-22 측정: 일부 분류력은 있으나 보정 · 높은 확신 오답이 Production 기준 미달, 무료 참고 기준선으로만) — `mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` 는 학습 데이터에 비상업(ANLI) 이 있어 **연구 비교용만**. 최상위 단가(`claude-fable-5-1` · `gpt-6-astra`, $10/$50) 는 하위 모델이 기준에 못 미칠 때만 추가한다.
 - 대안: (a) 공급자 + 모델을 한 번에 ADR 로 고정 — 모델 교체마다 ADR 이 필요해 거부. (b) 외부 벤치마크 순위로 선정 — CERA 의 한국어 업무 회신 · 근거 인용 · 권한 경계를 재지 않아 거부.
 - 결과: 구조(1~5)는 확정, **선정 결과(공급자 · 기본 모델 · 근거 run id) 는 Deferred** — 채워지면 이 ADR 의 "선정" 절만 갱신한다(구조 변경 없음). Runtime 코드 기본은 녹화 재생(replay) 그대로이고, 모델을 켜는 환경(Docker `llm` 프로필)의 임시 기본값만 Qwen3-4B 다(`ai/.env.example` · `infra/local/.env.example`). 회신 추출 기록은 모델 출처(`model_version` · `prompt_version` · `schema_version` · 입력 지문)를 남기므로 "어느 모델이 만든 오류인가"를 나중에 가를 수 있다(T-093).
+
+## ADR-038: Recovery Solver = HiGHS 0-1 MIP, Main Backend 프로세스 안 (T-113 · ADR-007 대체 제안)
+- 상태: **Proposed** (2026-10-26, T-113 구현 · 검증 끝 — 사용자 검토 대기)
+- 맥락: 결정론 엔진은 `back/`(TypeScript)에 둔다(ADR-029). ADR-007 의 CP-SAT 는 "후보"였고 비교 결정이 남아 있었다(Q-35). MVP 문제(영향 12대 · 대상 23대 · 트럭 11대 · 정시 1시간 · 선택지 117 · 트럭 변수 약 1,800)는 작은 0-1 정수계획이다.
+- 결정(제안):
+  1. 1단계 할당은 **0-1 MIP** 로 푼다. 솔버는 **HiGHS**(MIT) 의 WASM 판 `highs@1.15.3`(npm, 의존성 없음, 판 고정)을 **Backend 프로세스 안에서** 부른다 — 네트워크 · 별도 프로세스 · Python 없음
+  2. 결정론: 단일 스레드 · `random_seed 0` · `mip_rel_gap 0` · 3단계(목적값 → 원래 계획에 가까운 쪽 → 이른 출발 · 트럭 번호) 동률 해소 · 입력 지문
+  3. 계수는 Cost Engine 의 KRW 정수만(옵티마이저는 비용 규칙을 모른다). Solver 는 후보 계획만 낸다 — 저장 · 승인 · 실행은 Backend · 사람
+  4. 비상 시간 상한 30초 [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — 관측(현재 0.3~0.6 s) 후 조정. 상한에 걸리면 TIME_LIMIT 로 보고
+- 대안: (a) OR-Tools CP-SAT — 강하지만 Node 공식 바인딩이 없어 Python 프로세스(또는 AI Server)에 두어야 한다 → 결정론 엔진이 `ai/` 로 새거나 새 서비스가 생긴다(ADR-029 와 어긋남). 규모가 커지거나 스케줄링 제약이 늘면 다시 비교한다. (b) 직접 짠 열거 · 분기 한정 — 트럭 시간 배정까지 넣으면 검증 부담이 크다. (c) min-cost flow — 2시간 연속 점유 · 트럭별 시간창을 그대로 담기 어렵다.
+- 결과: `back/src/planning/engine/solver.ts` · `docs/08` 10절 · `docs/24` 18.17. ADR-007 은 이 ADR 이 승인되면 Superseded.
+
