@@ -9,7 +9,9 @@ export type DomainSignal =
   | { type: 'REPLY_EXTRACTED'; inboundMessageId: string }
   | { type: 'PLAN_SUPERSEDED'; recoveryRunId: string }
   // T-093: 현재 사실이 바뀌었다(승격 · 확인 · 거절 · 정정) — 사실을 기다리던 Agent 실행을 깨우는 최적화(정확성은 재조정)
-  | { type: 'FACT_CHANGED'; entityId: string; factKey: string };
+  | { type: 'FACT_CHANGED'; entityId: string; factKey: string }
+  // T-114: 계획 판 상태가 바뀌었다(사실 변경으로 OUTDATED · 사람 승인) — 그 판을 기다리던 Agent 실행을 깨운다
+  | { type: 'PLAN_CHANGED'; recoveryRunId: string; planId: string; status: 'OUTDATED' | 'APPROVED' };
 
 export const DOMAIN_SIGNALS = Symbol('CERA_DOMAIN_SIGNALS');
 

@@ -15,6 +15,7 @@ import { RecoveryContextService } from './context.service.js';
 import { AgentServiceAuth } from './service-auth.js';
 import { ENVELOPE_SCHEMA_VERSION, type ToolEnvelope, ToolExecutor, type ToolHandler } from './executor.js';
 import { buildHandlers } from './handlers.js';
+import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 import { findTool, TOOLS, type ToolName } from './registry.js';
 import { toolCatalog } from './tool-contracts.js';
 import { ToolGatewayError } from './tool-errors.js';
@@ -31,6 +32,8 @@ export const runParametersSchema = z
       })
       .strict()
       .optional(),
+    // T-114: 정보 공백이 닫히면(또는 사람 확인만 남으면) 비용 계산 → Solver → 계획 제안까지 맡긴다(사람이 정한다). 승인은 언제나 사람
+    plan_recovery: z.boolean().optional(),
     // T-105: 공공데이터를 볼 기간(사람이 정한다). 있으면 그래프가 실행 초기에 입항 정보를 한 번 조회한다(맥락 · 출처 — 사실 아님)
     public_data: z
       .object({ from_date: z.iso.date(), to_date: z.iso.date().optional() })
@@ -65,6 +68,7 @@ export class AgentToolsService {
     @Inject(RegistryService) registry: RegistryService,
     @Inject(DraftService) drafts: DraftService,
     @Inject(RecoveryContextService) context: RecoveryContextService,
+    @Inject(RecoveryPlanService) plans: RecoveryPlanService,
     @Inject(AgentServiceAuth) private readonly auth: AgentServiceAuth,
   ) {
     this.executor = new ToolExecutor(
@@ -77,7 +81,7 @@ export class AgentToolsService {
       clock,
       ids,
     );
-    this.handlers = buildHandlers({ publicData, registry, drafts, context, runs });
+    this.handlers = buildHandlers({ publicData, registry, drafts, context, runs, plans });
   }
 
   /** 인증 · 실행 확인 뒤 도구 목록(계약 파일과 같은 내용). */

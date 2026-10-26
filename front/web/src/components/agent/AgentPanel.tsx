@@ -4,6 +4,7 @@ import { type Draft, getDraft, listApprovers, listRuns } from "@/api/drafts";
 import { describeApiError } from "@/api/errors";
 import { DraftView } from "@/components/drafts/DraftView";
 import { FactsPanel } from "@/components/facts/FactsPanel";
+import { PlanPanel } from "@/components/plan/PlanPanel";
 import { useAsyncAction } from "@/state/async";
 import { STATUS_BADGE, STATUS_LABEL, isActive, milestones, nodeLabel, resultLabel, summaryRows, terminalCode, waitingLabel } from "./agentLabels";
 
@@ -23,7 +24,7 @@ export function AgentPanel() {
   const [run, setRun] = useState<AgentRun | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ plan: "", quantity: "2", from: "15:00", to: "17:00", pubFrom: today, pubTo: today, usePublic: true });
+  const [form, setForm] = useState({ plan: "", quantity: "2", from: "15:00", to: "17:00", pubFrom: today, pubTo: today, usePublic: true, planRecovery: true });
   const { run: loadRuns } = runs;
   const { run: loadPlans } = plans;
   const { run: loadApprovers } = approvers;
@@ -64,9 +65,10 @@ export function AgentPanel() {
     const created = await createAgentRun(
       {
         recovery_run_id: planId,
-        goal: "계획의 정보 공백 하나를 상대 업체 문의로 메운다",
+        goal: form.planRecovery ? "정보 공백을 메우고 최저 손실 복구 계획을 제안한다" : "계획의 정보 공백 하나를 상대 업체 문의로 메운다",
         parameters: {
           inquiry: { quantity, window_from: form.from || undefined, window_to: form.to || undefined },
+          ...(form.planRecovery ? { plan_recovery: true } : {}),
           ...(form.usePublic ? { public_data: { from_date: form.pubFrom, to_date: form.pubTo } } : {}),
         },
       },
@@ -163,6 +165,12 @@ export function AgentPanel() {
             <input type="date" value={form.pubFrom} onChange={(e) => setForm({ ...form, pubFrom: e.target.value })} disabled={!form.usePublic} />
             <input type="date" value={form.pubTo} onChange={(e) => setForm({ ...form, pubTo: e.target.value })} disabled={!form.usePublic} />
           </span>
+        </label>
+        <label style={{ display: "grid", gap: 2 }}>
+          <span className="muted">
+            <input type="checkbox" checked={form.planRecovery} onChange={(e) => setForm({ ...form, planRecovery: e.target.checked })} data-testid="agent-plan-recovery" /> 복구 계획까지(비용 · Solver)
+          </span>
+          <span className="muted" style={{ fontSize: 10.5 }}>승인은 언제나 사람</span>
         </label>
         <button type="submit" className="act-btn primary" disabled={!actor || !planId || start.state.status === "LOADING"} data-testid="agent-start">
           {start.state.status === "LOADING" ? "Agent 실행 중…" : "Agent 시작"}
@@ -283,6 +291,8 @@ export function AgentPanel() {
             isSimulated={run.is_simulated}
             scenarioId={planList.find((p) => p.run_id === run.recovery_run_id)?.scenario_id ?? null}
           />
+
+          <PlanPanel recoveryRunId={run.recovery_run_id} actorId={actor} refreshKey={`${run.status}:${run.updated_at ?? ""}:${run.current_node ?? ""}:${run.pending_ref?.id ?? ""}`} />
 
           {draft && run.status === "WAITING_HUMAN" && (
             <div style={{ borderTop: "1px solid var(--line)", paddingTop: 8 }} data-testid="agent-pending-draft">

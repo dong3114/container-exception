@@ -17,6 +17,8 @@ import { SharedModule } from '../shared/shared.module.js';
 import { TransactionRunner } from '../db/transaction.js';
 import { TruthModule } from '../truth/truth.module.js';
 import { TruthService } from '../truth/truth.service.js';
+import { PlanningModule } from '../planning/planning.module.js';
+import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 
 /** advisory lock 키(docs/24 14 — 코드 한 곳에서 관리). 64비트 키는 SQL 의 hashtextextended 로 만든다. */
 export const ADVISORY_LOCK_KEYS = { OUTBOX_WORKER: 'cera.outbox.worker', INBOUND_POLLER: 'cera.inbound.poller', EXTRACTION_WORKER: 'cera.extraction.worker', AGENT_RECONCILER: 'cera.agent.reconciler', TRUTH_REFRESH: 'cera.truth.refresh' } as const;
@@ -51,6 +53,7 @@ export class WorkerRunner {
     @Inject(ExtractionProcessor) private readonly extraction: ExtractionProcessor,
     @Inject(AgentReconciler) private readonly agents: AgentReconciler,
     @Inject(TruthService) private readonly truth: TruthService,
+    @Inject(RecoveryPlanService) private readonly plans: RecoveryPlanService,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -122,6 +125,14 @@ export class WorkerRunner {
         } catch (error) {
           this.logger.error({ msg: 'truth refresh failed', error: error instanceof Error ? error.message : String(error) });
         }
+        // 계획 판이 기댄 사실이 바뀌었으면 OUTDATED(T-114) — API 의 FACT_CHANGED 알림을 놓쳐도 여기서 잡는다
+        try {
+          const t0 = Date.now();
+          const outdated = await this.plans.refreshOutdated();
+          if (outdated > 0) this.logger.log({ msg: 'plans outdated', count: outdated, ms: Date.now() - t0 });
+        } catch (error) {
+          this.logger.error({ msg: 'plan outdated check failed', error: error instanceof Error ? error.message : String(error) });
+        }
       }
       // Agent 재조정 — 발송 · 수신 · 추출 결과를 본 뒤 기다리던 실행을 깨운다(같은 주기에 바로 이어진다). 시간 경과로 바뀐 사실도 DB 와 기준 시각으로 다시 판정한다
       if (await this.holdLock(ADVISORY_LOCK_KEYS.AGENT_RECONCILER)) {
@@ -152,7 +163,7 @@ export class WorkerModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: WorkerModule,
-      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule],
+      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule, PlanningModule],
       providers: [WorkerRunner],
     };
   }

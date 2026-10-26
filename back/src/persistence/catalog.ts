@@ -53,11 +53,15 @@ export const AUDIT_ACTION = {
   // T-111 철회(새 값 없이 현재 사실에서 뺌) · 운영자 직접 입력
   FACT_REVOKED: 'FACT_REVOKED',
   FACT_ENTERED_MANUALLY: 'FACT_ENTERED_MANUALLY',
+  // T-114 복구 계획 판(결정론 Solver 결과) — 제안 · 사람 승인 · 사실 변경으로 무효 · 새 판에 밀림
+  PLAN_PROPOSED: 'PLAN_PROPOSED',
+  PLAN_APPROVED: 'PLAN_APPROVED',
+  PLAN_OUTDATED: 'PLAN_OUTDATED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION] | `FACT_PROMOTION_BLOCKED_${string}`;
 
 /** 감사 대상 종류. 내용 파기 감사는 내용 범주를 그대로 쓴다(docs/24 16.3 · 17절). 승인 결정은 승인 행을 가리킨다. */
-export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT')[] = [
+export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN')[] = [
   ...CONTENT_CATEGORIES,
   'MESSAGE_APPROVAL',
   'COMM_MESSAGE',
@@ -66,8 +70,9 @@ export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' 
   'PUBLIC_DATA_FETCH',
   'EXTRACTION',
   'EVENT',
+  'RECOVERY_PLAN',
 ];
-export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT';
+export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN';
 
 export const SYSTEM_ERROR_CATEGORY = {
   UNEXPECTED: 'UNEXPECTED',

@@ -8,7 +8,8 @@ import { DOMAIN_SIGNALS, type DomainSignal, type DomainSignals } from '../shared
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { AgentCoordinator } from './coordinator.js';
 import { RuntimeStoreRepository } from './runtime-store.repository.js';
-import { wakeReason } from './wake-rules.js';
+import { planWakeReason, wakeReason } from './wake-rules.js';
+import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 
 export interface ReconcileSummary {
   retried: number;
@@ -37,6 +38,7 @@ export class AgentReconciler implements OnModuleInit {
     @Inject(DraftService) private readonly drafts: DraftService,
     @Inject(TruthService) private readonly truth: TruthService,
     @Inject(RecoveryContextService) private readonly context: RecoveryContextService,
+    @Inject(RecoveryPlanService) private readonly plans: RecoveryPlanService,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ENV) private readonly env: Env,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
@@ -45,7 +47,7 @@ export class AgentReconciler implements OnModuleInit {
   /** 수신 · 추출 알림(Worker 프로세스) → 바로 한 번 더 재조정. 이미 도는 중이면 끝난 뒤 한 번 더. 승인 알림은 Coordinator 가 직접 받는다. */
   onModuleInit(): void {
     this.signals.subscribe((s: DomainSignal) => {
-      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED' && s.type !== 'FACT_CHANGED') return;
+      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED' && s.type !== 'FACT_CHANGED' && s.type !== 'PLAN_CHANGED') return;
       this.kick();
     });
   }
@@ -82,6 +84,16 @@ export class AgentReconciler implements OnModuleInit {
     }
 
     for (const w of await this.store.waitingOnRecords(limit)) {
+      if (w.pendingRefType === 'RECOVERY_PLAN' && w.pendingRefId) {
+        // 계획 판을 기다리는 실행(T-114) — 판의 지금 상태로 판정한다
+        summary.checked += 1;
+        const plan = await this.plans.plan(w.pendingRefId).catch(() => null);
+        const reason = planWakeReason(w.waitingReason, plan?.planStatus ?? null);
+        if (!reason) continue;
+        const r = await this.coordinator.resume(w.agentRunId, reason, { type: 'RECOVERY_PLAN', id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
+        if (r && !r.already) summary.woken += 1;
+        continue;
+      }
       if (w.pendingRefType !== 'COMM_MESSAGE' || !w.pendingRefId) continue;
       summary.checked += 1;
       const dto = await this.drafts.get(w.pendingRefId).catch(() => null);

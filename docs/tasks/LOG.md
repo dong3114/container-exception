@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-26 · T-112 · T-113 · T-114 DONE — Cost / Risk Engine · Recovery Solver · Recovery Plan · Claude Code (claude-opus-5-5)
+- 상태: **완료 — 사용자 승인**(커밋 3개 · origin push)
+- 한 일: 결정론 Cost / Risk Engine(순수) · Baseline 규칙(같은 비용표) · Solver = HiGHS 0-1 MIP(ADR-038 Proposed) · 계획 판 저장(M22 · M23) · 사실 변경 → OUTDATED → Agent 재계산 · 사람 승인(`plan_hash`) · Agent Tool 4 · 계획 화면. 기록 `docs/24` 18.17 · `docs/08` 10절
+- 검증: Backend 426 · Python 85 · Front 79 · 30대 S7 Baseline 4,650,000 재현 · Solver 영향 12대 3,345,000 · Docker E2E v1 → v2 → v3 → 승인 → PLAN_APPROVED
+- 남은 일: 사용자 스프린트(Real Gmail → Redis queue → Auth/RBAC → UI redesign → 통합 수정) · T-115 ~ T-117 · ADR-038 결정
+- 주의: 벌점 값 · 협력 회신 "N대" 해석 [ASSUMPTION] · 실제(비시뮬레이션) 계획 실행은 입력이 없어 계산 거부
+
 ## 2026-10-26 · T-111 DONE — Truth Lifecycle Hardening · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(`feat: harden truth lifecycle and freshness`). origin push
 - 한 일: 철회(값 없는 CORRECTION · 사람만 · M21) · 신선도(명시 유효 시간 우선 + 계열별 시작값 [ASSUMPTION]) · as_of 규칙 · `gap-rules/3` NEEDS_REFRESH · Agent 다시 묻기 · 사람 직접 입력(바로 CONFIRMED) · `reply-extract/2`(날짜 칸, v1 호환) · Worker 파생 표 재판정 · 화면. 기록 `docs/24` 18.16

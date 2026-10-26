@@ -2655,6 +2655,272 @@
           "truth"
         ]
       }
+    },
+    "/planning/runs/{runId}/costs": {
+      "get": {
+        "operationId": "PlanningController_costs",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge facts at this time (ISO 8601 with offset). Default: scenario time for simulated runs, now for real ones"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostPreviewDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PLANNING_INPUT_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cost table of a recovery run (deterministic engine): every container × action with feasibility, reasons and cost breakdown, plus the baseline — nothing is stored",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/runs/{runId}/plans": {
+      "get": {
+        "operationId": "PlanningController_list",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Plan versions of a recovery run (newest first)",
+        "tags": [
+          "planning"
+        ]
+      },
+      "post": {
+        "operationId": "PlanningController_propose",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge facts at this time (ISO 8601 with offset). Default: scenario time for simulated runs, now for real ones"
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PLANNING_INPUT_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Recalculate (operator): run the cost engine and solver on current facts and store a new PROPOSED version — the same inputs return the current version",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/plans/{planId}": {
+      "get": {
+        "operationId": "PlanningController_get",
+        "parameters": [
+          {
+            "name": "planId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One plan version: problem, baseline vs plan, per-container action · target · cost · reasons, facts used or excluded, warnings",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/plans/{planId}/approve": {
+      "post": {
+        "operationId": "PlanningController_approve",
+        "parameters": [
+          {
+            "name": "planId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePlanRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_PLAN_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Approve a PROPOSED plan (a human only, quoting plan_hash). Approval is not dispatch — nothing is sent or booked",
+        "tags": [
+          "planning"
+        ]
+      }
     }
   },
   "info": {
@@ -5737,6 +6003,468 @@
         "required": [
           "value",
           "reason_code"
+        ]
+      },
+      "CostPreviewDto": {
+        "type": "object",
+        "properties": {
+          "case_run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "as_of": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "rate_version": {
+            "type": "string"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "option_count": {
+            "type": "number"
+          },
+          "feasible_option_count": {
+            "type": "number"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Every container × action option: feasible + reasons + cost breakdown (engine output)"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "baseline": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cost_ms": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "case_run_id",
+          "as_of",
+          "policy_version",
+          "rate_version",
+          "candidates",
+          "option_count",
+          "feasible_option_count",
+          "options",
+          "resources",
+          "facts",
+          "baseline",
+          "warnings",
+          "cost_ms"
+        ]
+      },
+      "PlanSummaryDto": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "number"
+          },
+          "plan_status": {
+            "type": "string"
+          },
+          "solver_status": {
+            "type": "string"
+          },
+          "objective_krw": {
+            "type": "number",
+            "nullable": true
+          },
+          "base_cost_krw": {
+            "type": "number",
+            "nullable": true
+          },
+          "baseline_total_krw": {
+            "type": "number"
+          },
+          "saving_krw": {
+            "type": "number",
+            "nullable": true
+          },
+          "agent_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "outdated_reason_count": {
+            "type": "number",
+            "nullable": true,
+            "description": "Number of facts whose change made this plan OUTDATED"
+          }
+        },
+        "required": [
+          "plan_id",
+          "version",
+          "plan_status",
+          "solver_status",
+          "objective_krw",
+          "base_cost_krw",
+          "baseline_total_krw",
+          "saving_krw",
+          "agent_run_id",
+          "created_at",
+          "outdated_reason_count"
+        ]
+      },
+      "PlanListDto": {
+        "type": "object",
+        "properties": {
+          "case_run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "current_plan_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Newest plan that is not superseded"
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "case_run_id",
+          "current_plan_id",
+          "plans"
+        ]
+      },
+      "PlanItemDto": {
+        "type": "object",
+        "properties": {
+          "container_id": {
+            "type": "string",
+            "description": "Container reference (synthetic scenario id until containers are stored)"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "KEEP_CURRENT_PLAN",
+              "MOVE_TO_WAREHOUSE",
+              "MOVE_TO_ODCY",
+              "WAIT_AT_TERMINAL"
+            ]
+          },
+          "target_id": {
+            "type": "string",
+            "description": "Where the container goes today (warehouse · ODCY · terminal when waiting)"
+          },
+          "target_name": {
+            "type": "string"
+          },
+          "destination_id": {
+            "type": "string"
+          },
+          "delivery_day": {
+            "type": "string",
+            "format": "date"
+          },
+          "scheduled_time": {
+            "type": "string",
+            "nullable": true,
+            "description": "Departure time today (+09:00); null when waiting"
+          },
+          "truck_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "base_cost_krw": {
+            "type": "number"
+          },
+          "risk_penalty_krw": {
+            "type": "number"
+          },
+          "total_krw": {
+            "type": "number"
+          },
+          "baseline_total_krw": {
+            "type": "number",
+            "nullable": true,
+            "description": "Baseline cost of this container (same engine) — for the per-container comparison"
+          },
+          "reason_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Engine output: cost lines (amount · qty · unit · source · assumption), alternatives with why they were not chosen, evidence and warning refs"
+          }
+        },
+        "required": [
+          "container_id",
+          "action",
+          "target_id",
+          "target_name",
+          "destination_id",
+          "delivery_day",
+          "scheduled_time",
+          "truck_id",
+          "base_cost_krw",
+          "risk_penalty_krw",
+          "total_krw",
+          "baseline_total_krw",
+          "reason_codes",
+          "detail"
+        ]
+      },
+      "PlanDto": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "case_run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "number"
+          },
+          "plan_status": {
+            "type": "string",
+            "enum": [
+              "PROPOSED",
+              "APPROVED",
+              "SUPERSEDED",
+              "OUTDATED",
+              "INFEASIBLE"
+            ]
+          },
+          "solver_status": {
+            "type": "string",
+            "enum": [
+              "OPTIMAL",
+              "FEASIBLE",
+              "INFEASIBLE",
+              "TIME_LIMIT",
+              "ERROR"
+            ]
+          },
+          "solver_version": {
+            "type": "string"
+          },
+          "result_kind": {
+            "type": "string",
+            "enum": [
+              "ENGINE_RESULT"
+            ],
+            "description": "Numbers come from the deterministic cost engine and solver (not scenario values, not an LLM). Inputs may be simulated — see contains_simulated"
+          },
+          "input_hash": {
+            "type": "string"
+          },
+          "plan_hash": {
+            "type": "string",
+            "description": "Fingerprint of this plan — the approval must quote it"
+          },
+          "as_of": {
+            "type": "string",
+            "description": "Facts were judged at this time (+09:00)"
+          },
+          "objective_krw": {
+            "type": "number",
+            "nullable": true,
+            "description": "Total expected loss = base cost + risk penalty (solver objective)"
+          },
+          "base_cost_krw": {
+            "type": "number",
+            "nullable": true
+          },
+          "risk_penalty_krw": {
+            "type": "number",
+            "nullable": true
+          },
+          "baseline_total_krw": {
+            "type": "number"
+          },
+          "baseline_base_cost_krw": {
+            "type": "number"
+          },
+          "saving_krw": {
+            "type": "number",
+            "nullable": true,
+            "description": "Baseline total − plan total (simulation basis — not a realised saving)"
+          },
+          "base_saving_krw": {
+            "type": "number",
+            "nullable": true
+          },
+          "candidate_count": {
+            "type": "number"
+          },
+          "changed_count": {
+            "type": "number",
+            "description": "Containers whose plan changes (action other than keeping the current plan)"
+          },
+          "problem": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Problem: per warehouse and day, planned containers vs usable capacity"
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Baseline (rule, same engine), binding constraints, resource and truck usage, unplanned containers with reasons, warnings, assumptions, timings"
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Facts the plan used or excluded (fact ref · state · freshness · source TRUTH/SCENARIO · usage)"
+          },
+          "outdated_reasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "nullable": true
+          },
+          "outdated_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "superseded_by_plan_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "approved_by_actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "approved_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by_actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "contains_simulated": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "cost_ms": {
+            "type": "number"
+          },
+          "solve_ms": {
+            "type": "number"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanItemDto"
+            }
+          }
+        },
+        "required": [
+          "plan_id",
+          "case_run_id",
+          "version",
+          "plan_status",
+          "solver_status",
+          "solver_version",
+          "result_kind",
+          "input_hash",
+          "plan_hash",
+          "as_of",
+          "objective_krw",
+          "base_cost_krw",
+          "risk_penalty_krw",
+          "baseline_total_krw",
+          "baseline_base_cost_krw",
+          "saving_krw",
+          "base_saving_krw",
+          "candidate_count",
+          "changed_count",
+          "problem",
+          "result",
+          "facts",
+          "outdated_reasons",
+          "outdated_at",
+          "superseded_by_plan_id",
+          "approved_by_actor_id",
+          "approved_at",
+          "created_by_actor_id",
+          "agent_run_id",
+          "contains_simulated",
+          "created_at",
+          "cost_ms",
+          "solve_ms",
+          "items"
+        ]
+      },
+      "ApprovePlanRequestDto": {
+        "type": "object",
+        "properties": {
+          "plan_hash": {
+            "type": "string",
+            "description": "plan_hash of the plan you reviewed"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "plan_hash"
         ]
       },
       "ErrorResponse": {

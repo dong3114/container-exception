@@ -10,12 +10,14 @@
 
 ## Status
 
-**IMPLEMENTING — T-112 Cost / Risk Engine → T-113 Recovery Solver (2026-10-26 사용자 지시 · 남은 개발 약 2일)** · Orchestrator: Claude Code. **T-111 DONE**(커밋 · push). Truth Layer = MVP 안정 checkpoint.
+**IDLE — T-112 · T-113 · T-114 DONE(2026-10-26, 커밋 · push).** 다음 세션(2026-10-27)은 사용자 스프린트 지시로 시작한다 · Orchestrator: Claude Code.
 
-### 진행 원칙 (사용자 지시 2026-10-26)
-- 모델 작업 · 후순위 작업 중단(상용 benchmark · 파인튜닝 · 프롬프트 튜닝 · Redis · Multi-Agent · 대규모 리팩터 · T-098 · Gmail · 대시보드). MVP 모델 Qwen3-4B 그대로
-- 목표: 30대 시나리오(부산항 수입 FCL)를 실제 계산으로 관통 — 비용 · 위험 결정론 엔진 → Solver → 제안 계획 → 사실 변경 시 재계산
-- 숫자는 결정론 엔진에서만 · 기존 시나리오 결과(v1 · v2 숫자)는 참고 · 회귀 비교로만 · Cost/Solver 는 검토 전 커밋하지 않음
+### 다음 스프린트 (사용자 지시 — 커밋 · push 승인 포함)
+- 순서: 1 Real Gmail Channel → 2 Redis execution queue → 3 Authentication / RBAC → 4 Full UI redesign → 5 Final integration fixes
+- 영역마다: 구현 → 해당 영역 시험 → 전체 regression → 명시 staging(`git add .` · `-A` 금지) → commit → normal push(force 금지). commit 전 `git status --short`, push 전 `git status -sb` · `git log --oneline -10`, push 뒤 local / origin HEAD · ahead/behind 확인
+- 커밋 금지: `.env` · OAuth client secret · Gmail refresh/access token · Redis secret · session secret · JWT/session signing key · API key · 실제 수신 메일 원문 · 개인정보 fixture. 설정명 · 사용법만 `.env.example`
+- 목표: 마지막 날 origin/main 이 실제 Demo 가능한 최신 CERA 전체를 그대로 재현
+- 주의: 이 스프린트는 앞선 "후순위 중단" 지시(Gmail · Redis · Auth · UI)를 사용자가 바꾼 것이다. 실제 외부 발송은 ADR-027 · 규칙 4 · 12(등록 · 검증 · 승인된 연락처, 건마다 사람 승인) 안에서만
 
 ### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"
 

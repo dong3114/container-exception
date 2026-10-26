@@ -98,4 +98,8 @@ export const TOOL_CATEGORY = ['READ', 'EXTERNAL_READ', 'COMPUTE', 'PROPOSE', 'RE
 export const TOOL_CALL_STATUS = ['STARTED', 'SUCCEEDED', 'FAILED', 'REJECTED'] as const;
 
 // ── M18 Agent Runtime(T-104) — 그래프 실행 관측 · 재개용 실행 상태(업무 사실 아님) ──
-export const AGENT_STEP_KIND = ['START', 'NODE', 'INTERRUPT', 'RESUME', 'TERMINAL'] as const;
+// M22 복구 계획(T-114). 판 상태: 제안 → 승인(사람) / 새 판에 밀림 / 사실이 바뀌어 다시 계산 필요
+export const PLAN_STATUS = ['PROPOSED', 'APPROVED', 'SUPERSEDED', 'OUTDATED', 'INFEASIBLE'] as const;
+export const SOLVER_STATUS = ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'TIME_LIMIT', 'ERROR'] as const;
+export const PLAN_ACTION = ['KEEP_CURRENT_PLAN', 'MOVE_TO_WAREHOUSE', 'MOVE_TO_ODCY', 'WAIT_AT_TERMINAL'] as const;
+export const AGENT_STEP_KIND =['START', 'NODE', 'INTERRUPT', 'RESUME', 'TERMINAL'] as const;

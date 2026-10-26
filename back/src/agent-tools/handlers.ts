@@ -2,7 +2,9 @@ import type { z } from 'zod';
 import type { DraftService } from '../communication/draft.service.js';
 import type { DraftDto } from '../communication/dto.js';
 import type { PublicDataService } from '../public-data/public-data.service.js';
+import type { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 import type { RegistryService } from '../registry/registry.service.js';
+import { BusinessRuleError } from '../shared/errors/cera-error.js';
 import { Instant } from '../shared/time/instant.js';
 import type { AgentRunRepository, AgentRunRow } from './agent-run.repository.js';
 import type { RecoveryContextService } from './context.service.js';
@@ -15,6 +17,7 @@ import type {
   getVesselCallsInput,
   messageIdInput,
   messageStatusSchema,
+  planIdInput,
   recoveryRunInput,
   vesselCallIdInput,
 } from './schemas.js';
@@ -31,6 +34,7 @@ export interface HandlerDeps {
   drafts: DraftService;
   context: RecoveryContextService;
   runs: AgentRunRepository;
+  plans: RecoveryPlanService;
 }
 
 type MessageStatus = z.infer<typeof messageStatusSchema>;
@@ -122,7 +126,7 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
             executed_at: toSeoul(run.executedAt),
             superseded_by_run_id: run.successorRunId,
             total_cost_krw: run.totalCostKrw === null ? null : run.totalCostKrw.toString(),
-            // 솔버가 아직 없다(T-036) — 저장된 비용은 시나리오 값이다(규칙 9)
+            // 계획 실행 행의 비용은 시드(시나리오) 값이다(규칙 9) — 엔진 계획은 recovery_plan(get_recovery_plan)
             cost_result_kind: run.totalCostKrw === null ? 'NONE' : run.containsSimulated ? 'SCENARIO_RESULT' : 'ENGINE_RESULT',
             unmet_constraints: run.unmetConstraints ?? [],
             contains_simulated: run.containsSimulated,
@@ -137,7 +141,7 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
             'OBSERVATIONS_ARE_RAW_CLAIMS — latest_observations are unjudged claims; read `facts` for current values and their state',
             'PROVISIONAL_IS_NOT_CONFIRMED — a provisional fact is a validated reply value no human has confirmed; only a person makes it CONFIRMED',
             'FRESHNESS_IS_AN_ASSUMPTION — facts age by per-family starting values [ASSUMPTION] (explicit valid_until wins); simulated runs are judged at their scenario time',
-            'NO_SOLVER — no recovery optimisation yet (T-036); stored costs are scenario values',
+            'PLANNING_IS_DETERMINISTIC — costs and plans come from the cost engine and solver tools (calculate_recovery_costs · solve_recovery · propose_recovery_plan); never compute or change numbers yourself',
             'CONTAINERS_NOT_LINKED_TO_RUN — public-data containers are not yet tied to this recovery run',
           ],
         };
@@ -252,7 +256,104 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
         return approvalRequested(await deps.drafts.get(ref.id), true);
       },
     },
+    calculate_recovery_costs: {
+      async run(input, ctx) {
+        const runId = scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id);
+        const c = await planningCall(() => deps.plans.compute(runId));
+        return {
+          recovery_run_id: runId,
+          as_of: c.asOf.toSeoulIso(),
+          result_kind: 'ENGINE_RESULT' as const,
+          contains_simulated: c.run.containsSimulated,
+          policy_version: c.table.policy_version,
+          rate_version: c.table.rate_version,
+          candidate_count: c.table.candidates.length,
+          option_count: c.table.options.length,
+          feasible_option_count: c.table.options.filter((o) => o.feasible).length,
+          excluded_facts: c.table.facts.filter((f) => f.usage === 'EXCLUDED').slice(0, 50).map((f) => ({ subject_id: f.subject_id, fact_key: f.fact_key, fact_state: f.fact_state, freshness: f.freshness, reason: f.reason })),
+          provisional_facts: c.table.facts.filter((f) => f.usage === 'USED_WITH_WARNING').slice(0, 50).map((f) => ({ subject_id: f.subject_id, fact_key: f.fact_key, reason: f.reason })),
+          baseline: { base_cost_krw: c.baseline.base_cost, risk_penalty_krw: c.baseline.risk_penalty, total_krw: c.baseline.total, unplanned_count: c.baseline.unplanned.length },
+          warnings: c.table.warnings.slice(0, 50).map((w) => w.slice(0, 300)),
+          cost_ms: Math.round(c.costMs),
+        };
+      },
+    },
+    solve_recovery: {
+      async run(input, ctx) {
+        const runId = scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id);
+        const s = await planningCall(() => deps.plans.solve(runId));
+        const r = s.result;
+        return {
+          recovery_run_id: runId,
+          status: r.status,
+          input_hash: r.input_hash,
+          objective_krw: r.objective_value,
+          base_cost_krw: r.base_cost,
+          risk_penalty_krw: r.risk_penalty,
+          baseline_total_krw: r.baseline_value,
+          saving_krw: r.saving,
+          changed_count: r.assignments.filter((a) => a.action !== 'KEEP_CURRENT_PLAN').length,
+          assignments: r.assignments.slice(0, 100).map((a) => ({ container_id: a.container_id, action: a.action, target_id: a.target_id, delivery_day: a.delivery_day, total_krw: a.expected_cost.total })),
+          unplanned: r.unplanned.slice(0, 100).map((u) => ({ container_id: u.container_id, reasons: u.reasons.slice(0, 5).map((x) => x.slice(0, 300)) })),
+          binding_constraints: r.binding_constraints.slice(0, 30).map((b) => ({ type: b.type, ref: b.ref })),
+          cost_ms: Math.round(s.costMs),
+          solve_ms: Math.round(r.timings_ms.model + r.timings_ms.solve),
+          note: 'Candidate only — nothing is stored. propose_recovery_plan stores it as a PROPOSED version for a human to review.' as const,
+        };
+      },
+    },
+    propose_recovery_plan: {
+      async run(_input, ctx) {
+        // 계획 실행 · 행위자는 실행 기록이 정한다. 사실이 그 사이 바뀌었으면 지금 사실로 다시 푼다(input_hash 가 달라진다)
+        const r = await planningCall(() => deps.plans.propose(ctx.run.recoveryRunId, { actorId: ctx.run.agentActorId, agentRunId: ctx.run.agentRunId }, { inTransaction: (tx, planId) => ctx.commit(tx, { type: 'RECOVERY_PLAN', id: planId }) }));
+        return planStatus(r.plan, r.reused);
+      },
+      async replay(ref) {
+        const plan = await deps.plans.plan(ref.id);
+        if (!plan) throw new ToolFailure('NOT_FOUND', 'The proposed plan no longer exists');
+        return planStatus(plan, true);
+      },
+    },
+    get_recovery_plan: {
+      async run(input, ctx) {
+        const i = input as z.infer<typeof planIdInput>;
+        const plan = i.plan_id ? await deps.plans.plan(i.plan_id) : await deps.plans.currentPlan(ctx.run.recoveryRunId);
+        if (plan && plan.caseRunId !== ctx.run.recoveryRunId) throw new ToolFailure('OUT_OF_SCOPE', 'The plan belongs to another recovery run');
+        return { plan: plan ? planStatus(plan, false) : null };
+      },
+    },
   };
+}
+
+type PlanRow = NonNullable<Awaited<ReturnType<RecoveryPlanService['plan']>>>;
+
+function planStatus(p: PlanRow, reused: boolean) {
+  return {
+    plan_id: p.planId,
+    recovery_run_id: p.caseRunId,
+    version: p.version,
+    plan_status: p.planStatus as 'PROPOSED' | 'APPROVED' | 'SUPERSEDED' | 'OUTDATED' | 'INFEASIBLE',
+    solver_status: p.solverStatus,
+    input_hash: p.inputHash,
+    objective_krw: p.objectiveKrw === null ? null : Number(p.objectiveKrw),
+    baseline_total_krw: Number(p.baselineTotalKrw),
+    saving_krw: p.savingKrw === null ? null : Number(p.savingKrw),
+    outdated_reason_codes: ((p.outdatedReasons ?? []) as { code?: string }[]).map((x) => String(x.code ?? 'UNKNOWN')).slice(0, 50),
+    superseded_by_plan_id: p.supersededByPlanId,
+    approved: p.planStatus === 'APPROVED' || p.approvedByActorId !== null,
+    reused,
+    note: 'A PROPOSED plan is a candidate. Only a human approves it; approval is not dispatch.' as const,
+  };
+}
+
+/** 계획 입력을 만들 수 없는 실행(실제 실행 — 컨테이너 데이터 없음)은 Agent 에게 업무 오류로 알린다. */
+async function planningCall<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof BusinessRuleError && e.code === 'PLANNING_INPUT_UNAVAILABLE') throw new ToolFailure('CAPABILITY_NOT_AVAILABLE', e.message);
+    throw e;
+  }
 }
 
 function draftCreated(d: DraftDto) {

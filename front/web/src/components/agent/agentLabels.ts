@@ -46,6 +46,11 @@ const NODE_LABEL: Record<string, string> = {
   wait_external: "외부 대기",
   wait_fact_verification: "임시 사실 사람 확인 대기",
   refresh_context: "맥락 다시 읽기",
+  calculate_costs: "비용 · 위험 계산(결정론 엔진)",
+  solve_recovery: "최저 손실 조합 계산(Solver)",
+  propose_plan: "복구 계획 제안 저장",
+  wait_plan_decision: "계획 승인 대기",
+  track_plan: "계획 상태 확인",
 };
 
 export const nodeLabel = (node: string | null) => (node ? (NODE_LABEL[node] ?? node) : "—");
@@ -58,6 +63,7 @@ const WAITING_LABEL: Record<string, string> = {
   AWAITING_REPLY: "상대 업체의 회신을 기다립니다. 회신이 오고 추출이 끝나면 자동으로 이어 갑니다.",
   AWAITING_FACT_VERIFICATION: "임시 사실이 사람 확인을 기다리는 중입니다 — 아래에서 확인·거절·정정하세요. Agent 는 확정하지 않습니다.",
   AWAITING_REPLIES: "묻는 중인 문의의 회신을 기다립니다.",
+  AWAITING_PLAN_DECISION: "복구 계획(제안)이 사람 결정을 기다립니다 — 아래 '복구 계획'에서 검토 · 승인하세요. 계획이 기대던 사실이 바뀌면 Agent 가 다시 계산합니다. Agent 는 승인하지 않습니다.",
   AGENT_RUNTIME_UNAVAILABLE: "Agent Runtime 에 닿지 않습니다 — 정해진 시각에 자동으로 다시 시도합니다.",
   AGENT_RUNTIME_TIMEOUT: "Agent Runtime 응답이 늦었습니다 — 정해진 시각에 자동으로 다시 시도합니다.",
 };
@@ -76,6 +82,7 @@ const RESULT_LABEL: Record<string, string> = {
   APPROVAL_WITHDRAWN: "승인이 취소 · 무효화되어 이번 실행을 마쳤습니다.",
   NO_INFORMATION_GAPS: "지금 계획에 필요한 정보 공백이 없습니다.",
   FACT_NEEDS_REFRESH: "기다리는 동안 값이 오래됐거나 철회됐습니다 — 지금 쓸 수 없습니다. 새 실행으로 다시 물어보세요.",
+  PLAN_APPROVED: "사람이 복구 계획을 승인했습니다(승인은 실행 지시가 아닙니다 — 배차 · 발송은 하지 않았습니다).",
 };
 
 /** Business gap states that need a plain explanation beside the code. */
@@ -104,6 +111,12 @@ export function milestones(run: AgentRun): Milestone[] {
     { key: "sent", label: "발송(Worker)", done: nodeDetail("track_message", ["AWAIT_REPLY", "REPLY_READY"]) },
     { key: "reply", label: "회신 도착 · AI 추출 완료", done: nodeDetail("track_message", ["REPLY_READY"]) || has((s) => s.node === "read_reply") },
     { key: "reassess", label: "정보 공백 재평가", done: has((s) => s.node === "reassess_gaps") },
+    ...(run.parameters?.plan_recovery
+      ? [
+          { key: "plan", label: "비용 계산 · Solver · 계획 제안", done: has((s) => s.node === "propose_plan") },
+          { key: "replan", label: "사실 변경 → 다시 계산", done: steps.filter((s) => s.node === "propose_plan").length > 1 },
+        ]
+      : []),
     { key: "result", label: "최종 결과", done: Boolean(terminal) },
   ];
 }
@@ -126,6 +139,11 @@ const SUMMARY_LABEL: Record<string, string> = {
   public_vessel_call_count: "조회된 입항 건",
   reply_count: "회신 수",
   gap_kind: "공백 종류",
+  plan_version: "계획 판",
+  plan_status: "계획 상태",
+  plan_objective_krw: "계획 총 예상 손실(원, 엔진)",
+  plan_saving_krw: "Baseline 대비 절감(원, 시뮬레이션 기준)",
+  plan_rounds: "계획 계산 횟수",
 };
 
 /** Rows for the result card — known keys only, in a fixed order; values as reported. */

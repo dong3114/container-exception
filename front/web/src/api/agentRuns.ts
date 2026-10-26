@@ -48,6 +48,8 @@ export interface AgentRun {
   next_attempt_at: string | null;
   result_summary: ResultSummary | null;
   is_simulated: boolean;
+  /** What the person asked for when creating the run (inquiry numbers, public-data window, plan_recovery). */
+  parameters?: { plan_recovery?: boolean } & Record<string, unknown>;
   steps: AgentStep[];
   tool_calls: AgentToolCall[];
 }
@@ -68,6 +70,8 @@ export interface CreateAgentRunRequest {
   parameters: {
     inquiry: { quantity: number; window_from?: string; window_to?: string };
     public_data?: { from_date: string; to_date?: string };
+    /** T-114: after the gaps, let the run compute costs, solve and propose a plan (a person still approves it). */
+    plan_recovery?: boolean;
   };
 }
 

@@ -453,23 +453,40 @@
   (5) **확인 요청 큐** 필요성 검토(`verification_request` V1/V4 · 처리 기록 — T-094 와 합칠지)
 - 완료 조건: [x] 철회 · 무효화 → 현재 사실에서 빠짐 · 공백 다시 열림 · Agent 깨움 [x] 신선도가 판정 · R11 에 반영 [x] 직접 입력 API + 화면 [x] `reply-extract/2` [x] 시험 · Docker E2E · 브라우저. (5) 확인 요청 큐 = T-098 로 미룸(검토 결과)
 - 후속 후보(작게): 차량 풀 목록 API(화면 직접 입력 대상) · 화면의 as_of 선택기 · 신선도 시작값 조정(관측 후)
+- **T-112 · T-113 · T-114 DONE(2026-10-26).** 다음(2026-10-27 사용자 스프린트 지시 — 영역마다 구현 → 시험 → 전체 regression → 명시 staging → commit → normal push): 1 Real Gmail Channel → 2 Redis execution queue → 3 Authentication / RBAC → 4 Full UI redesign → 5 Final integration fixes. 그 밖 실행 가능: T-115 · T-116 · T-117
 
 ### T-112: Cost / Risk Engine (결정론)
-- 상태: IN_PROGRESS | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26
+- 상태: **DONE (2026-10-26, 사용자 승인 — 커밋 · push)** | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26 · 기록 `docs/24` 18.17
 - 의존: ~~T-111~~
 - 목표: 컨테이너 × 복구 선택지마다 비용 · 위험을 결정론으로 계산(순수 함수, LLM · DB · HTTP 없음). 비용 항목별 출처 · 가정 표시, 사실 상태(CONFIRMED · PROVISIONAL · AGING · STALE · REVOKED · CONFLICTED · UNKNOWN) 반영, 실행 가능 여부 · 이유, Baseline 도 같은 엔진
-- 완료 조건: [ ] 30대 시나리오 비용 계산 [ ] 시험(A~N)
+- 완료 조건: [x] 30대 시나리오 비용 계산(Baseline 4,650,000 · v1 3,835,000 · v2 3,855,000 재현) [x] 시험 A~N(unit 16)
 
 ### T-113: Recovery Solver
-- 상태: IN_PROGRESS | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26
+- 상태: **DONE (2026-10-26, 사용자 승인 — 커밋 · push)** | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26 · ADR-038 Proposed(HiGHS MIP)
 - 의존: T-112
 - 목표: Cost Engine 출력으로 총 예상 손실 최소 할당(용량 · 차량 · 시간창 · 한 컨테이너 한 행동). 결과 상태(OPTIMAL · FEASIBLE · INFEASIBLE · TIME_LIMIT · ERROR) · 불가 원인 설명 · 결정론
-- 완료 조건: [ ] 30대 해 [ ] 시험
+- 완료 조건: [x] 30대 해(S7 OPTIMAL 5,815,000 · ≈0.5 s) [x] 시험(unit 12 — 전수 조사 대조 · 결정론 · 사실 변경)
 
 ### T-114: Recovery Plan Integration
-- 상태: TODO | 우선: P0 | 단계: Phase 1 | 담당: -
+- 상태: **DONE (2026-10-26, 사용자 승인 — 커밋 · push)** | 우선: P0 | 단계: Phase 1 | 담당: Claude Code / 2026-10-26
 - 의존: T-113
 - 목표: 제안 계획 저장(PROPOSED · 판 관리) · 사용한 사실 기록 · 사실 변경 → 계획 OUTDATED → Agent 재계산 · 화면 · Docker E2E
+- 완료 조건: [x] M22 · M23(표 2) [x] 판 관리 · OUTDATED · 사람 승인 [x] Agent Tool 4 · 그래프(plan_recovery) [x] 화면 계획 패널 [x] Docker E2E v1 → v2 → v3 → 승인 → PLAN_APPROVED [x] 시험(Backend 426 · Python 85 · Front 79)
+
+### T-115: 실제 계획 실행의 컨테이너 · 요율 입력 연결
+- 상태: TODO | 우선: P1 | 단계: Phase 1 | 담당: -
+- 의존: T-114
+- 목표: 지금은 시뮬레이션 계획 실행만 계산된다(시나리오 팩). 공공데이터 컨테이너(T-102) · 확정 Tariff 를 계획 실행에 묶어 실제 실행도 `PLANNING_INPUT_UNAVAILABLE` 없이 계산되게 한다(없는 값은 NOT_AVAILABLE 그대로)
+
+### T-116: 승인된 계획 → 후속 문의 초안(사람 승인)
+- 상태: TODO | 우선: P1 | 단계: Phase 1 | 담당: -
+- 의존: T-114
+- 목표: 승인된 계획의 ODCY 반입 · 협력 트럭 배정을 상대 업체 문의 초안으로 만든다(초안 → 사람 승인 → 발송 — 기존 경로). 배차 · 예약 Write 는 하지 않는다(규칙 4)
+
+### T-117: Solver 모델 확장 후보 — 다음 날 트럭 · ODCY 일별 점유 · 벌점 보정
+- 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
+- 의존: T-114
+- 목표: `docs/08` 10절에서 모델 밖에 둔 것(다음 날 운송 트럭 · ODCY 일별 점유 · 반출 슬롯)과 정책 벌점 · 협력 회신 해석 [ASSUMPTION] 을 관측 뒤 보정. 규모가 커지면 CP-SAT 재비교(ADR-038 대안 a)
 
 ### T-038: Three.js Simulator 상세 명세
 - 상태: TODO | 우선: P2 | 단계: Phase 0~3 | 담당: -

@@ -10,6 +10,10 @@
       │                                             ├─ REPLY_READY        → read_reply → reassess_gaps ─┬─ PROVISIONAL → wait_fact_verification ⟲ INTERRUPT(HUMAN) → reassess_gaps
       │                                             │                                               └─ otherwise   → build_result
       │                                             └─ REJECTED · WITHDRAWN · DELIVERY_FAILED → build_result
+      ├─ PLAN          → calculate_costs → solve_recovery → propose_plan → wait_plan_decision ⟲ INTERRUPT(HUMAN)
+      │     → track_plan (authoritative plan status) ─┬─ APPROVED              → build_result
+      │                                               ├─ OUTDATED · SUPERSEDED → refresh_context → inspect_gaps (re-solve on the changed facts)
+      │                                               └─ PROPOSED · INFEASIBLE → wait_plan_decision
       ├─ PUBLIC_DATA   → fetch_public_data → inspect_gaps (loop, bounded)
       ├─ WAIT_EXTERNAL → wait_external ⟲ INTERRUPT → refresh_context → inspect_gaps
       └─ FAIL          → build_result
@@ -26,6 +30,10 @@ Rules this graph keeps (ADR-036):
   the resume value (e.g. "approval decided") is a wake-up reason, not a fact
 - branching is deterministic code; the policy hook for semantic choices may only return an allowed action
 - numbers in an inquiry come from the human who started the run (``parameters.inquiry``) — never invented
+- plans (T-114, only when the human asked for it: ``parameters.plan_recovery``): costs and the assignment come from the
+  backend's deterministic cost engine and solver tools; the graph never computes, edits or chooses a plan and never approves
+  one. With planning on, a provisional fact does not stop the run — the engine uses it with a penalty and a warning, and when
+  a person confirms or withdraws it the plan becomes OUTDATED and the run wakes up to solve again
 """
 
 from __future__ import annotations
@@ -45,8 +53,8 @@ from .tooling import LimitReached, ToolCaller, ToolSession
 log = logging.getLogger("cera_ai.agent")
 KST = timezone(timedelta(hours=9))
 HUMAN_HELD_STATES = ("PROVISIONAL_AVAILABLE", "NEEDS_REVIEW")  # a value exists but a person must confirm / decide — not a gap the agent can ask about
-Action = Literal["COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "FAIL"]
-ACTIONS: tuple[Action, ...] = ("COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "FAIL")
+Action = Literal["COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "PLAN", "FAIL"]
+ACTIONS: tuple[Action, ...] = ("COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "PLAN", "FAIL")
 
 
 class RecoveryState(TypedDict, total=False):
@@ -68,6 +76,10 @@ class RecoveryState(TypedDict, total=False):
     public_data: dict[str, Any] | None  # mode · outcome · counts · fetch ids — provenance refs, not facts
     reply_summary: dict[str, Any] | None  # counts · fields · extraction ids · outcome — never the reply text
     reassessment: dict[str, Any] | None  # business gap state vs candidate state after the reply
+    plan_costs: dict[str, Any] | None  # cost engine summary — counts and engine totals, not a judgement
+    solve: dict[str, Any] | None  # solver summary: status · input_hash · engine objective / saving
+    plan: dict[str, Any] | None  # the proposed plan version: id · version · status (the backend's)
+    plan_rounds: int  # how many times this run proposed a plan (re-solve after facts changed)
     last_tool_call: dict[str, Any] | None
     tool_results: list[dict[str, Any]]  # last calls: tool · status · code · tool_call_id
     decision_results: list[dict[str, Any]]
@@ -91,15 +103,17 @@ class DeterministicPolicy:
         if state.get("halt") or state.get("errors"):
             return "FAIL"
         gaps = state.get("information_gaps") or []
+        # the human decides whether this run goes on to a plan; the plan itself is the backend engine's
+        done = "PLAN" if (state.get("parameters") or {}).get("plan_recovery") else "COMPLETE"
         if not gaps:
-            return "COMPLETE"
+            return done
         if any(g.get("public_data_can_resolve") and g.get("state") == "MISSING" for g in gaps):
             return "PUBLIC_DATA"
         if pick_inquiry_gap(gaps):
             return "COMMUNICATION"
         if all(g.get("state") in HUMAN_HELD_STATES or g.get("state") == "ASKED" for g in gaps):
             # what is left is already asked (a reply may come) or waits for a person (confirmation / review) — nothing for the agent to ask
-            return "WAIT_EXTERNAL" if any(g.get("state") == "ASKED" for g in gaps) else "COMPLETE"
+            return "WAIT_EXTERNAL" if any(g.get("state") == "ASKED" for g in gaps) else done
         return "FAIL"
 
 
@@ -158,7 +172,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
                         {
                             "node": name,
                             "outcome": outcome,
-                            "detail_code": out.get("next_action") or out.get("message_phase") or (out.get("reply_summary") or {}).get("outcome") or (out.get("reassessment") or {}).get("candidate_state"),
+                            "detail_code": out.get("next_action") or out.get("message_phase") or (out.get("reply_summary") or {}).get("outcome") or (out.get("reassessment") or {}).get("candidate_state") or (out.get("plan") or {}).get("plan_status") or (out.get("solve") or {}).get("status"),
                             "tool_call_id": next((c["tool_call_id"] for c in reversed(session.calls) if c["tool_call_id"]), None),
                             "retry_count": session.retries,
                             "started_at": started.isoformat(timespec="milliseconds"),
@@ -334,6 +348,45 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
             }
         }
 
+    # ── planning (T-114): deterministic engine tools only — the graph reads results, it never makes numbers ──
+    def calculate_costs(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        r = s.call("calculate_recovery_costs", {})
+        if not r.ok:
+            return failed(r.error.code if r.error else "COSTS_UNAVAILABLE")
+        o = r.output
+        return {"plan_costs": {"candidate_count": o["candidate_count"], "feasible_option_count": o["feasible_option_count"], "excluded_fact_count": len(o["excluded_facts"]), "provisional_fact_count": len(o["provisional_facts"]), "baseline_total_krw": o["baseline"]["total_krw"]}}
+
+    def solve_recovery(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        r = s.call("solve_recovery", {})
+        if not r.ok:
+            return failed(r.error.code if r.error else "SOLVER_UNAVAILABLE")
+        o = r.output
+        if o["status"] == "ERROR":
+            return failed("SOLVER_ERROR")
+        return {"solve": {"status": o["status"], "input_hash": o["input_hash"], "objective_krw": o["objective_krw"], "saving_krw": o["saving_krw"], "changed_count": o["changed_count"], "unplanned_count": len(o["unplanned"])}}
+
+    def propose_plan(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        solve = state.get("solve") or {}
+        rounds = state.get("plan_rounds", 0) + 1
+        digest = str(solve.get("input_hash", ""))[7:19]
+        r = s.call("propose_recovery_plan", {"expected_input_hash": solve["input_hash"]} if solve.get("input_hash") else {}, idempotency_key=f"{state['agent_run_id']}:plan:{rounds}:{digest}")
+        if not r.ok:
+            return failed(r.error.code if r.error else "PLAN_PROPOSAL_FAILED")
+        return {"plan": plan_ref(r.output), "plan_rounds": rounds}
+
+    def wait_plan_decision(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        # a person approves (or not); a changed fact makes the plan OUTDATED — either wakes this run. The resume value is a reason only
+        interrupt({"waiting": "HUMAN", "reason": "AWAITING_PLAN_DECISION", "ref_type": "RECOVERY_PLAN", "ref_id": (state.get("plan") or {}).get("plan_id")})
+        return {}
+
+    def track_plan(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        r = s.call("get_recovery_plan", {"plan_id": (state.get("plan") or {}).get("plan_id")})
+        if not r.ok:
+            return failed(r.error.code if r.error else "PLAN_UNAVAILABLE")
+        if not r.output["plan"]:
+            return failed("PLAN_MISSING")
+        return {"plan": plan_ref(r.output["plan"])}
+
     def fetch_public_data(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
         day = state.get("plan_date")
         r = s.call("get_vessel_calls", {"from_date": day, "to_date": day})
@@ -351,6 +404,9 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         halt = state.get("halt")
         if halt:
             return {"result": {"status": "FAILED", "result_code": None, "error_code": halt, "summary": summary}}
+        plan = state.get("plan")
+        if plan and plan.get("plan_status") == "APPROVED":
+            return {"result": {"status": "COMPLETED", "result_code": "PLAN_APPROVED", "error_code": None, "summary": summary}}
         if state.get("next_action") == "COMPLETE":
             held = any(g.get("state") in HUMAN_HELD_STATES for g in state.get("information_gaps") or [])
             return {"result": {"status": "COMPLETED", "result_code": "OPEN_GAPS_AWAIT_HUMAN" if held else "NO_INFORMATION_GAPS", "error_code": None, "summary": summary}}
@@ -373,6 +429,8 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         ("observe_public_data", observe_public_data), ("wait_send_request", _wait("HUMAN", "AWAITING_SEND_REQUEST")),
         ("wait_delivery", _wait("EXTERNAL", "AWAITING_DELIVERY")), ("wait_reply", _wait("EXTERNAL", "AWAITING_REPLY")),
         ("read_reply", read_reply), ("reassess_gaps", reassess_gaps), ("wait_fact_verification", _wait("HUMAN", "AWAITING_FACT_VERIFICATION")),
+        ("calculate_costs", calculate_costs), ("solve_recovery", solve_recovery), ("propose_plan", propose_plan),
+        ("wait_plan_decision", wait_plan_decision), ("track_plan", track_plan),
     ]:
         g.add_node(name, node(name, fn))
 
@@ -385,8 +443,18 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     g.add_conditional_edges("inspect_gaps", ok("choose_next_action"), ["choose_next_action", "build_result"])
     g.add_conditional_edges(
         "choose_next_action",
-        lambda state: "build_result" if state.get("halt") else {"COMPLETE": "build_result", "COMMUNICATION": "prepare_inquiry", "PUBLIC_DATA": "fetch_public_data", "WAIT_EXTERNAL": "wait_external"}.get(state.get("next_action") or "", "build_result"),
-        ["build_result", "prepare_inquiry", "fetch_public_data", "wait_external"],
+        lambda state: "build_result" if state.get("halt") else {"COMPLETE": "build_result", "COMMUNICATION": "prepare_inquiry", "PUBLIC_DATA": "fetch_public_data", "WAIT_EXTERNAL": "wait_external", "PLAN": "calculate_costs"}.get(state.get("next_action") or "", "build_result"),
+        ["build_result", "prepare_inquiry", "fetch_public_data", "wait_external", "calculate_costs"],
+    )
+    g.add_conditional_edges("calculate_costs", ok("solve_recovery"), ["solve_recovery", "build_result"])
+    g.add_conditional_edges("solve_recovery", ok("propose_plan"), ["propose_plan", "build_result"])
+    g.add_conditional_edges("propose_plan", ok("wait_plan_decision"), ["wait_plan_decision", "build_result"])
+    g.add_edge("wait_plan_decision", "track_plan")
+    # the backend's plan status decides: approved → done · facts changed → re-read and solve again · still open → keep waiting
+    g.add_conditional_edges(
+        "track_plan",
+        lambda state: "build_result" if state.get("halt") else {"APPROVED": "build_result", "OUTDATED": "refresh_context", "SUPERSEDED": "refresh_context"}.get((state.get("plan") or {}).get("plan_status") or "", "wait_plan_decision"),
+        ["build_result", "refresh_context", "wait_plan_decision"],
     )
     g.add_conditional_edges("prepare_inquiry", ok("create_draft"), ["create_draft", "build_result"])
     g.add_conditional_edges("create_draft", ok("request_approval"), ["request_approval", "build_result"])
@@ -402,10 +470,11 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         g.add_edge(w, "track_message")
     g.add_conditional_edges("read_reply", ok("reassess_gaps"), ["reassess_gaps", "build_result"])
     # a provisional fact waits for a person: the run waits with it, then re-reads the gap (confirmed → closed · rejected / corrected → re-read)
+    # with planning on, the run goes back to the gaps (other gaps · then the plan; a provisional value is used with a penalty)
     g.add_conditional_edges(
         "reassess_gaps",
-        lambda state: "wait_fact_verification" if not state.get("halt") and (state.get("reassessment") or {}).get("business_gap_state") == "PROVISIONAL_AVAILABLE" else "build_result",
-        ["wait_fact_verification", "build_result"],
+        lambda state: "build_result" if state.get("halt") else "inspect_gaps" if (state.get("parameters") or {}).get("plan_recovery") else "wait_fact_verification" if (state.get("reassessment") or {}).get("business_gap_state") == "PROVISIONAL_AVAILABLE" else "build_result",
+        ["wait_fact_verification", "build_result", "inspect_gaps"],
     )
     g.add_edge("wait_fact_verification", "reassess_gaps")
     g.add_conditional_edges("fetch_public_data", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
@@ -415,7 +484,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     return g.compile(checkpointer=checkpointer)
 
 
-WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification")
+WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification", "wait_plan_decision")
 EXTRACTION_SETTLED = ("DONE", "NO_CANDIDATE", "SKIPPED", "FAILED")
 
 
@@ -457,6 +526,7 @@ def result_summary(state: RecoveryState) -> dict[str, Any]:
     pub = state.get("public_data") or {}
     reply = state.get("reply_summary") or {}
     re_ = state.get("reassessment") or {}
+    plan = state.get("plan") or {}
     out: dict[str, Any] = {
         "target_gap_id": gap.get("gap_id"),
         "gap_kind": gap.get("gap_kind"),
@@ -475,9 +545,20 @@ def result_summary(state: RecoveryState) -> dict[str, Any]:
         "public_data_outcome": pub.get("outcome"),
         "public_vessel_call_count": pub.get("vessel_call_count"),
         "public_fetch_ids": pub.get("fetch_ids"),
+        "plan_id": plan.get("plan_id"),
+        "plan_version": plan.get("version"),
+        "plan_status": plan.get("plan_status"),
+        "plan_objective_krw": plan.get("objective_krw"),
+        "plan_saving_krw": plan.get("saving_krw"),
+        "plan_rounds": state.get("plan_rounds"),
         "step_count": state.get("step_count"),
     }
     return {k: v for k, v in out.items() if v is not None}
+
+
+def plan_ref(p: dict[str, Any]) -> dict[str, Any]:
+    """The plan as the graph keeps it: ids, the backend's status and the engine's totals (copied, never computed)."""
+    return {k: p.get(k) for k in ("plan_id", "version", "plan_status", "solver_status", "input_hash", "objective_krw", "saving_krw", "reused")}
 
 
 def approval_outcome(status: str, approval_state: str) -> str:

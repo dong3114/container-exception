@@ -429,3 +429,92 @@ def test_backend_store_outage_is_reported_as_transient():
     api = RuntimeApiClient("http://backend.test", TOKEN, http=httpx.Client(transport=httpx.MockTransport(down)))
     with pytest.raises(RuntimeUnavailable):
         AgentRuntime(GraphDeps(tools=FakeTools()), BackendCheckpointSaver(api)).start(RUN, RR, "goal", PARAMS)
+
+
+# ── T-114 planning: deterministic engine tools · the graph only reads results, waits for a person, re-solves on changed facts ──
+PLAN_A = "01a1a4c0-7e10-7a3b-9c21-5d0f00a0b2a1"
+PLAN_B = "01a1a4c0-7e10-7a3b-9c21-5d0f00a0b2b2"
+HASH_A = "sha256:" + "a" * 64
+HASH_B = "sha256:" + "b" * 64
+
+
+def plan_tools(gaps: list[dict[str, Any]] | None = None) -> FakeTools:
+    state = {"hash": HASH_A, "plan_id": PLAN_A, "version": 1, "status": "PROPOSED"}
+
+    def plan(**over: Any) -> dict[str, Any]:
+        return {"plan_id": state["plan_id"], "recovery_run_id": RR, "version": state["version"], "plan_status": state["status"], "solver_status": "OPTIMAL", "input_hash": state["hash"],
+                "objective_krw": 5_815_000, "baseline_total_krw": 7_220_000, "saving_krw": 1_405_000, "outdated_reason_codes": [], "superseded_by_plan_id": None, "approved": False, "reused": False, "note": "n", **over}
+
+    tools = FakeTools(
+        {
+            "calculate_recovery_costs": lambda a, n: ok("calculate_recovery_costs", {"candidate_count": 23, "feasible_option_count": 117, "excluded_facts": [], "provisional_facts": [{"subject_id": POOL, "fact_key": "k", "reason": "PROVISIONAL"}], "baseline": {"total_krw": 7_220_000}}),
+            "solve_recovery": lambda a, n: ok("solve_recovery", {"status": "OPTIMAL", "input_hash": state["hash"], "objective_krw": 5_815_000, "saving_krw": 1_405_000, "changed_count": 12, "unplanned": []}),
+            "propose_recovery_plan": lambda a, n: ok("propose_recovery_plan", plan()),
+            "get_recovery_plan": lambda a, n: ok("get_recovery_plan", {"plan": plan()}),
+        },
+        gaps=[] if gaps is None else gaps,
+    )
+    tools.plan_state = state  # type: ignore[attr-defined]
+    return tools
+
+
+def test_planning_runs_engine_tools_proposes_and_waits_for_a_person():
+    tools = plan_tools()
+    out = runtime(tools).start(RUN, RR, "goal", {"plan_recovery": True})
+    assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "AWAITING_PLAN_DECISION", {"type": "RECOVERY_PLAN", "id": PLAN_A})
+    assert [c[0] for c in tools.calls] == ["get_recovery_context", "get_information_gaps", "calculate_recovery_costs", "solve_recovery", "propose_recovery_plan"]
+    propose = tools.calls[-1]
+    assert propose[1] == {"expected_input_hash": HASH_A} and propose[2] == f"{RUN}:plan:1:{HASH_A[7:19]}"
+    # without the human's request the run ends at the gaps as before (no plan)
+    tools2 = plan_tools()
+    assert runtime(tools2).start(RUN, RR, "goal", {})["result_code"] == "NO_INFORMATION_GAPS"
+    assert "solve_recovery" not in [c[0] for c in tools2.calls]
+
+
+def test_planning_with_only_provisional_or_review_gaps_still_plans():
+    tools = plan_tools(gaps=[gap("PROVISIONAL_AVAILABLE")])
+    out = runtime(tools).start(RUN, RR, "goal", {"plan_recovery": True})
+    assert out["waiting_reason"] == "AWAITING_PLAN_DECISION"
+
+
+def test_plan_approved_by_a_person_completes_the_run():
+    tools = plan_tools()
+    rt = runtime(tools)
+    rt.start(RUN, RR, "goal", {"plan_recovery": True})
+    tools.plan_state["status"] = "APPROVED"  # type: ignore[attr-defined]
+    out = rt.resume(RUN, "PLAN_APPROVED", {"type": "RECOVERY_PLAN", "id": PLAN_A})
+    assert (out["status"], out["result_code"]) == ("COMPLETED", "PLAN_APPROVED")
+    assert (out["result_summary"]["plan_id"], out["result_summary"]["plan_status"], out["result_summary"]["plan_rounds"]) == (PLAN_A, "APPROVED", 1)
+    assert tools.calls[-1][0] == "get_recovery_plan"
+
+
+def test_outdated_plan_wakes_the_run_to_solve_again_and_propose_v2():
+    tools = plan_tools()
+    rt = runtime(tools)
+    rt.start(RUN, RR, "goal", {"plan_recovery": True})
+    # still proposed (spurious wake) → keep waiting, no re-solve
+    out = rt.resume(RUN, "PLAN_OUTDATED", {"type": "RECOVERY_PLAN", "id": PLAN_A})
+    assert out["waiting_reason"] == "AWAITING_PLAN_DECISION" and [c[0] for c in tools.calls].count("solve_recovery") == 1
+    # a fact changed: the backend says OUTDATED → re-read gaps → solve again on the new facts → v2
+    tools.plan_state["status"] = "OUTDATED"  # type: ignore[attr-defined]
+    original = tools.overrides["solve_recovery"]
+
+    def solve_v2(a: dict[str, Any], n: int) -> ToolResult:
+        tools.plan_state.update({"hash": HASH_B, "plan_id": PLAN_B, "version": 2, "status": "PROPOSED"})  # type: ignore[attr-defined]
+        return original(a, n)
+
+    tools.overrides["solve_recovery"] = solve_v2
+    out = rt.resume(RUN, "PLAN_OUTDATED", {"type": "RECOVERY_PLAN", "id": PLAN_A})
+    assert (out["waiting_reason"], out["pending"]) == ("AWAITING_PLAN_DECISION", {"type": "RECOVERY_PLAN", "id": PLAN_B})
+    names = [c[0] for c in tools.calls]
+    assert names.count("solve_recovery") == 2 and names.count("propose_recovery_plan") == 2
+    keys = [c[2] for c in tools.calls if c[0] == "propose_recovery_plan"]
+    assert keys == [f"{RUN}:plan:1:{HASH_A[7:19]}", f"{RUN}:plan:2:{HASH_B[7:19]}"]
+
+
+def test_solver_error_fails_the_run_and_the_graph_never_approves():
+    tools = plan_tools()
+    tools.overrides["solve_recovery"] = lambda a, n: ok("solve_recovery", {"status": "ERROR", "input_hash": HASH_A, "objective_krw": None, "saving_krw": None, "changed_count": 0, "unplanned": []})
+    out = runtime(tools).start(RUN, RR, "goal", {"plan_recovery": True})
+    assert (out["status"], out["error_code"]) == ("FAILED", "SOLVER_ERROR")
+    assert all(not c[0].startswith("approve") for c in tools.calls)

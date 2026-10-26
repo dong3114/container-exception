@@ -148,6 +148,20 @@
       "when": 1792998282054,
       "tag": "0020_m21_withdrawal_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793001350156,
+      "tag": "0021_m22_recovery_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793001359671,
+      "tag": "0022_m23_recovery_plan_guards",
+      "breakpoints": true
     }
   ]
 }

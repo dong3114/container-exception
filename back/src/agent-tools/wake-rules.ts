@@ -13,6 +13,18 @@ export interface AwaitedMessage {
   facts?: { awaitingConfirmation: boolean }[];
 }
 
+/**
+ * 계획 판을 기다리는 실행(T-114, 대기 대상 = RECOVERY_PLAN). 제안 · 실행 불가 판은 사람 결정이나 사실 변경을 기다린다 —
+ * 사람이 승인했거나(APPROVED) 기댄 사실이 바뀌었거나(OUTDATED) 새 판에 밀렸으면(SUPERSEDED) 깨운다. 깨어난 그래프가 판 상태를 다시 읽는다.
+ */
+export function planWakeReason(waitingReason: string | null, planStatus: string | null): string | null {
+  if (waitingReason !== 'AWAITING_PLAN_DECISION') return null;
+  if (planStatus === null) return 'PLAN_MISSING';
+  if (planStatus === 'APPROVED') return 'PLAN_APPROVED';
+  if (planStatus === 'OUTDATED' || planStatus === 'SUPERSEDED') return 'PLAN_OUTDATED';
+  return null;
+}
+
 /** 추출이 더 진행되지 않는 상태(후보가 있든 없든). RETRYING · WAITING 은 아직이다. */
 export const EXTRACTION_SETTLED = ['DONE', 'NO_CANDIDATE', 'SKIPPED', 'FAILED'] as const;
 

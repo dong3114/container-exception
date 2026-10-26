@@ -19,10 +19,10 @@ afterAll(async () => {
   await owner.end();
 });
 
-describe('migration history (fresh M01 → M21)', () => {
+describe('migration history (fresh M01 → M23)', () => {
   const files = readdirSync('drizzle/migrations').filter((f) => f.endsWith('.sql')).sort();
 
-  it('twenty-one reviewed migrations M01..M21 are committed in order', () => {
+  it('twenty-three reviewed migrations M01..M23 are committed in order', () => {
     expect(files).toEqual([
       '0000_m01_foundation.sql',
       '0001_m02_registry.sql',
@@ -45,6 +45,8 @@ describe('migration history (fresh M01 → M21)', () => {
       '0018_m19_agent_runtime_guards.sql',
       '0019_m20_fact_guards.sql',
       '0020_m21_withdrawal_guard.sql',
+      '0021_m22_recovery_plan.sql',
+      '0022_m23_recovery_plan_guards.sql',
     ]);
   });
 
@@ -55,13 +57,13 @@ describe('migration history (fresh M01 → M21)', () => {
     expect(rows.map((r) => r.hash)).toEqual(expected);
   });
 
-  it('owner owns every product object; 29 functions (28 trigger + plan-run lock); no function calls now()', async () => {
+  it('owner owns every product object; 30 functions (29 trigger + plan-run lock); no function calls now()', async () => {
     const tables = await owner.query<{ owner: string }>("SELECT tableowner AS owner FROM pg_tables WHERE schemaname = 'cera'");
     expect(new Set(tables.rows.map((r) => r.owner))).toEqual(new Set(['cera_owner']));
     const fns = await owner.query<{ src: string }>(
       "SELECT prosrc AS src FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'cera'",
     );
-    expect(fns.rowCount).toBe(29);
+    expect(fns.rowCount).toBe(30);
     expect(fns.rows.filter((r) => /\bnow\s*\(|current_timestamp|clock_timestamp/i.test(r.src))).toEqual([]);
   });
 });
@@ -85,7 +87,9 @@ describe('runtime role cera_app (C layer)', () => {
        WHERE grantee = 'cera_app' AND table_schema = 'cera'
        GROUP BY table_name`);
     const privs = Object.fromEntries(rows.map((r) => [r.table, r.privs]));
-    expect(Object.keys(privs)).toHaveLength(40);
+    expect(Object.keys(privs)).toHaveLength(42);
+    expect(privs.recovery_plan).toBe('INSERT,SELECT,UPDATE');
+    expect(privs.recovery_plan_item).toBe('INSERT,SELECT');
     expect(privs.agent_tool_call).toBe('INSERT,SELECT,UPDATE');
     expect(privs.agent_step).toBe('INSERT,SELECT');
     expect(privs.agent_checkpoint).toBe('INSERT,SELECT');

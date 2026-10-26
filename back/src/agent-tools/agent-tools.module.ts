@@ -5,6 +5,7 @@ import { CommunicationModule } from '../communication/communication.module.js';
 import { PublicDataModule } from '../public-data/public-data.module.js';
 import { RegistryModule } from '../registry/registry.module.js';
 import { TruthModule } from '../truth/truth.module.js';
+import { PlanningModule } from '../planning/planning.module.js';
 import { AgentRunRepository } from './agent-run.repository.js';
 import { AgentRunsController } from './agent-runs.controller.js';
 import { AgentRuntimeController } from './agent-runtime.controller.js';
@@ -24,7 +25,7 @@ import { RecoveryContextService } from './context.service.js';
  * T-104: Coordinator(시작 · 재개 · 끝 상태) · Runtime 저장 통로(checkpoint · 단계) — Python 은 DB 자격증명 없이 이 API 로만 실행 상태를 남긴다.
  */
 @Module({
-  imports: [PublicDataModule, RegistryModule, CommunicationModule, TruthModule],
+  imports: [PublicDataModule, RegistryModule, CommunicationModule, TruthModule, PlanningModule],
   controllers: [AgentToolsController, AgentRunsController, AgentRuntimeController],
   providers: [
     AgentServiceAuth,

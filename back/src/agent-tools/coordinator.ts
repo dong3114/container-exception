@@ -139,6 +139,17 @@ export class AgentCoordinator implements OnModuleInit {
 
   /** 알림 = 빨리 깨우기(최적화). 놓쳐도 재조정이 같은 실행을 깨운다. */
   private onSignal(signal: DomainSignal): void {
+    if (signal.type === 'PLAN_CHANGED') {
+      // 계획 판 승인 · 무효(T-114) — 그 판을 기다리던 실행을 깨운다. 놓쳐도 Worker 재조정이 판 상태로 같은 결론을 낸다
+      this.track(
+        (async () => {
+          for (const id of await this.store.runsWaitingFor('RECOVERY_PLAN', signal.planId)) {
+            await this.resume(id, signal.status === 'APPROVED' ? 'PLAN_APPROVED' : 'PLAN_OUTDATED', { type: 'RECOVERY_PLAN', id: signal.planId }).catch((e) => this.recordFailure(id, 'resume', e, false));
+          }
+        })(),
+      );
+      return;
+    }
     if (signal.type !== 'APPROVAL_DECIDED') return; // 수신 · 추출은 Worker 프로세스에서 재조정이 바로 이어 받는다(AgentReconciler)
     this.track(
       (async () => {

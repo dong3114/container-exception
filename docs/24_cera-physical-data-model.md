@@ -1,6 +1,6 @@
 # 24. CERA 물리 데이터 모델 — Slice 1 P0 (PostgreSQL + Drizzle)
 
-- 상태: **T-111(2026-10-26, DONE): 철회 · 신선도 · 직접 입력 · 날짜 계약 — 표 · 열 변경 없음, M21 가드 1(22.42). 구현 기록 18.16.** T-093(2026-10-26, DONE): 사실 파이프라인 — 표 · 열 변경 없음, M20 가드 3(22.41). 구현 기록 18.14.** T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
+- 상태: **T-112 · T-113 · T-114(2026-10-26, DONE): Cost Engine · Solver · 복구 계획 — 표 2 추가(22.43 · 22.44 · M22 · M23 22.45, 표 40 → 42 · 컬럼 478 → 521). 구현 기록 18.17.** T-111(2026-10-26, DONE): 철회 · 신선도 · 직접 입력 · 날짜 계약 — 표 · 열 변경 없음, M21 가드 1(22.42). 구현 기록 18.16.** T-093(2026-10-26, DONE): 사실 파이프라인 — 표 · 열 변경 없음, M20 가드 3(22.41). 구현 기록 18.14.** T-104(2026-10-22, DONE) — Agent Runtime 3표 + `agent_run` 생애주기(22.36 · 22.38~22.40 · M18 · M19, 표 37 → 40 · 컬럼 434 → 478). 구현 기록 18.11.** T-103(2026-10-22) — Agent 기록 2표(22.36 · 22.37 · M16 · M17, 표 35 → 37 · 컬럼 406 → 434). 구현 기록 18.10.** T-102(2026-10-22) — 공공데이터 6표 추가(22.30~22.35 · M14 · M15, 표 29 → 35 · 컬럼 349 → 406). 구현 기록 18.9. 이전: **승인 — T-080 DONE (2026-09-22, 사용자 + ChatGPT 최종 승인)** (작성 Claude Code). 사용자 검토 결과를 반영했다 — **F-1~F-5 논리 모순은 `docs/22` rev.2.5 로 해소**, D-4 · D-5 보완, F-6~F-11 정리·기록(25절). **U1(T-086) 구현 확인 결과는 18.2**
 - 기준: HEAD `4db8608` · 논리 모델 `docs/22` **rev.2.5** + 작업표 · 개념 모델 `docs/21`(승인, 변경 0) · **ADR-033**(NestJS · AI Server DB 권한 없음) · **ADR-034**(PostgreSQL · Drizzle SQL-aware Hybrid · drizzle-kit 검토 SQL migration · SQLite 미사용) · ADR-032(Q-44 · Q-45) · T-069 계획(5.1 P0 29 · 12 트랜잭션 · 13 멱등 · 17 인계 목록)
 - 이 문서의 성격: **물리 설계(HOW to store)**. 논리 모델의 의미를 바꾸지 않는다. 논리 모델과 어긋나는 곳은 여기서 고치지 않고 **25절**에 적어 사용자 판단으로 올린다(이번 판단 결과도 25절)
 - 짝 산출물: **`docs/24_cera-physical-data-model.xlsx`** — 22절 표를 컬럼 한 줄씩 본 검토용 작업표(자동 생성, 정본은 이 문서)
@@ -995,6 +995,24 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 
 ---
 
+
+### 18.17 T-112 · T-113 · T-114 Cost / Risk Engine · Recovery Solver · Recovery Plan 구현 확인 결과 (2026-10-26 · DONE — 사용자 승인)
+
+- **엔진(순수 · 결정론, `back/src/planning/engine/`)** — DB · HTTP · LLM · 현재 시각 없음(ADR-029). 금액 = KRW 정수(ADR-006), 날짜 = Asia/Seoul
+  - `cost-engine.ts`: 컨테이너 × 선택지(KEEP_CURRENT_PLAN · MOVE_TO_ODCY(대상 · 입고일) · WAIT_AT_TERMINAL(입고일) · MOVE_TO_WAREHOUSE(다른 창고 — 화주 승인 없으면 실행 불가))마다 `feasible` · `infeasible_reasons` · 비용 8항목(transport · storage · handling · demurrage · detention · delay · additional_move · risk) · `base_cost`(실제로 내는 돈) · `risk_penalty`(정책 벌점) · `total`. 항목마다 수량 · 단가 · 출처(RATE_TABLE · FACT · POLICY + 참조) · 가정. 요율 · LFD 가 없으면 **NOT_AVAILABLE + RATE_MISSING/LFD_MISSING 실행 불가**(숫자를 지어내지 않는다). 입력 검사(KRW 정수 · 오프셋 있는 as_of · 사실 좌표 중복 없음)
+  - `cost-policy.ts`(`cost-policy/1`, 값은 모두 [ASSUMPTION]): 지연 벌점 CRITICAL 300,000 · HIGH 50,000 · NORMAL 0 원/일 · LFD 후 터미널 대기 위험 10,000 원/일 · 잠정 사실 의존 20,000 · 오래되는 중 10,000 · 반납 리드타임 1일. 사실 사용 규칙: CONFIRMED · OBSERVED(신선) 그대로 · AGING 경고 + 벌점 · PROVISIONAL 정책 허용 시 경고 + 벌점 · NEEDS_REVIEW · STALE · EXPIRED · REVOKED · UNKNOWN 은 제약으로 쓰지 않는다(그 자원 = 없음)
+  - `baseline.ts`(`baseline/1` 규칙, 최적화 아님): 오늘 남은 창고 용량만큼 원래 출발 순서(동시면 우선순위 → Reefer → 번호)로 KEEP, 나머지는 대기 · 입고일은 LFD 순(동률은 하루 대기 비용 큰 순). **같은 비용표**의 선택지를 그대로 쓴다
+  - `solver.ts`(`recovery-solver/1`): **HiGHS 1.15.3(highs-js, MIT, WASM — Backend 프로세스 안, 네트워크 없음, 단일 스레드)** 0-1 MIP. 변수 y(선택지) · z(선택지 × 트럭 × 출발 정시) · s(계획 불가). 제약: 컨테이너당 하나 · 창고 일별 용량(약속된 수 뺌) · ODCY 용량(규격별) · 트럭 한 대 한 시각 한 일(왕복 시간 점유) · 출발 시간창(as_of 이후 · 입고 마감 · ODCY 반입 마감). 목적 Σ total + 협력 트럭 위험 벌점. 동률은 3단계(목적값 고정 → 원래 계획에 가까운 쪽 → 이른 출발 · 트럭 번호)로 결정론 해소. 상태 OPTIMAL · FEASIBLE · INFEASIBLE · TIME_LIMIT · ERROR, 비상 상한 30초 [ASSUMPTION / DEVELOPMENT SAFETY CEILING]. 할당마다 이유 코드(더 싼 선택지가 어떤 자원이 차서 막혔나) · 대안 4개(차액) · 근거 · 경고. 계획 불가면 컨테이너별 이유(선택지 실행 불가 이유 + 찬 자원)
+- **입력(`scenario-input.ts`)** — 시나리오 팩(합성 컨테이너 30 · 요율 [ASSUMPTION] · 자사 트럭 명부 · 다음 날 용량) + **Truth 사실**(오늘 창고 · ODCY 용량, 협력 차량 가용 — Agent 가 묻는 계열은 Truth 에서만, 다른 좌표도 Truth 값이 있으면 Truth 우선). 사실마다 `source` TRUTH(사건 id) · SCENARIO(팩 위치). 실제(시뮬레이션 아닌) 계획 실행은 컨테이너 데이터가 없어 `PLANNING_INPUT_UNAVAILABLE`(409) — 숫자를 만들지 않는다. 협력 회신 "N대"는 시간창 동안 일하는 트럭 N대로 본다 [ASSUMPTION]
+- **저장(M22 · M23, 22.43 ~ 22.45)** — `recovery_plan`(판 = Solver 실행 하나) · `recovery_plan_item`. 입력 스냅숏은 기존 `planning_snapshot`(append-only) `scope_ref` 에 쓴 Truth 사실(사건 id · 상태 · 값 · 신선도) · 정책 판 · as_of · 후보 · 약속 · 트럭. `recovery_run` 은 새로 만들지 않는다(초안의 "계획 교체" 판정 · 화면 실행 목록에 섞이지 않게). 판 상태 PROPOSED → APPROVED(사람만, `plan_hash` 인용) · SUPERSEDED · OUTDATED, INFEASIBLE. 입력 지문이 같으면 새 판 없이 지금 판을 돌려준다
+- **사실 변경 → OUTDATED → 다시 계산** — `RecoveryPlanService.refreshOutdated`: 지금 판이 기댄 Truth 사실을 **판의 as_of 로** 다시 판정해 스냅숏과 비교(다른 사건이 이김 FACT_SUPERSEDED · 철회 FACT_REVOKED · 상태 · 값 FACT_STATE_CHANGED · 충돌 FACT_CONFLICTED · 새 사실 FACT_ADDED). API 의 `FACT_CHANGED` 알림 + Worker 60초 주기(알림을 놓쳐도). OUTDATED · 승인 → `PLAN_CHANGED` 알림 → 그 판을 기다리던 Agent 실행을 깨운다(Coordinator) · Worker 재조정은 판 상태로 같은 결론(`planWakeReason`)
+- **Agent(ADR-036 경계 유지)** — Tool 4개: `calculate_recovery_costs` · `solve_recovery`(COMPUTE, 저장 없음) · `propose_recovery_plan`(PROPOSE, Idempotency-Key 필수, 만든 이 = 실행의 AI_AGENT) · `get_recovery_plan`(READ). 승인 Tool 은 없다(`approve_plan` · `approve_recovery_plan` 금지 목록). 그래프: 사람이 `parameters.plan_recovery` 를 켜면 공백이 닫히거나 사람 확인만 남을 때 `calculate_costs → solve_recovery → propose_plan → wait_plan_decision(AWAITING_PLAN_DECISION, 대기 대상 RECOVERY_PLAN)` → `track_plan`: APPROVED → 완료(PLAN_APPROVED) · OUTDATED/SUPERSEDED → 맥락 · 공백 다시 읽고 다시 계산 · 그 밖 → 계속 대기. 계획 모드에서는 잠정 사실이 실행을 멈추지 않는다(엔진이 벌점 · 경고와 함께 쓰고, 사람이 확인하면 판이 OUTDATED → 다시 계산)
+- **API** — `GET /planning/runs/:runId/costs`(비용표 · 저장 없음) · `GET/POST /planning/runs/:runId/plans`(판 목록 · 사람 재계산) · `GET /planning/plans/:planId` · `POST /planning/plans/:planId/approve`(사람 · `plan_hash`). 응답 숫자는 저장된 엔진 출력 그대로(`result_kind = ENGINE_RESULT`, 입력이 합성이면 `contains_simulated`)
+- **화면** — Agent 패널에 "복구 계획까지" 선택(기본 켬) · 복구 계획 패널: 문제(창고 · 들어올 수 · 받을 수 · 초과) · Baseline vs 추천 손실 · 절감(시뮬레이션 기준) · 조치별 대수 · 경고(잠정 · 제외 사실 · 꽉 찬 제약) · 컨테이너별 조치 · 대상 · 입고일 · 출발 · 트럭 · 손실 · Baseline · 이유 · 펼치면 비용 항목(출처 · 가정) · 다른 선택지와 막힌 이유 · 판 목록 · OUTDATED 사유 · [지금 사실로 다시 계산] · [이 계획 승인]
+- **30대 시나리오(S7 = 회신 3건 반영 뒤, 오프라인 `npx tsx src/dev/plan-scenario.ts --step S7`)** — Baseline: 영향 12대 base **4,650,000**(시나리오와 같음 · 같은 입고일) · 직송 유지 8대 1,600,000 · 창고 B 3대 590,000 → 23대 base 6,840,000 · 위험 380,000 · 합 7,220,000. 시나리오 Plan v1 · v2 의 배정을 엔진으로 값 매기면 **3,835,000 · 3,855,000**(시나리오와 같음 — 시험). **Solver 최적해**: base 5,535,000 · 위험 280,000 · 합 5,815,000(영향 12대 base **3,345,000** — v2 보다 510,000 낮음). 차이: 시나리오는 입고일을 LFD 순으로 고정했지만 Solver 는 입고일도 고른다 — LFD 10/14 인 C017 · C018 · C020 을 10/14 직송 대기(Demurrage 0)로 두고, LFD 10/13 인 40FT 를 ODCY 로 보낸다. 직송 유지 8대는 같은 8대(Reefer 4 · 필수 화물). 계산 시간: 비용표 ≈ 6 ms · Solver(3단계) ≈ 0.5 s(23대 · 선택지 117 · 트럭 변수 1,790)
+- **시험** — unit: Cost Engine 16(A 결정론 · B 실행 불가 · C 용량 · D 시간창 · E 확인 사실 · F STALE/EXPIRED · G REVOKED/충돌/없음 · H 잠정 정책 · AGING · I 항목 합 = 합계 · K 음수 없음 · L 통화 · 단위 · M 요율 · LFD 없음 · N as_of 재현 · 계산식 · J Baseline = 같은 엔진(4,650,000) · v1/v2 가격 매기기) · Solver 12(한 대 · 용량 · 경쟁 · 트럭 왕복 · 용량 부족 INFEASIBLE + 이유 · 대기 fallback · 전수 조사와 같은 최솟값 · 결정론 · 사실 변경 → 다른 해 · 협력 잠정 트럭 벌점 · 30대 S7 · S1→S7) · 깨우기 규칙 1 · Tool 등록부. db: `recovery-plan.test.ts` 7(비용표 = Truth + 팩 · 제안 v1 · 스냅숏 · 재사용 · 철회 → OUTDATED → v2 · 승인 가드(해시 · 사람 · OUTDATED) · DB 가드(CE001 · CE002 · CE004 · CE005 · 42501) · Agent Tool 4개 · 실제 실행 거부) + 카탈로그(표 42 · 컬럼 521 · FK 86 · 함수 30 · migration 23). Python 그래프 5(계획 경로 · 잠정만 남아도 계획 · 승인 → 완료 · OUTDATED → v2 · Solver 오류)
+- **Docker E2E(별도 프로젝트 `cera-e2e`, AI 녹화 재생 · 실제 API · Worker · Python Runtime · PostgreSQL)** — 사람 직접 입력 5(창고 A 8 · 내일 11 · 창고 B 10 · ODCY A 4 · ODCY B 6) → Agent(계획까지) → K운송 문의 → 승인 · 발송 → Mock 회신 "오후 3시 이후 차량 4대" → PROVISIONAL → **v1 PROPOSED 5,735,000(Baseline 7,220,000 · 절감 1,485,000, 회신 → v1 6초)** → 사람 확인 → v1 OUTDATED(FACT_STATE_CHANGED) → Agent 깨어남 → **v2(4초)** → ODCY A 정정 4 → 2(CORRECTION) → v2 OUTDATED(FACT_SUPERSEDED) → **v3 5,835,000(ODCY A 2대, 4초)** → 사람 승인 → Agent COMPLETED `PLAN_APPROVED`. Tool 시간: 비용 17~38 ms · Solver 320~633 ms · 제안 319~394 ms. 첫 시도에서는 ODCY A 를 "새 직접 입력" 으로 바꿨고, 5분 안 두 사람 값이 R6 충돌(NEEDS_REVIEW)이 되어 v3 가 ODCY A 를 쓰지 않았다(규칙대로 — 충돌 사실 제외 경로 확인). 브라우저(Edge): 계획 패널 · 판 목록 · 펼친 비용 내역 · 대안 확인, 페이지 오류 0
+- **남은 것 · 한계**: 다음 날 트럭(대기 후 직송 · ODCY→창고) · ODCY 일별 점유 · 개별 트럭 동선(2단계, ADR-009)은 모델 밖. 실제 계획 실행의 컨테이너 연결(공공데이터 컨테이너 → 계획)은 없다. 승인된 계획 → 문의 · 배차는 없다(승인 ≠ 실행). 벌점 값 · 협력 회신 해석은 [ASSUMPTION] — 관측 후 조정
 
 ## 20. migration 전략
 
@@ -2386,6 +2404,91 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 
 - 파일: `back/drizzle/migrations/0020_m21_withdrawal_guard.sql`(함수 1 · 트리거 1 — 함수 28 → 29, `now()` 없음)
 - `tg_event__guard_withdrawal` BEFORE INSERT ON `event`: 값이 하나도 없는 CORRECTION(철회)은 `source_type = HUMAN_UI` 여야 한다(CE005) — M20 과 합쳐 사람 행위자만 철회한다
+
+### 22.43 `recovery_plan` — 복구 계획 판(Solver 실행 하나) **(M22 · T-114)**
+
+- 논리: `DECISION_RECORD`(후보 계획) · 상태 열만 바뀜 · 그룹 **P 계획** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: `plan_id`. 판 번호는 계획 실행(`case_run_id`) 안에서 1, 2, 3 …(UNIQUE). 지금 쓰이는 판(PROPOSED · APPROVED)은 계획 실행마다 하나(부분 유일)
+- 변경 방식: 삽입(PROPOSED · INFEASIBLE 로만). 갱신은 상태 · 무효 사유 · 무효 시각 · 밀어낸 판 · 승인자 · 승인 시각 · 갱신 시각만(M23). 삭제 없음
+- 숫자(목적값 · base · 위험 벌점 · Baseline · 절감)는 결정론 Cost Engine · Solver 출력이다(ADR-029). 입력 스냅숏(쓴 사실 id · 상태 · as_of · 정책 판)은 `planning_snapshot.scope_ref`
+- 승인은 사람(HUMAN)만 · 본 판의 `plan_hash` 로. 승인은 실행 지시가 아니다(배차 · 발송 없음)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `plan_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `case_run_id` | REF(recovery_run) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_run · RESTRICT — 사람 · Agent 가 다루는 계획 실행 |
+| 3 | `snapshot_id` | REF(planning_snapshot) | `uuid` | NOT NULL | — | `uuid()` | FK planning_snapshot(+contains_simulated 복합) — 이 판의 입력 스냅숏 |
+| 4 | `version` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 1 |
+| 5 | `plan_status` | CODE | `text` | NOT NULL | — | `text()` | IN (PROPOSED, APPROVED, SUPERSEDED, OUTDATED, INFEASIBLE) |
+| 6 | `solver_status` | CODE | `text` | NOT NULL | — | `text()` | IN (OPTIMAL, FEASIBLE, INFEASIBLE, TIME_LIMIT, ERROR) |
+| 7 | `solver_version` | STRING(40) | `varchar(40)` | NOT NULL | — | `varchar({ length: 40 })` | 예: `recovery-solver/1` |
+| 8 | `input_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` — Solver 입력 지문 |
+| 9 | `plan_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` — 승인이 인용하는 판 지문 |
+| 10 | `objective_krw` | BIGINT | `bigint` | NULL | — | `bigint({ mode: 'bigint' })` | 총 예상 손실(base + 위험 벌점). 해가 있을 때만 |
+| 11 | `base_cost_krw` | BIGINT | `bigint` | NULL | — | `bigint({ mode: 'bigint' })` | 실제로 내는 돈 합 |
+| 12 | `risk_penalty_krw` | BIGINT | `bigint` | NULL | — | `bigint({ mode: 'bigint' })` | 정책 벌점 합 [ASSUMPTION] |
+| 13 | `baseline_total_krw` | BIGINT | `bigint` | NOT NULL | — | `bigint({ mode: 'bigint' })` | Baseline(같은 엔진 · 규칙) |
+| 14 | `baseline_base_cost_krw` | BIGINT | `bigint` | NOT NULL | — | `bigint({ mode: 'bigint' })` | — |
+| 15 | `saving_krw` | BIGINT | `bigint` | NULL | — | `bigint({ mode: 'bigint' })` | Baseline − 목적값(음수 가능, 시뮬레이션 기준) |
+| 16 | `base_saving_krw` | BIGINT | `bigint` | NULL | — | `bigint({ mode: 'bigint' })` | — |
+| 17 | `candidate_count` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 0 |
+| 18 | `result` | JSON | `jsonb` | NOT NULL | — | `jsonb().$type<…>()` | jsonb 객체. Baseline 배정 · 제약 · 자원 사용 · 계획 불가 이유 · 경고 · 가정 · 시간 |
+| 19 | `cost_ms` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 0 |
+| 20 | `solve_ms` | INTEGER | `integer` | NOT NULL | — | `integer()` | >= 0 |
+| 21 | `outdated_reasons` | JSON | `jsonb` | NULL | — | `jsonb().$type<…>()` | jsonb 배열. 바뀐 사실(코드 · 주체 · 키 · 전후) |
+| 22 | `outdated_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | outdated_reasons 와 함께 |
+| 23 | `superseded_by_plan_id` | REF(recovery_plan) | `uuid` | NULL | — | `uuid()` | FK recovery_plan(자기) · DEFERRABLE · SUPERSEDED 와 함께 |
+| 24 | `approved_by_actor_id` | REF(actor) | `uuid` | NULL | — | `uuid()` | FK actor · HUMAN 만(M23) |
+| 25 | `approved_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 승인자와 함께 |
+| 26 | `created_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor — 사람(재계산) · AI_AGENT(제안 Tool) |
+| 27 | `agent_run_id` | REF(agent_run) | `uuid` | NULL | — | `uuid()` | FK agent_run — Agent 가 제안했으면 |
+| 28 | `contains_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | 입력에 시뮬레이션 값 포함(규칙 9) |
+| 29 | `scenario_id` | REF(scenario) | `uuid` | NULL | — | `uuid()` | FK scenario · contains_simulated 일 때만 |
+| 30 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 31 | `updated_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **FK(표 수준 · 복합 포함)**:
+  - case_run_id → recovery_run
+  - (snapshot_id, contains_simulated) → planning_snapshot(snapshot_id, contains_simulated)
+  - superseded_by_plan_id → recovery_plan(DEFERRABLE INITIALLY DEFERRED — 새 판을 넣는 트랜잭션이 옛 판을 먼저 밀어낸다)
+  - approved_by_actor_id · created_by_actor_id → actor · agent_run_id → agent_run · scenario_id → scenario
+- **UNIQUE / 부분 유일**: (case_run_id, version) · `uq_recovery_plan__case_run_id__current` (case_run_id) WHERE plan_status IN ('PROPOSED','APPROVED')
+- **CHECK(컬럼 CHECK 외)**: 해가 있으면(OPTIMAL · FEASIBLE · TIME_LIMIT) 목적값 있음 · INFEASIBLE 판은 목적값 없음 · PROPOSED/APPROVED 는 목적값 있음 · 금액 >= 0(절감 제외) · 승인자 ↔ 승인 시각 · APPROVED ⇒ 승인자 · 무효 시각 ↔ 사유 · SUPERSEDED ↔ 밀어낸 판 · 시나리오 ⇒ 시뮬레이션
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (snapshot_id) · (agent_run_id)
+
+### 22.44 `recovery_plan_item` — 판의 컨테이너 배정 하나 **(M22 · T-114)**
+
+- 논리: `DECISION_RECORD` · append-only · 그룹 **P 계획** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: (`plan_id`, `container_ref`). 컨테이너는 아직 저장소 표가 없다(시나리오 데이터 팩의 합성 id) — 참조 문자열
+- 비용 항목(금액 · 수량 · 단가 · 출처 · 가정) · 이유 코드 · 대안 · 근거 · 경고는 엔진 출력 그대로 `detail`
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `plan_id` | REF(recovery_plan) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_plan · RESTRICT |
+| 2 | `container_ref` | STRING(40) | `varchar(40)` | NOT NULL | — | `varchar({ length: 40 })` | 합성 컨테이너 id |
+| 3 | `action` | CODE | `text` | NOT NULL | — | `text()` | IN (KEEP_CURRENT_PLAN, MOVE_TO_WAREHOUSE, MOVE_TO_ODCY, WAIT_AT_TERMINAL) |
+| 4 | `target_ref` | STRING(60) | `varchar(60)` | NOT NULL | — | `varchar({ length: 60 })` | 오늘 가는 곳(시설 id · 터미널) |
+| 5 | `destination_ref` | STRING(60) | `varchar(60)` | NOT NULL | — | `varchar({ length: 60 })` | 최종 창고 |
+| 6 | `delivery_day` | DATE | `date` | NOT NULL | — | `date({ mode: 'string' })` | 창고 입고일(Asia/Seoul) |
+| 7 | `scheduled_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 오늘 출발 시각(대기면 없음) |
+| 8 | `truck_ref` | STRING(120) | `varchar(120)` | NULL | — | `varchar({ length: 120 })` | 자사 트럭 id · 협력 가용 트럭 표시 |
+| 9 | `base_cost_krw` | BIGINT | `bigint` | NOT NULL | — | `bigint({ mode: 'bigint' })` | >= 0 |
+| 10 | `risk_penalty_krw` | BIGINT | `bigint` | NOT NULL | — | `bigint({ mode: 'bigint' })` | >= 0 |
+| 11 | `total_krw` | BIGINT | `bigint` | NOT NULL | — | `bigint({ mode: 'bigint' })` | = base + 위험 벌점 |
+| 12 | `detail` | JSON | `jsonb` | NOT NULL | — | `jsonb().$type<…>()` | jsonb 객체. 비용 항목 · 이유 코드 · 대안 · 근거 · 경고 · 가정 |
+
+- **FK(표 수준)**: plan_id → recovery_plan
+- **CHECK(컬럼 CHECK 외)**: 금액 >= 0 · total = base + risk
+- **인덱스**: — (PK 가 판 단위 조회를 덮는다)
+
+### 22.45 M23 복구 계획 가드 · 권한 **(T-114)**
+
+- 파일: `back/drizzle/migrations/0022_m23_recovery_plan_guards.sql`(함수 1 · 트리거 6 — 함수 29 → 30, `now()` 없음). 표 · 열은 M22(`0021_m22_recovery_plan.sql`, drizzle-kit 생성 · 검토)
+- `tg_recovery_plan__guard`: 삽입은 PROPOSED · INFEASIBLE 만, 전이 PROPOSED → APPROVED · SUPERSEDED · OUTDATED / APPROVED → SUPERSEDED · OUTDATED / OUTDATED → SUPERSEDED / INFEASIBLE → SUPERSEDED · OUTDATED(CE004). 승인자는 한 번 · APPROVED 로 갈 때만(CE003) · HUMAN 만(CE005)
+- `tg_recovery_plan__guard_columns`: 위 상태 열 밖은 불변(CE002) · `tg_recovery_plan__no_delete` · `no_truncate`
+- `tg_recovery_plan_item__append_only` · `no_truncate`
+- 앱 역할: recovery_plan SELECT · INSERT · UPDATE / recovery_plan_item SELECT · INSERT
+- `fk_recovery_plan__superseded_by_plan_id` 를 DEFERRABLE INITIALLY DEFERRED 로 바꾼다
 
 ---
 

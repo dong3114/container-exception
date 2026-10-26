@@ -352,3 +352,67 @@ export const approvalRequestedOutput = z
     note: z.literal('A human must approve. This tool never approves or sends.'),
   })
   .strict();
+
+// ── T-114 복구 계획(결정론 Cost Engine · Solver) — 숫자는 엔진 출력이다. Agent 는 읽고 고르지 않는다 ──
+const krw = z.number().int().describe('KRW integer from the deterministic engine');
+const sha = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+export const proposePlanInput = z
+  .object({ expected_input_hash: sha.optional().describe('input_hash from solve_recovery — if the facts changed since, the backend solves again on the current facts and says so') })
+  .strict();
+export const planIdInput = z.object({ plan_id: uuid.optional().describe('Defaults to the current (newest not superseded) plan of this recovery run') }).strict();
+export const recoveryCostsOutput = z
+  .object({
+    recovery_run_id: uuid,
+    as_of: timestamp,
+    result_kind: z.literal('ENGINE_RESULT'),
+    contains_simulated: z.boolean(),
+    policy_version: z.string(),
+    rate_version: z.string(),
+    candidate_count: z.number().int(),
+    option_count: z.number().int(),
+    feasible_option_count: z.number().int(),
+    excluded_facts: z.array(z.object({ subject_id: z.string(), fact_key: z.string(), fact_state: z.string(), freshness: z.string(), reason: z.string().nullable() }).strict()).max(50),
+    provisional_facts: z.array(z.object({ subject_id: z.string(), fact_key: z.string(), reason: z.string().nullable() }).strict()).max(50),
+    baseline: z.object({ base_cost_krw: krw, risk_penalty_krw: krw, total_krw: krw, unplanned_count: z.number().int() }).strict(),
+    warnings: z.array(z.string().max(300)).max(50),
+    cost_ms: z.number().int(),
+  })
+  .strict();
+export const solveRecoveryOutput = z
+  .object({
+    recovery_run_id: uuid,
+    status: z.enum(['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'TIME_LIMIT', 'ERROR']),
+    input_hash: sha,
+    objective_krw: krw.nullable(),
+    base_cost_krw: krw.nullable(),
+    risk_penalty_krw: krw.nullable(),
+    baseline_total_krw: krw,
+    saving_krw: z.number().int().nullable(),
+    changed_count: z.number().int(),
+    assignments: z.array(z.object({ container_id: z.string(), action: z.string(), target_id: z.string(), delivery_day: isoDate, total_krw: krw }).strict()).max(100),
+    unplanned: z.array(z.object({ container_id: z.string(), reasons: z.array(z.string().max(300)).max(5) }).strict()).max(100),
+    binding_constraints: z.array(z.object({ type: z.string(), ref: z.string() }).strict()).max(30),
+    cost_ms: z.number().int(),
+    solve_ms: z.number().int(),
+    note: z.literal('Candidate only — nothing is stored. propose_recovery_plan stores it as a PROPOSED version for a human to review.'),
+  })
+  .strict();
+export const planStatusOutput = z
+  .object({
+    plan_id: uuid,
+    recovery_run_id: uuid,
+    version: z.number().int(),
+    plan_status: z.enum(['PROPOSED', 'APPROVED', 'SUPERSEDED', 'OUTDATED', 'INFEASIBLE']),
+    solver_status: z.string(),
+    input_hash: sha,
+    objective_krw: krw.nullable(),
+    baseline_total_krw: krw,
+    saving_krw: z.number().int().nullable(),
+    outdated_reason_codes: z.array(z.string()).max(50),
+    superseded_by_plan_id: uuid.nullable(),
+    approved: z.boolean(),
+    reused: z.boolean().describe('true = the inputs were unchanged, so the current version was returned instead of a new one'),
+    note: z.literal('A PROPOSED plan is a candidate. Only a human approves it; approval is not dispatch.'),
+  })
+  .strict();
+export const currentPlanOutput = z.object({ plan: planStatusOutput.nullable() }).strict();

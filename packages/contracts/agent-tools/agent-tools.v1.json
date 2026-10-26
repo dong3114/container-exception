@@ -3969,6 +3969,699 @@
         ],
         "additionalProperties": false
       }
+    },
+    {
+      "name": "calculate_recovery_costs",
+      "version": "1",
+      "category": "COMPUTE",
+      "description": "Run the deterministic Cost / Risk Engine for this recovery run on the current facts: every affected container × recovery action (keep the plan, move to an ODCY, wait at the terminal, move to another warehouse) with feasibility and an expected-loss breakdown, plus the baseline (doing nothing). Returns counts, the baseline, which facts were excluded (stale, withdrawn, conflicting, missing) and which provisional facts were used with a penalty. Use when the information gaps are closed or only wait for a person. You never compute or change numbers yourself. Stores nothing.",
+      "timeout_ms": 60000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "description": "Defaults to the recovery run this agent run is bound to",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "as_of": {
+            "type": "string",
+            "description": "ISO 8601 with +09:00"
+          },
+          "result_kind": {
+            "type": "string",
+            "const": "ENGINE_RESULT"
+          },
+          "contains_simulated": {
+            "type": "boolean"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "rate_version": {
+            "type": "string"
+          },
+          "candidate_count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "option_count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "feasible_option_count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "excluded_facts": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject_id": {
+                  "type": "string"
+                },
+                "fact_key": {
+                  "type": "string"
+                },
+                "fact_state": {
+                  "type": "string"
+                },
+                "freshness": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "subject_id",
+                "fact_key",
+                "fact_state",
+                "freshness",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "provisional_facts": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject_id": {
+                  "type": "string"
+                },
+                "fact_key": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "subject_id",
+                "fact_key",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "baseline": {
+            "type": "object",
+            "properties": {
+              "base_cost_krw": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              "risk_penalty_krw": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              "total_krw": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              "unplanned_count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "base_cost_krw",
+              "risk_penalty_krw",
+              "total_krw",
+              "unplanned_count"
+            ],
+            "additionalProperties": false
+          },
+          "warnings": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "cost_ms": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "recovery_run_id",
+          "as_of",
+          "result_kind",
+          "contains_simulated",
+          "policy_version",
+          "rate_version",
+          "candidate_count",
+          "option_count",
+          "feasible_option_count",
+          "excluded_facts",
+          "provisional_facts",
+          "baseline",
+          "warnings",
+          "cost_ms"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "solve_recovery",
+      "version": "1",
+      "category": "COMPUTE",
+      "description": "Run the deterministic Recovery Solver (an optimiser, not an LLM) on the cost engine output: the lowest total expected loss assignment of containers to actions within warehouse, ODCY, truck and time-window limits. Returns the solver status, objective vs baseline, assignments, containers it could not plan and why, and an input_hash. Use after calculate_recovery_costs. Stores nothing — call propose_recovery_plan to keep it as a candidate plan.",
+      "timeout_ms": 60000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "description": "Defaults to the recovery run this agent run is bound to",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPTIMAL",
+              "FEASIBLE",
+              "INFEASIBLE",
+              "TIME_LIMIT",
+              "ERROR"
+            ]
+          },
+          "input_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "objective_krw": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "base_cost_krw": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "risk_penalty_krw": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_total_krw": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "KRW integer from the deterministic engine"
+          },
+          "saving_krw": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "changed_count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "assignments": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "container_id": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "target_id": {
+                  "type": "string"
+                },
+                "delivery_day": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "total_krw": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "KRW integer from the deterministic engine"
+                }
+              },
+              "required": [
+                "container_id",
+                "action",
+                "target_id",
+                "delivery_day",
+                "total_krw"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unplanned": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "container_id": {
+                  "type": "string"
+                },
+                "reasons": {
+                  "maxItems": 5,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              },
+              "required": [
+                "container_id",
+                "reasons"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "binding_constraints": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "ref"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "cost_ms": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "solve_ms": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "note": {
+            "type": "string",
+            "const": "Candidate only — nothing is stored. propose_recovery_plan stores it as a PROPOSED version for a human to review."
+          }
+        },
+        "required": [
+          "recovery_run_id",
+          "status",
+          "input_hash",
+          "objective_krw",
+          "base_cost_krw",
+          "risk_penalty_krw",
+          "baseline_total_krw",
+          "saving_krw",
+          "changed_count",
+          "assignments",
+          "unplanned",
+          "binding_constraints",
+          "cost_ms",
+          "solve_ms",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "propose_recovery_plan",
+      "version": "1",
+      "category": "PROPOSE",
+      "description": "Store the solver result on the current facts as a new PROPOSED plan version of this recovery run (older versions become SUPERSEDED). If the inputs are unchanged the current version is returned (reused). Use after solve_recovery, then wait for the human decision. The plan is a candidate: only a human approves it, and approval is not dispatch. Requires an Idempotency-Key.",
+      "timeout_ms": 60000,
+      "idempotency": "REQUIRED",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "expected_input_hash": {
+            "description": "input_hash from solve_recovery — if the facts changed since, the backend solves again on the current facts and says so",
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "plan_status": {
+            "type": "string",
+            "enum": [
+              "PROPOSED",
+              "APPROVED",
+              "SUPERSEDED",
+              "OUTDATED",
+              "INFEASIBLE"
+            ]
+          },
+          "solver_status": {
+            "type": "string"
+          },
+          "input_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "objective_krw": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "KRW integer from the deterministic engine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_total_krw": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "KRW integer from the deterministic engine"
+          },
+          "saving_krw": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outdated_reason_codes": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "superseded_by_plan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "reused": {
+            "type": "boolean",
+            "description": "true = the inputs were unchanged, so the current version was returned instead of a new one"
+          },
+          "note": {
+            "type": "string",
+            "const": "A PROPOSED plan is a candidate. Only a human approves it; approval is not dispatch."
+          }
+        },
+        "required": [
+          "plan_id",
+          "recovery_run_id",
+          "version",
+          "plan_status",
+          "solver_status",
+          "input_hash",
+          "objective_krw",
+          "baseline_total_krw",
+          "saving_krw",
+          "outdated_reason_codes",
+          "superseded_by_plan_id",
+          "approved",
+          "reused",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_recovery_plan",
+      "version": "1",
+      "category": "READ",
+      "description": "Read the state of a plan version of this recovery run (default: the current one): PROPOSED, APPROVED (by a human), OUTDATED (a fact it relied on changed — recalculate), SUPERSEDED or INFEASIBLE, with the codes of the facts that changed. Use after waking up to decide whether to recalculate or finish.",
+      "timeout_ms": 30000,
+      "idempotency": "NONE",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "description": "Defaults to the current (newest not superseded) plan of this recovery run",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "plan_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "recovery_run_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "plan_status": {
+                    "type": "string",
+                    "enum": [
+                      "PROPOSED",
+                      "APPROVED",
+                      "SUPERSEDED",
+                      "OUTDATED",
+                      "INFEASIBLE"
+                    ]
+                  },
+                  "solver_status": {
+                    "type": "string"
+                  },
+                  "input_hash": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "objective_krw": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "description": "KRW integer from the deterministic engine"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "baseline_total_krw": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "KRW integer from the deterministic engine"
+                  },
+                  "saving_krw": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "outdated_reason_codes": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "superseded_by_plan_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "approved": {
+                    "type": "boolean"
+                  },
+                  "reused": {
+                    "type": "boolean",
+                    "description": "true = the inputs were unchanged, so the current version was returned instead of a new one"
+                  },
+                  "note": {
+                    "type": "string",
+                    "const": "A PROPOSED plan is a candidate. Only a human approves it; approval is not dispatch."
+                  }
+                },
+                "required": [
+                  "plan_id",
+                  "recovery_run_id",
+                  "version",
+                  "plan_status",
+                  "solver_status",
+                  "input_hash",
+                  "objective_krw",
+                  "baseline_total_krw",
+                  "saving_krw",
+                  "outdated_reason_codes",
+                  "superseded_by_plan_id",
+                  "approved",
+                  "reused",
+                  "note"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "additionalProperties": false
+      }
     }
   ]
 }

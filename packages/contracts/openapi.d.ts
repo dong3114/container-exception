@@ -651,6 +651,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/planning/runs/{runId}/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cost table of a recovery run (deterministic engine): every container × action with feasibility, reasons and cost breakdown, plus the baseline — nothing is stored */
+        get: operations["PlanningController_costs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/runs/{runId}/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plan versions of a recovery run (newest first) */
+        get: operations["PlanningController_list"];
+        put?: never;
+        /** Recalculate (operator): run the cost engine and solver on current facts and store a new PROPOSED version — the same inputs return the current version */
+        post: operations["PlanningController_propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/plans/{planId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One plan version: problem, baseline vs plan, per-container action · target · cost · reasons, facts used or excluded, warnings */
+        get: operations["PlanningController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/plans/{planId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a PROPOSED plan (a human only, quoting plan_hash). Approval is not dispatch — nothing is sent or booked */
+        post: operations["PlanningController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1609,6 +1678,151 @@ export interface components {
             value: number;
             /** @enum {string} */
             reason_code: "MODEL_MISREAD" | "CONDITIONAL_ANSWER" | "OUTDATED_REPLY" | "WRONG_SENDER_CONTEXT" | "WRONG_UNIT" | "CONFLICTING_EVIDENCE" | "OPERATOR_CORRECTION";
+            note?: string;
+        };
+        CostPreviewDto: {
+            /** Format: uuid */
+            case_run_id: string;
+            as_of: string;
+            policy_version: string;
+            rate_version: string;
+            candidates: string[];
+            option_count: number;
+            feasible_option_count: number;
+            /** @description Every container × action option: feasible + reasons + cost breakdown (engine output) */
+            options: {
+                [key: string]: unknown;
+            }[];
+            resources: {
+                [key: string]: unknown;
+            }[];
+            facts: {
+                [key: string]: unknown;
+            }[];
+            baseline: {
+                [key: string]: unknown;
+            };
+            warnings: string[];
+            cost_ms: number;
+        };
+        PlanSummaryDto: {
+            /** Format: uuid */
+            plan_id: string;
+            version: number;
+            plan_status: string;
+            solver_status: string;
+            objective_krw: number | null;
+            base_cost_krw: number | null;
+            baseline_total_krw: number;
+            saving_krw: number | null;
+            /** Format: uuid */
+            agent_run_id: string | null;
+            created_at: string;
+            /** @description Number of facts whose change made this plan OUTDATED */
+            outdated_reason_count: number | null;
+        };
+        PlanListDto: {
+            /** Format: uuid */
+            case_run_id: string;
+            /**
+             * Format: uuid
+             * @description Newest plan that is not superseded
+             */
+            current_plan_id: string | null;
+            plans: components["schemas"]["PlanSummaryDto"][];
+        };
+        PlanItemDto: {
+            /** @description Container reference (synthetic scenario id until containers are stored) */
+            container_id: string;
+            /** @enum {string} */
+            action: "KEEP_CURRENT_PLAN" | "MOVE_TO_WAREHOUSE" | "MOVE_TO_ODCY" | "WAIT_AT_TERMINAL";
+            /** @description Where the container goes today (warehouse · ODCY · terminal when waiting) */
+            target_id: string;
+            target_name: string;
+            destination_id: string;
+            /** Format: date */
+            delivery_day: string;
+            /** @description Departure time today (+09:00); null when waiting */
+            scheduled_time: string | null;
+            truck_id: string | null;
+            base_cost_krw: number;
+            risk_penalty_krw: number;
+            total_krw: number;
+            /** @description Baseline cost of this container (same engine) — for the per-container comparison */
+            baseline_total_krw: number | null;
+            reason_codes: string[];
+            /** @description Engine output: cost lines (amount · qty · unit · source · assumption), alternatives with why they were not chosen, evidence and warning refs */
+            detail: {
+                [key: string]: unknown;
+            };
+        };
+        PlanDto: {
+            /** Format: uuid */
+            plan_id: string;
+            /** Format: uuid */
+            case_run_id: string;
+            version: number;
+            /** @enum {string} */
+            plan_status: "PROPOSED" | "APPROVED" | "SUPERSEDED" | "OUTDATED" | "INFEASIBLE";
+            /** @enum {string} */
+            solver_status: "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "TIME_LIMIT" | "ERROR";
+            solver_version: string;
+            /**
+             * @description Numbers come from the deterministic cost engine and solver (not scenario values, not an LLM). Inputs may be simulated — see contains_simulated
+             * @enum {string}
+             */
+            result_kind: "ENGINE_RESULT";
+            input_hash: string;
+            /** @description Fingerprint of this plan — the approval must quote it */
+            plan_hash: string;
+            /** @description Facts were judged at this time (+09:00) */
+            as_of: string;
+            /** @description Total expected loss = base cost + risk penalty (solver objective) */
+            objective_krw: number | null;
+            base_cost_krw: number | null;
+            risk_penalty_krw: number | null;
+            baseline_total_krw: number;
+            baseline_base_cost_krw: number;
+            /** @description Baseline total − plan total (simulation basis — not a realised saving) */
+            saving_krw: number | null;
+            base_saving_krw: number | null;
+            candidate_count: number;
+            /** @description Containers whose plan changes (action other than keeping the current plan) */
+            changed_count: number;
+            /** @description Problem: per warehouse and day, planned containers vs usable capacity */
+            problem: {
+                [key: string]: unknown;
+            };
+            /** @description Baseline (rule, same engine), binding constraints, resource and truck usage, unplanned containers with reasons, warnings, assumptions, timings */
+            result: {
+                [key: string]: unknown;
+            };
+            /** @description Facts the plan used or excluded (fact ref · state · freshness · source TRUTH/SCENARIO · usage) */
+            facts: {
+                [key: string]: unknown;
+            }[];
+            outdated_reasons: {
+                [key: string]: unknown;
+            }[] | null;
+            outdated_at: string | null;
+            /** Format: uuid */
+            superseded_by_plan_id: string | null;
+            /** Format: uuid */
+            approved_by_actor_id: string | null;
+            approved_at: string | null;
+            /** Format: uuid */
+            created_by_actor_id: string;
+            /** Format: uuid */
+            agent_run_id: string | null;
+            contains_simulated: boolean;
+            created_at: string;
+            cost_ms: number;
+            solve_ms: number;
+            items: components["schemas"]["PlanItemDto"][];
+        };
+        ApprovePlanRequestDto: {
+            /** @description plan_hash of the plan you reviewed */
+            plan_hash: string;
             note?: string;
         };
         ErrorResponse: {
@@ -3354,6 +3568,181 @@ export interface operations {
             };
             /** @description VALUE_UNCHANGED · NOT_CORRECTABLE */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningController_costs: {
+        parameters: {
+            query?: {
+                /** @description Judge facts at this time (ISO 8601 with offset). Default: scenario time for simulated runs, now for real ones */
+                as_of?: string;
+            };
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostPreviewDto"];
+                };
+            };
+            /** @description PLANNING_INPUT_UNAVAILABLE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanListDto"];
+                };
+            };
+        };
+    };
+    PlanningController_propose: {
+        parameters: {
+            query?: {
+                /** @description Judge facts at this time (ISO 8601 with offset). Default: scenario time for simulated runs, now for real ones */
+                as_of?: string;
+            };
+            header: {
+                /** @description Operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanDto"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PLANNING_INPUT_UNAVAILABLE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningController_approve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovePlanRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanDto"];
+                };
+            };
+            /** @description INVALID_PLAN_REQUEST */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

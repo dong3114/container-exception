@@ -3,6 +3,12 @@ import type { TOOL_CATEGORY } from '../db/schema/codes.js';
 import {
   approvalRequestedOutput,
   communicationStatusInput,
+  currentPlanOutput,
+  planIdInput,
+  planStatusOutput,
+  proposePlanInput,
+  recoveryCostsOutput,
+  solveRecoveryOutput,
   communicationStatusOutput,
   counterpartiesOutput,
   createInquiryDraftInput,
@@ -160,6 +166,50 @@ export const TOOLS = [
     timeoutMs: TOOL_TIMEOUT_MS.REQUEST,
     idempotency: 'REQUIRED',
   }),
+  define({
+    name: 'calculate_recovery_costs',
+    version: '1',
+    category: 'COMPUTE',
+    description:
+      'Run the deterministic Cost / Risk Engine for this recovery run on the current facts: every affected container × recovery action (keep the plan, move to an ODCY, wait at the terminal, move to another warehouse) with feasibility and an expected-loss breakdown, plus the baseline (doing nothing). Returns counts, the baseline, which facts were excluded (stale, withdrawn, conflicting, missing) and which provisional facts were used with a penalty. Use when the information gaps are closed or only wait for a person. You never compute or change numbers yourself. Stores nothing.',
+    input: recoveryRunInput,
+    output: recoveryCostsOutput,
+    timeoutMs: TOOL_TIMEOUT_MS.COMPUTE,
+    idempotency: 'NONE',
+  }),
+  define({
+    name: 'solve_recovery',
+    version: '1',
+    category: 'COMPUTE',
+    description:
+      'Run the deterministic Recovery Solver (an optimiser, not an LLM) on the cost engine output: the lowest total expected loss assignment of containers to actions within warehouse, ODCY, truck and time-window limits. Returns the solver status, objective vs baseline, assignments, containers it could not plan and why, and an input_hash. Use after calculate_recovery_costs. Stores nothing — call propose_recovery_plan to keep it as a candidate plan.',
+    input: recoveryRunInput,
+    output: solveRecoveryOutput,
+    timeoutMs: TOOL_TIMEOUT_MS.COMPUTE,
+    idempotency: 'NONE',
+  }),
+  define({
+    name: 'propose_recovery_plan',
+    version: '1',
+    category: 'PROPOSE',
+    description:
+      'Store the solver result on the current facts as a new PROPOSED plan version of this recovery run (older versions become SUPERSEDED). If the inputs are unchanged the current version is returned (reused). Use after solve_recovery, then wait for the human decision. The plan is a candidate: only a human approves it, and approval is not dispatch. Requires an Idempotency-Key.',
+    input: proposePlanInput,
+    output: planStatusOutput,
+    timeoutMs: TOOL_TIMEOUT_MS.PROPOSE,
+    idempotency: 'REQUIRED',
+  }),
+  define({
+    name: 'get_recovery_plan',
+    version: '1',
+    category: 'READ',
+    description:
+      'Read the state of a plan version of this recovery run (default: the current one): PROPOSED, APPROVED (by a human), OUTDATED (a fact it relied on changed — recalculate), SUPERSEDED or INFEASIBLE, with the codes of the facts that changed. Use after waking up to decide whether to recalculate or finish.',
+    input: planIdInput,
+    output: currentPlanOutput,
+    timeoutMs: TOOL_TIMEOUT_MS.READ,
+    idempotency: 'NONE',
+  }),
 ] as const;
 
 export type ToolName = (typeof TOOLS)[number]['name'];
@@ -170,4 +220,4 @@ export function findTool(name: string): ToolDefinition | null {
 }
 
 /** 등록되지 않는 행동(COMMIT) — 이름으로도 막는다(시험이 목록과 대조한다). */
-export const FORBIDDEN_TOOL_NAMES = ['approve_draft', 'approve', 'reject_draft', 'send', 'send_message', 'request_send', 'force_send', 'mark_sent', 'confirm_fact', 'select_final_plan', 'mutate_registry'] as const;
+export const FORBIDDEN_TOOL_NAMES = ['approve_draft', 'approve', 'reject_draft', 'send', 'send_message', 'request_send', 'force_send', 'mark_sent', 'confirm_fact', 'select_final_plan', 'approve_plan', 'approve_recovery_plan', 'mutate_registry'] as const;
