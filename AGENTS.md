@@ -203,6 +203,7 @@ Claude와 Codex는 작업 장소에 따라 번갈아 Orchestrator를 맡는다. 
 빌드:        npm run build
 API:         npm run dev:api          # http://127.0.0.1:3100/health  (빌드본: npm run start:api)
 Worker:      npm run dev:worker       # 발송 · 수신 Worker(Outbox · Mock 수신함 폴링). 한 주기만: npx tsx src/worker.ts --once  (빌드본: npm run start:worker)
+실행 관측:   npm run runtime:stats   # 그래프 · 노드 · Tool · 공공데이터 지연 · 단계 · 재시도 분포(p50~p99 · max) — 비상 상한을 줄이는 근거(docs/24 18.15)
 사실 확인:   GET /truth/facts?recovery_run_id= · POST /truth/events/<id>/confirm|reject|correct(헤더 X-CERA-Actor-Id = 활성 HUMAN. AI · Agent · 시스템은 403) — 설계 docs/24 18.14
 검증기 일치:  extraction-rules.ts 를 고치면 npm run validator-conformance:emit → packages/contracts/conformance/extraction-validator.v1.json 을 다시 만들고, ai 의 scoring.py backend_checks 포팅을 맞춘다(양쪽 시험이 검사)
 Agent Tool:  CERA_AGENT_TOOLS_ENABLED=true + CERA_AGENT_TOOL_TOKEN(32자+, ai/.env 와 같은 값) → POST /agent-runs {recovery_run_id, goal}(헤더 X-CERA-Actor-Id = 활성 HUMAN) → POST /internal/agent-tools/<tool>(Authorization: Bearer · X-CERA-Agent-Run-Id · Idempotency-Key). 계약: npm run agent-tools:emit → packages/contracts/agent-tools/agent-tools.v1.json

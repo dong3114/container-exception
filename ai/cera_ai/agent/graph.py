@@ -117,9 +117,10 @@ def pick_inquiry_gap(gaps: list[dict[str, Any]]) -> dict[str, Any] | None:
 @dataclass
 class GraphDeps:
     tools: ToolCaller
-    max_steps: int = 25
-    max_tool_calls: int = 12
-    max_retries: int = 2
+    # emergency ceilings [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — stop runaway execution, not slow normal work. Lowered from observed distributions
+    max_steps: int = 100
+    max_tool_calls: int = 50
+    max_retries: int = 3
     policy: NextActionPolicy = field(default_factory=DeterministicPolicy)
     report_steps: Callable[[str, list[dict[str, Any]]], None] | None = None
     clock: Callable[[], datetime] = lambda: datetime.now(KST)

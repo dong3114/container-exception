@@ -262,7 +262,7 @@ def test_retryable_failures_retry_a_bounded_number_of_times_and_others_do_not():
     assert rt.start(RUN, RR, "goal", PARAMS)["result_code"] == "NO_INFORMATION_GAPS"
     assert [c[0] for c in flaky.calls].count("get_information_gaps") == 2
     always = FakeTools({"get_information_gaps": lambda a, n: fail("get_information_gaps", "UPSTREAM_TIMEOUT", True)})
-    assert runtime(always, max_retries=2).start(RUN, RR, "goal", PARAMS)["error_code"] == "UPSTREAM_TIMEOUT"
+    assert runtime(always, max_retries=2).start(RUN, RR, "goal", PARAMS)["error_code"] == "RETRY_LIMIT_REACHED"  # limit code; the cause stays in the call summaries
     assert [c[0] for c in always.calls].count("get_information_gaps") == 3
     scoped = FakeTools({"get_information_gaps": lambda a, n: fail("get_information_gaps", "OUT_OF_SCOPE", False, "REJECTED")})
     assert runtime(scoped, max_retries=2).start(RUN, RR, "goal", PARAMS)["error_code"] == "OUT_OF_SCOPE"

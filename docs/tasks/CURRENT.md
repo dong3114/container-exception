@@ -15,7 +15,8 @@
 ### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"
 
 - 원칙(사용자 지시): 운영 데이터가 없으므로 정상 실행을 막는 낮은 제한을 추측해 두지 않는다. 폭주(무한 loop · retry · HTTP 대기 · 생성)만 막는 넉넉한 비상 상한 `[ASSUMPTION / DEVELOPMENT SAFETY CEILING]` 을 두고, 분포(p50 · p90 · p95 · p99 · max)를 보고 줄인다. 사람 · 외부 대기(WAITING_*)는 실행 시간 제한 대상이 아니다.
-- 상세 · 결과는 `docs/24` 18.15 에 기록한다.
+- 결과: 비상 상한(단계 100 · Tool 50 · 재시도 3 · 그래프 구동 900초 · 모델 300초 · 상용 120초 · Backend→AI 330초 · 공공 30초) · 상한 코드 분리(`RETRY_LIMIT_REACHED` · `MODEL_TIMEOUT` 추가) · `npm run runtime:stats` · AI Server 추론 로그 · 평가 지연 p90/p99/max · 빈 `CERA_AI_REPLAY_DIR` 결함 수정. 정본 `docs/24` 18.15.
+- **다음 한 걸음**: T-111 Truth Lifecycle Hardening.
 
 ### T-099 — 연속 모델 평가 (MODEL_EVAL_CONTINUOUS · 2026-10-26)
 

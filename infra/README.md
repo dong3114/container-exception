@@ -50,7 +50,7 @@ CERA_COMPOSE_EXTRA=infra/local/compose.gpu.yaml bash infra/local/eval-ladder.sh 
 
 기본은 꺼져 있다. 켜려면 `back/.env` 의 `CERA_AGENT_TOOLS_ENABLED=true` 와 `ai/.env` 의 `CERA_AGENT_MODE=on`, 두 파일의 `CERA_AGENT_TOOL_TOKEN`(32자 이상, 같은 값). 켠 뒤 `GET /agent-runs/runtime` 이 `reachable: true` · `tool_count: 10` 이면 연결된 것이다. 시작은 `POST /agent-runs`(헤더 `X-CERA-Actor-Id`)와 `POST /agent-runs/{id}/start`.
 - `ai` 이미지는 Backend 가 생성한 Tool 계약(`packages/contracts/agent-tools/`)을 읽는다 — 그래서 `ai` 빌드 맥락도 저장소 루트다.
-- **로컬 모델의 첫 요청은 느리다**(모델 적재). Backend 의 AI 호출 제한(`CERA_AI_TIMEOUT_MS`, 기본 20초)보다 길면 첫 추출이 `EXTRACTION_TIMEOUT` 으로 기록되고 재시도에서 처리된다 — 오류가 아니라 재시도 정책의 동작이다. 모델을 미리 한 번 부르면 줄어든다.
+- **로컬 모델의 첫 요청은 느리다**(모델 적재). 시간 제한은 정상적인 느린 실행을 막지 않는 넉넉한 비상 상한이다(Backend → AI 330초 · 모델 요청 300초 · 그래프 구동 900초 — `[ASSUMPTION / DEVELOPMENT SAFETY CEILING]`, 정본 `docs/24` 18.15). 사람 · 업체를 기다리는 동안은 시간 제한이 걸리지 않는다. 분포는 `back` 에서 `npm run runtime:stats` 로 보고 상한을 줄인다.
 
 ## GPU
 

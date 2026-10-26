@@ -10,6 +10,7 @@ import request from 'supertest';
 import { v7 } from 'uuid';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AgentReconciler } from '../../src/agent-tools/reconciler.js';
+import { AGENT_RUNTIME_CLIENT } from '../../src/agent-tools/runtime-client.js';
 import { createApiApp } from '../../src/app/create-api.js';
 import { WorkerModule, WorkerRunner } from '../../src/app/worker.module.js';
 import { CHANNEL_ADAPTERS } from '../../src/channel/channel-adapter.js';
@@ -346,6 +347,34 @@ describe('CeraRecoveryGraph across two processes', () => {
     const done = await until(id, (v) => v.status === 'COMPLETED' || v.status === 'FAILED');
     expect(done.steps.at(-1)).toMatchObject({ kind: 'TERMINAL', outcome: 'COMPLETED', detail_code: 'FACT_REJECTED_GAP_OPEN' });
     expect(done.result_summary).toMatchObject({ business_gap_state: 'ASKED', facts_confirmed: false });
+  });
+
+  it('F · G. the runtime timeout covers one active graph drive only — a run waiting for a person or a partner longer than it does not fail', async () => {
+    // a short ceiling for the test (default 900 s) on the API's runtime client — the one that drives the graph
+    const client = api.get(AGENT_RUNTIME_CLIENT) as unknown as { timeoutMs: number };
+    const saved = client.timeoutMs;
+    client.timeoutMs = 4_000;
+    try {
+      await newTruckPool();
+      const id = await createRun();
+      const started = (await http.post(`/agent-runs/${id}/start`).set(ACTOR, w.humanId).expect(200)).body;
+      expect(started.status).toBe('WAITING_HUMAN');
+      const mid = started.pending_ref.id as string;
+      await sleep(4_500); // longer than the runtime timeout, waiting for a person
+      expect((await reconcile()).woken).toBe(0);
+      expect(await view(id)).toMatchObject({ status: 'WAITING_HUMAN', last_error_code: null });
+      await http.post(`/communication/drafts/${mid}/approve`).set(ACTOR, w.humanId).send({ content_hash: await draftHash(mid) }).expect(200);
+      await until(id, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_SEND_REQUEST' || v.status === 'FAILED');
+      await http.post(`/communication/drafts/${mid}/send`).set(ACTOR, w.humanId).send({ content_hash: await draftHash(mid) }).expect(200);
+      await tick();
+      await until(id, (v) => (v as { waiting_reason?: string }).waiting_reason === 'AWAITING_REPLY' || v.status === 'FAILED');
+      await sleep(4_500); // longer than the runtime timeout, waiting for the partner
+      expect((await reconcile()).woken).toBe(0);
+      expect(await view(id)).toMatchObject({ status: 'WAITING_EXTERNAL', waiting_reason: 'AWAITING_REPLY', last_error_code: null, runtime_attempts: 0 });
+      await http.post(`/agent-runs/${id}/cancel`).set(ACTOR, w.humanId).send({}).expect(200);
+    } finally {
+      client.timeoutMs = saved;
+    }
   });
 
   it('a rejected draft ends the run with INQUIRY_REJECTED', async () => {

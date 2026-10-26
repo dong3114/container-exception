@@ -62,7 +62,8 @@ export const envSchema = z.object({
   // ── 회신 추출(T-092 U7) — Python AI Server(ADR-033). Main Backend 만 부른다(브라우저에 노출하지 않는다) ──
   CERA_AI_SERVER_URL: z.string().url().default('http://127.0.0.1:8100'),
   // LLM 은 느릴 수 있다 — 넘으면 이번 시도는 실패(재시도 가능), 원문 · 회신은 그대로
-  CERA_AI_TIMEOUT_MS: z.coerce.number().int().min(500).max(300_000).default(20_000),
+  // Backend → AI Server 추출 요청 하나 [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — 로컬 모델 300초(CERA_LOCAL_LLM_TIMEOUT_S)보다 길게 둬서 모델 쪽 MODEL_TIMEOUT 이 먼저 보이게
+  CERA_AI_TIMEOUT_MS: z.coerce.number().int().min(500).max(1_800_000).default(330_000),
   // 같은 회신의 추출 시도 한도(기술 실패 기준) [ASSUMPTION]
   CERA_EXTRACTION_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
   // ── 공공 데이터(docs/11 3절 · T-102 예정) — Main Backend 의 Public Data Adapter 만 부른다. Agent 는 직접 부르지 않는다(ADR-036) ──
@@ -72,7 +73,7 @@ export const envSchema = z.object({
   UNIPASS_API_KEY: optionalSecret,
   // DS-02 · DS-03 공공데이터포털 serviceKey(디코딩 값을 넣는다 — URL 인코딩은 어댑터가 한다)
   DATA_GO_KR_SERVICE_KEY: optionalSecret,
-  CERA_PUBLIC_DATA_TIMEOUT_MS: z.coerce.number().int().min(500).max(120_000).default(10_000),
+  CERA_PUBLIC_DATA_TIMEOUT_MS: z.coerce.number().int().min(500).max(120_000).default(30_000), // [ASSUMPTION / DEVELOPMENT SAFETY CEILING]
   // 조회 한 번에 받는 최대 페이지 수(한 페이지 50행). 개발계정 일일 한도(DS-02 1,000 · DS-03 10,000)를 지키는 상한 [ASSUMPTION]
   CERA_PUBLIC_DATA_MAX_PAGES: z.coerce.number().int().min(1).max(200).default(20),
   // 원본 응답 보존 위치(gitignore 된 data/raw/ 아래). 실제 B/L · 원본 응답은 커밋하지 않는다(규칙 5 · Q-17)
@@ -87,7 +88,8 @@ export const envSchema = z.object({
   // Backend → Agent Runtime(실행 시작 · 재개). 지금은 AI Server 와 같은 프로세스를 가정한다 [ASSUMPTION]
   CERA_AGENT_RUNTIME_URL: z.string().url().default('http://127.0.0.1:8100'),
   // Backend → Agent Runtime 한 번 실행(시작 · 재개)의 시간 제한(ms). 그래프는 interrupt 나 끝에서 돌려준다 [ASSUMPTION]
-  CERA_AGENT_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(120_000),
+  // 그래프 한 번 구동(시작 · 재개 → 다음 interrupt) 요청 하나 [ASSUMPTION / DEVELOPMENT SAFETY CEILING]. 사람 · 외부 대기(WAITING_*)는 요청이 끝난 뒤라 이 제한과 무관하다
+  CERA_AGENT_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
   // Runtime 일시 장애(연결 실패 · 시간 초과 · 5xx) 때 같은 실행을 몇 번까지 시도하나(첫 시도 포함) · 다음 시도까지 기다림의 시작 값(ms, 2배씩) [ASSUMPTION]
   CERA_AGENT_RUNTIME_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
   CERA_AGENT_RUNTIME_RETRY_BASE_MS: z.coerce.number().int().min(100).max(3_600_000).default(30_000),

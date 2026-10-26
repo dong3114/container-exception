@@ -95,7 +95,7 @@ def provider_from_env() -> LlmProvider:
     mode = os.environ.get("CERA_LLM_MODE", "replay")
     if mode == "replay":
         default_dir = Path(__file__).resolve().parent.parent / "fixtures" / "replay"
-        return ReplayProvider(Path(os.environ.get("CERA_AI_REPLAY_DIR", str(default_dir))))
+        return ReplayProvider(Path(os.environ.get("CERA_AI_REPLAY_DIR") or str(default_dir)))  # an empty value (as in .env.example) means the default
     if mode == "live":
         # T-099: an adapter runs only when both are set explicitly; choosing them for production is an ADR decision.
         vendor, model = os.environ.get("CERA_LLM_PROVIDER"), os.environ.get("CERA_LLM_MODEL")

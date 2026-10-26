@@ -56,8 +56,14 @@ class ToolSession:
             result = self.caller.call(tool, arguments, agent_run_id=self.agent_run_id, idempotency_key=idempotency_key)
             self.calls.append(_summary(result))
             retryable = result.status == "FAILED" and result.error is not None and result.error.retryable
-            if not retryable or attempt >= self.max_retries:
+            if not retryable:
                 return result
+            if attempt >= self.max_retries:
+                if self.max_retries == 0:
+                    return result
+                # retries ran out: a limit, not a business failure — the cause stays in the call summaries (calls[*].code)
+                cause = result.error.code if result.error else 'UNKNOWN'
+                return ToolResult(result.tool, result.status, result.tool_call_id, None, ToolError("RETRY_LIMIT_REACHED", False, f"{cause} after {attempt + 1} attempts"))
             attempt += 1
             self.retries += 1
 

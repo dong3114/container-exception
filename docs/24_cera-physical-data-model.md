@@ -894,6 +894,28 @@ Q-45 규칙(`docs/22` 29.8.1) 그대로다 — 기록 행 · 참조 · 지문은
 
 
 
+### 18.15 Runtime 비상 상한 · 관측 (2026-10-26 · 사용자 지시)
+
+**DB 변경 없음.** 원칙: 운영 데이터가 아직 없으므로 적정 지연 · 단계 · Tool 호출 · 재시도 수를 안다고 가정하지 않는다. **정상적인 느린 실행을 막는 낮은 제한을 추측해 두지 않고, 폭주(무한 loop · 재시도 · HTTP 대기 · 생성)만 끊는 넉넉한 비상 상한**을 둔다. 값은 모두 `[ASSUMPTION / DEVELOPMENT SAFETY CEILING]` — 제품 정책이 아니다. 실행 분포를 보고 줄인다("숫자를 먼저 정하고 시스템을 맞추지 않는다. 시스템을 관측하고 숫자를 정한다").
+
+| 설정(env) | 이전 | 지금 | 무엇을 막나 |
+| --- | --- | --- | --- |
+| `CERA_AGENT_MAX_STEPS`(ai) | 25 | 100 | 실행 전체의 그래프 단계 — 끝나지 않는 loop |
+| `CERA_AGENT_MAX_TOOL_CALLS`(ai) | 12 | 50 | 대기와 대기 사이 한 구간의 Tool 호출 |
+| `CERA_AGENT_MAX_RETRIES`(ai) | 2 | 3 | 재시도 가능한 Tool 실패의 재시도(같은 멱등 키) — 다 쓰면 `RETRY_LIMIT_REACHED`(원인 코드는 호출 기록에 남음) |
+| `CERA_AGENT_RUNTIME_TIMEOUT_MS`(back) | 120 000 | 900 000 | Backend → Python **그래프 한 번 구동**(시작 · 재개 → 다음 interrupt) 요청 하나. 사람 · 외부 대기(`WAITING_HUMAN` · `WAITING_EXTERNAL` · `WAITING_RUNTIME`)는 요청이 끝난 뒤라 **대상이 아니다**(시험: 대기 중 상한을 넘겨도 실패하지 않음) |
+| `CERA_LOCAL_LLM_TIMEOUT_S`(ai) | 300 | 300 | 로컬 모델 추론 요청 하나 — 넘으면 `MODEL_TIMEOUT`(재시도 가능). 관측: Qwen3-4B 콜드 스타트 > 20초, 7B CPU 약 41.6초/건 |
+| `CERA_COMMERCIAL_LLM_TIMEOUT_S`(ai, 신설) | SDK 기본 | 120 | 상용 API(anthropic · openai · gemini) 요청 하나 — 공급자 종류별로 따로 둔다(local · commercial · 공공데이터). 정책 엔진은 만들지 않음 |
+| `CERA_AI_TIMEOUT_MS`(back) | 20 000 | 330 000 | Backend → AI Server 추출 요청 하나 — 로컬 모델 상한(300초)보다 길게 둬서 모델 쪽 `MODEL_TIMEOUT` 이 먼저 보이게 |
+| `CERA_PUBLIC_DATA_TIMEOUT_MS`(back) | 10 000 | 30 000 | 공공 API 요청 하나 |
+| Tool 실행 상한 `TOOL_TIMEOUT_MS`(back) | READ 5s · EXTERNAL 60s · COMPUTE 10s · PROPOSE/REQUEST 15s | 30s · 120s · 60s · 60s | Tool 하나(계약 파일에 실림 — Python 쪽 HTTP 대기는 그 + 5초) |
+
+- **상한 도달은 업무 실패와 구분되는 코드**: `LOOP_LIMIT_REACHED` · `TOOL_CALL_LIMIT_REACHED` · `RETRY_LIMIT_REACHED`(Agent 실행) · `MODEL_TIMEOUT`(모델 응답 없음 — 추출 기술 실패의 공급자 코드) · `EXTRACTION_TIMEOUT`(Backend → AI Server) · `AGENT_RUNTIME_TIMEOUT`(그래프 구동 요청 — `WAITING_RUNTIME` 재시도 후 상한이면 FAILED). "상한이 너무 낮은가 / 그래프가 이상하게 도는가"를 이 코드로 가른다
+- **관측**: `npm run runtime:stats`(back) — 기존 기록(`agent_step` · `agent_tool_call` · `agent_run` · `public_data_fetch` · `system_error`)만 읽어 그래프 구동 시간 · 노드 시간 · Tool 시간 · 공공데이터 지연 · 실행당 단계 · Tool 호출 · 재시도 · Runtime 재시도의 p50 · p90 · p95 · p99 · max 와 상한 · 시간 초과 코드 수를 낸다. **새 저장 구조 없음.** 모델 추론 시간은 DB 에 두지 않는다 — AI Server 로그 한 줄(`local llm call model=… server=… total_ms=… first_call_in_process=…`, 프롬프트 · 회신 본문 없음)과 평가 결과(`metrics.json` 의 `latency_ms_p50 · p90 · p95 · p99 · max`). RAM · VRAM 은 평가 스크립트(`infra/local/eval-ladder.sh`)가 기록한다 — 운영 Runtime 에 무거운 profiler 를 넣지 않는다
+- **줄이는 기준(예)**: 정상 실행 500건의 단계 p99 = 22 → 100 을 40 으로 · 로컬 추론 p99 = 18초 → 300초를 60초로. 줄일 때는 이 표와 `.env.example` 을 같이 고친다
+- 함께 고친 결함: `ai/.env` 의 `CERA_AI_REPLAY_DIR=`(빈 값)이 녹화 폴더 대신 현재 폴더를 가리키던 것 → 빈 값 = 기본 폴더
+
+
 ```
 M01 기반·운영 기록   scenario ─┬─ actor
                               ├─ audit_log (actor)

@@ -46,7 +46,8 @@ export interface ToolDefinition<I extends z.ZodTypeAny = z.ZodTypeAny, O extends
 const define = <I extends z.ZodTypeAny, O extends z.ZodTypeAny>(d: ToolDefinition<I, O>) => d;
 
 // 시간 제한 [ASSUMPTION] — 내부 읽기는 짧게, 외부 읽기는 페이지 여러 장(어댑터 1회 시간 제한 × 페이지)을 고려해 길게
-export const TOOL_TIMEOUT_MS = { READ: 5_000, EXTERNAL_READ: 60_000, COMPUTE: 10_000, PROPOSE: 15_000, REQUEST: 15_000 } as const;
+/** Tool 실행 하나의 비상 상한 [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — 느린 정상 실행을 막지 않게 넉넉히. 관측(`npm run runtime:stats`) 후 줄인다 */
+export const TOOL_TIMEOUT_MS = { READ: 30_000, EXTERNAL_READ: 120_000, COMPUTE: 60_000, PROPOSE: 60_000, REQUEST: 60_000 } as const;
 
 export const TOOLS = [
   define({

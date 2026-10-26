@@ -267,7 +267,10 @@ def latency_usage(latencies: list[int], usage: dict[str, int], cost_usd: float |
     lat = sorted(latencies)
     return {
         "latency_ms_p50": int(statistics.median(lat)) if lat else None,
+        "latency_ms_p90": lat[min(len(lat) - 1, math.ceil(0.90 * len(lat)) - 1)] if lat else None,
         "latency_ms_p95": lat[min(len(lat) - 1, math.ceil(0.95 * len(lat)) - 1)] if lat else None,
+        "latency_ms_p99": lat[min(len(lat) - 1, math.ceil(0.99 * len(lat)) - 1)] if lat else None,
+        "latency_ms_max": lat[-1] if lat else None,
         "input_tokens": usage.get("input_tokens", 0),
         "output_tokens": usage.get("output_tokens", 0),
         "estimated_cost_usd": round(cost_usd, 6) if cost_usd is not None else None,

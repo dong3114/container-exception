@@ -36,7 +36,8 @@ KEYS: dict[str, tuple[str | None, str]] = {
     "GEMINI_API_KEY": (None, "secret — needed when the gemini vendor is used"),
     "CERA_LOCAL_LLM_BASE_URL": ("http://127.0.0.1:8080/v1", "local vendor: OpenAI-compatible server (compose: http://llm:8080/v1)"),
     "CERA_LOCAL_LLM_API_KEY": (None, "secret, optional — only if the local server requires one"),
-    "CERA_LOCAL_LLM_TIMEOUT_S": ("300", "local vendor: request timeout in seconds (CPU inference is slow)"),
+    "CERA_LOCAL_LLM_TIMEOUT_S": ("300", "local vendor: one inference request, seconds [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — cold start / CPU are slow; a timeout is MODEL_TIMEOUT"),
+    "CERA_COMMERCIAL_LLM_TIMEOUT_S": ("120", "anthropic · openai · gemini: one request, seconds [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — a timeout is MODEL_TIMEOUT"),
     # Decision model (did it answer? committed? conditional? needs a human?) — candidates only
     "CERA_DECISION_MODE": ("off", "off | replay | live — server-side decision step (T-099 evals run their own CLI)"),
     "CERA_DECISION_PROVIDER": (None, "live only: jev | llm_judge | nli"),
@@ -46,9 +47,9 @@ KEYS: dict[str, tuple[str | None, str]] = {
     "CERA_AGENT_MODE": ("off", "off | on — LangGraph runtime endpoints"),
     "CERA_BACKEND_TOOL_URL": ("http://127.0.0.1:3100", "Main Backend tool API base"),
     "CERA_AGENT_TOOL_TOKEN": (None, "secret — same value as back/.env CERA_AGENT_TOOL_TOKEN, 32+ characters"),
-    "CERA_AGENT_MAX_STEPS": ("25", "hard cap on graph steps per run"),
-    "CERA_AGENT_MAX_TOOL_CALLS": ("12", "hard cap on tool calls per run"),
-    "CERA_AGENT_MAX_RETRIES": ("2", "retries of a retryable (FAILED + retryable) tool result, same idempotency key"),
+    "CERA_AGENT_MAX_STEPS": ("100", "emergency ceiling on graph steps per run (runaway guard, not a product policy) [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — lower it from observed p99 (npm run runtime:stats)"),
+    "CERA_AGENT_MAX_TOOL_CALLS": ("50", "emergency ceiling on tool calls per active stretch between waits [ASSUMPTION / DEVELOPMENT SAFETY CEILING]"),
+    "CERA_AGENT_MAX_RETRIES": ("3", "retries of a retryable (FAILED + retryable) tool result, same idempotency key [ASSUMPTION / DEVELOPMENT SAFETY CEILING]; exhausting them ends the run with RETRY_LIMIT_REACHED"),
 }
 
 

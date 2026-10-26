@@ -98,7 +98,7 @@
       "version": "1",
       "category": "EXTERNAL_READ",
       "description": "Fetch Busan vessel calls (arrival basis) for a date range from the public port data service through the CERA backend, register them and return each call with its latest declared arrival time (a port entry declaration — not a confirmed berthing) and berth plus provenance. Use when you need to know which vessels arrive or arrived in a window, or to find the vessel call of a shipment. Each call counts against the public API quota and stores new evidence — prefer get_vessel_call for a call you already have. Values are public observations, not confirmed facts.",
-      "timeout_ms": 60000,
+      "timeout_ms": 120000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -688,7 +688,7 @@
       "version": "1",
       "category": "READ",
       "description": "Read one registered vessel call and its known manifest containers from CERA (no external call). Use before deciding whether to fetch the manifest, or to read provenance of arrival and berth observations.",
-      "timeout_ms": 5000,
+      "timeout_ms": 30000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -1238,7 +1238,7 @@
       "version": "1",
       "category": "EXTERNAL_READ",
       "description": "Fetch the import container manifest (B/L to container, ISO size type) of one registered vessel call from the public port data service through the CERA backend. Use when you need the containers of a vessel call. Does not give per-container gate-out times. Values are public observations with provenance, not confirmed facts.",
-      "timeout_ms": 60000,
+      "timeout_ms": 120000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -1951,7 +1951,7 @@
       "version": "1",
       "category": "READ",
       "description": "Read the recovery run this agent run is bound to: run status and trigger, snapshot date, facilities and truck pools in play, raw observed claims, the judged current facts with their state (PROVISIONAL is not confirmed) and the inquiries already drafted or sent for it. Use first, to understand the situation before choosing any other tool.",
-      "timeout_ms": 5000,
+      "timeout_ms": 30000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -2519,7 +2519,7 @@
       "version": "1",
       "category": "READ",
       "description": "Ask the CERA backend which facts the recovery plan needs but does not have (deterministic rules, not a judgement): warehouse/ODCY capacity for the plan date and partner truck availability. Each gap says its state — MISSING, ASKED, PROVISIONAL_AVAILABLE (a validated but unconfirmed value exists; a human must confirm) or NEEDS_REVIEW — whether an inquiry is already open, and which counterparty role can answer it. Only a human-confirmed fact closes a gap (it moves to `known`). Use to decide what to investigate or ask next; do not invent gaps yourself.",
-      "timeout_ms": 5000,
+      "timeout_ms": 30000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -3107,7 +3107,7 @@
       "version": "1",
       "category": "READ",
       "description": "Look up registered counterparties (trucking, warehouse, ODCY, ...) with their contact addresses and the Contact Gate verdict for each address. Use to pick a recipient for create_inquiry_draft. Only an eligible address can receive an inquiry; never guess an address.",
-      "timeout_ms": 5000,
+      "timeout_ms": 30000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -3241,7 +3241,7 @@
       "version": "1",
       "category": "PROPOSE",
       "description": "Create an inquiry draft (truck slot or facility capacity question) to an eligible counterparty address for this recovery run. The backend fills the structured values into a template, re-checks the Contact Gate and checks every number in the text. The draft is NOT sent and NOT in the approval queue yet — call request_approval next. Requires an Idempotency-Key; retrying with the same key returns the same draft.",
-      "timeout_ms": 15000,
+      "timeout_ms": 60000,
       "idempotency": "REQUIRED",
       "input_schema": {
         "type": "object",
@@ -3452,7 +3452,7 @@
       "version": "1",
       "category": "READ",
       "description": "Read the state of inquiries of this recovery run: draft, waiting for human approval, approved, queued, sent, replied, and whether replies have extraction candidates. Use to know whether to wait, follow up or continue.",
-      "timeout_ms": 5000,
+      "timeout_ms": 30000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -3589,7 +3589,7 @@
       "version": "1",
       "category": "READ",
       "description": "Read the replies to one inquiry of this recovery run and the extraction candidates the backend validated (field, candidate value, PASSED/REJECTED and why, review status). Candidates are suggestions; a qualifying one has already become a provisional fact (fact_event_id) — not a confirmed one. Use after a reply arrived to judge whether the asked information came back. No raw mail text or quotes are returned.",
-      "timeout_ms": 5000,
+      "timeout_ms": 30000,
       "idempotency": "NONE",
       "input_schema": {
         "type": "object",
@@ -3767,7 +3767,7 @@
       "version": "1",
       "category": "REQUEST",
       "description": "Put a draft of this recovery run into the human approval queue. This is a request, not an approval: the backend re-checks content fingerprint, numbers, Contact Gate and plan currency, and a human operator decides. After this, wait — sending happens only after a human approves. Requires an Idempotency-Key.",
-      "timeout_ms": 15000,
+      "timeout_ms": 60000,
       "idempotency": "REQUIRED",
       "input_schema": {
         "type": "object",

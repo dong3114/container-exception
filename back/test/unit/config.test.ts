@@ -10,6 +10,15 @@ describe('parseEnv', () => {
     expect(env.MIGRATION_DATABASE_URL).toBeUndefined();
   });
 
+  it('runtime ceilings are generous development safety ceilings [ASSUMPTION] — slow normal work is not cut off', () => {
+    const env = parseEnv(base);
+    // Backend → AI Server waits longer than the local model's own 300 s ceiling, so MODEL_TIMEOUT surfaces first
+    expect(env.CERA_AI_TIMEOUT_MS).toBe(330_000);
+    expect(env.CERA_AI_TIMEOUT_MS).toBeGreaterThan(300_000);
+    expect(env.CERA_AGENT_RUNTIME_TIMEOUT_MS).toBe(900_000); // one active graph drive; waits for people / partners are not counted
+    expect(env.CERA_PUBLIC_DATA_TIMEOUT_MS).toBe(30_000);
+  });
+
   it('coerces numeric strings', () => {
     expect(parseEnv({ ...base, API_PORT: '8080', DB_POOL_MAX: '3' })).toMatchObject({ API_PORT: 8080, DB_POOL_MAX: 3 });
   });
