@@ -23,12 +23,15 @@ import { SOLVER_VERSION, solveRecovery, type SolverResult } from './engine/solve
 import type { CostTable, PlanningFact, PlanningInput } from './engine/types.js';
 import { isTruthManagedKey, planningInputFromScenario, type ScenarioPack } from './scenario-input.js';
 import { loadScenarioPack } from './scenario-pack.js';
-import { assessRealPlanningInput, missingSummary, type Readiness } from './real-input.js';
+import { LIVE_HORIZON_DAYS, type LiveAssessment, type LiveProvenance, assessLiveInput, groupSummary } from './live-input.js';
+import { PlanningInputService } from './planning-input.service.js';
 
 /**
  * 복구 계획(T-114) — 결정론 Cost Engine + Solver 를 계획 실행(recovery_run) 하나에 대해 돌리고, 결과를 **제안(PROPOSED) 판**으로 남긴다.
- * - 입력: 시나리오 팩(합성 컨테이너 · 요율 · 자사 명부) + Truth Layer 의 현재 사실(창고 · ODCY 용량, 협력 차량 가용).
- *   두 출처는 섞지 않는다: 각 사실은 `source` 로 TRUTH(사건 id) · SCENARIO(팩 위치)를 가진다
+ * - 입력 방식(`input_mode`) 둘 — 섞지 않는다:
+ *   SCENARIO(시뮬레이션 실행) = 시나리오 팩(합성 컨테이너 · 요율 · 자사 명부) + Truth 사실(창고 · ODCY 용량, 협력 차량 가용)
+ *   LIVE(실제 실행, T-123) = 사람이 넣은 운영 기록(컨테이너 계획 정보 · 계약 요율 · 시설 계획 정보) + Truth 사실. 시나리오 값으로 메우지 않는다
+ *   각 사실은 `source` 로 TRUTH(사건 id) · SCENARIO(팩 위치) · OPERATIONAL_RECORD(기록 id)를 가진다
  * - 판: 같은 계획 실행 안에서 1, 2, 3 … 새 판이 서면 옛 판은 SUPERSEDED. 입력 지문이 같으면 새 판을 만들지 않는다
  * - 사실 변경: 판이 기대던 Truth 사실(사건 · 상태 · 값)이 바뀌면 OUTDATED → Agent 를 깨워 다시 계산하게 한다
  * - 승인: 사람만, 본 판의 지문(plan_hash)으로. 승인은 실행 지시가 아니다(배차 · 발송 없음)
@@ -54,6 +57,8 @@ export interface PlanningComputation {
   table: CostTable;
   baseline: BaselineResult;
   costMs: number;
+  /** LIVE 실행만: 쓴 운영 기록의 판 id · 지문(스냅숏에 남긴다) */
+  provenance: LiveProvenance | null;
 }
 
 type PlanRow = typeof recoveryPlan.$inferSelect;
@@ -87,16 +92,17 @@ export class RecoveryPlanService implements OnModuleInit {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
+    @Inject(PlanningInputService) private readonly inputs: PlanningInputService,
   ) {}
 
   /** 사실이 바뀌면(승격 · 확인 · 거절 · 정정 · 철회 · 직접 입력) 그 사실에 기댄 판을 곧바로 다시 본다. 정확성은 Worker 주기 점검이 맡는다. */
   onModuleInit(): void {
     this.signals.subscribe(async (s) => {
-      if (s.type !== 'FACT_CHANGED') return;
+      if (s.type !== 'FACT_CHANGED' && s.type !== 'OPERATIONAL_INPUT_CHANGED') return;
       try {
         await this.refreshOutdated();
       } catch (e) {
-        this.logger.warn(`outdated check after FACT_CHANGED failed: ${(e as Error).message}`);
+        this.logger.warn(`outdated check after ${s.type} failed: ${(e as Error).message}`);
       }
     });
   }
@@ -163,52 +169,71 @@ export class RecoveryPlanService implements OnModuleInit {
   }
 
   /**
-   * 계획 입력 준비도(T-115) — 무엇이 있고 무엇이 없나. 시뮬레이션 실행은 시나리오 팩 + Truth 로 늘 준비됨.
-   * 실제 실행은 등록부 · 공공데이터 · Truth 에서 모으고, 없는 기업 내부 정보는 `missing_inputs` 로 돌려준다(지어내지 않는다).
+   * 계획 입력 준비도(T-115 · T-123) — 무엇이 있고 무엇이 없나. 시뮬레이션 실행은 시나리오 팩 + Truth 로 늘 준비됨.
+   * 실제 실행은 운영 기록 · Truth 에서 모으고, 없는 값은 `missing_inputs`(필드 단위 · 묶음)로 돌려준다(지어내지 않는다).
    */
-  async readiness(runId: string, asOfOverride?: string | null): Promise<Readiness | { ready: true; source: 'SCENARIO_PACK'; plan_day: string; missing_inputs: []; note: string }> {
+  async readiness(runId: string, asOfOverride?: string | null) {
     const run = await this.caseRun(runId);
     const asOf = this.evaluationAsOf(run, asOfOverride);
     if (run.containsSimulated) {
-      return { ready: true, source: 'SCENARIO_PACK', plan_day: this.scenarioPack().scenario.days.D0!, missing_inputs: [], note: 'Simulated run: synthetic scenario pack (containers · rates) + Truth facts for the asked series.' };
+      return { mode: 'SCENARIO' as const, status: 'READY' as const, ready: true, source: 'SCENARIO_PACK', plan_day: this.scenarioPack().scenario.days.D0!, missing_inputs: [], groups: {}, note: 'Simulated run: synthetic scenario pack (containers · rates) + Truth facts for the asked series.' };
     }
+    const a = await this.liveAssessment(run, asOf);
+    return this.readinessView(a, run, asOf);
+  }
+
+  private readinessView(a: LiveAssessment & { planDay: string }, run: CaseRun, asOf: Instant) {
+    const blocking = a.missing_inputs.filter((m) => m.severity === 'BLOCKING');
+    return {
+      mode: 'LIVE' as const,
+      status: a.status,
+      ready: a.ready,
+      source: 'LIVE_INPUTS',
+      recovery_run_id: run.runId,
+      plan_day: a.planDay,
+      as_of: asOf.toSeoulIso(),
+      available: a.available,
+      missing_inputs: a.missing_inputs,
+      groups: groupSummary(a.missing_inputs),
+      provisional_facts: a.provisional_facts,
+      operational_fingerprint: a.provenance.operational_fingerprint,
+      note: a.ready
+        ? a.status === 'READY_WITH_PROVISIONAL'
+          ? 'Ready — some facts are provisional (used with a penalty and a warning; a person still confirms them).'
+          : 'All blocking inputs are present.'
+        : `Not computed: ${blocking.map((m) => `${m.code}(${m.count})`).join(', ')}. Values are never invented — provide them from the listed sources.`,
+    };
+  }
+
+  /** 실제 실행의 입력 원천을 모아 판정한다 — 등록부 · 운영 기록(지금 판) · Truth(as_of). 시나리오 팩은 읽지 않는다. */
+  private async liveAssessment(run: CaseRun, asOf: Instant): Promise<LiveAssessment & { planDay: string }> {
     const planDay = Instant.fromDb(run.snapshotAsOf).toSeoulIso().slice(0, 10);
-    const facilities = await this.db
-      .select({ id: facility.facilityId, type: facility.facilityType, name: facility.facilityName, openTime: facility.defaultOpenTime, closeTime: facility.defaultCloseTime })
-      .from(facility)
-      .where(eq(facility.isActive, true));
+    const horizon = Array.from({ length: LIVE_HORIZON_DAYS }, (_, k) => new Date(Date.parse(`${planDay}T00:00:00Z`) + k * 86_400_000).toISOString().slice(0, 10));
+    const facilities = await this.db.select({ id: facility.facilityId, type: facility.facilityType, name: facility.facilityName }).from(facility).where(eq(facility.isActive, true));
     const pools = await this.db.select({ id: truckPool.truckPoolId, name: truckPool.poolName, ownership: truckPool.ownership }).from(truckPool).where(eq(truckPool.isActive, true));
-    // 범위: 스냅숏 scope_ref.vessel_call_ids(공공데이터 입항 건). 없으면 컨테이너 없음 — 아무 컨테이너나 끌어오지 않는다
-    const [snap] = await this.db.select({ scope: planningSnapshot.scopeRef }).from(planningSnapshot).innerJoin(recoveryRun, eq(recoveryRun.snapshotId, planningSnapshot.snapshotId)).where(eq(recoveryRun.runId, runId)).limit(1);
-    const scoped = z.array(z.string().uuid()).safeParse((snap?.scope as { vessel_call_ids?: unknown } | null)?.vessel_call_ids);
-    const vesselCalls = scoped.success ? scoped.data : [];
-    const containers = vesselCalls.length
-      ? await this.db
-          .select({ id: container.containerId, containerNo: container.containerNo, sizeType: container.sizeType, carrier: counterparty.displayName })
-          .from(container)
-          .leftJoin(containerBl, eq(containerBl.containerId, container.containerId))
-          .leftJoin(bl, eq(bl.blId, containerBl.blId))
-          .leftJoin(counterparty, eq(counterparty.counterpartyId, bl.carrierCounterpartyId))
-          .where(and(inArray(container.vesselCallId, vesselCalls), eq(container.isActive, true), eq(container.isSimulated, false)))
-      : [];
-    const unique = [...new Map(containers.map((c) => [c.id, c])).values()];
+    const ops = await this.inputs.operationalSources(run.runId, planDay);
     const kinds = new Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL'>([
       ...facilities.filter((f) => f.type === 'WAREHOUSE' || f.type === 'ODCY').map((f) => [f.id, f.type as 'WAREHOUSE' | 'ODCY'] as const),
       ...pools.map((p) => [p.id, 'TRUCK_POOL'] as const),
     ]);
     const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: false, scenarioId: null }, asOf);
-    const truthFacts = this.toPlanningFacts(live, planDay, [planDay], kinds);
-    return assessRealPlanningInput({ planDay, facilities, pools, containers: unique, scopedVesselCalls: vesselCalls.length, truthFacts });
+    const truthFacts = this.toPlanningFacts(live, planDay, horizon, kinds);
+    const a = assessLiveInput({ planDay, asOf: asOf.toSeoulIso(), containers: ops.containers, unrecordedPublicContainers: ops.unrecordedPublicContainers, facilities, profiles: ops.profiles, rates: ops.rates, pools, truthFacts });
+    return { ...a, planDay };
   }
 
-  async planningInput(runId: string, asOfOverride?: string | null): Promise<{ run: CaseRun; asOf: Instant; input: PlanningInput }> {
+  async planningInput(runId: string, asOfOverride?: string | null): Promise<{ run: CaseRun; asOf: Instant; input: PlanningInput; provenance: LiveProvenance | null }> {
     const run = await this.caseRun(runId);
-    if (!run.containsSimulated) {
-      // 실제 실행: 있는 것은 모으고 없는 것은 정확히 알린다 — 숫자를 지어내지 않는다(T-115). 무엇이 빠졌는지는 GET /planning/runs/:id/input-readiness
-      const r = await this.readiness(runId, asOfOverride);
-      throw new BusinessRuleError('PLANNING_INPUT_UNAVAILABLE', `Real run inputs missing: ${'available' in r ? missingSummary(r) : ''} — see GET /planning/runs/${runId}/input-readiness`, 409);
-    }
     const asOf = this.evaluationAsOf(run, asOfOverride);
+    if (!run.containsSimulated) {
+      // 실제 실행(T-123): 운영 기록 + Truth 만. 빠진 것이 있으면 계산하지 않고 무엇이 빠졌는지 정확히 돌려준다 — 숫자를 지어내지 않는다
+      const a = await this.liveAssessment(run, asOf);
+      if (!a.ready || !a.input) {
+        const view = this.readinessView(a, run, asOf);
+        throw new BusinessRuleError('PLANNING_INPUT_UNAVAILABLE', `Live run inputs missing — ${view.note} See GET /planning/runs/${runId}/input-readiness`, 409, { status: view.status, plan_day: view.plan_day, missing_inputs: view.missing_inputs, groups: view.groups });
+      }
+      return { run, asOf, input: a.input, provenance: a.provenance };
+    }
     const pack = this.scenarioPack();
     const ids = this.packIds;
     const mapped = new Set(Object.values(ids));
@@ -224,15 +249,15 @@ export class RecoveryPlanService implements OnModuleInit {
     const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: run.containsSimulated, scenarioId: run.scenarioId }, asOf);
     const truthFacts = this.toPlanningFacts(live, days.D0!, horizon, kinds);
     const input = planningInputFromScenario(pack, { as_of: asOf.toSeoulIso(), truthFacts, ids });
-    return { run, asOf, input };
+    return { run, asOf, input, provenance: null };
   }
 
   async compute(runId: string, asOfOverride?: string | null): Promise<PlanningComputation> {
-    const { run, asOf, input } = await this.planningInput(runId, asOfOverride);
+    const { run, asOf, input, provenance } = await this.planningInput(runId, asOfOverride);
     const t0 = performance.now();
     const table = buildCostTable(input);
     const costMs = performance.now() - t0;
-    return { run, asOf, input, table, baseline: computeBaseline(input, table), costMs };
+    return { run, asOf, input, table, baseline: computeBaseline(input, table), costMs, provenance };
   }
 
   // ------------------------------------------------------------------ 계산 · 제안
@@ -273,6 +298,9 @@ export class RecoveryPlanService implements OnModuleInit {
     const scope = {
       kind: 'RECOVERY_PLAN_INPUT',
       case_run_id: runId,
+      input_mode: s.run.containsSimulated ? 'SCENARIO' : 'LIVE',
+      // LIVE: 판이 기댄 운영 기록(판 id · 지문 · 요율 금액) — 나중에 값이 바뀌어도 이 판이 무엇으로 계산했는지 남는다(OUTDATED 비교에도 쓴다)
+      operational_inputs: s.provenance ? (s.provenance as unknown as Record<string, unknown>) : null,
       plan_day: s.input.plan_day,
       horizon_days: s.input.horizon_days,
       scenario_pack: s.input.scenario_id,
@@ -412,7 +440,7 @@ export class RecoveryPlanService implements OnModuleInit {
       .where(and(inArray(recoveryPlan.planStatus, [...CURRENT_STATUSES]), runId ? eq(recoveryPlan.caseRunId, runId) : undefined));
     let changed = 0;
     for (const p of plans) {
-      const reasons = await this.outdatedReasons(p.caseRunId, Instant.fromDb(p.asOf).toSeoulIso(), (p.scope?.truth_facts ?? []) as FactSignature[]);
+      const reasons = await this.outdatedReasons(p.caseRunId, Instant.fromDb(p.asOf).toSeoulIso(), (p.scope?.truth_facts ?? []) as FactSignature[], (p.scope?.operational_inputs ?? null) as LiveProvenance | null);
       if (reasons.length === 0) continue;
       const now = this.clock.now().toDb();
       const done = await this.tx.run(async (tx) => {
@@ -433,11 +461,20 @@ export class RecoveryPlanService implements OnModuleInit {
     return changed;
   }
 
-  private async outdatedReasons(runId: string, asOf: string, before: FactSignature[]): Promise<Record<string, unknown>[]> {
-    const { input } = await this.planningInput(runId, asOf);
+  private async outdatedReasons(runId: string, asOf: string, before: FactSignature[], beforeOps: LiveProvenance | null = null): Promise<Record<string, unknown>[]> {
+    let rebuilt: Awaited<ReturnType<RecoveryPlanService['planningInput']>>;
+    try {
+      rebuilt = await this.planningInput(runId, asOf);
+    } catch (e) {
+      // LIVE: 판이 기댄 입력이 이제 빠졌다(기록 철회 · 사실 철회) — 계산할 수 없으니 그 판은 더는 지금 판이 아니다
+      if (e instanceof BusinessRuleError && e.code === 'PLANNING_INPUT_UNAVAILABLE') return [{ code: 'INPUT_UNAVAILABLE', details: e.details }];
+      throw e;
+    }
+    const { input } = rebuilt;
+    const reasons: Record<string, unknown>[] = [];
+    if (beforeOps && rebuilt.provenance && beforeOps.operational_fingerprint !== rebuilt.provenance.operational_fingerprint) reasons.push(...this.operationalChanges(beforeOps, rebuilt.provenance));
     const now = new Map(input.facts.filter((f) => f.source === 'TRUTH').map((f) => [`${f.subject_id}|${f.fact_key}`, this.signature(f)]));
     const prev = new Map(before.map((f) => [`${f.subject_id}|${f.fact_key}`, f]));
-    const reasons: Record<string, unknown>[] = [];
     for (const [k, b] of prev) {
       const a = now.get(k);
       if (!a) reasons.push({ code: 'FACT_GONE', subject_id: b.subject_id, fact_key: b.fact_key, before: b, after: null });
@@ -447,6 +484,25 @@ export class RecoveryPlanService implements OnModuleInit {
     }
     for (const [k, a] of now) if (!prev.has(k)) reasons.push({ code: 'FACT_ADDED', subject_id: a.subject_id, fact_key: a.fact_key, before: null, after: a });
     return reasons;
+  }
+
+  /** 운영 기록 판 비교 — 무엇이 바뀌었나(컨테이너 · 요율 · 시설 계획 정보). */
+  private operationalChanges(before: LiveProvenance, after: LiveProvenance): Record<string, unknown>[] {
+    const out: Record<string, unknown>[] = [];
+    const diff = <T>(kind: string, a: T[], b: T[], key: (x: T) => string, sig: (x: T) => string) => {
+      const am = new Map(a.map((x) => [key(x), x]));
+      const bm = new Map(b.map((x) => [key(x), x]));
+      for (const [k, x] of am) {
+        const y = bm.get(k);
+        if (!y) out.push({ code: 'OPERATIONAL_RECORD_REMOVED', kind, key: k, before: x, after: null });
+        else if (sig(x) !== sig(y)) out.push({ code: 'OPERATIONAL_RECORD_CHANGED', kind, key: k, before: x, after: y });
+      }
+      for (const [k, y] of bm) if (!am.has(k)) out.push({ code: 'OPERATIONAL_RECORD_ADDED', kind, key: k, before: null, after: y });
+    };
+    diff('CONTAINER', before.container_records, after.container_records, (x) => x.container_no, (x) => x.content_hash);
+    diff('RATE', before.rate_records, after.rate_records, (x) => x.key, (x) => `${x.rate_id}:${x.content_hash}`);
+    diff('FACILITY_PROFILE', before.facility_profiles, after.facility_profiles, (x) => x.facility_id, (x) => x.content_hash);
+    return out;
   }
 
   private async systemActor(q: Database | DbTransaction = this.db): Promise<string> {

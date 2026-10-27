@@ -30,6 +30,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
           code: { type: 'string', pattern: '^[A-Z][A-Z0-9_]*$', description: 'Stable error code' },
           message: { type: 'string', description: 'Safe human-readable message (no secrets, no raw content)' },
           request_id: { type: 'string', nullable: true, description: 'UUIDv7 request id (X-Request-Id)' },
+          details: { type: 'object', additionalProperties: true, description: 'Structured next-step information for some business errors (e.g. missing_inputs for PLANNING_INPUT_UNAVAILABLE)' },
         },
       },
     },

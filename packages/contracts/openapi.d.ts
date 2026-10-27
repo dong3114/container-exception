@@ -268,7 +268,8 @@ export interface paths {
         /** Recovery runs (newest first) a plan-based inquiry can cite as its source */
         get: operations["PlanningRunController_list"];
         put?: never;
-        post?: never;
+        /** Open a live (non-simulated) recovery run: run time = now, plan day = its Asia/Seoul date. Its inputs come only from operational records and Truth — never from a scenario pack */
+        post: operations["PlanningInputController_createRun"];
         delete?: never;
         options?: never;
         head?: never;
@@ -766,6 +767,77 @@ export interface paths {
         put?: never;
         /** Create inquiry drafts for the approved plan actions that have none yet (no approval, no send) */
         post: operations["PlanFollowUpController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/runs/{runId}/inputs/containers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current container records of a live run (latest version of each, including withdrawn) */
+        get: operations["PlanningInputController_containers"];
+        put?: never;
+        /** Containers of a live run (CSV or rows): container_no · size_type · carrier · pickup_ready · terminal · destination (warehouse id or name) · planned_day · [priority · lfd · planned_depart_hour · alternate_destination_allowed · status]. A changed row is a new version; nothing is deleted */
+        post: operations["PlanningInputController_importContainers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/inputs/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current rate records (latest version of each rate and effective period) */
+        get: operations["PlanningInputController_rates"];
+        put?: never;
+        /** Contract rates (CSV or rows): rate_type (DEMURRAGE_PER_DAY · TERMINAL_STORAGE_PER_DAY · DETENTION_FREE_DAYS · TRANSPORT · ODCY_HANDLING_IN_OUT · ODCY_STORAGE_PER_DAY) · amount (KRW integer, DAY for detention) · effective_from · source_note · [carrier · from · to · size_type · effective_until · status]. A missing rate stays missing — never 0 */
+        post: operations["PlanningInputController_importRates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/inputs/facility-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current facility planning profiles */
+        get: operations["PlanningInputController_profiles"];
+        put?: never;
+        /** Facility planning profiles (CSV or rows): facility · accepts (e.g. 20DRY|40DRY) · open_from_hour · last_departure_hour · trip_hours · [max_storage_days · status]. Daily capacity is a Truth fact, not a profile */
+        post: operations["PlanningInputController_importProfiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/inputs/batches/{batchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One input batch: who, when, source, row / accepted / unchanged counts */
+        get: operations["PlanningInputController_batch"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2013,6 +2085,76 @@ export interface components {
             plan_hash: string;
             note?: string;
         };
+        CreateLiveRunRequestDto: {
+            /**
+             * Format: uuid
+             * @description Idempotency: the same command id returns the same run
+             */
+            command_id: string;
+            note?: string;
+        };
+        LiveRunDto: {
+            /** Format: uuid */
+            recovery_run_id: string;
+            /**
+             * @description Plan day = the Asia/Seoul date of the run time
+             * @example 2026-10-27
+             */
+            plan_day: string;
+            created: boolean;
+            /** @enum {string} */
+            mode: "LIVE";
+        };
+        PlanningInputImportRequestDto: {
+            /**
+             * Format: uuid
+             * @description Idempotency: the same command id + the same content returns the same batch; different content → 409
+             */
+            command_id: string;
+            /** @description Validate only — report valid / invalid rows and what would change; nothing is stored */
+            dry_run?: boolean;
+            /** @description CSV text, first line = column names (at most 512 KB · 2000 rows). Give csv or rows */
+            csv?: string;
+            /** @description Rows as objects with the same column names as the CSV */
+            rows?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Operator label (e.g. "TMS export 10/27"). A file name is never trusted or stored */
+            source_label?: string;
+        };
+        ImportChangesDto: {
+            new: number;
+            /** @description A new version supersedes the current one (nothing is deleted) */
+            changed: number;
+            unchanged: number;
+        };
+        RowErrorDto: {
+            /** @description CSV line (header = 1) or row index; 0 = the whole input */
+            row: number;
+            column: string | null;
+            /** @example INVALID_CONTAINER_NO */
+            code: string;
+            message: string;
+        };
+        PlanningInputImportReportDto: {
+            /** @enum {string} */
+            kind: "CONTAINERS" | "RATES" | "FACILITY_PROFILES";
+            dry_run: boolean;
+            /** @description false for a dry run or when any row is invalid (one batch is stored all-or-nothing) */
+            stored: boolean;
+            replayed: boolean;
+            /** Format: uuid */
+            batch_id: string | null;
+            /** Format: uuid */
+            recovery_run_id: string | null;
+            content_hash: string;
+            row_count: number;
+            valid_rows: number;
+            invalid_rows: number;
+            changes: components["schemas"]["ImportChangesDto"];
+            errors: components["schemas"]["RowErrorDto"][];
+            note: string;
+        };
         ErrorResponse: {
             /** @description Stable error code */
             code: string;
@@ -2020,6 +2162,10 @@ export interface components {
             message: string;
             /** @description UUIDv7 request id (X-Request-Id) */
             request_id: string | null;
+            /** @description Structured next-step information for some business errors (e.g. missing_inputs for PLANNING_INPUT_UNAVAILABLE) */
+            details?: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -2733,6 +2879,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunListDto"];
+                };
+            };
+        };
+    };
+    PlanningInputController_createRun: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLiveRunRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveRunDto"];
+                };
+            };
+            /** @description INVALID_RUN_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4067,6 +4257,300 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    PlanningInputController_containers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    PlanningInputController_importContainers: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanningInputImportRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningInputImportReportDto"];
+                };
+            };
+            /** @description INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description COMMAND_ID_REUSED · NOT_A_LIVE_RUN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningInputController_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    PlanningInputController_importRates: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanningInputImportRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningInputImportReportDto"];
+                };
+            };
+            /** @description INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description COMMAND_ID_REUSED · NOT_A_LIVE_RUN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningInputController_profiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    PlanningInputController_importProfiles: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanningInputImportRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningInputImportReportDto"];
+                };
+            };
+            /** @description INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description COMMAND_ID_REUSED · NOT_A_LIVE_RUN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningInputController_batch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

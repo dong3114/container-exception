@@ -50,7 +50,8 @@ export class ApiErrorFilter implements ExceptionFilter {
 
   private toResponse(exception: unknown, requestId: string | null): { status: number; body: ErrorResponseBody } {
     if (exception instanceof CeraError) {
-      return { status: exception.httpStatus, body: { code: exception.code, message: exception.message, request_id: requestId } };
+      const details = 'details' in exception && exception.details ? { details: exception.details as Record<string, unknown> } : {};
+      return { status: exception.httpStatus, body: { code: exception.code, message: exception.message, request_id: requestId, ...details } };
     }
     if (exception instanceof HttpException) {
       const status = exception.getStatus();

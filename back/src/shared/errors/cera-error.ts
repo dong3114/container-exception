@@ -29,7 +29,8 @@ export abstract class CeraError extends Error {
 export class BusinessRuleError extends CeraError {
   readonly kind = 'BUSINESS' as const;
 
-  constructor(code: string, message: string, httpStatus: 409 | 422 | 403 | 404 = 409) {
+  /** `details` = 사람이 다음에 할 일을 정하는 구조화 정보(예: 계획 입력의 `missing_inputs`). 비밀값 · 원문을 넣지 않는다 */
+  constructor(code: string, message: string, httpStatus: 409 | 422 | 403 | 404 = 409, readonly details: Record<string, unknown> | null = null) {
     super(code, message, httpStatus);
   }
 }
@@ -54,4 +55,5 @@ export interface ErrorResponseBody {
   code: string;
   message: string;
   request_id: string | null;
+  details?: Record<string, unknown>;
 }

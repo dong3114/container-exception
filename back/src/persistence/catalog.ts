@@ -57,6 +57,9 @@ export const AUDIT_ACTION = {
   FACT_ENTERED_MANUALLY: 'FACT_ENTERED_MANUALLY',
   // T-114 복구 계획 판(결정론 Solver 결과) — 제안 · 사람 승인 · 사실 변경으로 무효 · 새 판에 밀림
   PLAN_PROPOSED: 'PLAN_PROPOSED',
+  // T-123 실제 계획 입력 — 사람이 실제 계획 실행을 열었다 / 운영 기록 묶음을 넣었다(대상 = planning_input_batch)
+  LIVE_RUN_CREATED: 'LIVE_RUN_CREATED',
+  PLANNING_INPUT_IMPORTED: 'PLANNING_INPUT_IMPORTED',
   PLAN_APPROVED: 'PLAN_APPROVED',
   PLAN_OUTDATED: 'PLAN_OUTDATED',
   // T-119 사람 로그인 · 사용자 관리(누가 언제 들어오고 나갔나 · 누가 누구의 역할을 바꿨나)
@@ -80,8 +83,10 @@ export const AUDIT_TARGET_TYPES: readonly AuditTargetType[] = [
   'RECOVERY_PLAN',
   'USER_ACCOUNT',
   'USER_SESSION',
+  'RECOVERY_RUN',
+  'PLANNING_INPUT_BATCH',
 ];
-export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN' | 'USER_ACCOUNT' | 'USER_SESSION';
+export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN' | 'USER_ACCOUNT' | 'USER_SESSION' | 'RECOVERY_RUN' | 'PLANNING_INPUT_BATCH';
 
 export const SYSTEM_ERROR_CATEGORY = {
   UNEXPECTED: 'UNEXPECTED',

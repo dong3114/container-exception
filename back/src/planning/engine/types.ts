@@ -86,7 +86,8 @@ export interface PlanningFact {
   value: number | null;
   fact_state: FactState;
   freshness: FreshnessState;
-  source: 'TRUTH' | 'SCENARIO';
+  /** TRUTH = Truth Layer 사건 · SCENARIO = 합성 시나리오 팩 · OPERATIONAL_RECORD = 사람이 넣은 운영 기록(시설 보관 한도 등, T-123) */
+  source: 'TRUTH' | 'SCENARIO' | 'OPERATIONAL_RECORD';
   is_simulated: boolean;
   evidence_time: string | null;
 }
@@ -225,7 +226,8 @@ export interface UsedFact {
   value: number | null;
   fact_state: FactState;
   freshness: FreshnessState;
-  source: 'TRUTH' | 'SCENARIO';
+  /** TRUTH = Truth Layer 사건 · SCENARIO = 합성 시나리오 팩 · OPERATIONAL_RECORD = 사람이 넣은 운영 기록(시설 보관 한도 등, T-123) */
+  source: 'TRUTH' | 'SCENARIO' | 'OPERATIONAL_RECORD';
   usage: 'USED' | 'USED_WITH_WARNING' | 'EXCLUDED';
   reason: string | null;
 }

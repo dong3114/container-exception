@@ -5,6 +5,8 @@ import { TruthModule } from '../truth/truth.module.js';
 import { PlanFollowUpController } from './follow-up.controller.js';
 import { PlanFollowUpService } from './follow-up.service.js';
 import { PlanningController } from './planning.controller.js';
+import { PlanningInputController } from './planning-input.controller.js';
+import { PlanningInputService } from './planning-input.service.js';
 import { RecoveryPlanService } from './recovery-plan.service.js';
 
 /**
@@ -13,8 +15,8 @@ import { RecoveryPlanService } from './recovery-plan.service.js';
  */
 @Module({
   imports: [TruthModule, CommunicationModule, RegistryModule],
-  controllers: [PlanningController, PlanFollowUpController],
-  providers: [RecoveryPlanService, PlanFollowUpService],
-  exports: [RecoveryPlanService, PlanFollowUpService],
+  controllers: [PlanningController, PlanFollowUpController, PlanningInputController],
+  providers: [RecoveryPlanService, PlanFollowUpService, PlanningInputService],
+  exports: [RecoveryPlanService, PlanFollowUpService, PlanningInputService],
 })
 export class PlanningModule {}

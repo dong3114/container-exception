@@ -17,7 +17,9 @@ export type DomainSignal =
   // T-121: 발송 대기열에 들어갔다 · 일시 실패로 재시도가 예약됐다 · 나갔다 — 실행 큐(Redis)가 Worker 를 바로 깨우는 데 쓴다(정확성은 폴링)
   | { type: 'SEND_REQUESTED'; messageId: string }
   | { type: 'SEND_RETRY_SCHEDULED'; messageId: string; delayMs: number; attempt: number }
-  | { type: 'MESSAGE_SENT'; messageId: string };
+  | { type: 'MESSAGE_SENT'; messageId: string }
+  // T-123: 운영 기록(컨테이너 계획 정보 · 요율 · 시설 계획 정보)이 바뀌었다 — 그 기록에 기댄 계획 판을 다시 본다(OUTDATED)
+  | { type: 'OPERATIONAL_INPUT_CHANGED'; kind: 'CONTAINERS' | 'RATES' | 'FACILITY_PROFILES'; recoveryRunId: string | null };
 
 export const DOMAIN_SIGNALS = Symbol('CERA_DOMAIN_SIGNALS');
 

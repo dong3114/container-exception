@@ -290,33 +290,34 @@ describe('T-114 agent tools — COMPUTE (nothing stored) · PROPOSE (idempotent)
     expect((await tool('solve_recovery', runId, {}).expect(200)).body).toMatchObject({ status: 'REJECTED', error: { code: 'CAPABILITY_NOT_AVAILABLE' } });
   });
 
-  it('T-115: a real run reports exactly what is missing; an operator entry flows Truth → planning input (no invented numbers)', async () => {
+  it('T-115 · T-123: a live run reports exactly what is missing; an operator entry flows Truth → planning input (no invented numbers)', async () => {
     // 실제 실행의 계획 날짜 = 오늘(서울). 지난 날짜의 그날 수용량은 Truth 가 만료로 보므로 쓰지 않는다
     const nowIso = new Date().toISOString();
     const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
     const real = await newWorld(false, nowIso);
     const before = (await http.get(`/planning/runs/${real.runId}/input-readiness`).expect(200)).body;
-    expect(before).toMatchObject({ ready: false, source: 'REAL_SOURCES', plan_day: today });
+    expect(before).toMatchObject({ mode: 'LIVE', status: 'NOT_READY', ready: false, source: 'LIVE_INPUTS', plan_day: today });
     const codes = (r: { missing_inputs: { code: string }[] }) => r.missing_inputs.map((m) => m.code);
-    expect(codes(before)).toEqual(expect.arrayContaining(['CONTAINER_SCOPE_EMPTY', 'RATE_TABLE', 'FACILITY_CAPACITY', 'OWN_TRUCK_ROSTER']));
+    expect(codes(before)).toEqual(expect.arrayContaining(['CONTAINER_SCOPE_EMPTY']));
     const blocking = before.missing_inputs.filter((m: { severity: string }) => m.severity === 'BLOCKING').map((m: { code: string }) => m.code);
     expect(blocking).not.toContain('PARTNER_TRUCK_SLOTS'); // 협력 차량은 없어도 계산은 된다(그 풀을 안 쓸 뿐)
-    const capBefore = before.missing_inputs.find((m: { code: string }) => m.code === 'FACILITY_CAPACITY').count as number;
+    expect(before.groups.CONTAINER_DATA.blocking).toBeGreaterThanOrEqual(1);
 
     // 운영자 직접 입력(실제 — 시나리오 없음) → Truth → 준비도
     await http.post('/truth/facts/manual').set(ACTOR, humanId).send({ intent: 'OPERATOR_DIRECT_ENTRY', kind: 'FACILITY_CAPACITY', target_id: real.ids.ODCY_A, date: today, value: 3, source_note: '전화 확인(실제 실행 시험)' }).expect(200);
     await http.post('/truth/facts/manual').set(ACTOR, humanId).send({ intent: 'OPERATOR_DIRECT_ENTRY', kind: 'TRUCK_SLOT', target_id: real.ids.OWN_FLEET, date: today, window_from: '09:00', window_to: '18:00', value: 5, source_note: '배차 담당 확인(시험)' }).expect(200);
     const after = (await http.get(`/planning/runs/${real.runId}/input-readiness`).expect(200)).body;
-    expect(after.missing_inputs.find((m: { code: string }) => m.code === 'FACILITY_CAPACITY').count).toBe(capBefore - 1);
-    expect(after.available.facilities_with_capacity).toBe(before.available.facilities_with_capacity + 1);
+    expect(codes(after)).not.toContain('TRUCK_AVAILABILITY');
+    expect(after.available.own_trucks).toBeGreaterThanOrEqual(5);
     expect(after.available.truth_facts).toBeGreaterThanOrEqual(before.available.truth_facts + 2);
-    // 시나리오 요율 · 값은 실제 실행에 쓰지 않는다 — 여전히 계산 거부(무엇이 빠졌는지 메시지에)
+    // 시나리오 요율 · 값은 실제 실행에 쓰지 않는다 — 여전히 계산 거부(무엇이 빠졌는지 메시지 · details 에)
     const refused = (await http.get(`/planning/runs/${real.runId}/costs`).expect(409)).body;
-    expect(refused.message).toMatch(/RATE_TABLE/);
+    expect(refused.code).toBe('PLANNING_INPUT_UNAVAILABLE');
     expect(refused.message).toMatch(/CONTAINER_SCOPE_EMPTY/);
+    expect(refused.details.missing_inputs.map((m: { code: string }) => m.code)).toContain('CONTAINER_SCOPE_EMPTY');
 
     // 시뮬레이션 실행은 시나리오 팩으로 늘 준비됨
     const sim = await newWorld(true);
-    expect((await http.get(`/planning/runs/${sim.runId}/input-readiness`).expect(200)).body).toMatchObject({ ready: true, source: 'SCENARIO_PACK' });
+    expect((await http.get(`/planning/runs/${sim.runId}/input-readiness`).expect(200)).body).toMatchObject({ mode: 'SCENARIO', ready: true, source: 'SCENARIO_PACK' });
   });
 });

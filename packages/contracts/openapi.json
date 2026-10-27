@@ -922,6 +922,67 @@
         "tags": [
           "planning"
         ]
+      },
+      "post": {
+        "operationId": "PlanningInputController_createRun",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLiveRunRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveRunDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_RUN_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Open a live (non-simulated) recovery run: run time = now, plan day = its Asia/Seoul date. Its inputs come only from operational records and Truth — never from a scenario pack",
+        "tags": [
+          "planning"
+        ]
       }
     },
     "/public-data/status": {
@@ -3113,6 +3174,390 @@
           }
         },
         "summary": "Create inquiry drafts for the approved plan actions that have none yet (no approval, no send)",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/runs/{runId}/inputs/containers": {
+      "post": {
+        "operationId": "PlanningInputController_importContainers",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanningInputImportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningInputImportReportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "COMMAND_ID_REUSED · NOT_A_LIVE_RUN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Containers of a live run (CSV or rows): container_no · size_type · carrier · pickup_ready · terminal · destination (warehouse id or name) · planned_day · [priority · lfd · planned_depart_hour · alternate_destination_allowed · status]. A changed row is a new version; nothing is deleted",
+        "tags": [
+          "planning"
+        ]
+      },
+      "get": {
+        "operationId": "PlanningInputController_containers",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "summary": "Current container records of a live run (latest version of each, including withdrawn)",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/inputs/rates": {
+      "post": {
+        "operationId": "PlanningInputController_importRates",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanningInputImportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningInputImportReportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "COMMAND_ID_REUSED · NOT_A_LIVE_RUN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Contract rates (CSV or rows): rate_type (DEMURRAGE_PER_DAY · TERMINAL_STORAGE_PER_DAY · DETENTION_FREE_DAYS · TRANSPORT · ODCY_HANDLING_IN_OUT · ODCY_STORAGE_PER_DAY) · amount (KRW integer, DAY for detention) · effective_from · source_note · [carrier · from · to · size_type · effective_until · status]. A missing rate stays missing — never 0",
+        "tags": [
+          "planning"
+        ]
+      },
+      "get": {
+        "operationId": "PlanningInputController_rates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "summary": "Current rate records (latest version of each rate and effective period)",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/inputs/facility-profiles": {
+      "post": {
+        "operationId": "PlanningInputController_importProfiles",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanningInputImportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningInputImportReportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "COMMAND_ID_REUSED · NOT_A_LIVE_RUN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Facility planning profiles (CSV or rows): facility · accepts (e.g. 20DRY|40DRY) · open_from_hour · last_departure_hour · trip_hours · [max_storage_days · status]. Daily capacity is a Truth fact, not a profile",
+        "tags": [
+          "planning"
+        ]
+      },
+      "get": {
+        "operationId": "PlanningInputController_profiles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "summary": "Current facility planning profiles",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
+    "/planning/inputs/batches/{batchId}": {
+      "get": {
+        "operationId": "PlanningInputController_batch",
+        "parameters": [
+          {
+            "name": "batchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One input batch: who, when, source, row / accepted / unchanged counts",
         "tags": [
           "planning"
         ]
@@ -6921,6 +7366,204 @@
           "plan_hash"
         ]
       },
+      "CreateLiveRunRequestDto": {
+        "type": "object",
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency: the same command id returns the same run"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "command_id"
+        ]
+      },
+      "LiveRunDto": {
+        "type": "object",
+        "properties": {
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plan_day": {
+            "type": "string",
+            "example": "2026-10-27",
+            "description": "Plan day = the Asia/Seoul date of the run time"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "LIVE"
+            ]
+          }
+        },
+        "required": [
+          "recovery_run_id",
+          "plan_day",
+          "created",
+          "mode"
+        ]
+      },
+      "PlanningInputImportRequestDto": {
+        "type": "object",
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency: the same command id + the same content returns the same batch; different content → 409"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Validate only — report valid / invalid rows and what would change; nothing is stored"
+          },
+          "csv": {
+            "type": "string",
+            "description": "CSV text, first line = column names (at most 512 KB · 2000 rows). Give csv or rows"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Rows as objects with the same column names as the CSV"
+          },
+          "source_label": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Operator label (e.g. \"TMS export 10/27\"). A file name is never trusted or stored"
+          }
+        },
+        "required": [
+          "command_id"
+        ]
+      },
+      "ImportChangesDto": {
+        "type": "object",
+        "properties": {
+          "new": {
+            "type": "number"
+          },
+          "changed": {
+            "type": "number",
+            "description": "A new version supersedes the current one (nothing is deleted)"
+          },
+          "unchanged": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "new",
+          "changed",
+          "unchanged"
+        ]
+      },
+      "RowErrorDto": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "number",
+            "description": "CSV line (header = 1) or row index; 0 = the whole input"
+          },
+          "column": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "example": "INVALID_CONTAINER_NO"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "code",
+          "message"
+        ]
+      },
+      "PlanningInputImportReportDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTAINERS",
+              "RATES",
+              "FACILITY_PROFILES"
+            ]
+          },
+          "dry_run": {
+            "type": "boolean"
+          },
+          "stored": {
+            "type": "boolean",
+            "description": "false for a dry run or when any row is invalid (one batch is stored all-or-nothing)"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "row_count": {
+            "type": "number"
+          },
+          "valid_rows": {
+            "type": "number"
+          },
+          "invalid_rows": {
+            "type": "number"
+          },
+          "changes": {
+            "$ref": "#/components/schemas/ImportChangesDto"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowErrorDto"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "dry_run",
+          "stored",
+          "replayed",
+          "batch_id",
+          "recovery_run_id",
+          "content_hash",
+          "row_count",
+          "valid_rows",
+          "invalid_rows",
+          "changes",
+          "errors",
+          "note"
+        ]
+      },
       "ErrorResponse": {
         "type": "object",
         "required": [
@@ -6942,6 +7585,11 @@
             "type": "string",
             "nullable": true,
             "description": "UUIDv7 request id (X-Request-Id)"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Structured next-step information for some business errors (e.g. missing_inputs for PLANNING_INPUT_UNAVAILABLE)"
           }
         }
       }
