@@ -2707,6 +2707,47 @@
         ]
       }
     },
+    "/planning/runs/{runId}/input-readiness": {
+      "get": {
+        "operationId": "PlanningController_readiness",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "as_of",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Judge facts at this time (ISO 8601 with offset). Default: scenario time for simulated runs, now for real ones"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "What the planner has and what is missing (T-115). Simulated runs use the scenario pack; real runs list missing_inputs instead of inventing values.",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
     "/planning/runs/{runId}/plans": {
       "get": {
         "operationId": "PlanningController_list",

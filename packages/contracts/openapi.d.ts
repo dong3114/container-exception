@@ -668,6 +668,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/planning/runs/{runId}/input-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the planner has and what is missing (T-115). Simulated runs use the scenario pack; real runs list missing_inputs instead of inventing values. */
+        get: operations["PlanningController_readiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planning/runs/{runId}/plans": {
         parameters: {
             query?: never;
@@ -3686,6 +3703,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PlanningController_readiness: {
+        parameters: {
+            query?: {
+                /** @description Judge facts at this time (ISO 8601 with offset). Default: scenario time for simulated runs, now for real ones */
+                as_of?: string;
+            };
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

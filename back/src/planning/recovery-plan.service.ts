@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
-import { actor, facility, planningSnapshot, recoveryPlan, recoveryPlanItem, recoveryRun, truckPool } from '../db/schema/index.js';
+import { actor, bl, container, containerBl, counterparty, facility, planningSnapshot, recoveryPlan, recoveryPlanItem, recoveryRun, truckPool } from '../db/schema/index.js';
 import { TransactionRunner } from '../db/transaction.js';
 import { AuditRecorder } from '../persistence/audit-recorder.js';
 import { AUDIT_ACTION } from '../persistence/catalog.js';
@@ -23,6 +23,7 @@ import { SOLVER_VERSION, solveRecovery, type SolverResult } from './engine/solve
 import type { CostTable, PlanningFact, PlanningInput } from './engine/types.js';
 import { isTruthManagedKey, planningInputFromScenario, type ScenarioPack } from './scenario-input.js';
 import { loadScenarioPack } from './scenario-pack.js';
+import { assessRealPlanningInput, missingSummary, type Readiness } from './real-input.js';
 
 /**
  * 복구 계획(T-114) — 결정론 Cost Engine + Solver 를 계획 실행(recovery_run) 하나에 대해 돌리고, 결과를 **제안(PROPOSED) 판**으로 남긴다.
@@ -161,11 +162,51 @@ export class RecoveryPlanService implements OnModuleInit {
     });
   }
 
+  /**
+   * 계획 입력 준비도(T-115) — 무엇이 있고 무엇이 없나. 시뮬레이션 실행은 시나리오 팩 + Truth 로 늘 준비됨.
+   * 실제 실행은 등록부 · 공공데이터 · Truth 에서 모으고, 없는 기업 내부 정보는 `missing_inputs` 로 돌려준다(지어내지 않는다).
+   */
+  async readiness(runId: string, asOfOverride?: string | null): Promise<Readiness | { ready: true; source: 'SCENARIO_PACK'; plan_day: string; missing_inputs: []; note: string }> {
+    const run = await this.caseRun(runId);
+    const asOf = this.evaluationAsOf(run, asOfOverride);
+    if (run.containsSimulated) {
+      return { ready: true, source: 'SCENARIO_PACK', plan_day: this.scenarioPack().scenario.days.D0!, missing_inputs: [], note: 'Simulated run: synthetic scenario pack (containers · rates) + Truth facts for the asked series.' };
+    }
+    const planDay = Instant.fromDb(run.snapshotAsOf).toSeoulIso().slice(0, 10);
+    const facilities = await this.db
+      .select({ id: facility.facilityId, type: facility.facilityType, name: facility.facilityName, openTime: facility.defaultOpenTime, closeTime: facility.defaultCloseTime })
+      .from(facility)
+      .where(eq(facility.isActive, true));
+    const pools = await this.db.select({ id: truckPool.truckPoolId, name: truckPool.poolName, ownership: truckPool.ownership }).from(truckPool).where(eq(truckPool.isActive, true));
+    // 범위: 스냅숏 scope_ref.vessel_call_ids(공공데이터 입항 건). 없으면 컨테이너 없음 — 아무 컨테이너나 끌어오지 않는다
+    const [snap] = await this.db.select({ scope: planningSnapshot.scopeRef }).from(planningSnapshot).innerJoin(recoveryRun, eq(recoveryRun.snapshotId, planningSnapshot.snapshotId)).where(eq(recoveryRun.runId, runId)).limit(1);
+    const scoped = z.array(z.string().uuid()).safeParse((snap?.scope as { vessel_call_ids?: unknown } | null)?.vessel_call_ids);
+    const vesselCalls = scoped.success ? scoped.data : [];
+    const containers = vesselCalls.length
+      ? await this.db
+          .select({ id: container.containerId, containerNo: container.containerNo, sizeType: container.sizeType, carrier: counterparty.displayName })
+          .from(container)
+          .leftJoin(containerBl, eq(containerBl.containerId, container.containerId))
+          .leftJoin(bl, eq(bl.blId, containerBl.blId))
+          .leftJoin(counterparty, eq(counterparty.counterpartyId, bl.carrierCounterpartyId))
+          .where(and(inArray(container.vesselCallId, vesselCalls), eq(container.isActive, true), eq(container.isSimulated, false)))
+      : [];
+    const unique = [...new Map(containers.map((c) => [c.id, c])).values()];
+    const kinds = new Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL'>([
+      ...facilities.filter((f) => f.type === 'WAREHOUSE' || f.type === 'ODCY').map((f) => [f.id, f.type as 'WAREHOUSE' | 'ODCY'] as const),
+      ...pools.map((p) => [p.id, 'TRUCK_POOL'] as const),
+    ]);
+    const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: false, scenarioId: null }, asOf);
+    const truthFacts = this.toPlanningFacts(live, planDay, [planDay], kinds);
+    return assessRealPlanningInput({ planDay, facilities, pools, containers: unique, scopedVesselCalls: vesselCalls.length, truthFacts });
+  }
+
   async planningInput(runId: string, asOfOverride?: string | null): Promise<{ run: CaseRun; asOf: Instant; input: PlanningInput }> {
     const run = await this.caseRun(runId);
     if (!run.containsSimulated) {
-      // 실제 계획 실행에는 아직 컨테이너 · 요율 데이터가 없다(공공데이터 컨테이너가 계획 실행에 묶이지 않았다) — 숫자를 지어내지 않는다
-      throw new BusinessRuleError('PLANNING_INPUT_UNAVAILABLE', 'Only simulated recovery runs have container and rate data (scenario data pack) yet', 409);
+      // 실제 실행: 있는 것은 모으고 없는 것은 정확히 알린다 — 숫자를 지어내지 않는다(T-115). 무엇이 빠졌는지는 GET /planning/runs/:id/input-readiness
+      const r = await this.readiness(runId, asOfOverride);
+      throw new BusinessRuleError('PLANNING_INPUT_UNAVAILABLE', `Real run inputs missing: ${'available' in r ? missingSummary(r) : ''} — see GET /planning/runs/${runId}/input-readiness`, 409);
     }
     const asOf = this.evaluationAsOf(run, asOfOverride);
     const pack = this.scenarioPack();

@@ -36,21 +36,21 @@ interface World extends Registry {
 }
 let w: World;
 
-async function newWorld(simulated = true): Promise<World> {
+async function newWorld(simulated = true, asOf = AS_OF): Promise<World> {
   const r = await registry(db);
   const scenarioId = v7();
   const snapshotId = v7();
   const runId = v7();
-  await db.query("INSERT INTO cera.scenario (scenario_id, scenario_name, as_of_base, created_at) VALUES ($1, 'plan scenario', $2, $2)", [scenarioId, AS_OF]);
+  await db.query("INSERT INTO cera.scenario (scenario_id, scenario_name, as_of_base, created_at) VALUES ($1, 'plan scenario', $2, $2)", [scenarioId, asOf]);
   await db.query(
     `INSERT INTO cera.planning_snapshot (snapshot_id, as_of, fact_fingerprint, rule_version, tariff_version, policy_version, contains_simulated, created_at, scenario_id)
      VALUES ($1, $2, $3, 'r1', 't1', 'p1', $4, $2, $5)`,
-    [snapshotId, AS_OF, `sha256:${'0'.repeat(56)}${snapshotId.slice(-8).replace(/-/g, '0').padStart(8, '0')}`, simulated, simulated ? scenarioId : null],
+    [snapshotId, asOf, `sha256:${'0'.repeat(56)}${snapshotId.slice(-8).replace(/-/g, '0').padStart(8, '0')}`, simulated, simulated ? scenarioId : null],
   );
   await db.query(
     `INSERT INTO cera.recovery_run (run_id, snapshot_id, trigger_type, trigger_ref, objective_version, run_status, contains_simulated, executed_at)
      VALUES ($1, $2, 'EXCEPTION_DETECTED', 'PLAN-TEST', 'o1', 'FEASIBLE', $3, $4)`,
-    [runId, snapshotId, simulated, AS_OF],
+    [runId, snapshotId, simulated, asOf],
   );
   const ids: Record<string, string> = {};
   for (const [code, type, name] of [['WAREHOUSE_A', 'WAREHOUSE', '창고 A'], ['WAREHOUSE_B', 'WAREHOUSE', '창고 B'], ['ODCY_A', 'ODCY', 'ODCY A'], ['ODCY_B', 'ODCY', 'ODCY B']] as const) {
@@ -251,5 +251,35 @@ describe('T-114 agent tools — COMPUTE (nothing stored) · PROPOSE (idempotent)
     expect((await http.get(`/planning/runs/${real.runId}/costs`).expect(409)).body.code).toBe('PLANNING_INPUT_UNAVAILABLE');
     const runId = (await http.post('/agent-runs').set(ACTOR, humanId).send({ recovery_run_id: real.runId, goal: 'plan', runtime_version: 'test' }).expect(201)).body.agent_run_id as string;
     expect((await tool('solve_recovery', runId, {}).expect(200)).body).toMatchObject({ status: 'REJECTED', error: { code: 'CAPABILITY_NOT_AVAILABLE' } });
+  });
+
+  it('T-115: a real run reports exactly what is missing; an operator entry flows Truth → planning input (no invented numbers)', async () => {
+    // 실제 실행의 계획 날짜 = 오늘(서울). 지난 날짜의 그날 수용량은 Truth 가 만료로 보므로 쓰지 않는다
+    const nowIso = new Date().toISOString();
+    const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
+    const real = await newWorld(false, nowIso);
+    const before = (await http.get(`/planning/runs/${real.runId}/input-readiness`).expect(200)).body;
+    expect(before).toMatchObject({ ready: false, source: 'REAL_SOURCES', plan_day: today });
+    const codes = (r: { missing_inputs: { code: string }[] }) => r.missing_inputs.map((m) => m.code);
+    expect(codes(before)).toEqual(expect.arrayContaining(['CONTAINER_SCOPE_EMPTY', 'RATE_TABLE', 'FACILITY_CAPACITY', 'OWN_TRUCK_ROSTER']));
+    const blocking = before.missing_inputs.filter((m: { severity: string }) => m.severity === 'BLOCKING').map((m: { code: string }) => m.code);
+    expect(blocking).not.toContain('PARTNER_TRUCK_SLOTS'); // 협력 차량은 없어도 계산은 된다(그 풀을 안 쓸 뿐)
+    const capBefore = before.missing_inputs.find((m: { code: string }) => m.code === 'FACILITY_CAPACITY').count as number;
+
+    // 운영자 직접 입력(실제 — 시나리오 없음) → Truth → 준비도
+    await http.post('/truth/facts/manual').set(ACTOR, humanId).send({ intent: 'OPERATOR_DIRECT_ENTRY', kind: 'FACILITY_CAPACITY', target_id: real.ids.ODCY_A, date: today, value: 3, source_note: '전화 확인(실제 실행 시험)' }).expect(200);
+    await http.post('/truth/facts/manual').set(ACTOR, humanId).send({ intent: 'OPERATOR_DIRECT_ENTRY', kind: 'TRUCK_SLOT', target_id: real.ids.OWN_FLEET, date: today, window_from: '09:00', window_to: '18:00', value: 5, source_note: '배차 담당 확인(시험)' }).expect(200);
+    const after = (await http.get(`/planning/runs/${real.runId}/input-readiness`).expect(200)).body;
+    expect(after.missing_inputs.find((m: { code: string }) => m.code === 'FACILITY_CAPACITY').count).toBe(capBefore - 1);
+    expect(after.available.facilities_with_capacity).toBe(before.available.facilities_with_capacity + 1);
+    expect(after.available.truth_facts).toBeGreaterThanOrEqual(before.available.truth_facts + 2);
+    // 시나리오 요율 · 값은 실제 실행에 쓰지 않는다 — 여전히 계산 거부(무엇이 빠졌는지 메시지에)
+    const refused = (await http.get(`/planning/runs/${real.runId}/costs`).expect(409)).body;
+    expect(refused.message).toMatch(/RATE_TABLE/);
+    expect(refused.message).toMatch(/CONTAINER_SCOPE_EMPTY/);
+
+    // 시뮬레이션 실행은 시나리오 팩으로 늘 준비됨
+    const sim = await newWorld(true);
+    expect((await http.get(`/planning/runs/${sim.runId}/input-readiness`).expect(200)).body).toMatchObject({ ready: true, source: 'SCENARIO_PACK' });
   });
 });

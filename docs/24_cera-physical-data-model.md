@@ -1035,6 +1035,14 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **시험** — `test/db/queue.test.ts` 6(폴링 없이 큐로 발송 · 같은 작업 3번 동시 + 1번 → 발송 1건 · 일시 실패 → 지연 작업(참조만 · 60초 뒤) · Redis 비움 → 폴링이 발송 · Redis 다운 → 요청 3초 안 성공 + 폴링 발송) · unit 2. 실제 Redis 필요(`CERA_TEST_REDIS_URL`, 기본 `redis://127.0.0.1:56379`)
 - **한계** — Gmail 수신 폴링 · 신선도 재판정 · 계획 무효 검사는 큐에 넣지 않았다(주기 작업 그대로). 큐 길이 · 지연 모니터링 화면 없음
 
+### 18.20 T-115 실제 계획 실행의 입력 준비도 (2026-10-27)
+
+- **바뀐 것** — 실제(시뮬레이션 아닌) 실행이 막연한 `PLANNING_INPUT_UNAVAILABLE` 로 끝나지 않는다. `GET /planning/runs/:runId/input-readiness` 가 **있는 것과 없는 것**을 돌려주고, 계산 API 는 같은 코드(Agent Tool 의 `CAPABILITY_NOT_AVAILABLE` 매핑 유지)에 빠진 항목을 메시지로 싣는다. 판정은 순수 함수 `back/src/planning/real-input.ts`
+- **모으는 곳(실제로 확보 가능한 것만)** — 등록부(시설 · 입고 시간 · 트럭 풀) · 공공데이터(스냅숏 `scope_ref.vessel_call_ids` 로 묶은 입항 건의 컨테이너 번호 · 규격, B/L 선사) · Truth(사람 직접 입력 · 회신의 그날 수용량 · 차량 가용 — 철회 · 만료 · 값 없음은 제외)
+- **`missing_inputs`(지어내지 않는다)** — BLOCKING: `CONTAINER_SCOPE_EMPTY` · `CONTAINER_DESTINATION` · `CONTAINER_ORIGINAL_PLAN` · `CONTAINER_LFD` · `CONTAINER_CARRIER`(컨테이너별 개수 · 예시 5) · `RATE_TABLE`(확정 요율 저장소 없음 — 시나리오 자리표시 요율은 실제 실행에 쓰지 않는다) · `FACILITY_HOURS` · `FACILITY_CAPACITY`(시설별) · `OWN_TRUCK_ROSTER`(자사 풀, Truth 가용 사실이 있으면 닫힘) / OPTIONAL: `PARTNER_TRUCK_SLOTS`. 항목마다 `provide_via`(어디서 와야 하나)
+- **검증된 흐름** — 운영자 직접 입력(실제 · 시나리오 없음) → Truth → 준비도에서 해당 시설 · 풀의 공백이 닫힌다(DB 시험). 시뮬레이션 실행은 그대로 시나리오 팩 + Truth 로 계산(직접 입력 · 정정이 Solver 까지 흐르는 것은 `/demo` 10단계 v3 로 확인)
+- **한계(정직하게)** — 컨테이너별 목적지 · 원래 배차 · LFD · 확정 요율 · 자사 트럭 명부는 들어오는 길이 없어 **실제 실행은 아직 계산되지 않는다**. 다음 단계 후보: 컨테이너 사실 직접 입력 · CSV 가져오기 · 요율표 등록(T-123)
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).

@@ -63,6 +63,15 @@ export class PlanningController {
     };
   }
 
+  @Get('runs/:runId/input-readiness')
+  @ApiOperation({ summary: 'What the planner has and what is missing (T-115). Simulated runs use the scenario pack; real runs list missing_inputs instead of inventing values.' })
+  @ApiParam(RUN_ID)
+  @ApiQuery(AS_OF)
+  @ApiOkResponse({ schema: { type: 'object' } })
+  readiness(@Param('runId') runId: string, @Query('as_of') asOf: string | undefined) {
+    return this.plans.readiness(runId, asOf);
+  }
+
   @Get('runs/:runId/plans')
   @ApiOperation({ summary: 'Plan versions of a recovery run (newest first)' })
   @ApiParam(RUN_ID)
