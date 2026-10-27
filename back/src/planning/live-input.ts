@@ -210,7 +210,8 @@ export function assessLiveInput(s: LiveSources): LiveAssessment {
         continue;
       }
       const from = Number(m[2]) + (Number(m[3]) > 0 ? 1 : 0);
-      for (let i = 1; i <= f.value; i++) own.push({ truck_id: `${p.id}#${m[2]}${m[3]}-${m[4]}${m[5]}#${i}`, pool_id: p.id, from_hour: from, to_hour: Number(m[4]), fact_ref: f.fact_ref });
+      // `own:` 접두어 — 협력 트럭 id(`풀#시간창#번호`)와 구분한다: 자사 트럭에는 외부 배차 요청(T-116 후속 초안)이 없다
+      for (let i = 1; i <= f.value; i++) own.push({ truck_id: `own:${p.id}#${m[2]}${m[3]}-${m[4]}${m[5]}#${i}`, pool_id: p.id, from_hour: from, to_hour: Number(m[4]), fact_ref: f.fact_ref });
     }
   }
   const partnerSlots = partnerPools.filter((p) => usableFact(p.id, (k) => SLOT.exec(k)?.[1] === D0));
@@ -289,6 +290,22 @@ export function assessLiveInput(s: LiveSources): LiveAssessment {
     for (const k of keepMissing.keys()) otherMissing.delete(k);
     add({ code: 'RATE_MISSING', group: 'RATE', severity: 'BLOCKING', scope: 'RATE', items: [...keepMissing].sort().map(([field, c]) => ({ field, example: c })), source_expected: ['OPERATIONAL_RECORD', 'HUMAN_INPUT'], provide_via: 'POST /planning/inputs/rates — 원래 계획(KEEP) 비용에 필요한 계약 요율. 0 원으로 계산하지 않는다' });
     add({ code: 'RATE_MISSING', group: 'RATE', severity: 'OPTIONAL', scope: 'RATE', items: [...otherMissing].sort().map(([field, c]) => ({ field, example: c })), source_expected: ['OPERATIONAL_RECORD', 'HUMAN_INPUT'], provide_via: '없으면 그 대안(다른 창고 · ODCY · 대기)은 계산하지 않는다' });
+    // 빠진 사실(다음 날 창고 수용량 등)도 엔진이 정확히 안다: 선택지가 하나도 남지 않은 컨테이너가 기대는 빠진 사실은 BLOCKING
+    // (그대로 풀면 Solver 가 INFEASIBLE 을 낸다 — 계획이 불가능한 게 아니라 입력이 빠진 것), 대안 하나만 막는 것은 OPTIONAL
+    const stuck = new Set(table.candidates.filter((c) => !table.options.some((o) => o.container_id === c && o.feasible)));
+    const blockingFacts = new Map<string, string>();
+    const optionalFacts = new Map<string, string>();
+    for (const o of table.options) {
+      for (const r of o.infeasible_reasons.filter((x) => x.code === 'FACT_MISSING')) (stuck.has(o.container_id) ? blockingFacts : optionalFacts).set(capacityField(r.ref, label, D0), o.container_id);
+    }
+    for (const k of blockingFacts.keys()) optionalFacts.delete(k);
+    const factGroup = (field: string): MissingGroup => (field.includes('.odcy_capacity') || field.includes('capacity(') ? 'ODCY_CAPACITY' : 'WAREHOUSE_CAPACITY');
+    for (const [severity, m] of [['BLOCKING', blockingFacts], ['OPTIONAL', optionalFacts]] as const) {
+      for (const group of ['WAREHOUSE_CAPACITY', 'ODCY_CAPACITY'] as const) {
+        const items = [...m].filter(([f]) => factGroup(f) === group).sort().map(([field, c]) => ({ field, example: c }));
+        add({ code: 'FACILITY_CAPACITY', group, severity, scope: 'FACILITY', items, source_expected: ['TRUTH_FACT', 'HUMAN_INPUT', 'PARTNER_REPLY'], provide_via: severity === 'BLOCKING' ? '이 컨테이너들은 이 수용량 없이는 어떤 선택지도 계산되지 않는다 — 그날 수용량을 직접 입력하거나 문의' : '없으면 그 날 · 그 시설로 가는 선택지는 계산하지 않는다' });
+      }
+    }
     for (const f of table.facts) if (f.usage === 'USED_WITH_WARNING' && f.reason === 'PROVISIONAL') provisional.push({ fact_ref: f.fact_ref, subject_id: f.subject_id, fact_key: f.fact_key });
   }
   const blocking = missing.some((m) => m.severity === 'BLOCKING');
@@ -308,6 +325,16 @@ export function assessLiveInput(s: LiveSources): LiveAssessment {
       truth_facts: s.truthFacts.length,
     },
   };
+}
+
+/** 엔진의 빠진 용량 참조(`WAREHOUSE_DAY:<id>:<날짜>` · `ODCY:<id>:<규격>` · `<id>:capacity…`) → 사람이 읽는 필드 이름. */
+function capacityField(ref: string, label: (id: string) => string, D0: string): string {
+  const wh = /^WAREHOUSE_DAY:([^:]+):(\d{4}-\d{2}-\d{2})$/.exec(ref);
+  if (wh) return `facility.${label(wh[1]!)}.capacity.day(${wh[2]})`;
+  const od = /^ODCY:([^:]+):(.+)$/.exec(ref);
+  if (od) return `facility.${label(od[1]!)}.capacity${od[2] === 'ALL' ? '' : `(${od[2]})`}.day(${D0})`;
+  const raw = /^([^:]+):(.+)$/.exec(ref);
+  return raw ? `facility.${label(raw[1]!)}.${raw[2]}` : `facility.${ref}`;
 }
 
 export const groupSummary = (missing: MissingInput[]) => {

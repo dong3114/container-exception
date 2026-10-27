@@ -193,3 +193,28 @@ describe('bulk planning input validation (T-123) — row errors, never fill in v
     expect(v.rows[0]).toMatchObject({ rate_type: 'TRANSPORT', from_ref: 'PNIT', to_ref: WH, amount: 200000, unit: 'KRW' });
   });
 });
+
+describe('LIVE readiness also catches facts the engine needs beyond the plan day (found in the Docker E2E)', () => {
+  it('a container left with no feasible option because a later-day capacity is missing → BLOCKING, not a silent INFEASIBLE plan', () => {
+    // 오늘 창고 0칸 · 트럭 없음 수준이 아니라: 오늘 창고가 꽉 차고(0) 다음 날 수용량이 없으면 대기 선택지도 계산되지 않는다
+    const s = sources({ truthFacts: [fact(WH, `capacity.day(${D0})`, 0), fact(OD, `capacity.day(${D0})`, 0), fact(OWN, `available.slot(${D0}T08:00-18:00)`, 3)] });
+    const a = assessLiveInput(s);
+    expect(a.status).toBe('NOT_READY');
+    const m = a.missing_inputs.find((x) => x.code === 'FACILITY_CAPACITY' && x.severity === 'BLOCKING')!;
+    expect(m.group).toBe('WAREHOUSE_CAPACITY');
+    expect(m.fields).toEqual(expect.arrayContaining(['facility.합성 창고.capacity.day(2026-11-03)']));
+  });
+});
+
+describe('own trucks in a live plan never become outside dispatch requests (found in the Docker E2E)', () => {
+  it('own truck ids are told apart from partner truck ids; follow-ups only ask partners', async () => {
+    const { requiredFollowUps } = await import('../../src/planning/follow-up.js');
+    const a = assessLiveInput(sources());
+    expect(a.input!.own_trucks.every((t) => t.truck_id.startsWith(`own:${OWN}#`))).toBe(true);
+    const items = [
+      { action: 'KEEP_CURRENT_PLAN', targetRef: WH, deliveryDay: D0, scheduledDay: D0, truckRef: a.input!.own_trucks[0]!.truck_id },
+      { action: 'KEEP_CURRENT_PLAN', targetRef: WH, deliveryDay: D0, scheduledDay: D0, truckRef: `${PARTNER}#1300-1800#1` },
+    ];
+    expect(requiredFollowUps(items).map((x) => x.kind)).toEqual(['PARTNER_TRUCKS']);
+  });
+});
