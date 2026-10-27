@@ -34,6 +34,19 @@ DC --profile app --profile web --profile llm --profile eval down # 정지(데이
 
 GPU: 위에 `-f infra/local/compose.gpu.yaml` 를 compose.yaml 뒤에 추가한다. 필요 조건과 확인된 범위는 아래 "GPU".
 
+## 시연 · 테스트 콘솔 (`/demo`)
+
+30대 합성 시나리오 한 판(현장 값 입력 → Agent 문의 → 사람 승인 · 발송 → Mock 회신 → 임시 사실 → 계획 v1 → 확인 → v2 → 정정 → v3 → 승인)을 화면 한 곳에서 단계별로 따라간다. 숫자는 전부 Backend 결과다. 평소 개발 DB 와 데이터를 나누려고 프로젝트 이름을 따로 준다(`-p cera-demo`). `compose.demo.yaml` 이 Agent 를 켜고 Mock 수신함을 시연 전용 폴더로 바꾼다(.env 는 그대로, 토큰은 `back/.env` · `ai/.env` 의 `CERA_AGENT_TOOL_TOKEN`).
+
+```text
+DEMO="docker compose -p cera-demo -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env"
+$DEMO --profile app --profile web up -d --build --wait && $DEMO --profile app run --rm migrate npm run db:seed   # → http://127.0.0.1:3000/demo
+$DEMO --profile app --profile web down -v && rm -rf data/raw/mock-channel-demo                                  # 처음부터 다시
+cd front/web && node scripts/demo-walkthrough.mjs                                                               # 브라우저로 11단계 자동 확인(깨끗한 상태에서)
+```
+
+Mock 회신은 개발 도우미 `POST /dev/demo/mock-reply`(APP_ENV local · test 에서만 붙고 OpenAPI 계약에 없다)로 넣는다. AI 는 녹화 재생이라 정해진 문장에만 답한다 — 콘솔의 회신 프리셋이 그 문장들이다.
+
 ## 로컬 모델 평가 (T-099)
 
 ```text

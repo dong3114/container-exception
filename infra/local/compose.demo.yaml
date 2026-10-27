@@ -1,0 +1,21 @@
+# 시연 · 테스트 겹침 파일(T-120 시연 콘솔). compose.yaml 뒤에 겹쳐 쓰고, 프로젝트 이름을 따로 줘서 평소 개발 DB 와 데이터를 나눈다:
+#
+#   docker compose -p cera-demo -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env --profile app --profile web up -d --build
+#   docker compose -p cera-demo -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env --profile app run --rm migrate npm run db:seed
+#   → http://127.0.0.1:3000/demo
+#
+# 바꾸는 것: Agent Runtime 켜기(서비스 토큰은 back/.env · ai/.env 의 CERA_AGENT_TOOL_TOKEN — 32자 이상 같은 값이어야 한다) ·
+# Mock 수신함을 시연 전용 폴더로(다른 실행의 Mock 메일이 보류함에 섞이지 않게). 처음부터 다시 하려면 같은 명령의 `down -v`.
+# 비밀값은 여기에 두지 않는다.
+services:
+  api:
+    environment:
+      CERA_AGENT_TOOLS_ENABLED: "true"
+      CERA_MOCK_CHANNEL_DIR: /srv/data/raw/mock-channel-demo
+  worker:
+    environment:
+      CERA_AGENT_TOOLS_ENABLED: "true"
+      CERA_MOCK_CHANNEL_DIR: /srv/data/raw/mock-channel-demo
+  ai:
+    environment:
+      CERA_AGENT_MODE: "on"
