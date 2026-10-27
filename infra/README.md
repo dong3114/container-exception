@@ -70,6 +70,52 @@ CERA_COMPOSE_EXTRA=infra/local/compose.gpu.yaml bash infra/local/eval-ladder.sh 
 `DC` 에 `compose.gpu.yaml` 을 겹치면 `llm` 이 `ghcr.io/ggml-org/llama.cpp:server-cuda` 로 `-ngl 99`(전 층 GPU) 실행된다. Docker Desktop(WSL2)에서 NVIDIA 드라이버가 있으면 `docker run --gpus all` 이 동작한다.
 검증 범위(2026-10-26): GTX 1650(Turing, VRAM 4GB)에서 동작 확인. **GTX 1080(Pascal)은 이 환경에 없어 직접 확인하지 못했다 `[TO VERIFY]`.** 호환이 안 되면 CPU(`compose.gpu.yaml` 을 빼면 된다)가 fallback 이다.
 
+## 운영 준비 — 새 설치 · 상태 확인 · 백업/복원 · 장애 복구 (2026-10-27 실측)
+
+**새 설치(빈 DB · 빈 Redis)** — 명령 두 개. migration 은 compose 의 `migrate` 가 끝난 뒤에만 API · Worker 가 뜬다(`service_completed_successfully`).
+
+```text
+FRESH="docker compose -p cera-fresh -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env"
+$FRESH --profile app --profile web up -d --build --wait          # postgres · redis · migrate(M01~M32) · api · worker · ai · web — 실측 58초
+$FRESH --profile app run --rm migrate npm run db:seed            # 등록부 · 합성 시나리오 · 사용자(admin · operator · field)
+```
+
+- 사용자는 `back/.env` 의 `CERA_SEED_ADMIN_PASSWORD` · `CERA_SEED_OPERATOR_PASSWORD` · `CERA_SEED_FIELD_PASSWORD`(12자 이상)가 있을 때만 만든다 — 비밀번호는 저장소에 없고 DB 에는 scrypt 해시만
+- 실측(빈 볼륨): migration 32 · 표 50 · 트리거 130 · CHECK 281 · FK 106. 앱 역할은 append-only 표를 고치거나 지울 수 없고(권한), 소유 역할도 트리거가 막는다
+- 같은 호스트 포트를 쓰므로 다른 프로젝트(`cera-demo` · `cera-local`)는 먼저 `stop` 한다(볼륨은 그대로)
+- **Mock 수신함 폴더**: `compose.demo.yaml` 을 겹친 스택들은 `data/raw/mock-channel-demo` 를 함께 쓴다 — 다른 스택의 Mock 회신은 맞는 스레드가 없어 보류(`NO_MATCHING_THREAD`)된다(잘못 붙지는 않는다). 깨끗하게 하려면 스택마다 `CERA_MOCK_CHANNEL_DIR` 를 나눈다
+
+**상태 확인**
+
+| 대상 | 확인 | 뜻 |
+| --- | --- | --- |
+| API 생존 | `GET /health/live` | 프로세스가 요청을 받는다(DB 를 보지 않는다) |
+| API 준비 | `GET /health` | 앱 + DB. DB 가 안 되면 503 `degraded`. `queue` = Redis 상태(참고 — 내려가도 PostgreSQL 폴링이 같은 일을 하므로 503 이 아니다) |
+| Worker | 컨테이너 상태 · 로그 `outbox worker polling` · `execution queue consumer started` | HTTP 끝점은 없다. 일이 쌓이는지는 발송 대기(QUEUED) · 추출 대기가 줄어드는지로 본다 |
+| AI Server | `GET :8100/health` | `provider`(replay · local …) |
+| DB · Redis | compose healthcheck | `docker ps` 의 `(healthy)` |
+
+**백업 범위 — DB 만으로는 전체 복구가 아니다**
+
+1. PostgreSQL DB `cera`(스키마 `cera` + migration 이력 `cera_meta`): `docker exec <postgres> pg_dump -U postgres -Fc -d cera -f /tmp/cera.dump` — 실측 0.5초 · 376 KB(LIVE 실행 하나 + 시드)
+2. **ContentStore 폴더 `data/raw/content`(`CERA_CONTENT_DIR`)**: 받은 메일 원문(RFC822) · 보낸 내용 사본 · 근거 인용 · **Agent 체크포인트**가 DB 밖 파일이다. 이것이 없으면 원문 · 인용을 볼 수 없고, 기다리던 Agent 실행을 이어 갈 수 없다(DB 에는 참조 · 지문만). DB 덤프와 **같은 시점**에 함께 복사한다
+3. Redis 는 백업하지 않는다 — 업무 상태가 아니다(실행 큐 신호만). 비운 Redis 로 떠도 DB 폴링 · 재조정이 이어 간다(FLUSHALL 실측)
+
+**복원**
+
+```text
+# 새 인스턴스: 같은 init 스크립트로 역할(cera_owner · cera_app)과 빈 DB 를 만든 뒤
+docker run -d --name <pg> -e POSTGRES_PASSWORD=… -e CERA_OWNER_PASSWORD=… -e CERA_APP_PASSWORD=… -e CERA_DB_NAME=cera -e CERA_TEST_DB_NAME=<unused> \
+  -v <repo>/infra/local/postgres-init:/docker-entrypoint-initdb.d:ro postgres:18.6
+docker cp cera.dump <pg>:/tmp/ && docker exec <pg> pg_restore -U postgres -d cera --exit-on-error /tmp/cera.dump   # 실측 0.9초
+# ContentStore 폴더를 같은 경로로 되돌리고 API · Worker 의 DATABASE_URL 을 새 인스턴스로
+```
+
+- 실측: 복원 DB 의 행 수가 원본과 같고(Agent 실행 · 계획 v1/v2 · 사건 · 감사 · migration 32) 권한 · append-only 트리거도 그대로. Redis 없이 붙은 API 로 Agent 실행 · 사실 · 계획 · 회신 원문(ContentStore) · 시도 이력 · 준비도 조회 정상
+- **세션도 복원된다**(로그인 세션은 DB 에 있다 — 실측: 백업 전 쿠키가 복원 DB 에서도 200). 다른 환경으로 옮기거나 사고 뒤 복원이면 소유 역할로 모든 세션을 끊는다: `UPDATE cera.user_session SET revoked_at = now() WHERE revoked_at IS NULL;`
+
+**장애 복구(실측, `cera-fresh` · Mock 채널)**: Redis 정상 발송 218 ms · Redis 중단 중 발송 759 ms · 회신 → 추출 5.9초(폴링) · FLUSHALL 뒤 업무 상태 그대로 · 빠른 길 244 ms · Worker 중단 중 발송 요청 = QUEUED 유지 → 시작 1.4초 뒤 한 번만 발송 · AI 중단 = 일시 실패 · 다음 시도 대기(사람 검토로 안 넘어감) → AI 복귀 뒤 12초 간격으로 추출 · 회신 대기 중 API · Worker 재시작 = 세션 · Agent 대기 · 발송 기록 그대로
+
 ## 기타
 
 - `infra/local/postgres-init/01-roles.sh`: 최초 초기화 때 역할 `cera_owner`(migration 소유) · `cera_app`(실행 앱)과 DB `cera` · `cera_test` 를 만든다(`docs/24` 12.2). 표 권한은 migration 이 준다.
