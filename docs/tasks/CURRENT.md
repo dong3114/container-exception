@@ -23,14 +23,14 @@
 | `c1c6390` | T-115 실제 실행 입력 준비도 · `missing_inputs`(실제 실행 계산은 아직 안 됨 → T-123) | `docs/24` 18.20 |
 | `073f0e1` | T-116 승인된 계획 → 후속 문의 초안(M26 · M27, 판 무효 시 PLAN_SUPERSEDED) · `/demo` 12단계 | `docs/24` 18.21 |
 
-### Blocker — 실제 Gmail 왕복(사람이 할 일)
-`back/.env` 의 `GMAIL_CLIENT_ID` · `GMAIL_CLIENT_SECRET` 비어 있음(2026-10-27 확인). 절차 `docs/18` G.8: 전용 Gmail 2개 → Google Cloud Gmail API · OAuth 동의 화면(Testing) · 데스크톱 앱 client → `.env` → `npm run gmail:auth` → 외부 계정 주소를 알려 주면 `CERA_TEST_RECIPIENT_ALLOWLIST` · `npm run gmail:tech-validation -- --recipient …` → `CERA_GMAIL_ENABLED=true` → 실제 왕복(발송 → 회신 → 수신 → 추출 → Truth → Agent 재개) 확인
+### 실제 Gmail 왕복 — 확인됨(2026-10-27)
+OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · 허용목록 = 외부 테스트 계정(값은 로컬만). 결과표 `docs/18` G.8: 발송 1회 성공 · 실제 회신 수신 · 원문 보존 · 발신자 판정 · Agent 재개 OK. **추출은 후보 없음**(replay = 녹화 없음, 로컬 Qwen3-4B = `UNPARSEABLE`) → 운영자 직접 입력으로 Truth · 재평가 확인. 남은 것: 추출 공급자(T-099 — 상용 키 필요) · 상한 넘긴 회신 재시도 경로(T-124). Testing 모드 refresh token 은 약 7일 뒤 만료 → `npm run gmail:auth` 다시
 
 ### 시연 스택 상태
 `cera-demo` 가 떠 있다(초기화 · 시드됨). 로그인 operator · admin · field — 비밀번호는 `back/.env` 의 `CERA_SEED_*_PASSWORD`. 평소 개발 스택 `cera-local` 은 멈춤(데이터 유지). 바탕화면 `CERA_시연_테스트_시나리오.md` = 단계별 기대값(실측)
 
 ### 다음 한 걸음
-1. (credential 오면) 실제 Gmail 왕복 확인 · 결과를 `docs/18` G.8 에 기록
+1. ~~실제 Gmail 왕복 확인~~(DONE 2026-10-27) — 추출 공급자는 T-099(키 대기), 재시도 경로 T-124
 2. P1: 운영 설정 점검(production 에서 dev 도우미 · dev-header · Mock 장애 주입 거부 확인 — 일부 있음) · 관측(요청 · 작업 trace_id 연결 확인) · Solver/Agent 엣지
 3. T-123(실제 실행 내부 정보 입력 경로) — 실제 실행 계산을 열려면 필요
 4. 남은 시간에만 P2 UI

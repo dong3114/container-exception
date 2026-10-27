@@ -474,7 +474,7 @@
 - 완료 조건: [x] M22 · M23(표 2) [x] 판 관리 · OUTDATED · 사람 승인 [x] Agent Tool 4 · 그래프(plan_recovery) [x] 화면 계획 패널 [x] Docker E2E v1 → v2 → v3 → 승인 → PLAN_APPROVED [x] 시험(Backend 426 · Python 85 · Front 79)
 
 ### T-118: Real Gmail Channel (2026-10-27 스프린트 1)
-- 상태: **DONE — 코드 · 가짜 Gmail 시험(2026-10-27, 커밋 · push).** 실제 Google 왕복은 사람의 OAuth 준비(`docs/18` G.8) 뒤 T-122 에서 확인 | 우선: P0 | 담당: Claude Code / 2026-10-27
+- 상태: **DONE — 코드 · 가짜 Gmail 시험 · 실제 Google 왕복(2026-10-27 — 발송 · 수신 · 원문 보존 · 발신자 판정 · Agent 재개 확인, 추출은 공급자 한계로 후보 없음 → 운영자 직접 입력 · `docs/18` G.8 결과표)** | 우선: P0 | 담당: Claude Code / 2026-10-27
 - 결과: Mock 과 같은 포트의 Gmail 어댑터(발송 · 화해 · 알려진 스레드만 수신 · RFC822 원문 보존 · 인용 제거 · 오류 분류) · `npm run gmail:auth` · `npm run gmail:tech-validation` · Agent 주소 선택 = 실행의 Mock/Real 과 맞는 주소만. 정본 `docs/18` G.8
 
 ### T-119: Authentication / RBAC (스프린트 2 — T-098 의 인증 · 역할 부분)
@@ -494,6 +494,11 @@
 ### T-115: 실제 계획 실행의 컨테이너 · 요율 입력 연결
 - 상태: **DONE — 1차(2026-10-27, 입력 준비도 · missing_inputs · 실제 소스 조립)** | 우선: P0(2026-10-27 조정) | 단계: Phase 1 | 담당: Claude Code / 2026-10-27
 - 결과: `GET /planning/runs/:id/input-readiness` · 순수 판정기 · 스냅숏 범위 입항 건 · Truth 직접 입력 반영. 계산 자체는 내부 정보(목적지 · LFD · 요율 · 자사 명부)가 없어 아직 거부 — 후속 **T-123**. 정본 `docs/24` 18.20
+
+### T-124: 추출 시도 상한을 넘긴 회신의 사람 재시도 경로
+- 상태: TODO | 우선: P1 | 의존: T-118
+- 배경: 2026-10-27 실제 Gmail 왕복에서 replay 모드 회신이 `EXTRACTION_PROVIDER_FAILED` 3회로 상한(`CERA_EXTRACTION_MAX_ATTEMPTS`)에 닿았다. 시도 수는 `system_error`(append-only)로 세므로 공급자를 고친 뒤에도 그 회신은 다시 추출되지 않는다(시연에서는 Worker 설정을 임시로 올려 재시도했다)
+- 목표: 운영자가 회신 하나의 추출을 다시 요청하는 명시적 경로(권한 · 감사 · 멱등 · 시도 기록 유지). 자동 무한 재시도는 만들지 않는다
 
 ### T-123: 실제 실행의 내부 계획 정보 입력 경로(컨테이너 사실 · 요율표 · 자사 트럭 명부)
 - 상태: TODO | 우선: P1 | 의존: T-115

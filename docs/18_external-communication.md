@@ -587,6 +587,20 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 
 검증 구분: 가짜 Gmail 서버로 하는 시험(`back/test/unit/gmail-channel.test.ts` · `back/test/db/gmail-channel.test.ts`)은 credential 없이 돈다. 실제 Google 왕복은 위 준비 뒤에만 확인할 수 있다.
 
+**실제 Google 왕복 결과(2026-10-27, `cera-demo` 스택 · 테스트 계정 2개 · 주소는 로컬 `.env` · DB 에만)** `[VERIFIED]`:
+
+| 단계 | 결과 |
+| --- | --- |
+| Agent → 초안 | 비시뮬레이션 실행에서 공백(ODCY A 수용량) → `find_counterparty` 가 GMAIL 주소만 eligible → 초안 `PENDING_APPROVAL` · Agent `WAITING_HUMAN` |
+| 승인 → 발송 | 사람 승인 · 발송 요청 → Worker 가 Gmail API 로 발송, 시도 1회 `SUCCESS`(요청 → `SENT` 1.2초). Agent `WAITING_EXTERNAL` |
+| 회신 수신 | 외부 계정이 받은편지함에서 답장 → Worker 폴링(알려진 스레드만)이 RFC822 원문을 ContentStore 에(`raw_input` EMAIL/GMAIL · 해시) → 발신자 = 등록된 연락처(`NORMAL`, 보류 없음) · 같은 CERA 스레드에 연결 · Date 헤더 근거 시각 · 인용 제거된 미리보기. 다음 폴링에서 중복 수신 없음 |
+| 추출 | **replay 모드**: 실제 문장의 녹화가 없어 `NO_RECORDING` → `EXTRACTION_PROVIDER_FAILED` 3회(규칙 9 — 값을 지어내지 않는다). **로컬 Qwen3-4B(live)**: 호출 성공(13.5초) · 그러나 "네 10월 27일에 4대 받을 수 있습니다." 같은 분명한 수용량 답도 `UNPARSEABLE`(답 없음) — 모델 품질 한계, 튜닝하지 않음(T-099) |
+| Agent 재개 | 회신 도착으로 깨어나 `read_reply` → `reassess_gaps` → `COMPLETED`(`EXTRACTION_FAILED` · `NO_VALID_CANDIDATE` · 공백은 `ASKED` 그대로 — 사실로 승격하지 않음) |
+| Truth | 운영자가 회신을 읽고 직접 입력(`OPERATOR_DIRECT_ENTRY`, 출처 메모 — LLM 추출로 표시하지 않음) → `capacity.day(2026-10-27)` = 4 CONTAINER · `CONFIRMED` · `USABLE` |
+| 재평가 | 같은 실행의 새 Agent Run 은 ODCY A 를 다시 묻지 않고 다음 공백(ODCY B)으로 → 그 초안은 사람이 거절(발송 안 함) |
+
+남은 것: 실제 문장에서 후보를 내는 추출 공급자(상용 키 또는 더 나은 로컬 모델 — T-099) · 추출 시도 상한을 넘긴 회신을 사람이 다시 돌리는 경로(T-124).
+
 ---
 
 ## H. 실패 · 중복 · 재시도 정책
