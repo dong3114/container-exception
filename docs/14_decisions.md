@@ -119,7 +119,7 @@
 - **v0.2 주석**: 유지. 반올림 규칙은 T-043(Tariff·Cost 엔진)에서 정한다(옛 T-011은 폐기된 ID).
 
 ## ADR-007: 최적화 1차 후보 — OR-Tools CP-SAT
-- 상태: **Reopened → Proposed** (2026-09-11, 사람 검토 지시). 이전 상태: Accepted (2026-09-10, 원본 기획서 결정 승계)
+- 상태: **Superseded by ADR-038** (2026-10-27 — MVP 는 HiGHS 0-1 MIP). 이전: **Reopened → Proposed** (2026-09-11, 사람 검토 지시). 이전 상태: Accepted (2026-09-10, 원본 기획서 결정 승계)
 - 날짜: 2026-09-10 (재개 2026-09-11)
 - 결정(원문 보존): 1차 구현은 CP-SAT. 실제 데이터 구조를 확보한 뒤 MILP / min-cost flow / VRP / scheduling 조합과 비교한다(T-021).
 - **재개 이유 (2026-09-11)**: 이 ADR의 Accepted 상태는 v0.1 원본 기획서를 그대로 이어받은 것이다. CERA V0.2 Master Planning 정본에서 솔버 선택은 확정 사항이 아니다. CP-SAT은 **현재 후보**이고, 실제 문제 구조(MVP 시나리오의 변수·제약·재최적화 요구)를 확정한 뒤 CP-SAT / MILP / min-cost flow / VRP / scheduling 등을 비교해 **가장 단순하고 검증 가능한 구조**를 고르는 것이 Open Question이다. T-031·T-032 보고에서 이 ADR을 `[DECIDED]`로 유지한 것은 v0.2 정본과 충돌했으므로 바로잡는다.
@@ -523,7 +523,9 @@
 - 결과: 구조(1~5)는 확정, **선정 결과(공급자 · 기본 모델 · 근거 run id) 는 Deferred** — 채워지면 이 ADR 의 "선정" 절만 갱신한다(구조 변경 없음). Runtime 코드 기본은 녹화 재생(replay) 그대로이고, 모델을 켜는 환경(Docker `llm` 프로필)의 임시 기본값만 Qwen3-4B 다(`ai/.env.example` · `infra/local/.env.example`). 회신 추출 기록은 모델 출처(`model_version` · `prompt_version` · `schema_version` · 입력 지문)를 남기므로 "어느 모델이 만든 오류인가"를 나중에 가를 수 있다(T-093).
 
 ## ADR-038: Recovery Solver = HiGHS 0-1 MIP, Main Backend 프로세스 안 (T-113 · ADR-007 대체 제안)
-- 상태: **Proposed** (2026-10-26, T-113 구현 · 검증 끝 — 사용자 검토 대기)
+- 상태: **Accepted for MVP** (2026-10-27, 사용자 스프린트 지시 — 30대 시나리오 · 결정론 재현 · 사실 변경 → 재계산 · 계획 판 · Docker E2E 검증 뒤). 이전: Proposed (2026-10-26, T-113)
+- **승인 범위**: "CERA MVP 의 결정론 최적화 엔진으로 지금 HiGHS 를 쓴다"이다. "앞으로의 모든 Solver 를 HiGHS 로 영구 고정한다"가 **아니다.** 문제 크기 · 제약 성격(다음 날 트럭 · 일별 점유 · VRP 등, T-117)이 달라지면 다시 비교해 교체할 수 있어야 한다
+- **교체 경계(Business Contract 와 Solver 선택 분리)**: 업무 계약은 Cost Engine 의 비용표(KRW 정수) · 선택지 목록 → Solver → 후보 할당(입력 지문 · 동률 해소 규칙 포함)이다. 계획 저장 · `plan_hash` · 승인 · OUTDATED · 재계산 · 화면 · Agent Tool 은 이 계약만 보고 HiGHS 를 모른다. Solver 를 바꾸는 변경은 `back/src/planning/engine/solver.ts` 안에 머물러야 하고, 같은 입력에서 같은 목적값이 나오는지 기존 시험(30대 S7)으로 확인한다
 - 맥락: 결정론 엔진은 `back/`(TypeScript)에 둔다(ADR-029). ADR-007 의 CP-SAT 는 "후보"였고 비교 결정이 남아 있었다(Q-35). MVP 문제(영향 12대 · 대상 23대 · 트럭 11대 · 정시 1시간 · 선택지 117 · 트럭 변수 약 1,800)는 작은 0-1 정수계획이다.
 - 결정(제안):
   1. 1단계 할당은 **0-1 MIP** 로 푼다. 솔버는 **HiGHS**(MIT) 의 WASM 판 `highs@1.15.3`(npm, 의존성 없음, 판 고정)을 **Backend 프로세스 안에서** 부른다 — 네트워크 · 별도 프로세스 · Python 없음
@@ -531,5 +533,5 @@
   3. 계수는 Cost Engine 의 KRW 정수만(옵티마이저는 비용 규칙을 모른다). Solver 는 후보 계획만 낸다 — 저장 · 승인 · 실행은 Backend · 사람
   4. 비상 시간 상한 30초 [ASSUMPTION / DEVELOPMENT SAFETY CEILING] — 관측(현재 0.3~0.6 s) 후 조정. 상한에 걸리면 TIME_LIMIT 로 보고
 - 대안: (a) OR-Tools CP-SAT — 강하지만 Node 공식 바인딩이 없어 Python 프로세스(또는 AI Server)에 두어야 한다 → 결정론 엔진이 `ai/` 로 새거나 새 서비스가 생긴다(ADR-029 와 어긋남). 규모가 커지거나 스케줄링 제약이 늘면 다시 비교한다. (b) 직접 짠 열거 · 분기 한정 — 트럭 시간 배정까지 넣으면 검증 부담이 크다. (c) min-cost flow — 2시간 연속 점유 · 트럭별 시간창을 그대로 담기 어렵다.
-- 결과: `back/src/planning/engine/solver.ts` · `docs/08` 10절 · `docs/24` 18.17. ADR-007 은 이 ADR 이 승인되면 Superseded.
+- 결과: `back/src/planning/engine/solver.ts` · `docs/08` 10절 · `docs/24` 18.17. **ADR-007 은 Superseded(2026-10-27)** — Q-35 · Q-65 는 MVP 범위에서 CLOSED.
 
