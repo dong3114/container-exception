@@ -49,4 +49,21 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...base, API_PORT: '70000' })).toThrow(EnvValidationError);
     expect(() => parseEnv({ ...base, LOG_LEVEL: 'trace' })).toThrow(EnvValidationError);
   });
+
+  it('production guards: no dev-header, Secure cookies, Gmail on needs its OAuth values, a Redis URL must be redis:// — values are never echoed', () => {
+    const prod = { ...base, APP_ENV: 'production', CERA_SESSION_COOKIE_SECURE: 'true' };
+    expect(() => parseEnv(prod)).not.toThrow();
+    expect(() => parseEnv({ ...prod, CERA_AUTH_MODE: 'dev-header' })).toThrowError(/CERA_AUTH_MODE/);
+    expect(() => parseEnv({ ...prod, CERA_SESSION_COOKIE_SECURE: 'false' })).toThrowError(/CERA_SESSION_COOKIE_SECURE/);
+    expect(() => parseEnv({ ...prod, CERA_GMAIL_ENABLED: 'true' })).toThrowError(/GMAIL_REFRESH_TOKEN/);
+    const secret = 'redis-pw-should-not-leak';
+    expect(() => parseEnv({ ...prod, CERA_REDIS_URL: `http://:${secret}@cache:6379` })).toThrowError(/CERA_REDIS_URL/);
+    try {
+      parseEnv({ ...prod, CERA_REDIS_URL: `http://:${secret}@cache:6379` });
+    } catch (e) {
+      expect((e as Error).message).not.toContain(secret);
+    }
+    expect(parseEnv({ ...prod, CERA_REDIS_URL: 'rediss://cache:6380' }).CERA_REDIS_URL).toBe('rediss://cache:6380');
+    expect(parseEnv({ ...prod, CERA_REDIS_URL: '' }).CERA_REDIS_URL).toBeUndefined();
+  });
 });

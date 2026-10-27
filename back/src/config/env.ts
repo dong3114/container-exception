@@ -144,6 +144,9 @@ export const envSchema = z.object({
       if (!e[k]) fail(k, 'required when CERA_GMAIL_ENABLED=true');
     }
   }
+  // 실행 큐(T-121): 비우면 폴링만. 값이 있으면 redis:// · rediss:// 만 — 오타 난 주소가 조용히 "큐 꺼짐"처럼 보이지 않게 시작에서 막는다
+  // (Redis 가 내려가 있는 것은 설정 오류가 아니다 — 그때는 PostgreSQL 폴링이 같은 일을 한다)
+  if (e.CERA_REDIS_URL && !/^rediss?:\/\/[^\s/]+/.test(e.CERA_REDIS_URL)) fail('CERA_REDIS_URL', 'must be redis://host:port or rediss://host:port (or empty to run without the queue)');
   if (e.CERA_AGENT_TOOLS_ENABLED && (e.CERA_AGENT_TOOL_TOKEN ?? '').length < 32) {
     fail('CERA_AGENT_TOOL_TOKEN', 'agent tools need a service token of at least 32 characters');
   }
