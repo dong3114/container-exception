@@ -1043,6 +1043,14 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **검증된 흐름** — 운영자 직접 입력(실제 · 시나리오 없음) → Truth → 준비도에서 해당 시설 · 풀의 공백이 닫힌다(DB 시험). 시뮬레이션 실행은 그대로 시나리오 팩 + Truth 로 계산(직접 입력 · 정정이 Solver 까지 흐르는 것은 `/demo` 10단계 v3 로 확인)
 - **한계(정직하게)** — 컨테이너별 목적지 · 원래 배차 · LFD · 확정 요율 · 자사 트럭 명부는 들어오는 길이 없어 **실제 실행은 아직 계산되지 않는다**. 다음 단계 후보: 컨테이너 사실 직접 입력 · CSV 가져오기 · 요율표 등록(T-123)
 
+### 18.21 T-116 승인된 계획 → 후속 문의 초안 (2026-10-27)
+
+- **흐름** — 승인된 판 → 필요 조치(순수 함수 `back/src/planning/follow-up.ts`) → 사람이 요청하면 조치마다 문의 초안(`POST /planning/plans/:planId/follow-ups`, 권한 `communication.draft`) → 초안마다 기존 경계(Contact Gate · 숫자 검사 · **사람 승인** · 발송 요청 · Worker · 채널). **계획 승인 ≠ 자동 실행 ≠ 자동 발송**
+- **조치** — ODCY 경유 = ODCY · 터미널 출발일별 대수 → 그 ODCY 에 반입 요청(FACILITY_CAPACITY 형식). 협력 트럭(`풀#시간창#번호`) = 풀 · 날짜 · 시간창별 트럭 수 → 그 운송사에 배차 요청(TRUCK_SLOT 형식). 유지 · 대기 · 자사 트럭 = 외부 연락 없음. 받는 사람 = 트럭은 풀의 운송사, ODCY 는 ODCY 역할 거래처 — 실행의 Mock/Real 과 맞는 eligible 주소만, 없으면 `NO_ELIGIBLE_CONTACT`
+- **연결 · 무효** — `plan_follow_up`(22.49, append-only, 판 × 조치 키 UNIQUE → 같은 조치 초안은 한 번). 판이 APPROVED 가 아니게 되면(OUTDATED · SUPERSEDED) 연결된 초안은 승인 요청 · 승인 결정 · 발송 요청 · Worker 최종 검사 모두에서 `PLAN_SUPERSEDED`(`DraftService.inspect` 한 곳)
+- **실측(Docker · /demo 12단계)** — 30대 시나리오 v3 승인 → 조치 3건: ODCY A 2대 · ODCY B 6대(10/13 반입) · K운송 10/13 15:00~18:00 4대 → 초안 3건 PENDING_APPROVAL · 발송 0건 → 그중 K운송 초안 사람 승인 · 발송 요청 → SENT 188 ms(Redis 경로, Mock 채널). 결함 1건을 실측으로 찾아 고쳤다: ODCY 반입일을 최종 도착일(`delivery_day`)로 잡던 것 → 터미널 출발일(`scheduled_at` 서울 날짜)
+- **한계** — 초안 문구는 기존 문의 템플릿("가능 여부")을 쓴다 — "확정 요청" 전용 문구 · 회신 해석은 아직 없다. Agent 가 승인 뒤 후속 초안을 스스로 만들지는 않는다(사람 요청)
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).
@@ -2564,6 +2572,29 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - `user_account`: 삽입 시 actor 가 HUMAN 인지(CE005) · 열 가드(역할 · 비밀번호 해시 · 활성 · 갱신 시각만) · 삭제 · TRUNCATE 금지
 - `user_session`: 갱신은 끊기 한 번만(CE003) · 열 가드(revoked_at 만) · 삭제 · TRUNCATE 금지
 - 권한: cera_app = 두 표 모두 SELECT · INSERT · UPDATE
+
+### 22.49 `plan_follow_up` — 승인된 계획의 후속 문의 연결 **(M26 · T-116)**
+
+- 논리: `DECISION_RECORD`(이 판의 이 조치로 이 초안을 만들었다) · 그룹 **P 계획** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: `follow_up_id`. 판 안에서 조치 키 하나 = 초안 하나(UNIQUE) · 초안 하나는 한 조치에만(UNIQUE message_id)
+- 변경 방식: append-only(M27). 초안의 승인 · 발송 가능 여부는 이 행이 아니라 판의 지금 상태로 매번 판정한다 — 판이 APPROVED 가 아니면 PLAN_SUPERSEDED
+- 계획 승인 ≠ 실행 · 발송. 초안은 사람이 요청할 때만 만들고, 초안마다 사람 승인 · 발송 요청을 거친다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `follow_up_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `plan_id` | REF(recovery_plan) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_plan · RESTRICT |
+| 3 | `action_key` | STRING(120) | `varchar(120)` | NOT NULL | — | `varchar({ length: 120 })` | 결정론 조치 키(`ODCY_RECEIVE:<시설>:<날짜>` · `PARTNER_TRUCKS:<풀>:<날짜>:<시간창>`) |
+| 4 | `message_id` | REF(comm_message) | `uuid` | NOT NULL | — | `uuid()` | FK comm_message · RESTRICT · UNIQUE |
+| 5 | `created_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor — 요청한 사람 |
+| 6 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **UNIQUE**: (plan_id, action_key) · (message_id)
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (plan_id)
+
+### 22.50 M27 계획 후속 문의 가드 · 권한 **(T-116)**
+
+- `plan_follow_up`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

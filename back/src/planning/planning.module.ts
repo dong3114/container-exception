@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
+import { CommunicationModule } from '../communication/communication.module.js';
+import { RegistryModule } from '../registry/registry.module.js';
 import { TruthModule } from '../truth/truth.module.js';
+import { PlanFollowUpController } from './follow-up.controller.js';
+import { PlanFollowUpService } from './follow-up.service.js';
 import { PlanningController } from './planning.controller.js';
 import { RecoveryPlanService } from './recovery-plan.service.js';
 
@@ -8,9 +12,9 @@ import { RecoveryPlanService } from './recovery-plan.service.js';
  * 엔진(`engine/`)은 순수 모듈이다 — DB · 네트워크 · LLM 을 import 하지 않는다(ADR-029). Agent 는 COMPUTE · PROPOSE Tool 로만 닿는다.
  */
 @Module({
-  imports: [TruthModule],
-  controllers: [PlanningController],
-  providers: [RecoveryPlanService],
-  exports: [RecoveryPlanService],
+  imports: [TruthModule, CommunicationModule, RegistryModule],
+  controllers: [PlanningController, PlanFollowUpController],
+  providers: [RecoveryPlanService, PlanFollowUpService],
+  exports: [RecoveryPlanService, PlanFollowUpService],
 })
 export class PlanningModule {}

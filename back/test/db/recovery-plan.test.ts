@@ -205,6 +205,43 @@ describe('T-114 recovery plan — deterministic engine on Truth facts, versioned
     await expectSqlState(db.query("UPDATE cera.recovery_plan SET plan_status = 'PROPOSED' WHERE plan_id = $1", [other.plan_id]), 'CE004');
   });
 
+  it('T-116: an approved plan → required actions → inquiry drafts awaiting a human (not sent); idempotent; an outdated plan blocks its drafts', async () => {
+    const approvedId = (await http.get(`/planning/runs/${w.runId}/plans`).expect(200)).body.current_plan_id as string;
+    const list = (await http.get(`/planning/plans/${approvedId}/follow-ups`).expect(200)).body;
+    expect(list.plan_status).toBe('APPROVED');
+    expect(list.actions.length).toBeGreaterThan(0);
+    for (const a of list.actions) {
+      expect(['ODCY_RECEIVE', 'PARTNER_TRUCKS']).toContain(a.kind);
+      expect(a.quantity).toBeGreaterThan(0);
+      expect(a.message_id).toBeNull();
+    }
+    const made = (await http.post(`/planning/plans/${approvedId}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+    const drafted = made.actions.filter((a: { message_id: string | null }) => a.message_id);
+    expect(drafted.length).toBeGreaterThan(0);
+    for (const a of drafted) expect(a.message_status).toBe('PENDING_APPROVAL'); // 사람 승인 대기 — 발송 없음
+    expect((await db.query("SELECT count(*)::int AS n FROM cera.send_attempt sa JOIN cera.plan_follow_up f USING (message_id) WHERE f.plan_id = $1", [approvedId])).rows[0].n).toBe(0);
+    // 다시 요청해도 같은 조치는 한 번만
+    const again = (await http.post(`/planning/plans/${approvedId}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+    expect(again.actions.map((a: { message_id: string | null }) => a.message_id)).toEqual(made.actions.map((a: { message_id: string | null }) => a.message_id));
+    expect((await db.query('SELECT count(*)::int AS n FROM cera.plan_follow_up WHERE plan_id = $1', [approvedId])).rows[0].n).toBe(drafted.length);
+    // 사람이 아니면 못 만든다 · 승인 안 된 판에서는 못 만든다
+    await http.post(`/planning/plans/${approvedId}/follow-ups`).set(ACTOR, agentId).expect(403);
+    const proposedOther = (await http.get(`/planning/runs/${w.runId}/plans`).expect(200)).body.plans.find((p: { plan_status: string }) => p.plan_status !== 'APPROVED');
+    if (proposedOther) expect((await http.post(`/planning/plans/${proposedOther.plan_id}/follow-ups`).set(ACTOR, humanId).expect(409)).body.code).toBe('PLAN_NOT_APPROVED');
+
+    // 판이 기대던 사실이 바뀌면 판은 OUTDATED → 그 판의 초안은 승인 · 발송이 막힌다
+    await enter(w, { kind: 'FACILITY_CAPACITY', target_id: w.ids.WAREHOUSE_A, value: 3 });
+    await plans.refreshOutdated();
+    expect((await http.get(`/planning/plans/${approvedId}`).expect(200)).body.plan_status).toBe('OUTDATED');
+    const first = drafted[0];
+    const d = (await http.get(`/communication/drafts/${first.message_id}`).expect(200)).body;
+    const res = await http.post(`/communication/drafts/${first.message_id}/approve`).set(ACTOR, humanId).send({ content_hash: d.message.content_hash });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('PLAN_SUPERSEDED');
+    // 기록은 지울 수 없다
+    await expectSqlState(db.query('DELETE FROM cera.plan_follow_up WHERE plan_id = $1', [approvedId]), '42501');
+  });
+
   it('E. AI actors cannot approve a plan even in SQL; a plan cannot be inserted as APPROVED', async () => {
     const x = await newWorld();
     plans.packIds = x.ids;

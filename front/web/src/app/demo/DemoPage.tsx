@@ -3,7 +3,7 @@ import { type AgentRun, type AgentRunListItem, createAgentRun, getAgentRun, list
 import { type DemoStatus, type RuntimeStatus, getDemoStatus, getRuntimeStatus, injectMockReply } from "@/api/demo";
 import { type Draft, approveDraft, listDrafts, listRuns, sendDraft } from "@/api/drafts";
 import { describeApiError } from "@/api/errors";
-import { type Plan, type PlanList, approvePlan, getPlan, listPlans } from "@/api/plans";
+import { type FollowUps, type Plan, type PlanList, approvePlan, createFollowUps, getPlan, listFollowUps, listPlans } from "@/api/plans";
 import { type FactCoordinate, type FactList, confirmFact, correctFact, enterFact, listFacts } from "@/api/truth";
 import { toApiError } from "@/state/async";
 import { STATUS_BADGE, STATUS_LABEL, nodeLabel, waitingLabel } from "@/components/agent/agentLabels";
@@ -37,10 +37,11 @@ type Snapshot = {
   plan: Plan | null;
   agent: AgentRun | null;
   draft: Draft | null;
+  followUps: FollowUps | null;
   error: string | null;
 };
 
-const EMPTY: Snapshot = { status: null, runtime: null, facts: null, plans: null, plan: null, agent: null, draft: null, error: null };
+const EMPTY: Snapshot = { status: null, runtime: null, facts: null, plans: null, plan: null, agent: null, draft: null, followUps: null, error: null };
 
 function findFact(facts: FactList | null, entity: string | undefined, key: string | ((k: string) => boolean)): FactCoordinate | undefined {
   if (!facts || !entity) return undefined;
@@ -82,7 +83,8 @@ export default function DemoPage() {
       const recent = [...drafts].sort((a, b) => (a.message.created_at < b.message.created_at ? 1 : -1));
       const draft = recent.find((d) => d.message.message_id === pendingMessage) ?? (agent ? recent.find((d) => d.message.created_at >= agent.started_at) : undefined) ?? null;
       const plan = plans?.current_plan_id ? (await getPlan(plans.current_plan_id, signal)).data : null;
-      setSnap({ status, runtime, facts, plans, plan, agent, draft, error: null });
+      const followUps = plan && plan.plan_status === "APPROVED" ? (await listFollowUps(plan.plan_id, signal)).data : null;
+      setSnap({ status, runtime, facts, plans, plan, agent, draft, followUps, error: null });
     } catch (error) {
       setSnap((s) => ({ ...s, error: describeApiError(toApiError(error)) }));
     }
@@ -149,6 +151,7 @@ export default function DemoPage() {
     { title: "사람 확인 → v2", done: truckConfirmed && plans.some((p) => p.version >= 2) },
     { title: "사실 변경 ODCY A 4→2 → v3", done: corrected && plans.some((p) => p.version >= 3) },
     { title: "계획 승인 → Agent 완료", done: planApproved && snap.agent?.status === "COMPLETED" },
+    { title: "후속 문의 초안(승인된 계획)", done: Boolean(snap.followUps && snap.followUps.actions.length > 0 && snap.followUps.actions.every((a) => a.message_id || a.blocked_reason)) },
   ];
   const now = steps.findIndex((s) => !s.done);
 
@@ -329,6 +332,26 @@ export default function DemoPage() {
               지금 판 승인
             </button>
             <AgentLine agent={snap.agent} />
+          </Step>
+
+          <Step n={12} title="승인된 계획 → 후속 문의 초안(사람 승인 대기 · 발송 안 함)" active={now === 11} done={steps[11]!.done}
+            expect="[후속 문의 초안 만들기] → 승인된 판의 조치(ODCY 반입 · 협력 트럭 배차)마다 초안 하나 · 상태 PENDING_APPROVAL. 자동 발송 없음 — 초안마다 사람이 승인 · 발송 요청. 판이 무효가 되면 그 초안은 승인 · 발송이 막힌다(PLAN_SUPERSEDED)">
+            {snap.followUps ? (
+              <div style={{ display: "grid", gap: 2, fontSize: 13 }}>
+                {snap.followUps.actions.map((a) => (
+                  <div key={a.action_key}>
+                    {a.kind === "ODCY_RECEIVE" ? "ODCY 반입" : "협력 트럭"} · {a.target_name} · {a.date}
+                    {a.window ? ` ${a.window.from}~${a.window.to}` : ""} · {a.quantity}대 → {a.message_id ? <b>{a.message_status}</b> : a.blocked_reason ? <span style={{ color: "var(--red)" }}>{a.blocked_reason}</span> : "초안 없음"}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="muted">계획이 승인되면 필요한 조치가 여기에 보입니다.</div>
+            )}
+            <button type="button" className="act-btn" disabled={!actor || !current || current.plan_status !== "APPROVED" || busy !== null}
+              onClick={() => act("후속 문의 초안", async () => `${(await createFollowUps(current!.plan_id, actor!)).data.actions.filter((a) => a.message_id).length}건 초안`)}>
+              후속 문의 초안 만들기
+            </button>
           </Step>
 
           <section className="card" style={{ display: "grid", gap: 6 }}>

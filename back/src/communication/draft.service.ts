@@ -440,7 +440,9 @@ export class DraftService {
     const address = message.toAddressId ? await this.registry.findAddress(message.toAddressId) : null;
     const gate = address ? this.gate(address) : null;
     const sourceRunId = fields.find((f) => f.sourceRunId)?.sourceRunId ?? null;
-    const successorRunId = sourceRunId ? await this.approvals.findSuccessorRun(sourceRunId) : null;
+    // 계획 교체(T-089) + 승인된 계획 판의 후속 문의인데 그 판이 더 이상 승인 상태가 아님(T-116 — OUTDATED · SUPERSEDED) → 같은 PLAN_SUPERSEDED
+    const followUp = await this.approvals.findFollowUpPlan(messageId);
+    const successorRunId = (sourceRunId ? await this.approvals.findSuccessorRun(sourceRunId) : null) ?? (followUp && followUp.status !== 'APPROVED' ? `plan:${followUp.planId}` : null);
     const approvals = await this.approvals.listForMessage(messageId);
     return { loaded, values, targetName, text, contentHashMatches, check, gate, sourceRunId, successorRunId, approvals };
   }

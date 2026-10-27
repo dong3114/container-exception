@@ -9,6 +9,8 @@ import {
   messageStatusTransition,
   recoveryRun,
   sendAttempt,
+  planFollowUp,
+  recoveryPlan,
 } from '../db/schema/index.js';
 import { Instant } from '../shared/time/instant.js';
 import type { ApprovalDecision, ApprovalRow, InvalidationCause } from './approval-rules.js';
@@ -159,6 +161,20 @@ export class ApprovalRepository {
   async findSuccessorRun(runId: string, reader: Reader = this.db): Promise<string | null> {
     const rows = await reader.select({ runId: recoveryRun.runId }).from(recoveryRun).where(eq(recoveryRun.previousRunId, runId)).limit(1);
     return rows[0]?.runId ?? null;
+  }
+
+  /**
+   * 승인된 계획의 후속 문의(T-116)이면 그 판과 지금 상태. 판이 APPROVED 가 아니면(OUTDATED · SUPERSEDED) 이 초안의 값은 더 이상
+   * 지금 계획이 아니다 — 승인 · 발송을 막는다(계획 실행 교체와 같은 규칙).
+   */
+  async findFollowUpPlan(messageId: string, reader: Reader = this.db): Promise<{ planId: string; status: string } | null> {
+    const rows = await reader
+      .select({ planId: planFollowUp.planId, status: recoveryPlan.planStatus })
+      .from(planFollowUp)
+      .innerJoin(recoveryPlan, eq(recoveryPlan.planId, planFollowUp.planId))
+      .where(eq(planFollowUp.messageId, messageId))
+      .limit(1);
+    return rows[0] ?? null;
   }
 
   async findRunPrevious(tx: DbTransaction, runId: string): Promise<{ previousRunId: string | null } | null> {

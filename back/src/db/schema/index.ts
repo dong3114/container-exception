@@ -14,3 +14,4 @@ export * from './m16-agent.js';
 export * from './m18-agent-runtime.js';
 export * from './m22-recovery-plan.js';
 export * from './m24-auth.js';
+export * from './m26-plan-follow-up.js';

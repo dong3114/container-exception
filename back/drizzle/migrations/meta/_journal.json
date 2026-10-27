@@ -176,6 +176,20 @@
       "when": 1793065107084,
       "tag": "0024_m25_auth_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793068170502,
+      "tag": "0025_m26_plan_follow_up",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793068171591,
+      "tag": "0026_m27_plan_follow_up_guards",
+      "breakpoints": true
     }
   ]
 }

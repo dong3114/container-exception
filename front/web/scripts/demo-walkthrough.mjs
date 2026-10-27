@@ -71,6 +71,9 @@ console.log("10", await text(8));
 await click(11, "지금 판 승인");
 await waitDone(11, 90_000);
 console.log("11", await text(11));
+await click(12, "후속 문의 초안 만들기");
+await waitDone(12, 30_000);
+console.log("12", await text(12));
 await shot("11-done");
 await browser.close();
 if (errors.length) {

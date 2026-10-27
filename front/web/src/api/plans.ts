@@ -28,3 +28,32 @@ export function recalculatePlan(recoveryRunId: string, actorId: string, signal?:
 export function approvePlan(planId: string, planHash: string, actorId: string, signal?: AbortSignal, fetchImpl?: typeof fetch) {
   return apiRequest<Plan>(`/planning/plans/${encodeURIComponent(planId)}/approve`, { method: "POST", body: { plan_hash: planHash }, headers: { [ACTOR_HEADER]: actorId }, signal }, fetchImpl);
 }
+
+/** T-116: 승인된 계획의 필요 조치 · 만들어진 초안. 계획 승인 ≠ 실행 — 초안만 만들고, 초안마다 사람 승인 · 발송 요청이 따로 필요하다. */
+export interface FollowUpAction {
+  action_key: string;
+  kind: "ODCY_RECEIVE" | "PARTNER_TRUCKS";
+  intent: string;
+  target_id: string;
+  target_name: string;
+  date: string;
+  quantity: number;
+  window: { from: string; to: string } | null;
+  message_id: string | null;
+  message_status: string | null;
+  blocked_reason: string | null;
+}
+export interface FollowUps {
+  plan_id: string;
+  plan_status: string;
+  actions: FollowUpAction[];
+  note: string;
+}
+
+export function listFollowUps(planId: string, signal?: AbortSignal) {
+  return apiRequest<FollowUps>(`/planning/plans/${encodeURIComponent(planId)}/follow-ups`, { signal });
+}
+
+export function createFollowUps(planId: string, actorId: string, signal?: AbortSignal) {
+  return apiRequest<FollowUps>(`/planning/plans/${encodeURIComponent(planId)}/follow-ups`, { method: "POST", body: {}, headers: { [ACTOR_HEADER]: actorId }, signal });
+}
