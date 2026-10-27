@@ -238,7 +238,7 @@ describe('Slice 1 seed', () => {
     const first = await seed.apply(packDir);
     const second = await seed.apply(packDir);
     // global-setup 이 빈 DB 를 만들었으므로 첫 실행이 전부 넣는다(같은 실행에서 다시 돌리면 0)
-    expect(first).toEqual({ inserted: 26, capacityEventCreated: true }); // T-103: AI_AGENT 행위자 +1
+    expect(first).toEqual({ inserted: 29, capacityEventCreated: true }); // T-103: AI_AGENT 행위자 +1 · 운영 준비: ODCY B 거래처 · 연락처 · 주소 +3
     expect(second).toEqual({ inserted: 0, capacityEventCreated: false });
   });
 

@@ -102,6 +102,20 @@ export class AgentReconciler implements OnModuleInit {
         if (r && !r.already) summary.woken += 1;
         continue;
       }
+      if ((w.pendingRefType === 'FACILITY' || w.pendingRefType === 'TRUCK_POOL') && w.pendingRefId) {
+        // 물어볼 연락처가 없어 사람을 기다리는 실행(운영 준비) — 그 주체의 공백이 더는 열려 있지 않으면(사람이 값을 넣음 · 다른 경로로 앎) 깨운다.
+        // 연락처를 등록 · 선택한 뒤에는 운영자가 [다시 확인](resume)한다 — 등록부 변경은 공백 상태를 바꾸지 않는다
+        summary.checked += 1;
+        const recoveryRunId = await this.store.recoveryRunOf(w.agentRunId);
+        if (!recoveryRunId) continue;
+        const gaps = await this.context.informationGaps(recoveryRunId).catch(() => null);
+        if (!gaps) continue;
+        const open = gaps.gaps.some((g) => g.subject_id === w.pendingRefId && (g.state === 'MISSING' || g.state === 'NEEDS_REFRESH'));
+        if (open) continue;
+        const r = await this.coordinator.resume(w.agentRunId, 'GAP_STATE_CHANGED', { type: w.pendingRefType, id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
+        if (r && !r.already) summary.woken += 1;
+        continue;
+      }
       if (w.pendingRefType !== 'COMM_MESSAGE' || !w.pendingRefId) continue;
       summary.checked += 1;
       const dto = await this.drafts.get(w.pendingRefId).catch(() => null);

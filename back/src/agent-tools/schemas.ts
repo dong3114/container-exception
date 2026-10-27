@@ -226,7 +226,7 @@ export const recoveryContextOutput = z
     snapshot: z.object({ snapshot_id: uuid, as_of: timestamp, plan_date: isoDate, rule_version: z.string(), policy_version: z.string() }).strict(),
     resources: z
       .object({
-        facilities: z.array(z.object({ facility_id: uuid, facility_type: z.string(), facility_name: z.string() }).strict()),
+        facilities: z.array(z.object({ facility_id: uuid, facility_type: z.string(), facility_name: z.string(), operator_counterparty_id: uuid.nullable() }).strict()),
         truck_pools: z.array(z.object({ truck_pool_id: uuid, pool_name: z.string(), ownership: z.string(), owner_counterparty_id: uuid.nullable() }).strict()),
       })
       .strict(),

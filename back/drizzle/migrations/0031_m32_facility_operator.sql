@@ -1,0 +1,2 @@
+ALTER TABLE "cera"."facility" ADD COLUMN "operator_counterparty_id" uuid;--> statement-breakpoint
+ALTER TABLE "cera"."facility" ADD CONSTRAINT "fk_facility__operator_counterparty_id" FOREIGN KEY ("operator_counterparty_id") REFERENCES "cera"."counterparty"("counterparty_id") ON DELETE restrict ON UPDATE restrict;

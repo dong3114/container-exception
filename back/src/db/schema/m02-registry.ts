@@ -115,9 +115,14 @@ export const facility = cera.table(
     defaultOpenTime: time('default_open_time', { precision: 0 }),
     defaultCloseTime: time('default_close_time', { precision: 0 }),
     isActive: boolean('is_active').notNull().default(true),
+    /** 이 시설을 운영하는 거래처(M32 · 운영 준비). 수용량 문의 · 반입 요청의 받는 사람은 이 거래처의 연락처뿐 — 없으면 추측하지 않는다 */
+    operatorCounterpartyId: uuid('operator_counterparty_id'),
   },
   (t) => [
     primaryKey({ name: n('pk_facility'), columns: [t.facilityId] }),
+    foreignKey({ name: n('fk_facility__operator_counterparty_id'), columns: [t.operatorCounterpartyId], foreignColumns: [counterparty.counterpartyId] })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
     ckIn('facility', t.facilityType, FACILITY_TYPE),
   ],
 );

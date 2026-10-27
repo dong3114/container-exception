@@ -73,11 +73,12 @@ export class PlanFollowUpService {
     const blocked = new Map<string, string>();
     for (const a of actions) {
       if (linked.has(a.action_key)) continue;
-      const address = await this.addressFor(a, counterparties, run.containsSimulated);
-      if (!address) {
-        blocked.set(a.action_key, 'NO_ELIGIBLE_CONTACT');
+      const picked = await this.addressFor(a, counterparties, run.containsSimulated);
+      if ('blocked' in picked) {
+        blocked.set(a.action_key, picked.blocked);
         continue;
       }
+      const address = picked.address;
       const values =
         a.intent === 'TRUCK_SLOT'
           ? [
@@ -128,17 +129,25 @@ export class PlanFollowUpService {
     return plan;
   }
 
-  /** 받는 사람: 트럭 = 그 풀의 운송사, ODCY = ODCY 역할 거래처(등록부 순서 첫째). 실행의 Mock/Real 과 맞는 eligible 주소만. */
-  private async addressFor(a: FollowUpAction, counterparties: Awaited<ReturnType<RegistryService['listCounterparties']>>['counterparties'], simulated: boolean): Promise<string | null> {
-    let candidates = counterparties.filter((c) => c.is_active);
+  /**
+   * 받는 사람(운영 준비): 트럭 = 그 풀의 소유 운송사, ODCY = 그 시설의 운영 거래처(등록부 `facility.operator_counterparty_id`).
+   * 같은 역할의 다른 회사로 보내지 않는다 — 운영 거래처가 없으면 NO_ELIGIBLE_CONTACT. 실행의 Mock/Real 과 맞는 eligible 주소가
+   * 정확히 하나일 때만 고른다. 둘 이상이면 임의로 고르지 않고 CONTACT_SELECTION_REQUIRED(사람이 정한다).
+   */
+  private async addressFor(a: FollowUpAction, counterparties: Awaited<ReturnType<RegistryService['listCounterparties']>>['counterparties'], simulated: boolean): Promise<{ address: string } | { blocked: 'NO_ELIGIBLE_CONTACT' | 'CONTACT_SELECTION_REQUIRED' }> {
+    let owner: string | null = null;
     if (a.kind === 'PARTNER_TRUCKS') {
       const [pool] = await this.db.select({ owner: truckPool.ownerCounterpartyId }).from(truckPool).where(eq(truckPool.truckPoolId, a.truck_pool_id)).limit(1);
-      candidates = candidates.filter((c) => c.counterparty_id === pool?.owner);
+      owner = pool?.owner ?? null;
     } else {
-      candidates = candidates.filter((c) => c.source_role === 'ODCY').sort((x, y) => x.counterparty_id.localeCompare(y.counterparty_id));
+      const [f] = await this.db.select({ operator: facility.operatorCounterpartyId }).from(facility).where(eq(facility.facilityId, a.facility_id)).limit(1);
+      owner = f?.operator ?? null;
     }
-    for (const c of candidates) for (const p of c.contacts.filter((x) => x.is_active)) for (const addr of p.addresses) if (addr.eligible && addr.is_simulated === simulated) return addr.address_id;
-    return null;
+    const party = owner ? counterparties.find((c) => c.counterparty_id === owner && c.is_active) : undefined;
+    const eligible = party ? party.contacts.filter((x) => x.is_active).flatMap((p) => p.addresses.filter((addr) => addr.eligible && addr.is_simulated === simulated)) : [];
+    if (eligible.length === 0) return { blocked: 'NO_ELIGIBLE_CONTACT' };
+    if (eligible.length > 1) return { blocked: 'CONTACT_SELECTION_REQUIRED' };
+    return { address: eligible[0]!.address_id };
   }
 
   private async describe(a: FollowUpAction): Promise<Omit<FollowUpView, 'message_id' | 'message_status' | 'blocked_reason'>> {

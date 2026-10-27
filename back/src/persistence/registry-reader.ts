@@ -67,9 +67,9 @@ export class RegistryReader {
   }
 
   /** 활성 시설(창고 · ODCY · 터미널) — 문의 대상 고르기. */
-  async listFacilities(): Promise<{ facilityId: string; facilityType: string; facilityName: string; area: string | null }[]> {
+  async listFacilities(): Promise<{ facilityId: string; facilityType: string; facilityName: string; area: string | null; operatorCounterpartyId: string | null }[]> {
     return this.db
-      .select({ facilityId: facility.facilityId, facilityType: facility.facilityType, facilityName: facility.facilityName, area: facility.area })
+      .select({ facilityId: facility.facilityId, facilityType: facility.facilityType, facilityName: facility.facilityName, area: facility.area, operatorCounterpartyId: facility.operatorCounterpartyId })
       .from(facility)
       .where(eq(facility.isActive, true))
       .orderBy(asc(facility.facilityType), asc(facility.facilityName));

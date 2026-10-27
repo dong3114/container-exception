@@ -52,9 +52,9 @@ describe("operator direct entry — form to request", () => {
     ] as FactCoordinate[];
     expect(manualTargets("TRUCK_SLOT", facts, [])).toEqual([{ id: POOL, label: "가나다운송 풀", isOdcy: false }]);
     const facilities = [
-      { facility_id: "w1", facility_type: "WAREHOUSE" as const, facility_name: "부산창고", area: null },
-      { facility_id: "t1", facility_type: "TERMINAL" as const, facility_name: "터미널", area: null },
-      { facility_id: "o1", facility_type: "ODCY" as const, facility_name: "감만ODCY", area: null },
+      { facility_id: "w1", facility_type: "WAREHOUSE" as const, facility_name: "부산창고", area: null, operator_counterparty_id: null },
+      { facility_id: "t1", facility_type: "TERMINAL" as const, facility_name: "터미널", area: null, operator_counterparty_id: null },
+      { facility_id: "o1", facility_type: "ODCY" as const, facility_name: "감만ODCY", area: null, operator_counterparty_id: null },
     ];
     expect(manualTargets("FACILITY_CAPACITY", facts, facilities)).toEqual([
       { id: "w1", label: "부산창고 (창고)", isOdcy: false },

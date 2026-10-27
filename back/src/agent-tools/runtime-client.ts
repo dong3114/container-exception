@@ -17,7 +17,8 @@ export const runtimeOutcomeSchema = z
     status: z.enum(['WAITING_HUMAN', 'WAITING_EXTERNAL', 'COMPLETED', 'FAILED']),
     node: z.string().regex(/^[a-z][a-z0-9_]{0,59}$/).nullable(),
     waiting_reason: code.nullable(),
-    pending: z.object({ type: z.enum(['COMM_MESSAGE', 'RECOVERY_PLAN']), id: z.uuid() }).strict().nullable(),
+    // FACILITY · TRUCK_POOL = 연락처를 기다리는 공백의 주체(운영 준비 — 등록 · 선택 또는 직접 입력을 기다린다)
+    pending: z.object({ type: z.enum(['COMM_MESSAGE', 'RECOVERY_PLAN', 'FACILITY', 'TRUCK_POOL']), id: z.uuid() }).strict().nullable(),
     result_code: code.nullable(),
     error_code: code.nullable(),
     // 끝났을 때의 요약 — 코드 · id · 개수만(업무 값 · 원문 없음). 기다리는 중이면 null

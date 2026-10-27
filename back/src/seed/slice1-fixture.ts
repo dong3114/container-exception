@@ -21,6 +21,10 @@ export const SEED_IDS = {
   contactOdcy: '01a0fb92-9b65-7540-b184-73fcad01818e',
   addressTrucking: '01a0fb92-9b65-7540-b184-75a5cb057e40',
   addressOdcy: '01a0fb92-9b66-7544-aeb3-1d484c43e86c',
+  // 운영 준비: ODCY B 를 운영하는 합성 거래처(ODCY B 반입 요청이 ODCY A 회사로 가지 않게)
+  counterpartyOdcyB: '01a17c30-0000-7000-8000-00000000b001',
+  contactOdcyB: '01a17c30-0000-7000-8000-00000000b002',
+  addressOdcyB: '01a17c30-0000-7000-8000-00000000b003',
   // T-087: 막힌 주소 2개(Contact Gate 시연 · 화면 확인). 아직 확인 전 창고 연락처 · 통신 일시 중지된 K운송 야간 배차
   counterpartyWarehouse: '01a11030-2d24-7584-bce2-7eb4662f8ff4',
   contactWarehouse: '01a11030-2d25-73fe-bbe8-d047c1ed2364',

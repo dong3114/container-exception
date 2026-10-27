@@ -283,7 +283,7 @@ describe('question target resolution', () => {
   it('GET /registry/facilities lists active facilities for the capacity target picker', async () => {
     const w = await world();
     const list = (await http.get('/registry/facilities').expect(200)).body;
-    expect(list.facilities).toEqual(expect.arrayContaining([{ facility_id: w.facilityId, facility_type: 'WAREHOUSE', facility_name: '창고 B', area: null }]));
+    expect(list.facilities).toEqual(expect.arrayContaining([{ facility_id: w.facilityId, facility_type: 'WAREHOUSE', facility_name: '창고 B', area: null, operator_counterparty_id: null }]));
   });
 });
 

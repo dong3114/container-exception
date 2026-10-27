@@ -156,6 +156,14 @@ export class FacilitySummaryDto {
 
   @ApiProperty({ type: String, nullable: true })
   area!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The counterparty that operates this facility — capacity inquiries and receiving requests go only to its contacts. Null = not registered: nobody is asked (no guessing by role)' })
+  operator_counterparty_id!: string | null;
+}
+
+export class SetFacilityOperatorRequestDto {
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'Counterparty id whose role matches the facility type (ODCY · WAREHOUSE), or null to clear' })
+  counterparty_id!: string | null;
 }
 
 export class FacilityListDto {

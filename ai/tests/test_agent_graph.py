@@ -557,3 +557,25 @@ def test_solver_error_fails_the_run_and_the_graph_never_approves():
     out = runtime(tools).start(RUN, RR, "goal", {"plan_recovery": True})
     assert (out["status"], out["error_code"]) == ("FAILED", "SOLVER_ERROR")
     assert all(not c[0].startswith("approve") for c in tools.calls)
+
+
+def test_no_registered_owner_never_guesses_a_recipient_and_waits_for_a_person():
+    # 운영 준비: a facility gap without a registered operator is never sent to "the first counterparty of that role"
+    site = {**gap(), "gap_id": "gap:f", "gap_kind": "FACILITY_CAPACITY", "subject_type": "FACILITY", "subject_id": "01a1a4c0-7e10-7a3b-9c21-5d0f00a0c001", "suggested_intent": "FACILITY_CAPACITY", "suggested_counterparty_role": "ODCY", "owner_counterparty_id": None}
+    tools = FakeTools(gaps=[site])
+    rt = runtime(tools)
+    out = rt.start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "CONTACT_REGISTRATION_REQUIRED", {"type": "FACILITY", "id": site["subject_id"]})
+    assert "create_inquiry_draft" not in [c[0] for c in tools.calls] and "find_counterparty" not in [c[0] for c in tools.calls]
+    # the person entered the value directly → the backend no longer lists the gap → the run goes on (not FAILED)
+    tools.gaps = []
+    done = rt.resume(RUN, "GAP_STATE_CHANGED", None)
+    assert (done["status"], done["result_code"]) == ("COMPLETED", "NO_INFORMATION_GAPS")
+
+
+def test_several_eligible_addresses_of_the_owner_are_not_chosen_arbitrarily():
+    two = lambda a, n: ok("find_counterparty", {"counterparties": [{"counterparty_id": CP, "contacts": [{"addresses": [{"address_id": ADDR, "eligible": True}]}, {"addresses": [{"address_id": "01a1a4c0-7e10-7a3b-9c21-5d0f00a0c009", "eligible": True}]}]}]})
+    tools = FakeTools({"find_counterparty": two})
+    out = runtime(tools).start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"], out["pending"]["type"]) == ("WAITING_HUMAN", "CONTACT_SELECTION_REQUIRED", "TRUCK_POOL")
+    assert "create_inquiry_draft" not in [c[0] for c in tools.calls]

@@ -1355,8 +1355,9 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 | 5 | `default_open_time` | TIME | `time(0)` | NULL | — | `time({ precision: 0 })` | — |
 | 6 | `default_close_time` | TIME | `time(0)` | NULL | — | `time({ precision: 0 })` | — |
 | 7 | `is_active` | BOOLEAN | `boolean` | NOT NULL | `true` | `boolean()` | — |
+| 8 | `operator_counterparty_id` | REF(counterparty) | `uuid` | NULL | — | `uuid()` | FK counterparty · RESTRICT **(M32 · 운영 준비)** — 이 시설을 운영하는 거래처. 수용량 문의 · 반입 요청의 받는 사람은 이 거래처의 연락처뿐. NULL = 등록 안 됨 → 아무에게도 묻지 않는다(역할로 추측하지 않는다). 바꾸기 = `PATCH /registry/facilities/:id/operator`(ADMIN · 감사) |
 
-- **FK(표 수준 · 복합 포함)**: —
+- **FK(표 수준 · 복합 포함)**: (operator_counterparty_id) → counterparty
 - **UNIQUE / 부분 유일**: —
 - **CHECK(컬럼 CHECK 외)**: —
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**: —

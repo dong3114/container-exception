@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { ContentService } from '../content/content-service.js';
 import { DATABASE, type Database } from '../db/database.js';
@@ -123,6 +123,7 @@ export class Slice1Seed {
             { counterpartyId: SEED_IDS.counterpartyTrucking, displayName: (partnerPool?.name ?? truckerName).slice(0, 100), sourceRole: 'TRUCKING' },
             { counterpartyId: SEED_IDS.counterpartyOdcy, displayName: 'ODCY A (가상)', sourceRole: 'ODCY' },
             { counterpartyId: SEED_IDS.counterpartyWarehouse, displayName: '창고 A (가상)', sourceRole: 'WAREHOUSE' },
+            { counterpartyId: SEED_IDS.counterpartyOdcyB, displayName: 'ODCY B (가상)', sourceRole: 'ODCY' },
           ])
           .onConflictDoNothing()
           .returning({ id: counterparty.counterpartyId }),
@@ -135,6 +136,7 @@ export class Slice1Seed {
             { contactId: SEED_IDS.contactOdcy, counterpartyId: SEED_IDS.counterpartyOdcy, personName: odcyName.slice(0, 60) },
             { contactId: SEED_IDS.contactWarehouse, counterpartyId: SEED_IDS.counterpartyWarehouse, personName: '창고 A 운영팀 (가상)' },
             { contactId: SEED_IDS.contactTruckingNight, counterpartyId: SEED_IDS.counterpartyTrucking, personName: '야간 배차 (가상)', team: '야간' },
+            { contactId: SEED_IDS.contactOdcyB, counterpartyId: SEED_IDS.counterpartyOdcyB, personName: 'ODCY B 영업팀 (가상)' },
           ])
           .onConflictDoNothing()
           .returning({ id: counterpartyContact.contactId }),
@@ -154,6 +156,7 @@ export class Slice1Seed {
           .values([
             { addressId: SEED_IDS.addressTrucking, contactId: SEED_IDS.contactTrucking, normalizedAddress: 'dispatch@k-trucking.example.invalid', ...approved },
             { addressId: SEED_IDS.addressOdcy, contactId: SEED_IDS.contactOdcy, normalizedAddress: 'sales@odcy-a.example.invalid', ...approved },
+            { addressId: SEED_IDS.addressOdcyB, contactId: SEED_IDS.contactOdcyB, normalizedAddress: 'sales@odcy-b.example.invalid', ...approved },
             // 막힌 주소(T-087): 확인 전 · 관계 승인 전 → NOT_VERIFIED + NOT_APPROVED
             {
               addressId: SEED_IDS.addressWarehouse,
@@ -198,6 +201,14 @@ export class Slice1Seed {
           .onConflictDoNothing()
           .returning({ id: facility.facilityId }),
       );
+      // 시설 운영 거래처(운영 준비) — 문의 · 반입 요청의 받는 사람. 창고 B 는 운영 거래처가 등록되지 않은 시설(연락처 없음 경로)
+      for (const [facilityId, operator] of [
+        [SEED_IDS.facilityWarehouseA, SEED_IDS.counterpartyWarehouse],
+        [SEED_IDS.facilityOdcyA, SEED_IDS.counterpartyOdcy],
+        [SEED_IDS.facilityOdcyB, SEED_IDS.counterpartyOdcyB],
+      ] as const) {
+        await tx.update(facility).set({ operatorCounterpartyId: operator }).where(and(eq(facility.facilityId, facilityId), isNull(facility.operatorCounterpartyId)));
+      }
       count(
         await tx
           .insert(truckPool)

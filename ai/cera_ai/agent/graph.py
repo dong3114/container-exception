@@ -68,6 +68,7 @@ class RecoveryState(TypedDict, total=False):
     parameters: dict[str, Any]
     plan_date: str | None
     information_gaps: list[dict[str, Any]]  # gap refs: id · kind · state · subject · role · owner — not facts
+    contact_blocked_gaps: list[dict[str, Any]]  # gaps nobody can be asked about yet (no owner · no / several eligible addresses)
     known_fact_refs: list[str]  # event ids
     evidence_refs: list[str]  # raw_input / fetch ids from public data
     target_gap: dict[str, Any] | None
@@ -223,26 +224,34 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     def prepare_inquiry(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
         if not (state.get("parameters") or {}).get("inquiry"):
             return failed("INQUIRY_PARAMETERS_REQUIRED")  # the agent does not invent quantities
-        # candidates in the deterministic order; the first one whose counterparty has a Contact-Gate-eligible address wins.
+        # candidates in the deterministic order. The recipient is the gap's owner from the registry only (truck pool owner ·
+        # facility operator) — never "the first counterparty with this role", which could ask one company about another's site.
+        # The owner must have exactly one Contact-Gate-eligible address: none → skip, several → a person chooses (no guessing).
         # One find_counterparty call per role (the backend decides eligibility, not the agent).
         by_role: dict[str, list[dict[str, Any]]] = {}
+        blocked: list[dict[str, Any]] = []
         for gap in inquiry_candidates(state.get("information_gaps") or []):
+            owner = gap.get("owner_counterparty_id")
+            if not owner:
+                blocked.append({"gap_id": gap["gap_id"], "subject_type": gap.get("subject_type"), "subject_id": gap.get("subject_id"), "reason": "NO_OWNER_REGISTERED"})
+                continue
             role = gap.get("suggested_counterparty_role")
             if role not in by_role:
                 r = s.call("find_counterparty", {"role": role, "eligible_only": True})
                 if not r.ok:
                     return failed(r.error.code if r.error else "COUNTERPARTY_UNAVAILABLE")
                 by_role[role] = r.output["counterparties"]
-            owner = gap.get("owner_counterparty_id")
-            parties = sorted(by_role[role], key=lambda c: c["counterparty_id"])
-            if owner:
-                parties = [c for c in parties if c["counterparty_id"] == owner]
-            for party in parties:
-                for contact in party["contacts"]:
-                    for address in contact["addresses"]:
-                        if address["eligible"]:
-                            return {"target_gap": gap, "address_id": address["address_id"]}
-        return failed("NO_ELIGIBLE_CONTACT")
+            eligible = [a["address_id"] for c in by_role[role] if c["counterparty_id"] == owner for contact in c["contacts"] for a in contact["addresses"] if a["eligible"]]
+            if len(eligible) == 1:
+                return {"target_gap": gap, "address_id": eligible[0], "contact_blocked_gaps": []}
+            blocked.append({"gap_id": gap["gap_id"], "subject_type": gap.get("subject_type"), "subject_id": gap.get("subject_id"), "reason": "CONTACT_SELECTION_REQUIRED" if eligible else "NO_ELIGIBLE_CONTACT"})
+        # nobody can be asked: not a failure of the run — a person registers / chooses a contact or enters the value directly
+        reason = "CONTACT_SELECTION_REQUIRED" if any(b["reason"] == "CONTACT_SELECTION_REQUIRED" for b in blocked) else "CONTACT_REGISTRATION_REQUIRED"
+        if not blocked:
+            return failed("NO_ACTIONABLE_GAP")
+        # the run waits on the first blocked gap's subject (facility / truck pool): it wakes when that gap is no longer open
+        first = blocked[0]
+        return {"contact_blocked_gaps": blocked[:20], "pending_human_action": {"kind": "CONTACT", "ref_type": first["subject_type"], "ref_id": first["subject_id"], "reason": reason}}
 
     def create_draft(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
         gap = state["target_gap"] or {}
@@ -433,7 +442,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         ("observe_public_data", observe_public_data), ("wait_send_request", _wait("HUMAN", "AWAITING_SEND_REQUEST")),
         ("wait_delivery", _wait("EXTERNAL", "AWAITING_DELIVERY")), ("wait_reply", _wait("EXTERNAL", "AWAITING_REPLY")),
         ("read_reply", read_reply), ("reassess_gaps", reassess_gaps), ("wait_fact_verification", _wait("HUMAN", "AWAITING_FACT_VERIFICATION")),
-        ("wait_reply_review", _wait("HUMAN", "REPLY_REVIEW_REQUIRED")),
+        ("wait_reply_review", _wait("HUMAN", "REPLY_REVIEW_REQUIRED")), ("wait_contact", wait_for_human),
         ("calculate_costs", calculate_costs), ("solve_recovery", solve_recovery), ("propose_plan", propose_plan),
         ("wait_plan_decision", wait_plan_decision), ("track_plan", track_plan),
     ]:
@@ -461,7 +470,13 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         lambda state: "build_result" if state.get("halt") else {"APPROVED": "build_result", "OUTDATED": "refresh_context", "SUPERSEDED": "refresh_context"}.get((state.get("plan") or {}).get("plan_status") or "", "wait_plan_decision"),
         ["build_result", "refresh_context", "wait_plan_decision"],
     )
-    g.add_conditional_edges("prepare_inquiry", ok("create_draft"), ["create_draft", "build_result"])
+    # no askable owner contact → wait for a person (register / choose a contact, or enter the value) and look at the gaps again
+    g.add_conditional_edges(
+        "prepare_inquiry",
+        lambda state: "build_result" if state.get("halt") else "wait_contact" if state.get("contact_blocked_gaps") else "create_draft",
+        ["create_draft", "wait_contact", "build_result"],
+    )
+    g.add_edge("wait_contact", "refresh_context")
     g.add_conditional_edges("create_draft", ok("request_approval"), ["request_approval", "build_result"])
     g.add_conditional_edges("request_approval", ok("wait_for_human"), ["wait_for_human", "build_result"])
     g.add_edge("wait_for_human", "track_message")
@@ -491,7 +506,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     return g.compile(checkpointer=checkpointer)
 
 
-WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification", "wait_reply_review", "wait_plan_decision")
+WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification", "wait_reply_review", "wait_contact", "wait_plan_decision")
 NO_USABLE_VALUE = ("EXTRACTION_FAILED", "NO_VALID_CANDIDATE")
 OPEN_GAP_STATES = ("ASKED", "MISSING")
 

@@ -87,7 +87,7 @@ export class RecoveryContextService {
 
   async resources() {
     const facilities = await this.db
-      .select({ facility_id: facility.facilityId, facility_type: facility.facilityType, facility_name: facility.facilityName })
+      .select({ facility_id: facility.facilityId, facility_type: facility.facilityType, facility_name: facility.facilityName, operator_counterparty_id: facility.operatorCounterpartyId })
       .from(facility)
       .where(eq(facility.isActive, true))
       .orderBy(asc(facility.facilityName));
@@ -173,8 +173,8 @@ export class RecoveryContextService {
         .filter((f) => f.facility_type === 'WAREHOUSE' || f.facility_type === 'ODCY')
         .map((f): Need =>
           f.facility_type === 'WAREHOUSE'
-            ? { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.day(${D})`, matches: (k) => k === `capacity.day(${D})`, role: 'WAREHOUSE', owner: null }
-            : { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.*.day(${D})`, matches: (k) => k.startsWith('capacity.') && k.endsWith(`day(${D})`), role: 'ODCY', owner: null },
+            ? { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.day(${D})`, matches: (k) => k === `capacity.day(${D})`, role: 'WAREHOUSE', owner: f.operator_counterparty_id }
+            : { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.*.day(${D})`, matches: (k) => k.startsWith('capacity.') && k.endsWith(`day(${D})`), role: 'ODCY', owner: f.operator_counterparty_id },
         ),
       ...truck_pools
         .filter((p) => p.ownership === 'PARTNER')

@@ -76,6 +76,108 @@
         ]
       }
     },
+    "/registry/facilities/{facilityId}/operator": {
+      "patch": {
+        "operationId": "RegistryController_setFacilityOperator",
+        "parameters": [
+          {
+            "name": "facilityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFacilityOperatorRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacilitySummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "COUNTERPARTY_INACTIVE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ROLE_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set (or clear) the counterparty that operates a facility. Capacity inquiries and receiving requests go only to that counterparty — never to \"the first counterparty with this role\"",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
     "/registry/addresses/{addressId}/eligibility": {
       "get": {
         "operationId": "RegistryController_getEligibility",
@@ -3878,13 +3980,20 @@
           "area": {
             "type": "string",
             "nullable": true
+          },
+          "operator_counterparty_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The counterparty that operates this facility — capacity inquiries and receiving requests go only to its contacts. Null = not registered: nobody is asked (no guessing by role)"
           }
         },
         "required": [
           "facility_id",
           "facility_type",
           "facility_name",
-          "area"
+          "area",
+          "operator_counterparty_id"
         ]
       },
       "FacilityListDto": {
@@ -3899,6 +4008,20 @@
         },
         "required": [
           "facilities"
+        ]
+      },
+      "SetFacilityOperatorRequestDto": {
+        "type": "object",
+        "properties": {
+          "counterparty_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Counterparty id whose role matches the facility type (ODCY · WAREHOUSE), or null to clear"
+          }
+        },
+        "required": [
+          "counterparty_id"
         ]
       },
       "AddressStatusDto": {

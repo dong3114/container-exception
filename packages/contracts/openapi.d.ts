@@ -70,6 +70,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/registry/facilities/{facilityId}/operator": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set (or clear) the counterparty that operates a facility. Capacity inquiries and receiving requests go only to that counterparty — never to "the first counterparty with this role" */
+        patch: operations["RegistryController_setFacilityOperator"];
+        trace?: never;
+    };
     "/registry/addresses/{addressId}/eligibility": {
         parameters: {
             query?: never;
@@ -991,9 +1008,21 @@ export interface components {
             facility_type: "WAREHOUSE" | "TERMINAL" | "ODCY";
             facility_name: string;
             area: string | null;
+            /**
+             * Format: uuid
+             * @description The counterparty that operates this facility — capacity inquiries and receiving requests go only to its contacts. Null = not registered: nobody is asked (no guessing by role)
+             */
+            operator_counterparty_id: string | null;
         };
         FacilityListDto: {
             facilities: components["schemas"]["FacilitySummaryDto"][];
+        };
+        SetFacilityOperatorRequestDto: {
+            /**
+             * Format: uuid
+             * @description Counterparty id whose role matches the facility type (ODCY · WAREHOUSE), or null to clear
+             */
+            counterparty_id: string | null;
         };
         AddressStatusDto: {
             /** Format: uuid */
@@ -2255,6 +2284,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FacilityListDto"];
+                };
+            };
+        };
+    };
+    RegistryController_setFacilityOperator: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                facilityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetFacilityOperatorRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FacilitySummaryDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description COUNTERPARTY_INACTIVE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_MISMATCH */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
