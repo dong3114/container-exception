@@ -1,5 +1,6 @@
-import { foreignKey, index, primaryKey, unique, uuid, varchar } from 'drizzle-orm/pg-core';
-import { cera, n, tstz } from './_common.js';
+import { foreignKey, index, primaryKey, text, unique, uuid, varchar } from 'drizzle-orm/pg-core';
+import { ckIn, cera, n, tstz } from './_common.js';
+import { FOLLOW_UP_KIND } from './codes.js';
 import { actor } from './m01-foundation.js';
 import { commMessage } from './m04-communication.js';
 import { recoveryPlan } from './m22-recovery-plan.js';
@@ -18,6 +19,10 @@ export const planFollowUp = cera.table(
     messageId: uuid('message_id').notNull(),
     createdByActorId: uuid('created_by_actor_id').notNull(),
     createdAt: tstz('created_at').notNull(),
+    /** T-128(M33): REQUEST = 새 요청 · CORRECTION = 이미 보낸 요청의 정정 · CANCELLATION = 취소 */
+    followUpKind: text('follow_up_kind').notNull().default('REQUEST'),
+    /** 정정 · 취소가 가리키는 이미 보낸 메시지(그 메시지는 그대로 둔다) */
+    refersToMessageId: uuid('refers_to_message_id'),
   },
   (t) => [
     primaryKey({ name: n('pk_plan_follow_up'), columns: [t.followUpId] }),
@@ -30,6 +35,10 @@ export const planFollowUp = cera.table(
     foreignKey({ name: n('fk_plan_follow_up__created_by_actor_id'), columns: [t.createdByActorId], foreignColumns: [actor.actorId] })
       .onDelete('restrict')
       .onUpdate('restrict'),
+    foreignKey({ name: n('fk_plan_follow_up__refers_to_message_id'), columns: [t.refersToMessageId], foreignColumns: [commMessage.messageId] })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    ckIn('plan_follow_up', t.followUpKind, FOLLOW_UP_KIND),
     unique(n('uq_plan_follow_up__plan_id__action_key')).on(t.planId, t.actionKey),
     unique(n('uq_plan_follow_up__message_id')).on(t.messageId),
     index(n('ix_plan_follow_up__plan_id')).on(t.planId),

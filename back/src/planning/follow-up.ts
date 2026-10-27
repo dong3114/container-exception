@@ -59,3 +59,79 @@ export function requiredFollowUps(items: readonly PlanItemLike[]): FollowUpActio
   ];
   return out.sort((a, b) => a.action_key.localeCompare(b.action_key));
 }
+
+/**
+ * 이미 보낸 후속 문의와 새 판의 조치 비교(T-128) — 순수 함수 · 결정론(LLM 이 차이를 판단하지 않는다).
+ * "약속" = 조치 키마다 **발송된** 마지막 후속(요청 · 정정은 그 수량, 취소는 약속 없음). 새 판과 비교해:
+ *   UNCHANGED(같은 수량 · 같은 상대) → 아무것도 하지 않는다(같은 요청을 다시 보내지 않는다)
+ *   MODIFIED(수량이 바뀜, 같은 상대) → 원래 받는 사람에게 정정
+ *   REMOVED(새 판에 없음) → 원래 받는 사람에게 취소
+ *   상대가 바뀜(시설 운영 거래처 · 풀 소유 변경) → 옛 상대에게 취소 + 새 상대에게 새 요청(한 업체에 둘을 섞지 않는다)
+ *   ADDED(약속 없음) → 새 요청
+ * 조치 키: 요청 = 원래 키, 정정 = `CORRECT:` + 키, 취소 = `CANCEL:` + 키 — 판마다 한 번(plan_follow_up UNIQUE)이라 다시 불러도 같은 초안
+ */
+export type FollowUpKind = 'REQUEST' | 'CORRECTION' | 'CANCELLATION';
+export interface SentFollowUp {
+  base_key: string;
+  kind: FollowUpKind;
+  message_id: string;
+  address_id: string;
+  counterparty_id: string;
+  quantity: number;
+  sent_at: string;
+}
+export interface FollowUpPlanItem {
+  delta: 'ADDED' | 'MODIFIED' | 'REMOVED' | 'CONTACT_CHANGED';
+  kind: FollowUpKind;
+  action_key: string;
+  action: FollowUpAction;
+  /** 정정 · 취소가 가리키는 이미 보낸 메시지 */
+  refers_to_message_id: string | null;
+  /** 정정 · 취소는 원래 받는 사람에게 보낸다(같은 역할의 다른 회사로 대신 보내지 않는다) */
+  to_address_id: string | null;
+  previous_quantity: number | null;
+}
+
+export const baseKeyOf = (actionKey: string) => actionKey.replace(/^(CORRECT|CANCEL):/, '');
+
+/** 조치 키 → 조치(약속을 취소할 때 원래 날짜 · 시간창을 키에서 되살린다). */
+export function actionFromKey(key: string, quantity: number): FollowUpAction | null {
+  const o = /^ODCY_RECEIVE:([0-9a-f-]{36}):(\d{4}-\d{2}-\d{2})$/.exec(key);
+  if (o) return { action_key: key, kind: 'ODCY_RECEIVE', intent: 'FACILITY_CAPACITY', facility_id: o[1]!, date: o[2]!, quantity };
+  const t = /^PARTNER_TRUCKS:([0-9a-f-]{36}):(\d{4}-\d{2}-\d{2}):(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(key);
+  if (t) return { action_key: key, kind: 'PARTNER_TRUCKS', intent: 'TRUCK_SLOT', truck_pool_id: t[1]!, date: t[2]!, window_from: t[3]!, window_to: t[4]!, quantity };
+  return null;
+}
+
+export function followUpDelta(next: readonly FollowUpAction[], sent: readonly SentFollowUp[], ownerOf: (a: FollowUpAction) => string | null): { items: FollowUpPlanItem[]; unchanged: string[] } {
+  const promised = new Map<string, SentFollowUp>();
+  for (const s of [...sent].sort((a, b) => a.sent_at.localeCompare(b.sent_at) || a.message_id.localeCompare(b.message_id))) {
+    if (s.kind === 'CANCELLATION') promised.delete(s.base_key);
+    else promised.set(s.base_key, s);
+  }
+  const items: FollowUpPlanItem[] = [];
+  const unchanged: string[] = [];
+  const nextBy = new Map(next.map((a) => [a.action_key, a]));
+  for (const [key, p] of promised) {
+    const n = nextBy.get(key);
+    const cancel = (delta: FollowUpPlanItem['delta']): FollowUpPlanItem | null => {
+      const action = actionFromKey(key, p.quantity);
+      return action ? { delta, kind: 'CANCELLATION', action_key: `CANCEL:${key}`, action, refers_to_message_id: p.message_id, to_address_id: p.address_id, previous_quantity: null } : null;
+    };
+    if (!n) {
+      const c = cancel('REMOVED');
+      if (c) items.push(c);
+      continue;
+    }
+    if (ownerOf(n) !== p.counterparty_id) {
+      const c = cancel('CONTACT_CHANGED');
+      if (c) items.push(c);
+      items.push({ delta: 'CONTACT_CHANGED', kind: 'REQUEST', action_key: key, action: n, refers_to_message_id: null, to_address_id: null, previous_quantity: null });
+      continue;
+    }
+    if (n.quantity !== p.quantity) items.push({ delta: 'MODIFIED', kind: 'CORRECTION', action_key: `CORRECT:${key}`, action: n, refers_to_message_id: p.message_id, to_address_id: p.address_id, previous_quantity: p.quantity });
+    else unchanged.push(key);
+  }
+  for (const n of next) if (!promised.has(n.action_key)) items.push({ delta: 'ADDED', kind: 'REQUEST', action_key: n.action_key, action: n, refers_to_message_id: null, to_address_id: null, previous_quantity: null });
+  return { items: items.sort((a, b) => a.action_key.localeCompare(b.action_key)), unchanged: unchanged.sort() };
+}

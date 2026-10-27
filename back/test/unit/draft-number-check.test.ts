@@ -125,3 +125,23 @@ describe('intent values (shape only — the backend fixes the question target)',
     expect(validateIntentValues('FACILITY_CAPACITY', [v('date', '2026-10-14')])).toEqual([{ field: 'quantity', problem: 'MISSING' }]);
   });
 });
+
+describe('T-128 correction / cancellation drafts — deterministic wording, numbers only from structured values', () => {
+  const odcyValues = (extra: StructuredValue[]) => [v('quantity', 2, 'CONTAINER', 'recovery_plan:p2'), v('date', '2026-10-13'), ...extra];
+  const odcyCtx = (values: StructuredValue[]) => ({ intent: 'FACILITY_CAPACITY' as const, askId: 'Q1', counterpartyName: 'ODCY A (가상)', contactName: '영업팀', targetName: 'ODCY A', values });
+  const literals = ['ODCY A (가상)', '영업팀', 'ODCY A', '[문의 Q1]'];
+  it('a correction names the previous and the new quantity and passes the number check', () => {
+    const values = odcyValues([v('notice', 'CORRECTION'), v('previous_quantity', 3, 'CONTAINER', 'plan_follow_up:m1')]);
+    const d = new TemplateDraftProse().compose(odcyCtx(values));
+    expect(d.subject).toBe('[문의 Q1] [정정] 10월 13일(화) ODCY A 컨테이너 반입 3대 → 2대');
+    expect(d.body).toContain('3대 요청을 2대로 정정');
+    expect(checkDraftNumbers({ texts: [d.subject, d.body], fields: values, literals }).passed).toBe(true);
+    expect(validateIntentValues('FACILITY_CAPACITY', values)).toEqual([]);
+  });
+  it('a cancellation names what was requested and passes the number check', () => {
+    const values = odcyValues([v('notice', 'CANCELLATION')]);
+    const d = new TemplateDraftProse().compose(odcyCtx(values));
+    expect(d.subject).toBe('[문의 Q1] [취소] 10월 13일(화) ODCY A 컨테이너 반입 2대 요청 취소');
+    expect(checkDraftNumbers({ texts: [d.subject, d.body], fields: values, literals }).passed).toBe(true);
+  });
+});

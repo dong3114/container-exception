@@ -1,15 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNotNull, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { DraftService } from '../communication/draft.service.js';
 import { DATABASE, type Database } from '../db/database.js';
-import { facility, planFollowUp, truckPool } from '../db/schema/index.js';
+import { commMessage, commMessageStructuredField, contactChannelAddress, counterpartyContact, facility, planFollowUp, recoveryPlan, truckPool } from '../db/schema/index.js';
 import { RegistryService } from '../registry/registry.service.js';
 import { BusinessRuleError, ValidationError } from '../shared/errors/cera-error.js';
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
-import { type FollowUpAction, type PlanItemLike, requiredFollowUps } from './follow-up.js';
+import { type FollowUpAction, type FollowUpKind, type FollowUpPlanItem, type PlanItemLike, type SentFollowUp, baseKeyOf, followUpDelta, requiredFollowUps } from './follow-up.js';
 import { RecoveryPlanService } from './recovery-plan.service.js';
 
 export interface FollowUpView {
@@ -26,6 +26,13 @@ export interface FollowUpView {
   message_status: string | null;
   /** 초안을 만들 수 없는 이유(예: 연락 가능한 주소 없음) */
   blocked_reason: string | null;
+  /** T-128: REQUEST(새 요청) · CORRECTION(이미 보낸 요청의 정정) · CANCELLATION(취소) */
+  follow_up_kind: FollowUpKind;
+  /** 이미 보낸 후속과 비교한 결과: ADDED · MODIFIED · REMOVED · CONTACT_CHANGED */
+  delta: FollowUpPlanItem['delta'];
+  /** 정정 · 취소가 가리키는 이미 보낸 메시지(그 메시지는 바꾸지 않는다) */
+  refers_to_message_id: string | null;
+  previous_quantity: number | null;
 }
 
 /**
@@ -44,42 +51,78 @@ export class PlanFollowUpService {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  async list(planId: string): Promise<{ plan_id: string; plan_status: string; actions: FollowUpView[]; note: string }> {
+  async list(planId: string): Promise<{ plan_id: string; plan_status: string; actions: FollowUpView[]; unchanged: string[]; note: string }> {
     const plan = await this.load(planId);
-    const actions = requiredFollowUps(await this.planItems(planId));
+    const { items, unchanged } = await this.delta(planId, plan.caseRunId);
     const linked = new Map((await this.db.select().from(planFollowUp).where(eq(planFollowUp.planId, planId))).map((r) => [r.actionKey, r.messageId]));
     const views: FollowUpView[] = [];
-    for (const a of actions) {
-      const messageId = linked.get(a.action_key) ?? null;
+    for (const it of items) {
+      const messageId = linked.get(it.action_key) ?? null;
       const status = messageId ? (await this.drafts.get(messageId)).message.status : null;
-      views.push({ ...(await this.describe(a)), message_id: messageId, message_status: status, blocked_reason: null });
+      views.push({ ...(await this.describe(it.action)), action_key: it.action_key, message_id: messageId, message_status: status, blocked_reason: null, follow_up_kind: it.kind, delta: it.delta, refers_to_message_id: it.refers_to_message_id, previous_quantity: it.previous_quantity });
     }
     return {
       plan_id: planId,
       plan_status: plan.planStatus,
       actions: views,
-      note: 'Plan approval is not execution: drafts are created on request and each one needs human approval and a send request.',
+      unchanged,
+      note: 'Plan approval is not execution: drafts are created on request and each one needs human approval and a send request. Requests already sent and unchanged are not sent again; changed or removed ones get a correction or cancellation draft to the original recipient.',
     };
   }
 
+  /**
+   * 이미 보낸 후속(같은 계획 실행의 다른 판) ↔ 이 판의 조치(T-128). 보낸 메시지는 그대로 두고, 비교는 결정론(`followUpDelta`).
+   * 상대 = 시설 운영 거래처 · 풀 소유 운송사(등록부) — 같은 역할의 다른 회사로 대신 보내지 않는다.
+   */
+  private async delta(planId: string, caseRunId: string): Promise<{ items: FollowUpPlanItem[]; unchanged: string[] }> {
+    const next = requiredFollowUps(await this.planItems(planId));
+    const rows = await this.db
+      .select({ actionKey: planFollowUp.actionKey, kind: planFollowUp.followUpKind, messageId: commMessage.messageId, addressId: commMessage.toAddressId, sentAt: commMessage.sentAt, counterpartyId: counterpartyContact.counterpartyId })
+      .from(planFollowUp)
+      .innerJoin(recoveryPlan, eq(recoveryPlan.planId, planFollowUp.planId))
+      .innerJoin(commMessage, eq(commMessage.messageId, planFollowUp.messageId))
+      .innerJoin(contactChannelAddress, eq(contactChannelAddress.addressId, commMessage.toAddressId))
+      .innerJoin(counterpartyContact, eq(counterpartyContact.contactId, contactChannelAddress.contactId))
+      .where(and(eq(recoveryPlan.caseRunId, caseRunId), ne(planFollowUp.planId, planId), isNotNull(commMessage.sentAt)));
+    const sent: SentFollowUp[] = [];
+    for (const r of rows) {
+      const [q] = await this.db.select({ v: commMessageStructuredField.valueNumber }).from(commMessageStructuredField).where(and(eq(commMessageStructuredField.messageId, r.messageId), eq(commMessageStructuredField.fieldKey, 'quantity'))).limit(1);
+      sent.push({ base_key: baseKeyOf(r.actionKey), kind: r.kind as FollowUpKind, message_id: r.messageId, address_id: r.addressId!, counterparty_id: r.counterpartyId, quantity: Number(q?.v ?? 0), sent_at: r.sentAt! });
+    }
+    const operators = new Map((await this.db.select({ id: facility.facilityId, op: facility.operatorCounterpartyId }).from(facility)).map((f) => [f.id, f.op]));
+    const owners = new Map((await this.db.select({ id: truckPool.truckPoolId, op: truckPool.ownerCounterpartyId }).from(truckPool)).map((p) => [p.id, p.op]));
+    return followUpDelta(next, sent, (a) => (a.kind === 'PARTNER_TRUCKS' ? (owners.get(a.truck_pool_id) ?? null) : (operators.get(a.facility_id) ?? null)));
+  }
+
   /** 승인된 지금 판의 조치마다 초안(아직 없는 것만). 연락 가능한 주소가 없는 조치는 이유와 함께 건너뛴다. */
-  async createDrafts(planId: string, actorId: string): Promise<{ plan_id: string; plan_status: string; actions: FollowUpView[]; note: string }> {
+  async createDrafts(planId: string, actorId: string): Promise<{ plan_id: string; plan_status: string; actions: FollowUpView[]; unchanged: string[]; note: string }> {
     const plan = await this.load(planId);
     if (plan.planStatus !== 'APPROVED') throw new BusinessRuleError('PLAN_NOT_APPROVED', `Follow-ups come from an approved plan (this one is ${plan.planStatus})`, 409);
     const run = await this.plans.caseRun(plan.caseRunId);
-    const actions = requiredFollowUps(await this.planItems(planId));
+    const { items } = await this.delta(planId, plan.caseRunId);
     const linked = new Set((await this.db.select({ k: planFollowUp.actionKey }).from(planFollowUp).where(eq(planFollowUp.planId, planId))).map((r) => r.k));
     const counterparties = (await this.registry.listCounterparties()).counterparties;
     const blocked = new Map<string, string>();
-    for (const a of actions) {
-      if (linked.has(a.action_key)) continue;
-      const picked = await this.addressFor(a, counterparties, run.containsSimulated);
-      if ('blocked' in picked) {
-        blocked.set(a.action_key, picked.blocked);
-        continue;
+    for (const it of items) {
+      const a = { ...it.action, action_key: it.action_key };
+      if (linked.has(it.action_key)) continue;
+      // 정정 · 취소 = 원래 받는 사람(Contact Gate 는 초안 · 승인 · 발송 때 다시 본다). 새 요청 = 등록부의 지금 상대
+      let address: string;
+      if (it.to_address_id) address = it.to_address_id;
+      else {
+        const picked = await this.addressFor(it.action, counterparties, run.containsSimulated);
+        if ('blocked' in picked) {
+          blocked.set(it.action_key, picked.blocked);
+          continue;
+        }
+        address = picked.address;
       }
-      const address = picked.address;
-      const values =
+      const unit = a.intent === 'TRUCK_SLOT' ? 'TRUCK' : 'CONTAINER';
+      const notice =
+        it.kind === 'REQUEST'
+          ? []
+          : [{ key: 'notice', value_text: it.kind }, ...(it.previous_quantity !== null ? [{ key: 'previous_quantity', value_number: it.previous_quantity, unit, source_path: `plan_follow_up:${it.refers_to_message_id}` }] : [])];
+      const values = [...notice, ...(
         a.intent === 'TRUCK_SLOT'
           ? [
               { key: 'quantity', value_number: a.quantity, unit: 'TRUCK', source_path: `recovery_plan:${planId}` },
@@ -90,7 +133,7 @@ export class PlanFollowUpService {
           : [
               { key: 'quantity', value_number: a.quantity, unit: 'CONTAINER', source_path: `recovery_plan:${planId}` },
               { key: 'date', value_text: a.date },
-            ];
+            ])];
       const followUpId = this.ids.newId();
       try {
         await this.drafts.create(
@@ -100,12 +143,12 @@ export class PlanFollowUpService {
             // 숫자 검사를 통과하면 사람 승인 대기(PENDING_APPROVAL)로 — 승인 · 발송은 사람이 따로 한다
             // 초안과 같은 트랜잭션에 연결 기록 — 초안만 생기고 연결이 빠지는 일이 없다
             inTransaction: async (tx, messageId) => {
-              await tx.insert(planFollowUp).values({ followUpId, planId, actionKey: a.action_key, messageId, createdByActorId: actorId, createdAt: this.clock.now().toDb() });
+              await tx.insert(planFollowUp).values({ followUpId, planId, actionKey: it.action_key, messageId, createdByActorId: actorId, createdAt: this.clock.now().toDb(), followUpKind: it.kind, refersToMessageId: it.refers_to_message_id });
             },
           },
         );
       } catch (error) {
-        blocked.set(a.action_key, error instanceof Error && 'code' in error ? String((error as { code: string }).code) : 'DRAFT_FAILED');
+        blocked.set(it.action_key, error instanceof Error && 'code' in error ? String((error as { code: string }).code) : 'DRAFT_FAILED');
       }
     }
     const view = await this.list(planId);
@@ -150,7 +193,7 @@ export class PlanFollowUpService {
     return { address: eligible[0]!.address_id };
   }
 
-  private async describe(a: FollowUpAction): Promise<Omit<FollowUpView, 'message_id' | 'message_status' | 'blocked_reason'>> {
+  private async describe(a: FollowUpAction): Promise<Omit<FollowUpView, 'message_id' | 'message_status' | 'blocked_reason' | 'follow_up_kind' | 'delta' | 'refers_to_message_id' | 'previous_quantity'>> {
     if (a.kind === 'PARTNER_TRUCKS') {
       const [p] = await this.db.select({ name: truckPool.poolName }).from(truckPool).where(eq(truckPool.truckPoolId, a.truck_pool_id)).limit(1);
       return { action_key: a.action_key, kind: a.kind, intent: a.intent, target_id: a.truck_pool_id, target_name: p?.name ?? '', date: a.date, quantity: a.quantity, window: { from: a.window_from, to: a.window_to } };

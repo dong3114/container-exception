@@ -1,0 +1,4 @@
+ALTER TABLE "cera"."plan_follow_up" ADD COLUMN "follow_up_kind" text DEFAULT 'REQUEST' NOT NULL;--> statement-breakpoint
+ALTER TABLE "cera"."plan_follow_up" ADD COLUMN "refers_to_message_id" uuid;--> statement-breakpoint
+ALTER TABLE "cera"."plan_follow_up" ADD CONSTRAINT "fk_plan_follow_up__refers_to_message_id" FOREIGN KEY ("refers_to_message_id") REFERENCES "cera"."comm_message"("message_id") ON DELETE restrict ON UPDATE restrict;--> statement-breakpoint
+ALTER TABLE "cera"."plan_follow_up" ADD CONSTRAINT "ck_plan_follow_up__follow_up_kind" CHECK ("cera"."plan_follow_up"."follow_up_kind" IN ('REQUEST', 'CORRECTION', 'CANCELLATION'));

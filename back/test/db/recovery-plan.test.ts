@@ -7,6 +7,7 @@ import request from 'supertest';
 import { v7 } from 'uuid';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApiApp } from '../../src/app/create-api.js';
+import { OutboxDispatcher } from '../../src/communication/outbox-dispatcher.js';
 import { RecoveryPlanService } from '../../src/planning/recovery-plan.service.js';
 import { actor, registry, type Registry } from './fixtures.js';
 import { appPool, expectSqlState, ownerPool, testEnv } from './support.js';
@@ -240,6 +241,68 @@ describe('T-114 recovery plan — deterministic engine on Truth facts, versioned
     expect(res.body.code).toBe('PLAN_SUPERSEDED');
     // 기록은 지울 수 없다
     await expectSqlState(db.query('DELETE FROM cera.plan_follow_up WHERE plan_id = $1', [approvedId]), '42501');
+  });
+
+  it('T-128: a sent follow-up whose action disappears from the next plan gets one cancellation draft to the original recipient; unchanged ones are not resent; sent mail is kept', async () => {
+    const x = await newWorld();
+    plans.packIds = x.ids;
+    try {
+      await todayFacts(x);
+      const v1 = (await http.post(`/planning/runs/${x.runId}/plans`).set(ACTOR, humanId).expect(200)).body;
+      await http.post(`/planning/plans/${v1.plan_id}/approve`).set(ACTOR, humanId).send({ plan_hash: v1.plan_hash }).expect(200);
+      const made = (await http.post(`/planning/plans/${v1.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+      const trucks = made.actions.filter((a: { kind: string; message_id: string | null }) => a.kind === 'PARTNER_TRUCKS' && a.message_id);
+      expect(trucks.length).toBeGreaterThan(0);
+      // v1 의 협력 트럭 요청을 실제로 보낸다(Mock 채널) — 이제 상대가 유효한 요청으로 알고 있다
+      const dispatcher = api.get(OutboxDispatcher);
+      for (const t of trucks) {
+        const d = (await http.get(`/communication/drafts/${t.message_id}`).expect(200)).body;
+        await http.post(`/communication/drafts/${t.message_id}/approve`).set(ACTOR, humanId).send({ content_hash: d.message.content_hash }).expect(200);
+        await http.post(`/communication/drafts/${t.message_id}/send`).set(ACTOR, humanId).send({ content_hash: d.message.content_hash }).expect(200);
+        await dispatcher.processMessage(t.message_id);
+      }
+      const sentBefore = (await db.query("SELECT message_id, current_status, message_content_ref, content_hash, sent_at FROM cera.comm_message WHERE message_id = ANY($1::uuid[]) ORDER BY message_id", [trucks.map((t: { message_id: string }) => t.message_id)])).rows;
+      expect(sentBefore.every((m) => m.current_status === 'SENT')).toBe(true);
+
+      // 협력 트럭 가용이 0 이 됐다 → v1 OUTDATED → v2 는 협력 트럭을 쓰지 않는다
+      await enter(x, { kind: 'TRUCK_SLOT', target_id: x.ids.K_TRUCKING, window_from: '15:00', window_to: '17:00', value: 0 });
+      await enter(x, { kind: 'TRUCK_SLOT', target_id: x.ids.K_TRUCKING, window_from: '17:00', window_to: '19:00', value: 0 });
+      await plans.refreshOutdated(x.runId);
+      const v2 = (await http.post(`/planning/runs/${x.runId}/plans`).set(ACTOR, humanId).expect(200)).body;
+      await http.post(`/planning/plans/${v2.plan_id}/approve`).set(ACTOR, humanId).send({ plan_hash: v2.plan_hash }).expect(200);
+      const preview = (await http.get(`/planning/plans/${v2.plan_id}/follow-ups`).expect(200)).body;
+      const cancels = preview.actions.filter((a: { follow_up_kind: string }) => a.follow_up_kind === 'CANCELLATION');
+      expect(cancels.map((c: { refers_to_message_id: string }) => c.refers_to_message_id).sort()).toEqual(trucks.map((t: { message_id: string }) => t.message_id).sort());
+      expect(cancels.every((c: { delta: string; action_key: string }) => c.delta === 'REMOVED' && c.action_key.startsWith('CANCEL:PARTNER_TRUCKS:'))).toBe(true);
+
+      const v2made = (await http.post(`/planning/plans/${v2.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+      const cancelDrafts = v2made.actions.filter((a: { follow_up_kind: string; message_id: string | null }) => a.follow_up_kind === 'CANCELLATION' && a.message_id);
+      expect(cancelDrafts).toHaveLength(trucks.length);
+      for (const c of cancelDrafts) {
+        const d = (await http.get(`/communication/drafts/${c.message_id}`).expect(200)).body;
+        expect(d.message.status).toBe('PENDING_APPROVAL'); // 자동 발송 없음 — 사람 승인 대기
+        expect(d.message.subject).toContain('[취소]');
+        const orig = trucks.find((t: { message_id: string }) => t.message_id === c.refers_to_message_id);
+        const [o, n] = (await db.query('SELECT message_id, to_address_id FROM cera.comm_message WHERE message_id = ANY($1::uuid[])', [[orig.message_id, c.message_id]])).rows.sort((a, b) => (a.message_id === orig.message_id ? -1 : 1));
+        expect(n.to_address_id).toBe(o.to_address_id); // 원래 받는 사람
+      }
+      // F: 다시 불러도 초안은 늘지 않는다
+      const before = (await db.query('SELECT count(*)::int AS n FROM cera.plan_follow_up WHERE plan_id = $1', [v2.plan_id])).rows[0].n;
+      await http.post(`/planning/plans/${v2.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200);
+      expect((await db.query('SELECT count(*)::int AS n FROM cera.plan_follow_up WHERE plan_id = $1', [v2.plan_id])).rows[0].n).toBe(before);
+      expect((await db.query("SELECT follow_up_kind, count(*)::int AS n FROM cera.plan_follow_up WHERE plan_id = $1 AND follow_up_kind = 'CANCELLATION' GROUP BY 1", [v2.plan_id])).rows).toEqual([{ follow_up_kind: 'CANCELLATION', n: trucks.length }]);
+      // H: 이미 보낸 v1 메일은 그대로(상태 · 내용 참조 · 지문 · 발송 시각)
+      expect((await db.query("SELECT message_id, current_status, message_content_ref, content_hash, sent_at FROM cera.comm_message WHERE message_id = ANY($1::uuid[]) ORDER BY message_id", [trucks.map((t: { message_id: string }) => t.message_id)])).rows).toEqual(sentBefore);
+      // I: 사람이 아니면 승인 못 한다
+      const d0 = (await http.get(`/communication/drafts/${cancelDrafts[0].message_id}`).expect(200)).body;
+      expect((await http.post(`/communication/drafts/${cancelDrafts[0].message_id}/approve`).set(ACTOR, agentId).send({ content_hash: d0.message.content_hash })).status).toBe(403);
+      // G: v2 도 무효가 되면 v2 의 미발송 취소 초안은 승인이 막힌다(새 판 기준으로 다시 본다)
+      await enter(x, { kind: 'FACILITY_CAPACITY', target_id: x.ids.WAREHOUSE_A, value: 3 });
+      await plans.refreshOutdated(x.runId);
+      expect((await http.post(`/communication/drafts/${cancelDrafts[0].message_id}/approve`).set(ACTOR, humanId).send({ content_hash: d0.message.content_hash }).expect(409)).body.code).toBe('PLAN_SUPERSEDED');
+    } finally {
+      plans.packIds = w.ids;
+    }
   });
 
   it('E. AI actors cannot approve a plan even in SQL; a plan cannot be inserted as APPROVED', async () => {

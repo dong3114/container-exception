@@ -58,6 +58,26 @@ export class TemplateDraftProse implements DraftProse {
     const greeting = `안녕하세요, ${ctx.counterpartyName} ${ctx.contactName} 님.`;
     const footer = `회신하실 때 ${tag} 표시를 남겨 주세요.\nCERA 운영팀 드림`;
 
+    // T-128: 이미 보낸 요청을 정정 · 취소한다 — 숫자는 구조화 값 그대로(이전 수량 · 새 수량), 문장은 결정론 템플릿
+    const notice = text('notice');
+    if (notice === 'CANCELLATION' || notice === 'CORRECTION') {
+      const prev = num('previous_quantity');
+      const what = ctx.intent === 'TRUCK_SLOT' ? `${text('window_from')}~${text('window_to')} 트럭 배차` : `${ctx.targetName} 컨테이너 반입`;
+      const unit = '대';
+      if (notice === 'CANCELLATION') {
+        return {
+          subject: `${tag} [취소] ${date} ${what} ${quantity}${unit} 요청 취소`,
+          body: [greeting, `앞서 요청드린 ${date} ${what} ${quantity}${unit} 요청은 계획이 바뀌어 취소 부탁드립니다.`, '이미 준비하신 부분이 있으면 알려 주세요.', footer].join('\n\n'),
+          literals,
+        };
+      }
+      return {
+        subject: `${tag} [정정] ${date} ${what} ${prev}${unit} → ${quantity}${unit}`,
+        body: [greeting, `앞서 요청드린 ${date} ${what} ${prev}${unit} 요청을 ${quantity}${unit}로 정정 부탁드립니다.`, '가능 여부를 알려 주시면 계획에 반영하겠습니다.', footer].join('\n\n'),
+        literals,
+      };
+    }
+
     if (ctx.intent === 'TRUCK_SLOT') {
       const from = text('window_from');
       const to = text('window_to');

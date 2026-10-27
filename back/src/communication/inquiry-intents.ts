@@ -41,6 +41,9 @@ export const INTENTS: Record<InquiryIntent, IntentSpec> = {
       { key: 'window_from', kind: 'TIME', required: true },
       { key: 'window_to', kind: 'TIME', required: true },
       { key: 'leg', kind: 'TEXT', required: false },
+      // T-128: 이미 보낸 요청의 정정(CORRECTION · 이전 수량) · 취소(CANCELLATION) — 승인된 계획이 바뀌었을 때만(계획 후속)
+      { key: 'notice', kind: 'TEXT', required: false },
+      { key: 'previous_quantity', kind: 'QUANTITY', unit: 'TRUCK', required: false },
     ],
   },
   // 일별 수용량 `capacity.day(D)`(창고) · `capacity.size_type(T).day(D)`(ODCY) — 주체 FACILITY (T-069 5.4)
@@ -53,6 +56,8 @@ export const INTENTS: Record<InquiryIntent, IntentSpec> = {
       { key: 'quantity', kind: 'QUANTITY', unit: 'CONTAINER', required: true },
       { key: 'date', kind: 'DATE', required: true },
       { key: 'size_type', kind: 'TEXT', required: false },
+      { key: 'notice', kind: 'TEXT', required: false },
+      { key: 'previous_quantity', kind: 'QUANTITY', unit: 'CONTAINER', required: false },
     ],
   },
 };

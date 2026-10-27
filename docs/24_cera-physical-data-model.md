@@ -2645,7 +2645,10 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 | 4 | `message_id` | REF(comm_message) | `uuid` | NOT NULL | — | `uuid()` | FK comm_message · RESTRICT · UNIQUE |
 | 5 | `created_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor — 요청한 사람 |
 | 6 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 7 | `follow_up_kind` | CODE(FOLLOW_UP_KIND) | `text` | NOT NULL | `'REQUEST'` | `text()` | CHECK IN (REQUEST, CORRECTION, CANCELLATION) **(M33 · T-128)** |
+| 8 | `refers_to_message_id` | REF(comm_message) | `uuid` | NULL | — | `uuid()` | FK comm_message · RESTRICT — 정정 · 취소가 가리키는 **이미 보낸** 메시지(그 메시지는 바꾸지 않는다) **(M33)** |
 
+- **T-128 정정 · 취소**: 같은 계획 실행의 다른 판에서 이미 보낸 후속(`sent_at` 있음)과 새 판의 조치를 결정론으로 비교한다(`followUpDelta`). 조치 키의 기준 = `CANCEL:` · `CORRECT:` 를 뗀 키, 약속 = 기준 키별 마지막 보낸 후속(취소면 끝). 사라진 조치 → `CANCEL:<키>` 취소 초안(원래 받는 주소) · 수량이 바뀜 → `CORRECT:<키>` 정정 초안(이전 · 새 수량) · 상대 거래처가 바뀜 → 옛 상대 취소 + 새 상대 REQUEST · 같으면 다시 보내지 않는다(`unchanged`). 초안은 똑같이 숫자 검사 · Contact Gate · 사람 승인 · `PLAN_SUPERSEDED` 를 거친다
 - **UNIQUE**: (plan_id, action_key) · (message_id)
 - **인덱스(PK·UNIQUE·FK 인덱스 외)**: (plan_id)
 

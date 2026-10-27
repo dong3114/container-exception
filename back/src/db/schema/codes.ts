@@ -113,3 +113,6 @@ export const OPERATIONAL_RECORD_STATUS = ['ACTIVE', 'WITHDRAWN'] as const;
 export const CONTAINER_PRIORITY = ['CRITICAL', 'HIGH', 'NORMAL'] as const;
 export const TARIFF_RATE_TYPE = ['DEMURRAGE_PER_DAY', 'TERMINAL_STORAGE_PER_DAY', 'DETENTION_FREE_DAYS', 'TRANSPORT', 'ODCY_HANDLING_IN_OUT', 'ODCY_STORAGE_PER_DAY'] as const;
 export const TARIFF_UNIT = ['KRW', 'DAY'] as const;
+
+// M33 계획 후속의 종류(T-128)
+export const FOLLOW_UP_KIND = ['REQUEST', 'CORRECTION', 'CANCELLATION'] as const;
