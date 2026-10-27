@@ -21,7 +21,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Application and database are up"
+            "description": "Application and database are up (queue state is informational — PostgreSQL polling covers a Redis outage)"
           },
           "503": {
             "description": "Database is unreachable (status degraded)"

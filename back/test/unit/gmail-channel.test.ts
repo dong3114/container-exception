@@ -107,6 +107,15 @@ describe('Gmail client error classes (docs/18 H.3)', () => {
     const err = (await adapter.send(outbound({ ceraMessageId: 'msg-2' })).catch((x: unknown) => x)) as GmailApiError;
     expect(err.kind).toBe('TRANSIENT');
   });
+
+  it('5xx on send → TRANSIENT (retried with backoff); a non-auth 4xx → PERMANENT (a person fixes the request — no retry)', async () => {
+    const { gmail, adapter } = setup();
+    await adapter.send(outbound()); // token
+    gmail.next = { status: 503, body: { error: { status: 'UNAVAILABLE' } } };
+    expect(((await adapter.send(outbound({ ceraMessageId: 'msg-2' })).catch((x: unknown) => x)) as GmailApiError).kind).toBe('TRANSIENT');
+    gmail.next = { status: 400, body: { error: { status: 'INVALID_ARGUMENT' } } };
+    expect(((await adapter.send(outbound({ ceraMessageId: 'msg-3' })).catch((x: unknown) => x)) as GmailApiError).kind).toBe('PERMANENT');
+  });
 });
 
 describe('GmailChannelAdapter', () => {

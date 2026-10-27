@@ -2234,7 +2234,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Application and database are up */
+            /** @description Application and database are up (queue state is informational — PostgreSQL polling covers a Redis outage) */
             200: {
                 headers: {
                     [name: string]: unknown;
