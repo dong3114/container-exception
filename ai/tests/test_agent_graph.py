@@ -579,3 +579,21 @@ def test_several_eligible_addresses_of_the_owner_are_not_chosen_arbitrarily():
     out = runtime(tools).start(RUN, RR, "goal", PARAMS)
     assert (out["status"], out["waiting_reason"], out["pending"]["type"]) == ("WAITING_HUMAN", "CONTACT_SELECTION_REQUIRED", "TRUCK_POOL")
     assert "create_inquiry_draft" not in [c[0] for c in tools.calls]
+
+
+def test_registering_a_contact_wakes_the_run_and_it_drafts_to_the_new_address():
+    # T-127: the owner had no eligible address → the run waits for a person; an admin registers + approves one → the backend wakes the run
+    # (REGISTRY_CHANGED) → the graph re-reads the registry and drafts to that address. Approval still belongs to a person.
+    state = {"eligible": False}
+    found = lambda a, n: ok("find_counterparty", {"counterparties": [{"counterparty_id": CP, "contacts": [{"addresses": [{"address_id": ADDR, "eligible": state["eligible"]}]}]}]})
+    tools = FakeTools({"find_counterparty": found})
+    rt = runtime(tools)
+    out = rt.start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "CONTACT_REGISTRATION_REQUIRED")
+    assert "create_inquiry_draft" not in [c[0] for c in tools.calls]
+    state["eligible"] = True
+    woke = rt.resume(RUN, "REGISTRY_CHANGED", {"type": out["pending"]["type"], "id": out["pending"]["id"]})
+    drafts = [c for c in tools.calls if c[0] == "create_inquiry_draft"]
+    assert len(drafts) == 1 and drafts[0][1]["address_id"] == ADDR
+    assert woke["status"] == "WAITING_HUMAN" and woke["waiting_reason"] != "CONTACT_REGISTRATION_REQUIRED"
+    assert all(not c[0].startswith("approve") for c in tools.calls)
