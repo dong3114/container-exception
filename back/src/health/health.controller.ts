@@ -1,4 +1,5 @@
 import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { DatabaseHealth } from '../db/database.module.js';
@@ -16,6 +17,8 @@ interface HealthBody {
  * - `GET /health`      : 앱 + DB. DB 가 안 되면 503 `degraded`
  */
 @ApiTags('health')
+// 사람 로그인 Guard 밖: 상태 확인
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(

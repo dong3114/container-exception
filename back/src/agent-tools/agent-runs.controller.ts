@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import { ApiBody, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AgentToolsService } from './agent-tools.service.js';
 import { AgentCoordinator } from './coordinator.js';
@@ -40,6 +41,7 @@ export class AgentRunsController {
     return this.tools.runtimeStatus();
   }
 
+  @RequirePermission('agent_run.manage')
   @Post()
   @ApiOperation({ summary: 'Start an agent run bound to one recovery run (the scope every tool call is checked against)' })
   @ApiHeader(ACTOR)
@@ -68,6 +70,7 @@ export class AgentRunsController {
     return this.coordinator.view(agentRunId);
   }
 
+  @RequirePermission('agent_run.manage')
   @Post(':agentRunId/start')
   @HttpCode(200)
   @ApiOperation({ summary: 'Start the graph of a CREATED run (runs until it waits or ends). Starting twice returns the current state — never a second graph.' })
@@ -78,6 +81,7 @@ export class AgentRunsController {
     return this.coordinator.start(agentRunId, actor);
   }
 
+  @RequirePermission('agent_run.manage')
   @Post(':agentRunId/resume')
   @HttpCode(200)
   @ApiOperation({ summary: 'Resume a waiting run (normally the backend does this when the awaited event happens). Not waiting = no-op.' })
@@ -89,6 +93,7 @@ export class AgentRunsController {
     return this.coordinator.resumeByHuman(agentRunId, actor, body);
   }
 
+  @RequirePermission('agent_run.manage')
   @Post(':agentRunId/cancel')
   @HttpCode(200)
   @ApiOperation({ summary: 'Cancel an active agent run — its tool calls stop being accepted' })

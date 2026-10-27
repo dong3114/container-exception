@@ -103,3 +103,5 @@ export const PLAN_STATUS = ['PROPOSED', 'APPROVED', 'SUPERSEDED', 'OUTDATED', 'I
 export const SOLVER_STATUS = ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'TIME_LIMIT', 'ERROR'] as const;
 export const PLAN_ACTION = ['KEEP_CURRENT_PLAN', 'MOVE_TO_WAREHOUSE', 'MOVE_TO_ODCY', 'WAIT_AT_TERMINAL'] as const;
 export const AGENT_STEP_KIND =['START', 'NODE', 'INTERRUPT', 'RESUME', 'TERMINAL'] as const;
+// M24 사용자 역할(T-119 · docs/03 1절 행위자). 권한 표는 back/src/auth/permissions.ts 한 곳
+export const USER_ROLE = ['ADMIN', 'OPERATOR', 'FIELD_OPERATOR'] as const;

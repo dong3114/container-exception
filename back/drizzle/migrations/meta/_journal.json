@@ -162,6 +162,20 @@
       "when": 1793001359671,
       "tag": "0022_m23_recovery_plan_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793065105944,
+      "tag": "0023_m24_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793065107084,
+      "tag": "0024_m25_auth_guards",
+      "breakpoints": true
     }
   ]
 }

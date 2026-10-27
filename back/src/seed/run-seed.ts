@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { loadDotEnvIfPresent, parseEnv } from '../config/env.js';
 import { DEFAULT_DATA_PACK } from './slice1-fixture.js';
 import { SeedModule } from './seed.module.js';
+import { SeedUsers, seedNow } from './seed-users.js';
 import { Slice1Seed } from './slice1-seed.js';
 
 /**
@@ -19,6 +20,8 @@ async function main(): Promise<void> {
   try {
     const summary = await app.get(Slice1Seed).apply(process.argv[2] ?? DEFAULT_DATA_PACK);
     console.log(`Seed applied: inserted=${summary.inserted} capacity_event_created=${summary.capacityEventCreated}`);
+    const users = await app.get(SeedUsers).apply(seedNow());
+    console.log(`Seed users created: ${users.length ? users.join(', ') : 'none (already present, or CERA_SEED_*_PASSWORD empty)'}`);
   } finally {
     await app.close();
   }

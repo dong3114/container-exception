@@ -67,6 +67,18 @@ export const envSchema = z.object({
   // 화해 조회가 훑는 보낸 편지함 범위(일) · 수신 폴링이 보는 스레드(마지막 활동이 이 일수 안) [ASSUMPTION]
   CERA_GMAIL_LOOKUP_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   CERA_GMAIL_INBOUND_THREAD_DAYS: z.coerce.number().int().min(1).max(365).default(14),
+  // ── 사람 로그인 · 권한(T-119) ──
+  // session(기본) = 로그인 세션이 사람 행위자를 정한다. 요청 헤더 X-CERA-Actor-Id 는 무시되고 세션 사용자로 덮어쓴다(사칭 방지).
+  // dev-header = 개발 · 시험 전용 옛 방식(헤더의 HUMAN actor 를 믿는다). local · test 에서만 허용
+  CERA_AUTH_MODE: z.enum(['session', 'dev-header']).default('session'),
+  // 세션 수명(분, 기본 12시간) [ASSUMPTION] — 지나면 다시 로그인. 세션 토큰은 DB 에 지문만 저장한다
+  CERA_SESSION_TTL_MINUTES: z.coerce.number().int().min(5).max(10_080).default(720),
+  // 세션 쿠키에 Secure(HTTPS 전용)를 붙일지. production 은 항상 true(아래 refine)
+  CERA_SESSION_COOKIE_SECURE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // 개발 시드 사용자 비밀번호(local · test 의 db:seed 만 읽는다, 12자 이상). 비어 있으면 그 사용자는 만들지 않는다. 실제 값은 커밋 금지
+  CERA_SEED_ADMIN_PASSWORD: optionalSecret,
+  CERA_SEED_OPERATOR_PASSWORD: optionalSecret,
+  CERA_SEED_FIELD_PASSWORD: optionalSecret,
   // Worker 폴링 주기 — 기본 5초 [ASSUMPTION](docs/24 14 결정 7)
   CERA_OUTBOX_POLL_MS: z.coerce.number().int().min(200).max(600_000).default(5_000),
   // 일시 실패 재시도: 최대 시도 수 · 첫 간격(지수 백오프, 상한 10분) [ASSUMPTION](docs/18 H.3)
@@ -117,6 +129,11 @@ export const envSchema = z.object({
   if (e.APP_ENV === 'production' && e.CERA_PUBLIC_DATA_MODE === 'replay') fail('CERA_PUBLIC_DATA_MODE', 'replay is not allowed in production');
   if (e.CERA_PUBLIC_DATA_MODE === 'live' && !e.UNIPASS_API_KEY && !e.DATA_GO_KR_SERVICE_KEY) {
     fail('CERA_PUBLIC_DATA_MODE', 'live needs UNIPASS_API_KEY or DATA_GO_KR_SERVICE_KEY');
+  }
+  if (e.CERA_AUTH_MODE === 'dev-header' && e.APP_ENV !== 'local' && e.APP_ENV !== 'test') fail('CERA_AUTH_MODE', 'dev-header is allowed only in local or test');
+  if (e.APP_ENV === 'production' && !e.CERA_SESSION_COOKIE_SECURE) fail('CERA_SESSION_COOKIE_SECURE', 'session cookies must be Secure in production');
+  for (const k of ['CERA_SEED_ADMIN_PASSWORD', 'CERA_SEED_OPERATOR_PASSWORD', 'CERA_SEED_FIELD_PASSWORD'] as const) {
+    if (e[k] && e[k].length < 12) fail(k, 'seed passwords need at least 12 characters');
   }
   if (e.CERA_GMAIL_ENABLED) {
     for (const k of ['GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN', 'GMAIL_ACCOUNT_EMAIL'] as const) {

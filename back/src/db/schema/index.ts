@@ -13,3 +13,4 @@ export * from './m14-public-data.js';
 export * from './m16-agent.js';
 export * from './m18-agent-runtime.js';
 export * from './m22-recovery-plan.js';
+export * from './m24-auth.js';

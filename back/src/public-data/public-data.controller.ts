@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -68,6 +69,7 @@ export class PublicDataController {
     return this.publicData.status();
   }
 
+  @RequirePermission('public_data.fetch')
   @Post('vessel-calls/fetch')
   @HttpCode(200)
   @ApiOperation({ summary: 'DS-03: fetch Busan vessel calls for a date range (arrival basis), keep the raw response, register vessel calls and record PUBLIC_API events' })
@@ -84,6 +86,7 @@ export class PublicDataController {
     return this.publicData.fetchVesselCalls({ from: parsed.data.from, to: parsed.data.to, callSign: parsed.data.call_sign ?? null }, actor);
   }
 
+  @RequirePermission('public_data.fetch')
   @Post('vessel-calls/:vesselCallId/manifest/fetch')
   @HttpCode(200)
   @ApiOperation({ summary: 'DS-02: fetch the import container manifest of one registered vessel call (B/L ↔ container · ISO size type)' })

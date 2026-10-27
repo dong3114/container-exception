@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import { ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiForbiddenResponse, ApiHeader, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { eq } from 'drizzle-orm';
 import { DATABASE, type Database } from '../db/database.js';
@@ -73,6 +74,7 @@ export class PlanningController {
     return { case_run_id: runId, current_plan_id: current?.planId ?? null, plans: plans.map(toPlanSummary) };
   }
 
+  @RequirePermission('plan.recalculate')
   @Post('runs/:runId/plans')
   @HttpCode(200)
   @ApiOperation({ summary: 'Recalculate (operator): run the cost engine and solver on current facts and store a new PROPOSED version — the same inputs return the current version' })
@@ -97,6 +99,7 @@ export class PlanningController {
     return this.dto(planId);
   }
 
+  @RequirePermission('plan.approve')
   @Post('plans/:planId/approve')
   @HttpCode(200)
   @ApiOperation({ summary: 'Approve a PROPOSED plan (a human only, quoting plan_hash). Approval is not dispatch — nothing is sent or booked' })

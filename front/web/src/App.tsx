@@ -1,5 +1,6 @@
 import { ControlTower } from "@/components/ControlTower";
 import DemoPage from "./app/demo/DemoPage";
+import { LoginGate } from "./app/LoginGate";
 import DevApiPage from "./app/dev/api/page";
 
 /**
@@ -9,6 +10,6 @@ import DevApiPage from "./app/dev/api/page";
 export function App() {
   const path = window.location.pathname.replace(/\/+$/, "");
   if (path === "/dev/api") return <DevApiPage />;
-  if (path === "/demo") return <DemoPage />;
-  return <ControlTower />;
+  if (path === "/demo") return <LoginGate><DemoPage /></LoginGate>;
+  return <LoginGate><ControlTower /></LoginGate>;
 }

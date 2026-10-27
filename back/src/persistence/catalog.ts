@@ -57,11 +57,16 @@ export const AUDIT_ACTION = {
   PLAN_PROPOSED: 'PLAN_PROPOSED',
   PLAN_APPROVED: 'PLAN_APPROVED',
   PLAN_OUTDATED: 'PLAN_OUTDATED',
+  // T-119 사람 로그인 · 사용자 관리(누가 언제 들어오고 나갔나 · 누가 누구의 역할을 바꿨나)
+  AUTH_LOGIN: 'AUTH_LOGIN',
+  AUTH_LOGOUT: 'AUTH_LOGOUT',
+  USER_CREATED: 'USER_CREATED',
+  USER_UPDATED: 'USER_UPDATED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION] | `FACT_PROMOTION_BLOCKED_${string}`;
 
 /** 감사 대상 종류. 내용 파기 감사는 내용 범주를 그대로 쓴다(docs/24 16.3 · 17절). 승인 결정은 승인 행을 가리킨다. */
-export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN')[] = [
+export const AUDIT_TARGET_TYPES: readonly AuditTargetType[] = [
   ...CONTENT_CATEGORIES,
   'MESSAGE_APPROVAL',
   'COMM_MESSAGE',
@@ -71,8 +76,10 @@ export const AUDIT_TARGET_TYPES: readonly (ContentCategory | 'MESSAGE_APPROVAL' 
   'EXTRACTION',
   'EVENT',
   'RECOVERY_PLAN',
+  'USER_ACCOUNT',
+  'USER_SESSION',
 ];
-export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN';
+export type AuditTargetType = ContentCategory | 'MESSAGE_APPROVAL' | 'COMM_MESSAGE' | 'SEND_ATTEMPT' | 'RAW_INPUT' | 'PUBLIC_DATA_FETCH' | 'EXTRACTION' | 'EVENT' | 'RECOVERY_PLAN' | 'USER_ACCOUNT' | 'USER_SESSION';
 
 export const SYSTEM_ERROR_CATEGORY = {
   UNEXPECTED: 'UNEXPECTED',

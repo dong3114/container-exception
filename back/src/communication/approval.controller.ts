@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -41,6 +42,7 @@ export class ApprovalController {
     return this.approvals.approvers();
   }
 
+  @RequirePermission('communication.approve')
   @Post('drafts/:messageId/approve')
   @HttpCode(200)
   @ApiOperation({
@@ -63,6 +65,7 @@ export class ApprovalController {
     return this.approvals.approve(messageId, actor, body);
   }
 
+  @RequirePermission('communication.approve')
   @Post('drafts/:messageId/reject')
   @HttpCode(200)
   @ApiOperation({ summary: 'Reject a draft awaiting approval (reason required). Fix it by revising — a revision is a new message.' })
@@ -78,6 +81,7 @@ export class ApprovalController {
     return this.approvals.reject(messageId, actor, body);
   }
 
+  @RequirePermission('communication.approve')
   @Post('approvals/:approvalId/revoke')
   @HttpCode(200)
   @ApiOperation({ summary: 'Withdraw an approval that has not been used for sending (a new REVOKED row — the approval row is never edited)' })

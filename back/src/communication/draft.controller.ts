@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -27,6 +28,7 @@ const MESSAGE_ID = { name: 'messageId', required: true, schema: { type: 'string'
 export class DraftController {
   constructor(@Inject(DraftService) private readonly drafts: DraftService) {}
 
+  @RequirePermission('communication.draft')
   @Post('drafts')
   @HttpCode(201)
   @ApiOperation({ summary: 'Create an inquiry draft: Contact Gate → thread · question · structured values · template message · number check' })
@@ -57,6 +59,7 @@ export class DraftController {
     return this.drafts.get(messageId);
   }
 
+  @RequirePermission('communication.draft')
   @Post('drafts/:messageId/revisions')
   @HttpCode(201)
   @ApiOperation({

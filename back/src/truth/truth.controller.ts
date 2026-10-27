@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -50,6 +51,7 @@ export class TruthController {
     return this.query.forRun(runId, asOf);
   }
 
+  @RequirePermission('truth.review')
   @Post('events/:eventId/revoke')
   @HttpCode(200)
   @ApiOperation({ summary: 'Withdraw a value without a replacement (a human only): it — and every older value of this fact — stops being the current fact; nothing is deleted' })
@@ -66,6 +68,7 @@ export class TruthController {
     return this.actions.revoke(eventId, actor, body, asOf);
   }
 
+  @RequirePermission('truth.manual_entry')
   @Post('facts/manual')
   @HttpCode(200)
   @ApiOperation({ summary: 'An operator enters a fact they confirmed directly (phone, visit …) — no AI candidate. CONFIRMED at once (human input) with its source note and audit' })
@@ -81,6 +84,7 @@ export class TruthController {
     return this.actions.enter(actor, body, asOf);
   }
 
+  @RequirePermission('truth.review')
   @Post('events/:eventId/confirm')
   @HttpCode(200)
   @ApiOperation({ summary: 'Confirm a candidate value (VERIFICATION · CONFIRM by a human). The value becomes CONFIRMED; nothing else changes' })
@@ -97,6 +101,7 @@ export class TruthController {
     return this.actions.confirm(eventId, actor, body, asOf);
   }
 
+  @RequirePermission('truth.review')
   @Post('events/:eventId/reject')
   @HttpCode(200)
   @ApiOperation({ summary: 'Reject a candidate value (VERIFICATION · REJECT by a human, reason required). It leaves the judgement; the event stays on record' })
@@ -113,6 +118,7 @@ export class TruthController {
     return this.actions.reject(eventId, actor, body, asOf);
   }
 
+  @RequirePermission('truth.review')
   @Post('events/:eventId/correct')
   @HttpCode(200)
   @ApiOperation({ summary: 'Correct a candidate value: the old event is superseded (kept on record) and the operator’s value becomes a new CONFIRMED event' })

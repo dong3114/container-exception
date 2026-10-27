@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Put, Query, Res } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AgentRuntimeService } from './agent-runtime.service.js';
@@ -12,6 +13,8 @@ const RUN = { name: 'agentRunId', required: true, schema: { type: 'string' as co
  */
 @ApiTags('internal-agent-runtime')
 @ApiBearerAuth()
+// 사람 로그인 Guard 밖: Agent 서비스 토큰(Bearer)을 서비스가 따로 검사한다 — 사람 세션으로는 못 부른다
+@Public()
 @Controller('internal/agent-runtime/runs/:agentRunId')
 export class AgentRuntimeController {
   constructor(@Inject(AgentRuntimeService) private readonly runtime: AgentRuntimeService) {}

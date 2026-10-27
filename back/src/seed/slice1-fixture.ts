@@ -9,6 +9,12 @@ export const SEED_IDS = {
   actorOperator: '01a0fb92-9b65-7540-b184-603086bde57f',
   // T-103: Agent Tool 의 행위자(AI_AGENT). 승인 · 발송 권한 없음 — DB 가 승인 결정을 HUMAN 으로 막는다
   actorAgent: '01a1a4c0-7e10-7a3b-9c21-5d0f00a0b103',
+  // T-119: 로그인 사용자(비밀번호는 .env 의 CERA_SEED_*_PASSWORD — 비어 있으면 만들지 않는다). operator 는 위 actorOperator 에 붙는다
+  actorAdmin: '01a1b200-1190-7a19-8119-0a0000000119',
+  actorField: '01a1b200-1190-7a19-8119-0f0000000119',
+  userAdmin: '01a1b200-1190-7a19-8119-1a0000000119',
+  userOperator: '01a1b200-1190-7a19-8119-1b0000000119',
+  userField: '01a1b200-1190-7a19-8119-1f0000000119',
   counterpartyTrucking: '01a0fb92-9b65-7540-b184-67031c74f472',
   counterpartyOdcy: '01a0fb92-9b65-7540-b184-681786542a58',
   contactTrucking: '01a0fb92-9b65-7540-b184-6e6d97931077',

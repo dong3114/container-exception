@@ -1,4 +1,5 @@
 import { Body, Controller, Headers, HttpCode, Inject, Param, Post } from '@nestjs/common';
+import { RequirePermission } from '../auth/auth.decorators.js';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -26,6 +27,7 @@ const ERROR_SCHEMA = { $ref: '#/components/schemas/ErrorResponse' };
 export class SendController {
   constructor(@Inject(SendService) private readonly sends: SendService) {}
 
+  @RequirePermission('communication.send')
   @Post('drafts/:messageId/send')
   @HttpCode(200)
   @ApiOperation({

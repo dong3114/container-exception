@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Res } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AgentToolsService } from './agent-tools.service.js';
@@ -33,6 +34,8 @@ const ENVELOPE = {
 @ApiTags('internal-agent-tools')
 @ApiBearerAuth()
 @ApiExtraModels()
+// 사람 로그인 Guard 밖: Agent 서비스 토큰(Bearer)을 서비스가 따로 검사한다 — 사람 세션으로는 못 부른다
+@Public()
 @Controller('internal/agent-tools')
 export class AgentToolsController {
   constructor(@Inject(AgentToolsService) private readonly tools: AgentToolsService) {}

@@ -478,10 +478,11 @@
 - 결과: Mock 과 같은 포트의 Gmail 어댑터(발송 · 화해 · 알려진 스레드만 수신 · RFC822 원문 보존 · 인용 제거 · 오류 분류) · `npm run gmail:auth` · `npm run gmail:tech-validation` · Agent 주소 선택 = 실행의 Mock/Real 과 맞는 주소만. 정본 `docs/18` G.8
 
 ### T-119: Authentication / RBAC (스프린트 2 — T-098 의 인증 · 역할 부분)
-- 상태: TODO | 우선: P0 | 의존: — | 목표: 로그인 · 세션 · 역할(ADMIN · OPERATOR · FIELD_OPERATOR) · Backend 권한 강제 · `X-CERA-Actor-Id` 는 local/test 전용
+- 상태: **DONE (2026-10-27, 커밋 · push)** | 우선: P0 | 담당: Claude Code / 2026-10-27
+- 결과: Backend 세션 · scrypt · 전역 Guard(선언 없는 변경 요청 거부) · 역할 3 · 헤더 사칭 차단 · 사용자 관리 API · M24 · M25 · 최소 로그인 화면. 정본 `docs/24` 18.18
 
 ### T-120: Control Tower UI 전면 정리 (스프린트 3 — T-098 의 화면 부분)
-- 상태: TODO | 우선: P0 | 의존: T-119 | 목표: 정보 구조 · 내비게이션 · 처리할 일 모음 · 계획 · 사실 · 통신 · Agent 화면
+- 상태: TODO | 우선: **P2(2026-10-27 사용자 지시 — 디자인은 사용자가 직접. 기능 검증에 필요한 최소 화면만)** | 의존: T-119 | 목표: 정보 구조 · 내비게이션 · 처리할 일 모음 · 계획 · 사실 · 통신 · Agent 화면
 
 ### T-121: Redis execution queue (스프린트 4)
 - 상태: TODO | 우선: P1 | 의존: — | 목표: 빠른 전달 · 지연 재시도 · 깨우기. PostgreSQL 이 정본, Redis 가 없어도 재조정으로 정확

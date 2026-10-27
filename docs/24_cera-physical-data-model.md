@@ -1014,6 +1014,17 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **Docker E2E(별도 프로젝트 `cera-e2e`, AI 녹화 재생 · 실제 API · Worker · Python Runtime · PostgreSQL)** — 사람 직접 입력 5(창고 A 8 · 내일 11 · 창고 B 10 · ODCY A 4 · ODCY B 6) → Agent(계획까지) → K운송 문의 → 승인 · 발송 → Mock 회신 "오후 3시 이후 차량 4대" → PROVISIONAL → **v1 PROPOSED 5,735,000(Baseline 7,220,000 · 절감 1,485,000, 회신 → v1 6초)** → 사람 확인 → v1 OUTDATED(FACT_STATE_CHANGED) → Agent 깨어남 → **v2(4초)** → ODCY A 정정 4 → 2(CORRECTION) → v2 OUTDATED(FACT_SUPERSEDED) → **v3 5,835,000(ODCY A 2대, 4초)** → 사람 승인 → Agent COMPLETED `PLAN_APPROVED`. Tool 시간: 비용 17~38 ms · Solver 320~633 ms · 제안 319~394 ms. 첫 시도에서는 ODCY A 를 "새 직접 입력" 으로 바꿨고, 5분 안 두 사람 값이 R6 충돌(NEEDS_REVIEW)이 되어 v3 가 ODCY A 를 쓰지 않았다(규칙대로 — 충돌 사실 제외 경로 확인). 브라우저(Edge): 계획 패널 · 판 목록 · 펼친 비용 내역 · 대안 확인, 페이지 오류 0
 - **남은 것 · 한계**: 다음 날 트럭(대기 후 직송 · ODCY→창고) · ODCY 일별 점유 · 개별 트럭 동선(2단계, ADR-009)은 모델 밖. 실제 계획 실행의 컨테이너 연결(공공데이터 컨테이너 → 계획)은 없다. 승인된 계획 → 문의 · 배차는 없다(승인 ≠ 실행). 벌점 값 · 협력 회신 해석은 [ASSUMPTION] — 관측 후 조정
 
+### 18.18 T-119 Authentication / RBAC 구현 확인 결과 (2026-10-27)
+
+- **방식** — Backend 관리 세션. `POST /auth/login`(login_id · password) → 32바이트 난수 토큰을 HttpOnly · SameSite=Strict 쿠키로, DB(`user_session`)에는 sha256 지문만. 서명 비밀키 · JWT 없음. 비밀번호는 Node 내장 scrypt(`scrypt$N$r$p$salt$hash`). 로그인 실패 사유는 하나(`INVALID_CREDENTIALS`), 계정별 15분 5회 제한(프로세스 메모리 [ASSUMPTION]). 로그아웃 · 역할/활성/비밀번호 변경 → 그 사용자의 세션 전부 끊김
+- **역할 · 권한(정본 `back/src/auth/permissions.ts`)** — ADMIN = 모든 운영 + `users.manage` · `registry.manage` / OPERATOR = `agent_run.manage` · `communication.draft/approve/send` · `truth.review` · `truth.manual_entry` · `plan.recalculate/approve` · `public_data.fetch` · `read` / FIELD_OPERATOR = `read` · `truth.manual_entry` 만
+- **강제** — 전역 Guard. 경로마다 `@RequirePermission` 선언, GET 기본 `read`, **선언 없는 변경 요청은 403 `PERMISSION_NOT_DECLARED`**(실수로 열린 경로 방지). 신원 없음 → 401 `AUTH_REQUIRED`, 역할 부족 → 403 `PERMISSION_DENIED`
+- **사칭 방지** — `CERA_AUTH_MODE=session`(기본): 미들웨어가 요청의 `X-CERA-Actor-Id` 를 지우고 세션 사용자의 actor id 로 다시 채운다 → 기존 서비스 · 감사 기록이 읽는 행위자는 언제나 서버가 정한 값. `dev-header`(옛 개발 방식)는 local · test 에서만(env 검사)
+- **분리** — Agent 는 서비스 토큰(Bearer)으로 `/internal/*` 만, 사람 세션으로는 Agent Tool 을 못 부르고 토큰으로 로그인할 수 없다. Worker 는 SYSTEM actor. 계정은 HUMAN actor 에만(M25 트리거 CE005)
+- **DB** — M24 `user_account` · `user_session`(22.46 · 22.47) · M25 가드(22.48). 시드 사용자 admin · operator · field — 비밀번호는 `back/.env` 의 `CERA_SEED_*_PASSWORD`(저장소에 없음, 비면 만들지 않음). operator 는 기존 시드 "운영자 (가상)" actor 에 붙는다
+- **시험** — `test/db/auth.test.ts` 27(로그인 · 쿠키 속성 · 지문 저장 · 잘못된 비밀번호 = 없는 계정 · 5회 제한 429 · 세션 없음 401 · 만료/가짜 토큰 · 로그아웃 · 헤더만으로 401 · 현장 담당자가 관리자 주장해도 403 · 역할 표 11경로 × 현장 403/운영자 통과 · 사용자 관리 ADMIN 만 · 생성/역할 변경 → 세션 끊김/비활성 · 중복 409 · 자기 강등 금지 · 서비스/사람 인증 분리 · DB 가드). 화면은 최소 로그인 관문(`front/web/src/app/LoginGate.tsx`)만. 브라우저 `/demo` 11단계를 operator 로그인으로 통과
+- **한계** — 등록부 변경 API(`registry.manage`)는 아직 없다(권한만 정의). 실패 횟수 제한은 인스턴스별 메모리. 비밀번호 재설정 메일 · MFA 없음
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).
@@ -2491,6 +2502,50 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - `fk_recovery_plan__superseded_by_plan_id` 를 DEFERRABLE INITIALLY DEFERRED 로 바꾼다
 
 ---
+
+### 22.46 `user_account` — 사람 로그인 계정 **(M24 · T-119)**
+
+- 논리: `MASTER`(사람 행위자의 로그인 수단) · 그룹 **A 기반** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: `user_id`. 계정 하나 = HUMAN actor 하나(UNIQUE actor_id) — 승인 · 확인 · 감사가 가리키는 주체는 여전히 `actor` 다. AI_AGENT · SYSTEM 은 계정을 가질 수 없다(M25 트리거)
+- 변경 방식: 삽입 · 역할 · 비밀번호 해시 · 활성 · 갱신 시각만 갱신(M25). 삭제 없음(비활성으로 끈다)
+- 비밀번호는 scrypt 해시만(`back/src/auth/password.ts`). 평문 · 되돌릴 수 있는 값은 저장하지 않는다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `user_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT · UNIQUE · HUMAN 만(M25) |
+| 3 | `login_id` | STRING(60) | `varchar(60)` | NOT NULL | — | `varchar({ length: 60 })` | UNIQUE · 소문자 `^[a-z0-9][a-z0-9._@-]{2,59}$` |
+| 4 | `role` | CODE | `text` | NOT NULL | — | `text()` | IN (ADMIN, OPERATOR, FIELD_OPERATOR) — 권한 표 `back/src/auth/permissions.ts` |
+| 5 | `password_hash` | STRING(200) | `varchar(200)` | NOT NULL | — | `varchar({ length: 200 })` | 형식 `scrypt$N$r$p$salt$hash` |
+| 6 | `is_active` | BOOLEAN | `boolean` | NOT NULL | `true` | `boolean().default(true)` | 끄면 로그인 · 세션 불가 |
+| 7 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 8 | `updated_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | >= created_at |
+
+- **UNIQUE**: (actor_id) · (login_id)
+
+### 22.47 `user_session` — 로그인 세션 **(M24 · T-119)**
+
+- 논리: `TECHNICAL`(인증 상태 — 업무 사실 아님) · 그룹 **A 기반** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: `session_id`. 토큰은 32바이트 난수 — 브라우저에는 HttpOnly · SameSite=Strict 쿠키로만, DB 에는 sha256 지문만(DB 를 읽어도 세션을 쓸 수 없다, 서명 비밀키 불필요)
+- 변경 방식: 삽입 · 끊기(revoked_at NULL → 값) 한 번만(M25). 삭제 없음. 로그아웃 · 역할/활성/비밀번호 변경이 끊는다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `session_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `user_id` | REF(user_account) | `uuid` | NOT NULL | — | `uuid()` | FK user_account · RESTRICT |
+| 3 | `token_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` · UNIQUE |
+| 4 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 5 | `expires_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | > created_at (CERA_SESSION_TTL_MINUTES) |
+| 6 | `revoked_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | >= created_at · 한 번만 채움 |
+
+- **UNIQUE**: (token_hash)
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (user_id)
+
+### 22.48 M25 로그인 가드 · 권한 **(T-119)**
+
+- `user_account`: 삽입 시 actor 가 HUMAN 인지(CE005) · 열 가드(역할 · 비밀번호 해시 · 활성 · 갱신 시각만) · 삭제 · TRUNCATE 금지
+- `user_session`: 갱신은 끊기 한 번만(CE003) · 열 가드(revoked_at 만) · 삭제 · TRUNCATE 금지
+- 권한: cera_app = 두 표 모두 SELECT · INSERT · UPDATE
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

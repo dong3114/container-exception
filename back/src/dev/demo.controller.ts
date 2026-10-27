@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Inject, Post } from '@nestjs/common';
+import { Public, RequirePermission } from '../auth/auth.decorators.js';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CHANNEL_ADAPTERS } from '../channel/channel-adapter.js';
@@ -37,6 +38,7 @@ export class DemoController {
     @Inject(DATABASE) private readonly db: Database,
   ) {}
 
+  @Public() // 로그인 전에도 시연 환경을 점검할 수 있게(local · test 에만 붙는 경로)
   @Get('status')
   async status() {
     let aiServer: 'up' | 'down' = 'down';
@@ -73,6 +75,7 @@ export class DemoController {
     };
   }
 
+  @RequirePermission('communication.draft')
   @Post('mock-reply')
   @HttpCode(200)
   async mockReply(@Body() body: unknown) {
