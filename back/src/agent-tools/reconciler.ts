@@ -10,6 +10,7 @@ import { AgentCoordinator } from './coordinator.js';
 import { RuntimeStoreRepository } from './runtime-store.repository.js';
 import { planWakeReason, wakeReason } from './wake-rules.js';
 import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
+import { RegistryService } from '../registry/registry.service.js';
 
 /** 값이 생긴 사실 상태(회신 검토 대기를 깨운다 — T-124). STALE · REVOKED · UNKNOWN 은 값이 없다 */
 const VALUE_STATES: readonly string[] = ['CONFIRMED', 'OBSERVED', 'PROVISIONAL', 'NEEDS_REVIEW'];
@@ -45,12 +46,13 @@ export class AgentReconciler implements OnModuleInit {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ENV) private readonly env: Env,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
+    @Inject(RegistryService) private readonly registry: RegistryService,
   ) {}
 
   /** 수신 · 추출 알림(Worker 프로세스) → 바로 한 번 더 재조정. 이미 도는 중이면 끝난 뒤 한 번 더. 승인 알림은 Coordinator 가 직접 받는다. */
   onModuleInit(): void {
     this.signals.subscribe((s: DomainSignal) => {
-      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED' && s.type !== 'FACT_CHANGED' && s.type !== 'PLAN_CHANGED') return;
+      if (s.type !== 'INBOUND_REPLY_RECEIVED' && s.type !== 'REPLY_EXTRACTED' && s.type !== 'FACT_CHANGED' && s.type !== 'PLAN_CHANGED' && s.type !== 'REGISTRY_CHANGED') return;
       this.kick();
     });
   }
@@ -104,14 +106,21 @@ export class AgentReconciler implements OnModuleInit {
       }
       if ((w.pendingRefType === 'FACILITY' || w.pendingRefType === 'TRUCK_POOL') && w.pendingRefId) {
         // 물어볼 연락처가 없어 사람을 기다리는 실행(운영 준비) — 그 주체의 공백이 더는 열려 있지 않으면(사람이 값을 넣음 · 다른 경로로 앎) 깨운다.
-        // 연락처를 등록 · 선택한 뒤에는 운영자가 [다시 확인](resume)한다 — 등록부 변경은 공백 상태를 바꾸지 않는다
+        // T-127: 연락처가 없어 기다리던 실행은 그 주체의 주인(운영 거래처 · 풀 소유 운송사)에게 이 실행이 쓸 수 있는 적격 주소가 생기면 깨운다.
+        // 깨어난 그래프가 Tool 로 등록부를 다시 읽는다 — 하나면 초안, 둘 이상이면 CONTACT_SELECTION_REQUIRED(사람이 고른다 · 다시 깨우지 않는다)
         summary.checked += 1;
         const recoveryRunId = await this.store.recoveryRunOf(w.agentRunId);
         if (!recoveryRunId) continue;
         const gaps = await this.context.informationGaps(recoveryRunId).catch(() => null);
         if (!gaps) continue;
-        const open = gaps.gaps.some((g) => g.subject_id === w.pendingRefId && (g.state === 'MISSING' || g.state === 'NEEDS_REFRESH'));
-        if (open) continue;
+        const openGap = gaps.gaps.find((g) => g.subject_id === w.pendingRefId && (g.state === 'MISSING' || g.state === 'NEEDS_REFRESH'));
+        if (openGap) {
+          if (w.waitingReason !== 'CONTACT_REGISTRATION_REQUIRED' || !openGap.owner_counterparty_id) continue;
+          if (!(await this.ownerReachable(openGap.owner_counterparty_id, recoveryRunId))) continue;
+          const r = await this.coordinator.resume(w.agentRunId, 'REGISTRY_CHANGED', { type: w.pendingRefType, id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
+          if (r && !r.already) summary.woken += 1;
+          continue;
+        }
         const r = await this.coordinator.resume(w.agentRunId, 'GAP_STATE_CHANGED', { type: w.pendingRefType, id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
         if (r && !r.already) summary.woken += 1;
         continue;
@@ -146,6 +155,13 @@ export class AgentReconciler implements OnModuleInit {
       out.push({ awaitingConfirmation: live.state === 'PROVISIONAL', hasValue: VALUE_STATES.includes(live.state) });
     }
     return out;
+  }
+
+  /** 주인 거래처에 이 실행이 쓸 수 있는 적격 주소(Contact Gate 통과 · 실행의 Mock/Real 과 같은 종류)가 하나라도 있는가 — find_counterparty 와 같은 규칙 */
+  private async ownerReachable(counterpartyId: string, recoveryRunId: string): Promise<boolean> {
+    const simulated = (await this.context.run(recoveryRunId)).containsSimulated;
+    const party = (await this.registry.listCounterparties()).counterparties.find((c) => c.counterparty_id === counterpartyId && c.is_active);
+    return !!party?.contacts.some((p) => p.is_active && p.addresses.some((a) => a.eligible && a.is_simulated === simulated));
   }
 
   private warn(agentRunId: string, error: unknown): null {

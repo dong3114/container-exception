@@ -19,6 +19,8 @@ export type DomainSignal =
   | { type: 'SEND_RETRY_SCHEDULED'; messageId: string; delayMs: number; attempt: number }
   | { type: 'MESSAGE_SENT'; messageId: string }
   // T-123: 운영 기록(컨테이너 계획 정보 · 요율 · 시설 계획 정보)이 바뀌었다 — 그 기록에 기댄 계획 판을 다시 본다(OUTDATED)
+  // T-127: 등록부가 바뀌었다(거래처 · 연락처 추가 · 주소 승인) — 연락처를 기다리던 Agent 실행을 다시 본다(정확성은 재조정)
+  | { type: 'REGISTRY_CHANGED'; counterpartyId: string }
   | { type: 'OPERATIONAL_INPUT_CHANGED'; kind: 'CONTAINERS' | 'RATES' | 'FACILITY_PROFILES'; recoveryRunId: string | null };
 
 export const DOMAIN_SIGNALS = Symbol('CERA_DOMAIN_SIGNALS');

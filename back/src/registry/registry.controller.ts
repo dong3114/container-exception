@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiForbiddenResponse, ApiHeader, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Patch, Post } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiHeader, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
 import { RequirePermission } from '../auth/auth.decorators.js';
-import { ContactEligibilityDto, CounterpartyListDto, FacilityListDto, FacilitySummaryDto, SetFacilityOperatorRequestDto } from './dto.js';
+import { ContactEligibilityDto, CounterpartyListDto, CounterpartySummaryDto, CreateContactRequestDto, CreateCounterpartyRequestDto, FacilityListDto, FacilitySummaryDto, SetFacilityOperatorRequestDto } from './dto.js';
 import { RegistryService } from './registry.service.js';
 
 const ERROR_SCHEMA = { $ref: '#/components/schemas/ErrorResponse' };
@@ -43,6 +43,51 @@ export class RegistryController {
   @ApiUnprocessableEntityResponse({ description: 'ROLE_MISMATCH', schema: ERROR_SCHEMA })
   setFacilityOperator(@Param('facilityId') facilityId: string, @Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
     return this.registry.setFacilityOperator(facilityId, actor, body);
+  }
+
+  @RequirePermission('registry.manage')
+  @Post('counterparties')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'T-127: register a counterparty while runs are open. Same role + same name (case-insensitive) → 409' })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiBody({ type: CreateCounterpartyRequestDto })
+  @ApiCreatedResponse({ type: CounterpartySummaryDto })
+  @ApiBadRequestResponse({ description: 'INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'COUNTERPARTY_ALREADY_REGISTERED', schema: ERROR_SCHEMA })
+  createCounterparty(@Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.createCounterparty(actor, body);
+  }
+
+  @RequirePermission('registry.manage')
+  @Post('counterparties/:counterpartyId/contacts')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'T-127: add a contact with one channel address. The address starts UNVERIFIED / relationship PENDING — it is never auto-approved; an administrator approves it separately. Same channel + normalized address → 409' })
+  @ApiParam({ name: 'counterpartyId', required: true, schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiBody({ type: CreateContactRequestDto })
+  @ApiCreatedResponse({ type: CounterpartySummaryDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_REGISTRY_REQUEST · INVALID_ADDRESS · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'ADDRESS_ALREADY_REGISTERED · COUNTERPARTY_INACTIVE', schema: ERROR_SCHEMA })
+  createContact(@Param('counterpartyId') counterpartyId: string, @Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.createContact(counterpartyId, actor, body);
+  }
+
+  @RequirePermission('registry.manage')
+  @Post('addresses/:addressId/approve')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'T-127: an administrator records that the address was confirmed outside CERA and approves the relationship (who · when are kept). Returns the Contact Gate verdict' })
+  @ApiParam({ name: 'addressId', required: true, schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiOkResponse({ type: ContactEligibilityDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'ADDRESS_NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'ADDRESS_REJECTED', schema: ERROR_SCHEMA })
+  approveAddress(@Param('addressId') addressId: string, @Headers('x-cera-actor-id') actor: string | undefined) {
+    return this.registry.approveAddress(addressId, actor);
   }
 
   @Get('addresses/:addressId/eligibility')

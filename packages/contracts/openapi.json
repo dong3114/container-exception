@@ -52,6 +52,77 @@
         "tags": [
           "registry"
         ]
+      },
+      "post": {
+        "operationId": "RegistryController_createCounterparty",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCounterpartyRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartySummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "COUNTERPARTY_ALREADY_REGISTERED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-127: register a counterparty while runs are open. Same role + same name (case-insensitive) → 409",
+        "tags": [
+          "registry"
+        ]
       }
     },
     "/registry/facilities": {
@@ -173,6 +244,180 @@
           }
         },
         "summary": "Set (or clear) the counterparty that operates a facility. Capacity inquiries and receiving requests go only to that counterparty — never to \"the first counterparty with this role\"",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
+    "/registry/counterparties/{counterpartyId}/contacts": {
+      "post": {
+        "operationId": "RegistryController_createContact",
+        "parameters": [
+          {
+            "name": "counterpartyId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartySummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_REGISTRY_REQUEST · INVALID_ADDRESS · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ADDRESS_ALREADY_REGISTERED · COUNTERPARTY_INACTIVE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-127: add a contact with one channel address. The address starts UNVERIFIED / relationship PENDING — it is never auto-approved; an administrator approves it separately. Same channel + normalized address → 409",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
+    "/registry/addresses/{addressId}/approve": {
+      "post": {
+        "operationId": "RegistryController_approveAddress",
+        "parameters": [
+          {
+            "name": "addressId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactEligibilityDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADDRESS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ADDRESS_REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-127: an administrator records that the address was confirmed outside CERA and approves the relationship (who · when are kept). Returns the Contact Gate verdict",
         "tags": [
           "registry"
         ]
@@ -4022,6 +4267,68 @@
         },
         "required": [
           "counterparty_id"
+        ]
+      },
+      "CreateCounterpartyRequestDto": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "source_role": {
+            "type": "string",
+            "enum": [
+              "TRUCKING",
+              "ODCY",
+              "WAREHOUSE",
+              "SHIPPING_LINE",
+              "TERMINAL"
+            ]
+          },
+          "org_code": {
+            "type": "string",
+            "maxLength": 30
+          }
+        },
+        "required": [
+          "display_name",
+          "source_role"
+        ]
+      },
+      "CreateContactRequestDto": {
+        "type": "object",
+        "properties": {
+          "person_name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "team": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "channel_type": {
+            "type": "string",
+            "enum": [
+              "GMAIL",
+              "MOCK"
+            ],
+            "description": "MOCK = simulated mailbox (scenario runs) · GMAIL = real channel (live runs)"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "E-mail address; stored trimmed and lower-cased"
+          }
+        },
+        "required": [
+          "person_name",
+          "channel_type",
+          "address"
         ]
       },
       "AddressStatusDto": {

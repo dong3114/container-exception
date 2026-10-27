@@ -46,7 +46,8 @@ export interface paths {
         /** Counterparties, contacts and addresses with the current send-eligibility verdict per address (FR-CPY-11) */
         get: operations["RegistryController_listCounterparties"];
         put?: never;
-        post?: never;
+        /** T-127: register a counterparty while runs are open. Same role + same name (case-insensitive) → 409 */
+        post: operations["RegistryController_createCounterparty"];
         delete?: never;
         options?: never;
         head?: never;
@@ -85,6 +86,40 @@ export interface paths {
         head?: never;
         /** Set (or clear) the counterparty that operates a facility. Capacity inquiries and receiving requests go only to that counterparty — never to "the first counterparty with this role" */
         patch: operations["RegistryController_setFacilityOperator"];
+        trace?: never;
+    };
+    "/registry/counterparties/{counterpartyId}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-127: add a contact with one channel address. The address starts UNVERIFIED / relationship PENDING — it is never auto-approved; an administrator approves it separately. Same channel + normalized address → 409 */
+        post: operations["RegistryController_createContact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registry/addresses/{addressId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-127: an administrator records that the address was confirmed outside CERA and approves the relationship (who · when are kept). Returns the Contact Gate verdict */
+        post: operations["RegistryController_approveAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/registry/addresses/{addressId}/eligibility": {
@@ -1023,6 +1058,24 @@ export interface components {
              * @description Counterparty id whose role matches the facility type (ODCY · WAREHOUSE), or null to clear
              */
             counterparty_id: string | null;
+        };
+        CreateCounterpartyRequestDto: {
+            display_name: string;
+            /** @enum {string} */
+            source_role: "TRUCKING" | "ODCY" | "WAREHOUSE" | "SHIPPING_LINE" | "TERMINAL";
+            org_code?: string;
+        };
+        CreateContactRequestDto: {
+            person_name: string;
+            team?: string;
+            note?: string;
+            /**
+             * @description MOCK = simulated mailbox (scenario runs) · GMAIL = real channel (live runs)
+             * @enum {string}
+             */
+            channel_type: "GMAIL" | "MOCK";
+            /** @description E-mail address; stored trimmed and lower-cased */
+            address: string;
         };
         AddressStatusDto: {
             /** Format: uuid */
@@ -2269,6 +2322,59 @@ export interface operations {
             };
         };
     };
+    RegistryController_createCounterparty: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCounterpartyRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterpartySummaryDto"];
+                };
+            };
+            /** @description INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description COUNTERPARTY_ALREADY_REGISTERED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     RegistryController_listFacilities: {
         parameters: {
             query?: never;
@@ -2352,6 +2458,130 @@ export interface operations {
             };
             /** @description ROLE_MISMATCH */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    RegistryController_createContact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                counterpartyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContactRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterpartySummaryDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_REGISTRY_REQUEST · INVALID_ADDRESS · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_ALREADY_REGISTERED · COUNTERPARTY_INACTIVE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    RegistryController_approveAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                addressId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactEligibilityDto"];
+                };
+            };
+            /** @description INVALID_ID · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_REJECTED */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

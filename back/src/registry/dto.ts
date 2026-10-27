@@ -170,3 +170,27 @@ export class FacilityListDto {
   @ApiProperty({ type: [FacilitySummaryDto] })
   facilities!: FacilitySummaryDto[];
 }
+
+/** T-127 거래처 등록 요청 */
+export class CreateCounterpartyRequestDto {
+  @ApiProperty({ type: String, maxLength: 100 })
+  display_name!: string;
+  @ApiProperty({ enum: COUNTERPARTY_ROLE })
+  source_role!: (typeof COUNTERPARTY_ROLE)[number];
+  @ApiProperty({ type: String, maxLength: 30, required: false })
+  org_code?: string;
+}
+
+/** T-127 연락처 + 주소 등록 요청. 주소는 UNVERIFIED · 관계 PENDING 으로 시작한다(자동 승인 없음) */
+export class CreateContactRequestDto {
+  @ApiProperty({ type: String, maxLength: 60 })
+  person_name!: string;
+  @ApiProperty({ type: String, maxLength: 60, required: false })
+  team?: string;
+  @ApiProperty({ type: String, maxLength: 200, required: false })
+  note?: string;
+  @ApiProperty({ enum: ['GMAIL', 'MOCK'], description: 'MOCK = simulated mailbox (scenario runs) · GMAIL = real channel (live runs)' })
+  channel_type!: 'GMAIL' | 'MOCK';
+  @ApiProperty({ type: String, maxLength: 200, description: 'E-mail address; stored trimmed and lower-cased' })
+  address!: string;
+}
