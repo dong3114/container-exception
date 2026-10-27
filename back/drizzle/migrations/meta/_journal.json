@@ -204,6 +204,20 @@
       "when": 1793078231426,
       "tag": "0028_m29_extraction_retry_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793082270169,
+      "tag": "0029_m30_planning_input",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793082271499,
+      "tag": "0030_m31_planning_input_guards",
+      "breakpoints": true
     }
   ]
 }

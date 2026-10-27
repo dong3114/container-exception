@@ -105,3 +105,11 @@ export const PLAN_ACTION = ['KEEP_CURRENT_PLAN', 'MOVE_TO_WAREHOUSE', 'MOVE_TO_O
 export const AGENT_STEP_KIND =['START', 'NODE', 'INTERRUPT', 'RESUME', 'TERMINAL'] as const;
 // M24 사용자 역할(T-119 · docs/03 1절 행위자). 권한 표는 back/src/auth/permissions.ts 한 곳
 export const USER_ROLE = ['ADMIN', 'OPERATOR', 'FIELD_OPERATOR'] as const;
+
+// M30 실제 계획 입력(T-123) — docs/24 22.53 ~ 22.57
+export const PLANNING_INPUT_KIND = ['CONTAINERS', 'RATES', 'FACILITY_PROFILES'] as const;
+export const PLANNING_INPUT_SOURCE = ['CSV', 'ROWS'] as const;
+export const OPERATIONAL_RECORD_STATUS = ['ACTIVE', 'WITHDRAWN'] as const;
+export const CONTAINER_PRIORITY = ['CRITICAL', 'HIGH', 'NORMAL'] as const;
+export const TARIFF_RATE_TYPE = ['DEMURRAGE_PER_DAY', 'TERMINAL_STORAGE_PER_DAY', 'DETENTION_FREE_DAYS', 'TRANSPORT', 'ODCY_HANDLING_IN_OUT', 'ODCY_STORAGE_PER_DAY'] as const;
+export const TARIFF_UNIT = ['KRW', 'DAY'] as const;

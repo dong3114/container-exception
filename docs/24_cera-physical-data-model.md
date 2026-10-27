@@ -1064,6 +1064,24 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 
 **실측 · 시험**: DB 시험 `back/test/db/extraction-retry.test.ts`(자동 2회 실패 → 사람 검토 → 권한 · 멱등 · 진행 중 409 → 사람 시도 실패(자동 재실행 없음) → 다시 요청 → 통과 후보 · 이전 실패 3건 유지 / 답 못 찾음 → 직접 입력 → `GAP_ALREADY_RESOLVED` / 옛 회신 `REPLY_SUPERSEDED` · 동시 요청 하나만 / append-only) · 단위 `extraction-status.test.ts` · `agent-wake-rules.test.ts` · Python `test_agent_graph.py`(사례 B · C · D, 계획 모드)
 
+### 18.23 T-123 실제 계획 입력 — 시나리오 없이 계산 (2026-10-27)
+
+배경: 시뮬레이션 실행은 시나리오 팩(합성 컨테이너 · 요율 · 자사 명부)으로 계산됐지만, 실제 실행은 기업 내부 정보(컨테이너 목적지 · 원래 배차 · LFD · 계약 요율 · 시설 계획 규칙 · 트럭)가 들어올 길이 없어 늘 `PLANNING_INPUT_UNAVAILABLE` 이었다(T-115). 공공 API 로는 이 값을 얻을 수 없다.
+
+- **입력 방식(`input_mode`) 둘 — 섞지 않는다**: SCENARIO(시뮬레이션 실행 = 팩 + Truth) · LIVE(실제 실행 = 운영 기록 + Truth). LIVE 생성기(`back/src/planning/live-input.ts`, 순수)는 시나리오 팩을 읽지 않는다. 계획 판 스냅숏에 `input_mode` 를 남긴다
+- **기준 정보 vs 사실**: 시간에 따라 바뀌는 값(그날 창고 · ODCY 수용량, 협력 · 자사 트럭 가용 `available.slot`)은 Truth 사실 그대로(`POST /truth/facts/manual`, 회신). 기준 · 계획 정보는 새 운영 기록 표(22.53~22.56): 컨테이너 계획 정보(실행마다) · 계약 요율(효력 기간) · 시설 계획 정보. 모두 append-only 판 — 고칠 때 새 판이 옛 판을 가리킨다
+- **출처**: 계획 사실의 `source` = TRUTH(사건 id) · SCENARIO(팩) · OPERATIONAL_RECORD(기록 id, 시설 보관 한도). 컨테이너 근거 = `planning_container_record:<id>`(+ 공공데이터 `container:<id>`). 요율표 판 = `live:<지문>`, 쓴 요율 판 id · 금액은 스냅숏 `operational_inputs.rate_records` — 나중에 요율이 바뀌어도 그 판이 무엇으로 계산했는지 남는다
+- **자사 트럭**: 확인(사람) · 공식 기록이고 신선한 `available.slot` 만 명부로 쓴다(벌점 없는 확실한 자원이므로). 잠정 · 오래됨은 쓰지 않고 `OWN_TRUCK_NOT_CONFIRMED` 로 알린다. 협력 트럭은 엔진의 기존 사실 정책(잠정 = 벌점 + 경고)
+- **일괄 입력**: `POST /planning/runs/:runId/inputs/containers` · `POST /planning/inputs/rates` · `POST /planning/inputs/facility-profiles` — CSV(첫 줄 = 열 이름) 또는 같은 열의 JSON 행, `dry_run`(검증만) · `command_id`(멱등). 한 묶음 = 한 트랜잭션 — 오류 행이 하나라도 있으면 아무것도 저장하지 않고(422, `details` = 행별 오류 보고) 검증만은 200 으로 같은 보고. 같은 내용 행은 새 판 없음(unchanged). 검증: ISO 6346 검사 숫자 · 중복 행 · 달력 날짜 · 계획일 ± 365일 `[ASSUMPTION]` · KRW 정수 · 음수 · 규격 코드 · 등록부 시설(이름 또는 id, 종류 · 활성) · 공공데이터 규격 대조 · 요율 종류별 필요한 칸 · 단위. 보안: 512 KB · 2000행 `[ASSUMPTION]`, 알 수 없는 열 거부, `= + @` · 탭 · CR · (숫자 아닌 칸의) `-` 로 시작하는 칸 거부(수식 주입), 파일 이름 · 원본은 저장하지 않는다
+- **실제 실행 만들기**: `POST /planning/runs {command_id}` — 기준 시각 = 지금, 계획일 = 서울 날짜, 시뮬레이션 아님(같은 명령 id = 같은 실행)
+- **준비도**: `GET /planning/runs/:runId/input-readiness` → `status` = READY · READY_WITH_PROVISIONAL(잠정 사실을 벌점 · 경고와 함께 씀) · NOT_READY, `missing_inputs[]`(code · group · BLOCKING/OPTIONAL · `fields` 예: `container.<번호>.lfd` · `facility.<이름>.capacity.day(D)` · `rate.transport.<터미널>__<시설>.<규격>`), `groups`(CONTAINER_DATA · LFD · RATE · WAREHOUSE_CAPACITY · ODCY_CAPACITY · TRUCK_AVAILABILITY · FACILITY_PROFILE · TERMINAL 별 개수). 요율 누락은 엔진이 판정한다: 같은 입력으로 비용표를 만들어 원래 계획(KEEP)의 `RATE_MISSING` 은 BLOCKING, 대안에만 필요한 요율은 OPTIONAL. 계산 요청이 막히면 409 `PLANNING_INPUT_UNAVAILABLE` 의 `details` 에 같은 목록
+- **엔진 · Solver 무수정**: 같은 `PlanningInput` 계약 → 같은 Cost Engine · Baseline · Solver · 판 저장 · 승인 · T-116 후속 초안(실제 실행 = 실제 주소만, 없으면 `NO_ELIGIBLE_CONTACT`)
+- **운영 기록 변경 → OUTDATED**: 저장 뒤 `OPERATIONAL_INPUT_CHANGED` → 판마다 스냅숏의 운영 기록 지문과 지금을 비교 → 다르면 OUTDATED(`OPERATIONAL_RECORD_CHANGED|ADDED|REMOVED` · kind · key · 전/후), 입력이 빠졌으면 `INPUT_UNAVAILABLE`. 기존 Truth 사실 비교와 함께 · 기다리던 Agent 가 깨어나 다시 계산
+- **권한**: `planning.input` = ADMIN · OPERATOR(현장 담당자는 Truth 직접 입력만). 활성 HUMAN 만. 감사 `LIVE_RUN_CREATED` · `PLANNING_INPUT_IMPORTED`(대상 = 묶음)
+- **계획 기간**: 계획일 + 2일(`LIVE_HORIZON_DAYS = 3`, 시나리오와 같은 길이 `[ASSUMPTION]`)
+
+**시험**: 단위 `test/unit/live-input.test.ts`(READY → 엔진 · Solver OPTIMAL · 결정론 · LFD/수용량/트럭/요율 누락 · 잠정 · CSV 검증 · 수식 칸 · 요율 모양) · DB `test/db/live-planning.test.ts`(실제 실행 → 일괄 입력 · 검증만 · 422 · 멱등 · 409 → 준비도 → 고침 → 요율 누락 → READY → 판 v1(스냅숏 출처) → 승인 → 후속 초안 → 요율 인상 → OUTDATED → v2 · v1 금액 유지 · append-only · 시뮬레이션 실행 거부 · 권한)
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).
@@ -2634,6 +2652,116 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 ### 22.52 M29 회신 추출 재시도 가드 · 권한 **(T-124)**
 
 - `extraction_retry_request`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
+
+### 22.53 `planning_input_batch` — 실제 계획 입력 묶음 **(M30 · T-123)**
+
+- 논리: `DECISION_RECORD`(누가 언제 어떤 운영 기록 묶음을 넣었나) · 그룹 **P 계획** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- 한 묶음 = 한 트랜잭션: 오류 행이 하나라도 있으면 묶음도 행도 저장하지 않는다(검증만 `dry_run` 은 저장 없음). 사람 × 명령 id = 묶음 하나(멱등)
+- 파일 원본 · 파일 이름은 저장하지 않는다 — 정규화한 행의 지문(`content_hash`)과 행 수만
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `batch_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `input_kind` | CODE | `text` | NOT NULL | — | `text()` | IN (CONTAINERS, RATES, FACILITY_PROFILES) |
+| 3 | `recovery_run_id` | REF(recovery_run) | `uuid` | NULL | — | `uuid()` | FK recovery_run · CONTAINERS 만 있다(CHECK) |
+| 4 | `command_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | 멱등 키(요청한 사람 안에서 UNIQUE) |
+| 5 | `submitted_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor — 활성 HUMAN(권한 `planning.input`) |
+| 6 | `source_type` | CODE | `text` | NOT NULL | — | `text()` | IN (CSV, ROWS) |
+| 7 | `source_label` | STRING(100) | `varchar(100)` | NULL | — | `varchar({ length: 100 })` | 운영자가 붙인 이름(파일 이름을 믿지 않는다) |
+| 8 | `content_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` · 재료 `planning-input-batch/1` = 종류 · 범위 · 행 지문들 |
+| 9 | `row_count` | INTEGER | `integer` | NOT NULL | — | `integer()` | — |
+| 10 | `accepted_count` | INTEGER | `integer` | NOT NULL | — | `integer()` | 새 판(새 · 바뀜) 수 |
+| 11 | `unchanged_count` | INTEGER | `integer` | NOT NULL | — | `integer()` | CHECK accepted + unchanged = row_count |
+| 12 | `submitted_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **UNIQUE**: (submitted_by_actor_id, command_id)
+
+### 22.54 `planning_container_record` — 컨테이너 계획 정보(실행마다, 판) **(M30 · T-123)**
+
+- 논리: `OPERATIONAL_RECORD` · 그룹 **P 계획**. 계획 실행 × 컨테이너 번호마다 판이 쌓인다 — 지금 판 = 후속(`supersedes_record_id` 로 가리키는 행)이 없는 행. 철회 = `WITHDRAWN` 판
+- 공공데이터 컨테이너(같은 번호, 실행 범위 안)가 있으면 연결하고 규격을 대조한다(다르면 행 오류). LFD 는 비워 둘 수 있다 — 저장은 되지만 계획 준비도가 막는다(추정하지 않는다)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `record_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `batch_id` | REF(planning_input_batch) | `uuid` | NOT NULL | — | `uuid()` | FK planning_input_batch |
+| 3 | `recovery_run_id` | REF(recovery_run) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_run(실제 실행만 — 시뮬레이션 실행은 거부) |
+| 4 | `container_no` | STRING(11) | `varchar(11)` | NOT NULL | — | `varchar({ length: 11 })` | CHECK `^[A-Z]{4}[0-9]{7}$` · 앱이 ISO 6346 검사 숫자를 검사 |
+| 5 | `container_id` | REF(container) | `uuid` | NULL | — | `uuid()` | FK container — 공공데이터 컨테이너와 연결(있을 때) |
+| 6 | `size_type` | CODE | `text` | NOT NULL | — | `text()` | IN (20DRY, 40DRY, 40HC, 20RF, 40RF, OTHER) |
+| 7 | `carrier_code` | STRING(20) | `varchar(20)` | NOT NULL | — | `varchar({ length: 20 })` | 선사 코드 — Demurrage 요율의 키 |
+| 8 | `priority` | CODE | `text` | NOT NULL | — | `text()` | IN (CRITICAL, HIGH, NORMAL) |
+| 9 | `lfd` | DATE | `date` | NULL | — | `date({ mode: 'string' })` | Demurrage 무료 마지막 날. 없으면 준비도 `CONTAINER_LFD` |
+| 10 | `pickup_ready` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | 오늘 반출 가능 |
+| 11 | `current_terminal` | STRING(40) | `varchar(40)` | NOT NULL | — | `varchar({ length: 40 })` | 터미널 코드 — 운송 요율 출발지 키 |
+| 12 | `destination_facility_id` | REF(facility) | `uuid` | NOT NULL | — | `uuid()` | FK facility(창고) |
+| 13 | `planned_day` | DATE | `date` | NOT NULL | — | `date({ mode: 'string' })` | 원래 배차 날짜 |
+| 14 | `planned_depart_hour` | INTEGER | `integer` | NULL | — | `integer()` | CHECK 0~23 |
+| 15 | `alternate_destination_allowed` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | 다른 창고로 바꿔 보내도 되는가(화주 승인) |
+| 16 | `record_status` | CODE | `text` | NOT NULL | — | `text()` | IN (ACTIVE, WITHDRAWN) |
+| 17 | `row_no` | INTEGER | `integer` | NOT NULL | — | `integer()` | 입력 파일의 줄(추적) |
+| 18 | `content_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` · 같은 내용이면 새 판을 만들지 않는다 |
+| 19 | `supersedes_record_id` | REF(planning_container_record) | `uuid` | NULL | — | `uuid()` | FK 자기 자신 · UNIQUE(판마다 후속 하나) |
+| 20 | `recorded_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **UNIQUE**: (supersedes_record_id)
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (recovery_run_id, container_no)
+
+### 22.55 `tariff_rate` — 계약 요율(효력 기간, 판) **(M30 · T-123)**
+
+- 논리: `OPERATIONAL_RECORD` · 그룹 **P 계획**. 요율 자리 = (종류 · 선사 · 출발 · 도착 · 규격 · 효력 시작). 계획일에 유효한 것 중 효력 시작이 가장 늦은 지금 판을 쓴다
+- 요율이 없으면 0 원이 아니라 엔진의 `RATE_MISSING` — 원래 계획(KEEP)에 필요한 요율이 없으면 준비도가 막는다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `rate_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `batch_id` | REF(planning_input_batch) | `uuid` | NOT NULL | — | `uuid()` | FK planning_input_batch |
+| 3 | `rate_type` | CODE | `text` | NOT NULL | — | `text()` | IN (DEMURRAGE_PER_DAY, TERMINAL_STORAGE_PER_DAY, DETENTION_FREE_DAYS, TRANSPORT, ODCY_HANDLING_IN_OUT, ODCY_STORAGE_PER_DAY) |
+| 4 | `carrier_code` | STRING(20) | `varchar(20)` | NULL | — | `varchar({ length: 20 })` | DEMURRAGE_PER_DAY 만 |
+| 5 | `from_ref` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | TRANSPORT 만 — 터미널 코드 또는 시설 id |
+| 6 | `to_ref` | STRING(60) | `varchar(60)` | NULL | — | `varchar({ length: 60 })` | TRANSPORT · ODCY_* — 시설 id |
+| 7 | `size_type` | CODE | `text` | NULL | — | `text()` | IN (20DRY, 40DRY, 40HC, 20RF, 40RF, OTHER) |
+| 8 | `amount` | INTEGER64 | `bigint` | NOT NULL | — | `bigint({ mode: 'bigint' })` | CHECK ≥ 0 · KRW 정수(DETENTION_FREE_DAYS 는 일) |
+| 9 | `unit` | CODE | `text` | NOT NULL | — | `text()` | IN (KRW, DAY) |
+| 10 | `effective_from` | DATE | `date` | NOT NULL | — | `date({ mode: 'string' })` | — |
+| 11 | `effective_until` | DATE | `date` | NULL | — | `date({ mode: 'string' })` | CHECK ≥ effective_from |
+| 12 | `source_note` | STRING(200) | `varchar(200)` | NOT NULL | — | `varchar({ length: 200 })` | 출처(계약서 · 견적) — 필수 |
+| 13 | `record_status` | CODE | `text` | NOT NULL | — | `text()` | IN (ACTIVE, WITHDRAWN) |
+| 14 | `row_no` | INTEGER | `integer` | NOT NULL | — | `integer()` | — |
+| 15 | `content_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` |
+| 16 | `supersedes_rate_id` | REF(tariff_rate) | `uuid` | NULL | — | `uuid()` | FK 자기 자신 · UNIQUE |
+| 17 | `recorded_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **UNIQUE**: (supersedes_rate_id)
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (rate_type, effective_from)
+
+### 22.56 `facility_planning_profile` — 시설 계획 정보(판) **(M30 · T-123)**
+
+- 논리: `OPERATIONAL_RECORD` · 그룹 **P 계획**. 시설 등록부(이름 · 종류)와 그날 수용량(Truth 사실) 사이의 **계획 규칙**: 받는 규격 · 출발 가능 시각 · 마지막 출발 · 왕복 시간 · 보관 한도
+- 보관 한도는 계획 사실 `max_days`(출처 `OPERATIONAL_RECORD`)로 엔진에 들어간다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `profile_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `batch_id` | REF(planning_input_batch) | `uuid` | NOT NULL | — | `uuid()` | FK planning_input_batch |
+| 3 | `facility_id` | REF(facility) | `uuid` | NOT NULL | — | `uuid()` | FK facility(창고 · ODCY) |
+| 4 | `accepts` | JSON | `jsonb` | NOT NULL | — | `jsonb()` | 받는 규격 배열(예: ["20DRY","40DRY"]) |
+| 5 | `open_from_hour` | INTEGER | `integer` | NOT NULL | — | `integer()` | CHECK 0~23 |
+| 6 | `last_departure_hour` | INTEGER | `integer` | NOT NULL | — | `integer()` | CHECK 0~23 · ≥ open_from_hour — 그날 도착을 위한 마지막 출발 |
+| 7 | `trip_hours` | INTEGER | `integer` | NOT NULL | — | `integer()` | CHECK 1~24 — 터미널 왕복으로 트럭을 쓰는 시간 |
+| 8 | `max_storage_days` | INTEGER | `integer` | NULL | — | `integer()` | CHECK ≥ 0 — ODCY 보관 한도 |
+| 9 | `record_status` | CODE | `text` | NOT NULL | — | `text()` | IN (ACTIVE, WITHDRAWN) |
+| 10 | `row_no` | INTEGER | `integer` | NOT NULL | — | `integer()` | — |
+| 11 | `content_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 해시 형식 `^sha256:[0-9a-f]{64}$` |
+| 12 | `supersedes_profile_id` | REF(facility_planning_profile) | `uuid` | NULL | — | `uuid()` | FK 자기 자신 · UNIQUE |
+| 13 | `recorded_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **UNIQUE**: (supersedes_profile_id)
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (facility_id)
+
+### 22.57 M31 실제 계획 입력 가드 · 권한 **(T-123)**
+
+- `planning_input_batch` · `planning_container_record` · `tariff_rate` · `facility_planning_profile`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

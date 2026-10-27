@@ -49,14 +49,14 @@ afterAll(async () => {
 });
 
 describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
-  it('the spec itself has 46 tables (P0 29 + M14 public data 6 + M16 agent records 2 + M18 agent runtime 3 + M22 recovery plan 2 + M24 login 2 + M26 plan follow-up 1 + M28 extraction retry 1) and 550 logical columns', () => {
-    expect(new Set(spec.map((c) => c.table)).size).toBe(46);
-    expect(spec.length).toBe(550);
+  it('the spec itself has 50 tables (P0 29 + M14 public data 6 + M16 agent records 2 + M18 agent runtime 3 + M22 recovery plan 2 + M24 login 2 + M26 plan follow-up 1 + M28 extraction retry 1 + M30 planning input 4) and 612 logical columns', () => {
+    expect(new Set(spec.map((c) => c.table)).size).toBe(50);
+    expect(spec.length).toBe(612);
   });
 
-  it('the database has exactly the 46 tables and 550 columns in schema cera', () => {
+  it('the database has exactly the 50 tables and 612 columns in schema cera', () => {
     expect(new Set(dbColumns.map((c) => c.table))).toEqual(new Set(spec.map((c) => c.table)));
-    expect(dbColumns.length).toBe(550);
+    expect(dbColumns.length).toBe(612);
   });
 
   it('every column matches the spec: name, order, type, nullability, default', () => {
@@ -79,7 +79,7 @@ describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
 
   it('every CLOSED code column has a CHECK IN with exactly the spec values (no ENUM types)', () => {
     const closed = spec.filter((s) => closedValues(s.memo));
-    expect(closed.length).toBe(73);
+    expect(closed.length).toBe(83);
     const problems: string[] = [];
     for (const s of closed) {
       const def = checkDefs.get(`ck_${s.table}__${s.name}`);
@@ -122,21 +122,21 @@ describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
 });
 
 describe('Phase A — keys, foreign keys and indexes', () => {
-  it('46 primary keys named pk_<table>', async () => {
+  it('50 primary keys named pk_<table>', async () => {
     const r = await owner.query<{ conname: string; table: string }>(`
       SELECT con.conname, c.relname AS table FROM pg_constraint con
         JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'cera' AND con.contype = 'p'`);
-    expect(r.rowCount).toBe(46);
+    expect(r.rowCount).toBe(50);
     for (const row of r.rows) expect(row.conname).toBe(`pk_${row.table}`);
   });
 
-  it('93 foreign keys (19 composite): all RESTRICT except verification_request.conflict_id SET NULL, no CASCADE', async () => {
+  it('105 foreign keys (19 composite): all RESTRICT except verification_request.conflict_id SET NULL, no CASCADE', async () => {
     const r = await owner.query<{ conname: string; cols: number; del: string; upd: string }>(`
       SELECT con.conname, array_length(con.conkey, 1) AS cols, con.confdeltype AS del, con.confupdtype AS upd
         FROM pg_constraint con JOIN pg_namespace n ON n.oid = con.connamespace
        WHERE n.nspname = 'cera' AND con.contype = 'f'`);
-    expect(r.rowCount).toBe(93);
+    expect(r.rowCount).toBe(105);
     expect(r.rows.filter((x) => x.cols > 1).length).toBe(19);
     const setNull = r.rows.filter((x) => x.del === 'n').map((x) => x.conname);
     expect(setNull).toEqual(['fk_verification_request__conflict_id']);
