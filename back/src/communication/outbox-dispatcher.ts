@@ -9,6 +9,7 @@ import { AUDIT_ACTION } from '../persistence/catalog.js';
 import { canonicalHash } from '../shared/hash/hash.js';
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
+import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { ApprovalRepository } from './approval.repository.js';
 import { liveApproval } from './approval-rules.js';
 import { DraftService } from './draft.service.js';
@@ -71,6 +72,7 @@ export class OutboxDispatcher {
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(CHANNEL_ADAPTERS) private readonly adapters: ChannelAdapters,
     @Inject(ENV) env: Env,
+    @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
   ) {
     this.maxAttempts = env.CERA_SEND_MAX_ATTEMPTS;
     this.retryBaseMs = env.CERA_SEND_RETRY_BASE_MS;
@@ -137,7 +139,16 @@ export class OutboxDispatcher {
     const claim = await this.claim(messageId);
     if (typeof claim === 'string') return claim;
     const outcome = await this.transmit(claim);
-    return this.record(claim, outcome);
+    const result = await this.record(claim, outcome);
+    // 커밋 뒤 알림(T-121): 나갔으면 기다리던 Agent 를, 재시도면 예약 시각에 다시 — 실행 큐가 없으면 폴링이 같은 일을 한다
+    if (result === 'SENT') this.signals.emit({ type: 'MESSAGE_SENT', messageId });
+    if (result === 'RETRY_SCHEDULED') {
+      const next = nextAttemptAt(await this.sends.attempts(messageId), this.retryBaseMs);
+      const delayMs = next ? Math.max(0, next.epochMs - this.clock.now().epochMs) : this.retryBaseMs;
+      this.signals.emit({ type: 'SEND_RETRY_SCHEDULED', messageId, delayMs, attempt: claim.attemptNo + 1 });
+    }
+    if (result === 'UNKNOWN') this.signals.emit({ type: 'SEND_RETRY_SCHEDULED', messageId, delayMs: this.reconcileAfterMs, attempt: claim.attemptNo });
+    return result;
   }
 
   /** 2 + 3. 발송 판정 → 막히면 대기 해제 · 통과하면 시도 행을 선커밋. */

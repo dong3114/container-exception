@@ -9,7 +9,8 @@ import { DOMAIN_SIGNALS, DomainSignals } from './signals/domain-signals.js';
   providers: [
     { provide: CLOCK, useClass: SystemClock },
     { provide: ID_GENERATOR, useClass: UuidV7Generator },
-    { provide: DOMAIN_SIGNALS, useValue: new DomainSignals() },
+    // 앱(컨텍스트)마다 새로 — 한 프로세스에 앱이 여럿이어도(시험) 닫힌 앱의 처리기가 다른 앱의 알림을 받지 않게
+    { provide: DOMAIN_SIGNALS, useFactory: () => new DomainSignals() },
   ],
   exports: [CLOCK, ID_GENERATOR, DOMAIN_SIGNALS],
 })

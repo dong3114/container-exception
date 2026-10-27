@@ -52,6 +52,11 @@ export class AgentReconciler implements OnModuleInit {
     });
   }
 
+  /** 실행 큐(T-121)가 다른 프로세스의 알림으로 깨울 때. 도는 중이면 끝난 뒤 한 번 더(같은 프로세스 안 직렬). */
+  wake(): void {
+    this.kick();
+  }
+
   private kick(): void {
     if (!this.env.CERA_AGENT_RECONCILE_ENABLED) return;
     if (this.running) {

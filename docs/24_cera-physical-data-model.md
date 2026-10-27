@@ -1025,6 +1025,16 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **시험** — `test/db/auth.test.ts` 27(로그인 · 쿠키 속성 · 지문 저장 · 잘못된 비밀번호 = 없는 계정 · 5회 제한 429 · 세션 없음 401 · 만료/가짜 토큰 · 로그아웃 · 헤더만으로 401 · 현장 담당자가 관리자 주장해도 403 · 역할 표 11경로 × 현장 403/운영자 통과 · 사용자 관리 ADMIN 만 · 생성/역할 변경 → 세션 끊김/비활성 · 중복 409 · 자기 강등 금지 · 서비스/사람 인증 분리 · DB 가드). 화면은 최소 로그인 관문(`front/web/src/app/LoginGate.tsx`)만. 브라우저 `/demo` 11단계를 operator 로그인으로 통과
 - **한계** — 등록부 변경 API(`registry.manage`)는 아직 없다(권한만 정의). 실패 횟수 제한은 인스턴스별 메모리. 비밀번호 재설정 메일 · MFA 없음
 
+### 18.19 T-121 Redis 실행 큐 구현 확인 결과 (2026-10-27)
+
+- **역할 구분** — PostgreSQL = 업무 정본 · 감사 · 멱등 · Outbox 상태 · Agent 실행 · 사실 · 계획 · 복구. Redis(BullMQ `bullmq@6.3.12` + `ioredis@5.11.1`, `redis:7.4.2` 저장 끔) = 빠른 전달 · 지연 재시도 · 깨우기 가속만. `CERA_REDIS_URL` 이 비면 큐 없이 폴링만(기존과 같음)
+- **구조** — 서비스는 Redis 를 모른다: 커밋 뒤 업무 알림(`SEND_REQUESTED` · `SEND_RETRY_SCHEDULED` · `MESSAGE_SENT` 신설 + 기존 승인 · 수신 · 추출 · 사실 · 계획 알림) → `SignalToQueueBridge` → 작업 `OUTBOX_SEND`(메시지) · `EXTRACTION_CYCLE` · `AGENT_RECONCILE`. Worker 만 소비하고, 처리기는 폴링과 같은 멱등 진입점(화해 → 그 메시지 처리 · 추출 한 주기 · 재조정 한 번)이다. 같은 프로세스 안에서는 처리기별 직렬(폴링과 큐가 겹치지 않게), 프로세스 사이는 기존 advisory lock
+- **payload** — `{ job_type, entity_id, trace_id, attempt }` 만(원문 · checkpoint · 사실 값 · 비밀 없음 — 시험이 키 목록을 검사). 대기 중 작업 id = `유형__대상`(중복 넣기 무시), 지연 작업은 예약 초를 붙인다. 큐 자체 재시도 없음(재시도 규칙은 DB)
+- **장애** — 넣기는 연결이 ready 가 아니면 즉시 포기 · 2초 시간 제한 → 업무 요청을 붙잡지 않는다(로그만). 재연결은 1 · 2 · 4 … 최대 30초 간격. 실측으로 찾은 결함 2건을 고쳤다: ① Redis 가 멈추면 재연결의 호스트 이름 조회가 Node 공용 스레드풀(4)을 채워 PostgreSQL 연결이 시간 초과 → 재연결 간격 + `UV_THREADPOOL_SIZE=16`(compose) ② 생산자 `maxRetriesPerRequest=1` 이면 재연결 직후 넣기가 버려져 빠른 길이 회복되지 않음 → 제한 없음(늦게 전달돼도 멱등). 덤으로 `DomainSignals` 를 앱마다 새로 만든다(한 프로세스의 여러 앱이 알림을 공유하던 문제 — 시험에서 드러남)
+- **실측(Docker, Mock 채널)** — 발송 요청 → SENT: Redis 있음 **153~160 ms** · Redis 멈춤 **4.3~4.8 s**(폴링 5초 주기) · Redis 재시작 뒤 다시 153~160 ms. Redis 멈춤 동안 Worker 주기 실패 0
+- **시험** — `test/db/queue.test.ts` 6(폴링 없이 큐로 발송 · 같은 작업 3번 동시 + 1번 → 발송 1건 · 일시 실패 → 지연 작업(참조만 · 60초 뒤) · Redis 비움 → 폴링이 발송 · Redis 다운 → 요청 3초 안 성공 + 폴링 발송) · unit 2. 실제 Redis 필요(`CERA_TEST_REDIS_URL`, 기본 `redis://127.0.0.1:56379`)
+- **한계** — Gmail 수신 폴링 · 신선도 재판정 · 계획 무효 검사는 큐에 넣지 않았다(주기 작업 그대로). 큐 길이 · 지연 모니터링 화면 없음
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).

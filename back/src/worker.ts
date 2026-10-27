@@ -25,6 +25,7 @@ async function bootstrap(): Promise<void> {
     return;
   }
 
+  runner.startQueueConsumer(); // Redis 가 있으면 빠른 경로 — 아래 폴링 루프는 그대로(정확성 · 복구 경로)
   let stopping = false;
   const stopped = new Promise<void>((resolve) => {
     const stop = () => {

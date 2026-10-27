@@ -9,7 +9,7 @@ Docker 만이 유일한 개발 방식은 아니다. 평소 화면·코드 개발
 | profile | 서비스 | 하는 일 | 호스트 포트(루프백만) |
 | --- | --- | --- | --- |
 | (항상) | `postgres` | PostgreSQL **18.6**(판 고정) | 55442 |
-| `app` | `migrate` → `api` · `worker` · `ai` | migration(한 번 실행 후 종료) → Main Backend API · Worker(Outbox · 수신 · 추출) · Python AI Server + Agent Runtime | 3100 · — · 8100 |
+| `app` | `redis` · `migrate` → `api` · `worker` · `ai` | 실행 큐 Redis(정본 아님 — 저장 끔) · migration(한 번 실행 후 종료) → Main Backend API · Worker(Outbox · 수신 · 추출) · Python AI Server + Agent Runtime | 56379 · 3100 · — · 8100 |
 | `web` | `web` | Control Tower 정적 빌드 + nginx (`/backend/*` → `api`) | 3000 |
 | `llm` | `llm` | 로컬 소형 모델 서버(llama.cpp, OpenAI 호환) | 8080 |
 | `eval` | `eval` | 평가 CLI(`python -m cera_ai.evals`, T-099) — 실행하고 끝남 | — |

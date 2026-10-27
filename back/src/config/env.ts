@@ -79,6 +79,10 @@ export const envSchema = z.object({
   CERA_SEED_ADMIN_PASSWORD: optionalSecret,
   CERA_SEED_OPERATOR_PASSWORD: optionalSecret,
   CERA_SEED_FIELD_PASSWORD: optionalSecret,
+  // ── 실행 큐(T-121) — Redis 는 빠른 전달 · 지연 재시도 · 깨우기만. 정본 · 복구는 PostgreSQL(폴링 · 재조정)이다 ──
+  // 비우면 큐 없이 폴링만으로 동작(기존과 같다). 예: redis://127.0.0.1:56379
+  CERA_REDIS_URL: optionalSecret,
+  CERA_QUEUE_NAME: z.string().regex(/^[a-z0-9-]{1,40}$/).default('cera-exec'),
   // Worker 폴링 주기 — 기본 5초 [ASSUMPTION](docs/24 14 결정 7)
   CERA_OUTBOX_POLL_MS: z.coerce.number().int().min(200).max(600_000).default(5_000),
   // 일시 실패 재시도: 최대 시도 수 · 첫 간격(지수 백오프, 상한 10분) [ASSUMPTION](docs/18 H.3)

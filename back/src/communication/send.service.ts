@@ -6,6 +6,7 @@ import { AUDIT_ACTION } from '../persistence/catalog.js';
 import { BusinessRuleError } from '../shared/errors/cera-error.js';
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
+import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { ApprovalRepository } from './approval.repository.js';
 import { ApprovalService } from './approval.service.js';
 import { DraftService, assertUuid, parse } from './draft.service.js';
@@ -35,6 +36,7 @@ export class SendService {
     @Inject(AuditRecorder) private readonly audit: AuditRecorder,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
+    @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
   ) {}
 
   async requestSend(messageId: string, actorHeader: string | undefined, body: unknown): Promise<DraftDto> {
@@ -95,6 +97,7 @@ export class SendService {
         isSimulated: locked.isSimulated,
       });
     });
+    this.signals.emit({ type: 'SEND_REQUESTED', messageId }); // 커밋 뒤 — 실행 큐가 Worker 를 바로 깨운다(놓쳐도 폴링)
     return this.drafts.get(messageId);
   }
 }

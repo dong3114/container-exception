@@ -11,6 +11,8 @@ export interface DemoStatus {
   public_data_mode: string;
   gmail_enabled: boolean;
   sending_paused: boolean;
+  auth_mode?: string;
+  execution_queue?: "up" | "down" | "disabled";
   seed: {
     present: boolean;
     scenario_run_id: string;

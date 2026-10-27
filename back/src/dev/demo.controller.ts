@@ -12,6 +12,7 @@ import { DATABASE, type Database } from '../db/database.js';
 import { planningSnapshot, recoveryRun } from '../db/schema/index.js';
 import { SEED_IDS } from '../seed/slice1-fixture.js';
 import { Instant } from '../shared/time/instant.js';
+import { EXECUTION_QUEUE, type ExecutionQueue } from '../queue/execution-queue.js';
 import { ValidationError } from '../shared/errors/cera-error.js';
 
 const mockReplyBody = z
@@ -36,6 +37,7 @@ export class DemoController {
     @Inject(ENV) private readonly env: Env,
     @Inject(CHANNEL_ADAPTERS) private readonly adapters: ChannelAdapters,
     @Inject(DATABASE) private readonly db: Database,
+    @Inject(EXECUTION_QUEUE) private readonly queue: ExecutionQueue,
   ) {}
 
   @Public() // 로그인 전에도 시연 환경을 점검할 수 있게(local · test 에만 붙는 경로)
@@ -63,6 +65,8 @@ export class DemoController {
       public_data_mode: this.env.CERA_PUBLIC_DATA_MODE,
       gmail_enabled: this.env.CERA_GMAIL_ENABLED,
       sending_paused: this.env.CERA_SENDING_PAUSED,
+      auth_mode: this.env.CERA_AUTH_MODE,
+      execution_queue: await this.queue.status(),
       seed: {
         present: asOf !== null,
         scenario_run_id: SEED_IDS.recoveryRunRoot,

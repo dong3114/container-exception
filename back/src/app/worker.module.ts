@@ -19,6 +19,16 @@ import { TruthModule } from '../truth/truth.module.js';
 import { TruthService } from '../truth/truth.service.js';
 import { PlanningModule } from '../planning/planning.module.js';
 import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
+import { EXECUTION_QUEUE, type ExecutionJob, type ExecutionQueue } from '../queue/execution-queue.js';
+import { QueueModule } from '../queue/queue.module.js';
+import { RedisExecutionQueue } from '../queue/redis-execution-queue.js';
+
+/** 오류 문장 + 원인(드라이버 오류는 `cause` 에 있다 — 'Failed query' 만으로는 왜인지 모른다). 값 · 비밀은 담지 않는다. */
+export function errorText(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = (error as { cause?: unknown }).cause;
+  return cause instanceof Error ? `${error.message.split('\nparams:')[0]} — cause: ${cause.message}` : error.message;
+}
 
 /** advisory lock 키(docs/24 14 — 코드 한 곳에서 관리). 64비트 키는 SQL 의 hashtextextended 로 만든다. */
 export const ADVISORY_LOCK_KEYS = { OUTBOX_WORKER: 'cera.outbox.worker', INBOUND_POLLER: 'cera.inbound.poller', EXTRACTION_WORKER: 'cera.extraction.worker', AGENT_RECONCILER: 'cera.agent.reconciler', TRUTH_REFRESH: 'cera.truth.refresh' } as const;
@@ -44,6 +54,8 @@ export class WorkerRunner {
   private readonly logger = new Logger('WorkerRunner');
   private readonly locks = new Map<LockKey, pg.PoolClient>();
   private lastTruthRefresh = 0; // 주기 판단용 프로세스 시계(업무 판정에는 쓰지 않는다)
+  /** 같은 프로세스 안에서 폴링 주기와 큐 작업이 같은 처리기를 동시에 돌리지 않게(잠금은 프로세스 사이, 이것은 프로세스 안) */
+  private readonly chains = new Map<string, Promise<unknown>>();
 
   constructor(
     @Inject(DatabaseHealth) private readonly database: DatabaseHealth,
@@ -56,7 +68,44 @@ export class WorkerRunner {
     @Inject(RecoveryPlanService) private readonly plans: RecoveryPlanService,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(ENV) private readonly env: Env,
+    @Inject(EXECUTION_QUEUE) private readonly queue: ExecutionQueue,
   ) {}
+
+  private exclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const next = (this.chains.get(key) ?? Promise.resolve()).catch(() => undefined).then(fn);
+    this.chains.set(key, next);
+    return next;
+  }
+
+  /**
+   * 실행 큐 소비(T-121) — Redis 가 켜져 있을 때만. 작업은 참조뿐이고 처리기는 폴링과 같은 멱등 진입점이다
+   * (발송: 화해 → 그 메시지 처리 · 추출: 한 주기 · Agent: 재조정 한 번). 잠금을 다른 Worker 가 쥐고 있으면 그쪽 폴링에 맡긴다.
+   */
+  startQueueConsumer(): boolean {
+    if (!(this.queue instanceof RedisExecutionQueue)) return false;
+    this.queue.consume((job) => runWithContext({ ...newJobContext(), ...(job.trace_id ? { traceId: job.trace_id } : {}) }, () => this.handleJob(job)));
+    this.logger.log({ msg: 'execution queue consumer started' });
+    return true;
+  }
+
+  async handleJob(job: ExecutionJob): Promise<void> {
+    switch (job.job_type) {
+      case 'OUTBOX_SEND':
+        if (!(await this.holdLock(ADVISORY_LOCK_KEYS.OUTBOX_WORKER))) return;
+        await this.exclusive(ADVISORY_LOCK_KEYS.OUTBOX_WORKER, async () => {
+          await this.dispatcher.reconcile(this.env.CERA_SEND_RECONCILE_AFTER_MS);
+          await this.dispatcher.processMessage(job.entity_id);
+        });
+        return;
+      case 'EXTRACTION_CYCLE':
+        if (!(await this.holdLock(ADVISORY_LOCK_KEYS.EXTRACTION_WORKER))) return;
+        await this.exclusive(ADVISORY_LOCK_KEYS.EXTRACTION_WORKER, () => this.extraction.runCycle());
+        return;
+      case 'AGENT_RECONCILE':
+        if (this.env.CERA_AGENT_RECONCILE_ENABLED && (await this.holdLock(ADVISORY_LOCK_KEYS.AGENT_RECONCILER))) this.agents.wake();
+        return;
+    }
+  }
 
   /** 기동 점검. DB 에 닿지 않으면 실패한다. */
   async bootstrapCheck(): Promise<void> {
@@ -90,11 +139,11 @@ export class WorkerRunner {
     await runWithContext(newJobContext(), async () => {
       if (await this.holdLock(ADVISORY_LOCK_KEYS.OUTBOX_WORKER)) {
         try {
-          const summary = await this.dispatcher.runCycle();
+          const summary = await this.exclusive(ADVISORY_LOCK_KEYS.OUTBOX_WORKER, () => this.dispatcher.runCycle());
           const busy = summary.reconciled > 0 || Object.entries(summary.processed).some(([k, v]) => k !== 'SKIPPED' && v > 0);
           if (busy) this.logger.log({ msg: 'outbox cycle', ...summary });
         } catch (error) {
-          this.logger.error({ msg: 'outbox cycle failed', error: error instanceof Error ? error.message : String(error) });
+          this.logger.error({ msg: 'outbox cycle failed', error: errorText(error) });
         }
       } else {
         this.logger.log({ msg: 'another outbox worker holds the lock — idle' });
@@ -104,16 +153,16 @@ export class WorkerRunner {
           const summary = await this.inbound.runCycle();
           if (summary.NORMAL + summary.HOLD > 0) this.logger.log({ msg: 'inbound cycle', ...summary });
         } catch (error) {
-          this.logger.error({ msg: 'inbound cycle failed', error: error instanceof Error ? error.message : String(error) });
+          this.logger.error({ msg: 'inbound cycle failed', error: errorText(error) });
         }
       }
       // 회신 추출(T-092) — 정상 회신만, AI Server 호출은 트랜잭션 밖. AI 가 꺼져 있어도 발송 · 수신은 영향 없다
       if (await this.holdLock(ADVISORY_LOCK_KEYS.EXTRACTION_WORKER)) {
         try {
-          const summary = await this.extraction.runCycle();
+          const summary = await this.exclusive(ADVISORY_LOCK_KEYS.EXTRACTION_WORKER, () => this.extraction.runCycle());
           if (Object.values(summary).some((v) => v > 0)) this.logger.log({ msg: 'extraction cycle', ...summary });
         } catch (error) {
-          this.logger.error({ msg: 'extraction cycle failed', error: error instanceof Error ? error.message : String(error) });
+          this.logger.error({ msg: 'extraction cycle failed', error: errorText(error) });
         }
       }
       // 사실 신선도 재판정(T-111) — 시간이 지나 AGING · STALE · EXPIRED 가 된 것을 파생 표에 반영. 걸린 시간을 남긴다(관측)
@@ -123,7 +172,7 @@ export class WorkerRunner {
           const summary = await this.truth.refreshDerived((work) => this.tx.run(work));
           if (summary.changed > 0 || summary.ms > 1_000) this.logger.log({ msg: 'truth refresh', ...summary });
         } catch (error) {
-          this.logger.error({ msg: 'truth refresh failed', error: error instanceof Error ? error.message : String(error) });
+          this.logger.error({ msg: 'truth refresh failed', error: errorText(error) });
         }
         // 계획 판이 기댄 사실이 바뀌었으면 OUTDATED(T-114) — API 의 FACT_CHANGED 알림을 놓쳐도 여기서 잡는다
         try {
@@ -131,7 +180,7 @@ export class WorkerRunner {
           const outdated = await this.plans.refreshOutdated();
           if (outdated > 0) this.logger.log({ msg: 'plans outdated', count: outdated, ms: Date.now() - t0 });
         } catch (error) {
-          this.logger.error({ msg: 'plan outdated check failed', error: error instanceof Error ? error.message : String(error) });
+          this.logger.error({ msg: 'plan outdated check failed', error: errorText(error) });
         }
       }
       // Agent 재조정 — 발송 · 수신 · 추출 결과를 본 뒤 기다리던 실행을 깨운다(같은 주기에 바로 이어진다). 시간 경과로 바뀐 사실도 DB 와 기준 시각으로 다시 판정한다
@@ -140,7 +189,7 @@ export class WorkerRunner {
           const summary = await this.agents.runOnce();
           if (summary.retried + summary.woken > 0) this.logger.log({ msg: 'agent reconcile', ...summary });
         } catch (error) {
-          this.logger.error({ msg: 'agent reconcile failed', error: error instanceof Error ? error.message : String(error) });
+          this.logger.error({ msg: 'agent reconcile failed', error: errorText(error) });
         }
       }
     });
@@ -163,7 +212,7 @@ export class WorkerModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: WorkerModule,
-      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule, PlanningModule],
+      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, QueueModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule, PlanningModule],
       providers: [WorkerRunner],
     };
   }

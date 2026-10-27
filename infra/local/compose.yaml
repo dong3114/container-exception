@@ -26,6 +26,11 @@ x-back: &back
     MIGRATION_DATABASE_URL: postgres://cera_owner:${CERA_OWNER_PASSWORD}@postgres:5432/${CERA_DB_NAME:-cera}
     CERA_AI_SERVER_URL: http://ai:8100
     CERA_AGENT_RUNTIME_URL: http://ai:8100
+    # 실행 큐(T-121) — 빠른 전달 · 지연 재시도 · 깨우기만. Redis 가 없어도 PostgreSQL 폴링으로 같은 일을 한다
+    CERA_REDIS_URL: redis://redis:6379
+    # Node 공용 스레드풀(DNS 조회 · 파일 I/O)을 4 → 16. Redis 가 멈추면 재연결의 호스트 이름 조회가 스레드를 붙잡아
+    # PostgreSQL 연결까지 늦어졌다(실측 60초). 큐가 죽어도 업무 경로가 막히지 않게 여유를 둔다
+    UV_THREADPOOL_SIZE: "16"
   volumes:
     - ../../data:/srv/data
 
@@ -52,6 +57,19 @@ services:
       timeout: 3s
       retries: 20
 
+  # 실행 큐(T-121). 업무 정본이 아니다 — 저장(AOF · RDB)을 끈다: 재시작으로 대기 작업이 사라져도 Worker 가 DB 에서 다시 찾는다
+  redis:
+    image: redis:7.4.2
+    profiles: [app]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${CERA_REDIS_PORT:-56379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # 한 번 돌고 끝나는 작업: migration. 반복 실행 안전. (시드는 위 주석)
   migrate:
     <<: *back
@@ -66,6 +84,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${CERA_API_PORT:-3100}:3100"
     environment:
@@ -83,6 +103,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     command: ["node", "dist/worker.js"]
 
   # AI Server + Agent Runtime. 로컬 모델을 쓰려면 ai/.env 에 CERA_LLM_MODE=live 만 바꾼다(MVP 임시 기본값: provider=local · model=qwen3-4b-instruct-2507-q4_k_m 은 ai/.env.example 에 이미 있다)

@@ -192,6 +192,7 @@ export default function DemoPage() {
                 <li>APP_ENV {env.app_env} · 시드 {env.seed.present ? `있음(계획 날짜 ${env.seed.plan_date}, 기준 시각 ${env.seed.as_of?.slice(11, 16)})` : "없음 — db:seed 필요"}</li>
                 <li>Agent Tool {env.agent_tools_enabled ? "✓ 켜짐" : "✗ 꺼짐(CERA_AGENT_TOOLS_ENABLED)"} · Runtime {snap.runtime?.reachable ? `✓ 연결(Tool ${snap.runtime.tool_count})` : "✗ 연결 안 됨"}</li>
                 <li>AI Server {env.ai_server === "up" ? "✓" : "✗"} · 공공데이터 {env.public_data_mode} · Gmail {env.gmail_enabled ? "켜짐" : "꺼짐(Mock 만)"} · 발송 차단 {env.sending_paused ? "켜짐" : "꺼짐"}</li>
+                <li>실행 큐(Redis) {env.execution_queue === "up" ? "✓ 연결" : env.execution_queue === "down" ? "✗ 끊김 — 폴링으로 계속 동작(느려짐)" : "꺼짐 — 폴링만"} · 로그인 {env.auth_mode ?? "—"}</li>
               </ul>
             ) : (
               <div className="muted">불러오는 중…</div>
