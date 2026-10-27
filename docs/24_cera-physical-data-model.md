@@ -1082,6 +1082,14 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 
 **시험**: 단위 `test/unit/live-input.test.ts`(READY → 엔진 · Solver OPTIMAL · 결정론 · LFD/수용량/트럭/요율 누락 · 잠정 · CSV 검증 · 수식 칸 · 요율 모양) · DB `test/db/live-planning.test.ts`(실제 실행 → 일괄 입력 · 검증만 · 422 · 멱등 · 409 → 준비도 → 고침 → 요율 누락 → READY → 판 v1(스냅숏 출처) → 승인 → 후속 초안 → 요율 인상 → OUTDATED → v2 · v1 금액 유지 · append-only · 시뮬레이션 실행 거부 · 권한)
 
+### 18.24 T-125 자동 추출 재시도 간격 (2026-10-27)
+
+- **문제(T-124 실측)**: 자동 재시도 3회가 약 5초 안에 끝났다 — 수신 알림의 빠른 경로와 Worker 폴링이 같은 회신을 연달아 집었다. 모델 콜드 스타트 · 잠깐의 장애에도 곧바로 사람 검토로 넘어갔고, 다시 해도 같은 실패(녹화 없음)에도 한도를 다 썼다
+- **규칙**: 자동 시도는 (1) 기술 실패 < `CERA_EXTRACTION_MAX_ATTEMPTS` (2) 재시도해도 같은 실패(`system_error.retryable = false` — 녹화 없음 · 출력 형식 · 요청 거부)가 없음 (3) 마지막 실패 + `base × 3^(n−1)`(상한 max)이 지남 — 셋 다일 때만. 기본 base 10초 · max 120초 `[ASSUMPTION]`(`CERA_EXTRACTION_RETRY_BASE_MS` · `CERA_EXTRACTION_RETRY_MAX_MS`). 간격은 저장된 실패 시각으로 SQL 이 판정한다 — 재시작 · Redis 유무와 무관, 새 표 없음. 시험 기본값은 0(간격 없음)
+- **상태**: retryable 이 아닌 자동 실패는 한도 전에도 `FAILED`(사람 검토 · 다시 추출 가능). RETRYING 이면 회신 보기에 `next_attempt_at`. 재시도 중에는 Agent 가 사람 검토로 넘어가지 않는다(AWAITING_REPLY 는 추출이 끝났을 때만 깨운다)
+- **사람 재시도**: 간격 없음, 자동 한도와 무관(T-124 그대로)
+- **실측(Docker)**: AI Server 정지 → 시도 1 15:53:25 · 시도 2 15:53:41(10초 + 재시작 지연) — 그 사이 Worker · Redis 재시작 → AI 복귀 → 시도 3 15:54:11(30초) DONE · 후보 검증 통과 · 임시 사실 → Agent 계속
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).

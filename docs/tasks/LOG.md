@@ -21,6 +21,17 @@
 
 ---
 
+## 2026-10-27 · T-123 실제 계획 입력 · T-125 재시도 간격 · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 사용자 검토 대기(feature freeze 판단)
+- 한 일:
+  - T-123: 입력 방식 LIVE / SCENARIO 분리. 운영 기록 표 4(planning_input_batch · planning_container_record · tariff_rate · facility_planning_profile, M30 · M31 append-only 판). 일괄 입력 API(CSV · 행, dry_run, 행별 오류, 한 묶음 = 한 트랜잭션, 명령 id 멱등, 같은 내용 = 새 판 없음, ISO 6346 · 수식 칸 · 크기 상한). 실제 실행 만들기 `POST /planning/runs`. LIVE 입력 생성기(순수, 시나리오 팩 안 읽음) — 자사 트럭 = 확인된 신선한 가용만, 시설 보관 한도 = OPERATIONAL_RECORD 사실. 준비도 READY / READY_WITH_PROVISIONAL / NOT_READY · 필드 단위 · 묶음 요약 — 요율 · 다음 날 수용량 누락은 엔진 결과로 판정. `PLANNING_INPUT_UNAVAILABLE.details`. 스냅숏 `input_mode` · `operational_inputs`(판 id · 지문 · 요율 금액). 운영 기록 변경 → OUTDATED(`OPERATIONAL_RECORD_CHANGED` 등) → 재계산. Cost Engine · Solver 무수정
+  - E2E 로 찾은 결함 2: 준비도 READY 인데 Solver INFEASIBLE(다음 날 창고 수용량 누락) · 자사 트럭이 협력 트럭 id 꼴이라 외부 배차 후속 초안이 생김 — 둘 다 고침(`6a5542e`)
+  - T-125: 일시 실패만 자동 재시도 · 같은 실패는 바로 사람 검토 · 간격 base × 3^(n−1) 상한 · DB 시각 기준 · `next_attempt_at`
+- 검증: Backend 520 · Python 87 · Front 80 · typecheck · build · drizzle-kit check · lint 오류 0. Docker LIVE E2E: 실제 실행 → 시설 계획 정보 4 · 요율 21 · 컨테이너 8(검증만 → 저장, LFD 하나 비움) → 준비도 NOT_READY(LFD · 창고 수용량 · 트럭, 필드 단위) · 계산 요청 409 → 고침 → 다음 날 창고 수용량 누락까지 잡음 → READY → Agent(계획 포함)가 비용 · Solver → v1 OPTIMAL(총 1,480,000 · Baseline 2,005,000 · 절감 525,000, Solver 39 ms · 비용 2 ms) → 사람 승인 → Agent COMPLETED → 후속 초안(자사 트럭만 쓴 판 = 외부 연락 없음) → 운송 요율 인상 → v1 OUTDATED(OPERATIONAL_RECORD_CHANGED · RATE) → 새 Agent 실행 v2(총 1,760,000). 시나리오 `/demo` 12단계 브라우저(오류 0, v1 5,735,000 그대로). T-125 Docker: 시도 간격 10초 · 30초, 그 사이 Worker · Redis 재시작, AI 복귀 뒤 DONE. 전체 실행 중 Agent 두 프로세스 시험 1건이 한 번 흔들렸다(단독 · 재실행 통과)
+- 남은 일 / 다음 한 걸음: 사용자 검토 · feature freeze 판단. 상용 LLM 키(T-099) · UI(T-120, 사용자) · 내부 시스템 자동 연동(T-126, 대상 미정)
+- 큐 변경: T-123 · T-125 DONE · **T-126 신규**(P2)
+- 주의사항: LIVE 준비도는 등록부의 모든 활성 시설 · 트럭 풀을 본다(공유 DB 시험은 다른 시험의 풀 가용이 보인다). 계획 기간 = 계획일 + 2일 [ASSUMPTION]. 요율 · 컨테이너 기록은 지우지 않고 판으로 쌓인다
+
 ## 2026-10-27 · Final Stabilization(실제 Gmail 왕복 · T-124 · 설정 방어 · 최종 회귀) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 사용자 검토 대기(feature freeze 제안)
 - 한 일:
