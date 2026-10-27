@@ -10,7 +10,7 @@
 
 ## Status
 
-**IMPLEMENTING — Final Productization Sprint(2026-10-27, Orchestrator: Claude Code).** 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
+**REVIEWING — Final Stabilization 끝, 사용자 검토 대기(2026-10-27, Orchestrator: Claude Code). Backend 핵심 기능 feature freeze — 이후는 blocker · 보안 · 시연을 깨는 결함만.** (이전: Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
 
 ### 이번 스프린트에서 끝난 것 (모두 commit · origin push)
 | 커밋 | 내용 | 정본 |
@@ -22,18 +22,20 @@
 | `99bc14b` | T-121 Redis 실행 큐(BullMQ · 참조만 · 폴링이 정확성 경로 · 장애 결함 2건 수정) | `docs/24` 18.19 |
 | `c1c6390` | T-115 실제 실행 입력 준비도 · `missing_inputs`(실제 실행 계산은 아직 안 됨 → T-123) | `docs/24` 18.20 |
 | `073f0e1` | T-116 승인된 계획 → 후속 문의 초안(M26 · M27, 판 무효 시 PLAN_SUPERSEDED) · `/demo` 12단계 | `docs/24` 18.21 |
+| `7d595cf` | 실제 Gmail 왕복 기록(테스트 계정 2개) | `docs/18` G.8 |
+| (이번) | **T-124** 값을 못 얻은 회신 — 사람 검토(`needs_review` · `failure_kind` · 시도 이력) · Agent `REPLY_REVIEW_REQUIRED` 대기 · 사람 추출 재시도 API(M28 · M29) · production 설정 방어(Redis URL) | `docs/24` 18.22 |
 
 ### 실제 Gmail 왕복 — 확인됨(2026-10-27)
-OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · 허용목록 = 외부 테스트 계정(값은 로컬만). 결과표 `docs/18` G.8: 발송 1회 성공 · 실제 회신 수신 · 원문 보존 · 발신자 판정 · Agent 재개 OK. **추출은 후보 없음**(replay = 녹화 없음, 로컬 Qwen3-4B = `UNPARSEABLE`) → 운영자 직접 입력으로 Truth · 재평가 확인. 남은 것: 추출 공급자(T-099 — 상용 키 필요) · 상한 넘긴 회신 재시도 경로(T-124). Testing 모드 refresh token 은 약 7일 뒤 만료 → `npm run gmail:auth` 다시
+OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · 허용목록 = 외부 테스트 계정(값은 로컬만). 결과표 `docs/18` G.8: 발송 1회 성공 · 실제 회신 수신 · 원문 보존 · 발신자 판정 · Agent 재개 OK. **추출은 후보 없음**(replay = 녹화 없음, 로컬 Qwen3-4B = `UNPARSEABLE`) → 운영자 직접 입력으로 Truth · 재평가 확인. 남은 것: 추출 공급자(T-099 — 상용 키 필요). 상한 넘긴 회신 재시도 경로는 T-124 로 DONE. Testing 모드 refresh token 은 약 7일 뒤 만료 → `npm run gmail:auth` 다시
 
 ### 시연 스택 상태
 `cera-demo` 가 떠 있다(초기화 · 시드됨). 로그인 operator · admin · field — 비밀번호는 `back/.env` 의 `CERA_SEED_*_PASSWORD`. 평소 개발 스택 `cera-local` 은 멈춤(데이터 유지). 바탕화면 `CERA_시연_테스트_시나리오.md` = 단계별 기대값(실측)
 
 ### 다음 한 걸음
-1. ~~실제 Gmail 왕복 확인~~(DONE 2026-10-27) — 추출 공급자는 T-099(키 대기), 재시도 경로 T-124
-2. P1: 운영 설정 점검(production 에서 dev 도우미 · dev-header · Mock 장애 주입 거부 확인 — 일부 있음) · 관측(요청 · 작업 trace_id 연결 확인) · Solver/Agent 엣지
-3. T-123(실제 실행 내부 정보 입력 경로) — 실제 실행 계산을 열려면 필요
-4. 남은 시간에만 P2 UI
+1. ~~실제 Gmail 왕복 확인~~ · ~~T-124~~ · ~~운영 설정 점검 · 회귀 · Docker E2E~~ (DONE 2026-10-27)
+2. 사용자 검토 → feature freeze. 그 뒤 실행 가능: T-125(자동 추출 재시도 간격) · T-123(실제 실행 내부 정보 입력)
+3. 사람 대기: T-099(상용 LLM 키 — 실제 회신 추출) · T-120 P2 UI(사용자)
+4. 관측 한계(알고 있음): 회신 하나는 id 로 끝까지 이어진다(send_attempt.provider_message_id → comm_thread.external_thread_id → INBOUND comm_message → raw_input → system_error · extraction · event → agent_run.pending_ref). 다만 Worker 의 추출 시도와 Agent 실행은 **서로 다른 trace_id** 다 — 하나의 trace 로 묶지 않았다
 
 ### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"
 

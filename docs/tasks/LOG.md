@@ -21,6 +21,18 @@
 
 ---
 
+## 2026-10-27 · Final Stabilization(실제 Gmail 왕복 · T-124 · 설정 방어 · 최종 회귀) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 사용자 검토 대기(feature freeze 제안)
+- 한 일:
+  - 실제 Gmail 왕복(테스트 계정 2개): 발송 · 실제 회신 · 같은 스레드 연결 · 발신자 판정 · 원문 보존 · 중복 없음 · Agent 재개. 추출은 후보 없음(replay 녹화 없음 · 로컬 Qwen3-4B `UNPARSEABLE`) — 값을 지어내지 않음
+  - T-124: 회신 보기 `needs_review` · `failure_kind`(AI 호출 실패 / 답 못 찾음 / 검증 탈락 / 추출 불가) · `attempts`(AUTO / HUMAN_RETRY, 지우지 않음) · `retry`. Agent 는 값을 못 얻은 회신 + 열린 공백이면 `COMPLETED` 대신 `WAITING_HUMAN · REPLY_REVIEW_REQUIRED`(직접 입력 · 재시도 성공에만 깨어남). `POST /communication/inbound/:messageId/extraction/retry`(권한 `extraction.retry` = ADMIN · OPERATOR, 명령 id 멱등, 진행 중 409, `REPLY_SUPERSEDED` · `GAP_ALREADY_RESOLVED` · `EXTRACTION_NOT_REQUIRED`). M28 `extraction_retry_request` · M29 append-only. 최소 화면([다시 추출] · 시도 이력)
+  - 설정: `CERA_REDIS_URL` 형식 검사(redis:// · rediss:// 만, 값 미노출) · production 가드 시험
+- 변경 파일: `back/src/communication/{extraction-status,extraction-retry.service,extraction.repository,extraction-processor,inbound.service,inbound.controller,dto}.ts` · `back/src/agent-tools/{wake-rules,reconciler}.ts` · `back/src/db/schema/m28-extraction-retry.ts` · migration 0027 · 0028 · `ai/cera_ai/agent/graph.py` · `front/web/src/components/drafts/*` · `docs/24` 18.22 · 22.51 · 22.52
+- 검증: Backend 507 · Python 87 · Front 80 · typecheck · build · drizzle-kit check · lint(오류 0) · Docker E2E(재시작 4개 프로세스 뒤 대기 유지 · 권한 403/401 · 직접 입력 → 다음 공백 · 계획 v1 5,735,000 → 승인 → 후속 초안 3) · `/demo` 12단계 브라우저(오류 0) · 비밀 점검
+- 남은 일 / 다음 한 걸음: 사용자 검토 → feature freeze. T-125 · T-123 · T-099(상용 키) · T-120(사용자 UI)
+- 큐 변경: T-118 실제 왕복 확인 · T-122 DONE · T-124 DONE · **T-125 신규**
+- 주의사항: 자동 추출 재시도 3회가 몇 초 안에 끝난다(T-125). Gmail Testing 모드 refresh token 은 약 7일마다 `npm run gmail:auth`. Worker 추출 시도와 Agent 실행은 다른 trace_id
+
 ## 2026-10-27 · Final Productization Sprint 1일차(T-118 · T-119 · T-121 · T-115 · T-116 · /demo) · Claude Code (claude-opus-5-5)
 - 상태: **진행 중(스프린트) — 영역마다 완료 · 커밋 · push.** 실제 Gmail 왕복만 사람의 OAuth 준비 대기
 - 한 일: ADR-038 Accepted for MVP · Gmail 채널(가짜 Gmail 시험) · 시연 콘솔 `/demo` + 바탕화면 시나리오 문서 · Auth/RBAC(세션 · 전역 Guard · 사칭 차단 · M24/M25) · Redis 실행 큐(BullMQ, 폴링이 정확성) · 실제 실행 입력 준비도(`missing_inputs`) · 승인된 계획 → 후속 문의 초안(M26/M27)
