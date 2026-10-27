@@ -10,14 +10,30 @@
 
 ## Status
 
-**IDLE — T-112 · T-113 · T-114 DONE(2026-10-26, 커밋 · push).** 다음 세션(2026-10-27)은 사용자 스프린트 지시로 시작한다 · Orchestrator: Claude Code.
+**IMPLEMENTING — Final Productization Sprint(2026-10-27, Orchestrator: Claude Code).** 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
 
-### 다음 스프린트 (사용자 지시 — 커밋 · push 승인 포함)
-- 순서: 1 Real Gmail Channel → 2 Redis execution queue → 3 Authentication / RBAC → 4 Full UI redesign → 5 Final integration fixes
-- 영역마다: 구현 → 해당 영역 시험 → 전체 regression → 명시 staging(`git add .` · `-A` 금지) → commit → normal push(force 금지). commit 전 `git status --short`, push 전 `git status -sb` · `git log --oneline -10`, push 뒤 local / origin HEAD · ahead/behind 확인
-- 커밋 금지: `.env` · OAuth client secret · Gmail refresh/access token · Redis secret · session secret · JWT/session signing key · API key · 실제 수신 메일 원문 · 개인정보 fixture. 설정명 · 사용법만 `.env.example`
-- 목표: 마지막 날 origin/main 이 실제 Demo 가능한 최신 CERA 전체를 그대로 재현
-- 주의: 이 스프린트는 앞선 "후순위 중단" 지시(Gmail · Redis · Auth · UI)를 사용자가 바꾼 것이다. 실제 외부 발송은 ADR-027 · 규칙 4 · 12(등록 · 검증 · 승인된 연락처, 건마다 사람 승인) 안에서만
+### 이번 스프린트에서 끝난 것 (모두 commit · origin push)
+| 커밋 | 내용 | 정본 |
+| --- | --- | --- |
+| `e9c4279` | ADR-038 Accepted for MVP(HiGHS · 업무 계약과 Solver 분리) · ADR-007 Superseded · Q-35 · Q-65 CLOSED for MVP | `docs/14` |
+| `de3d8ae` | T-118 Gmail 채널 코드(같은 포트 · 화해 · 알려진 스레드만 수신 · RFC822 · 오류 분류) — **가짜 Gmail 시험만, 실제 왕복은 OAuth 대기** | `docs/18` G.8 |
+| `a8edeb2` | `/demo` 시연 · 테스트 콘솔 · `compose.demo.yaml`(`-p cera-demo`) · 브라우저 자동 따라가기 | `infra/README.md` |
+| `a515b5a` | T-119 Auth/RBAC(세션 · scrypt · 전역 Guard · 역할 3 · 사칭 차단 · M24 · M25 · 최소 로그인) | `docs/24` 18.18 |
+| `99bc14b` | T-121 Redis 실행 큐(BullMQ · 참조만 · 폴링이 정확성 경로 · 장애 결함 2건 수정) | `docs/24` 18.19 |
+| `c1c6390` | T-115 실제 실행 입력 준비도 · `missing_inputs`(실제 실행 계산은 아직 안 됨 → T-123) | `docs/24` 18.20 |
+| `073f0e1` | T-116 승인된 계획 → 후속 문의 초안(M26 · M27, 판 무효 시 PLAN_SUPERSEDED) · `/demo` 12단계 | `docs/24` 18.21 |
+
+### Blocker — 실제 Gmail 왕복(사람이 할 일)
+`back/.env` 의 `GMAIL_CLIENT_ID` · `GMAIL_CLIENT_SECRET` 비어 있음(2026-10-27 확인). 절차 `docs/18` G.8: 전용 Gmail 2개 → Google Cloud Gmail API · OAuth 동의 화면(Testing) · 데스크톱 앱 client → `.env` → `npm run gmail:auth` → 외부 계정 주소를 알려 주면 `CERA_TEST_RECIPIENT_ALLOWLIST` · `npm run gmail:tech-validation -- --recipient …` → `CERA_GMAIL_ENABLED=true` → 실제 왕복(발송 → 회신 → 수신 → 추출 → Truth → Agent 재개) 확인
+
+### 시연 스택 상태
+`cera-demo` 가 떠 있다(초기화 · 시드됨). 로그인 operator · admin · field — 비밀번호는 `back/.env` 의 `CERA_SEED_*_PASSWORD`. 평소 개발 스택 `cera-local` 은 멈춤(데이터 유지). 바탕화면 `CERA_시연_테스트_시나리오.md` = 단계별 기대값(실측)
+
+### 다음 한 걸음
+1. (credential 오면) 실제 Gmail 왕복 확인 · 결과를 `docs/18` G.8 에 기록
+2. P1: 운영 설정 점검(production 에서 dev 도우미 · dev-header · Mock 장애 주입 거부 확인 — 일부 있음) · 관측(요청 · 작업 trace_id 연결 확인) · Solver/Agent 엣지
+3. T-123(실제 실행 내부 정보 입력 경로) — 실제 실행 계산을 열려면 필요
+4. 남은 시간에만 P2 UI
 
 ### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"
 

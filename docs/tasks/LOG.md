@@ -21,6 +21,15 @@
 
 ---
 
+## 2026-10-27 · Final Productization Sprint 1일차(T-118 · T-119 · T-121 · T-115 · T-116 · /demo) · Claude Code (claude-opus-5-5)
+- 상태: **진행 중(스프린트) — 영역마다 완료 · 커밋 · push.** 실제 Gmail 왕복만 사람의 OAuth 준비 대기
+- 한 일: ADR-038 Accepted for MVP · Gmail 채널(가짜 Gmail 시험) · 시연 콘솔 `/demo` + 바탕화면 시나리오 문서 · Auth/RBAC(세션 · 전역 Guard · 사칭 차단 · M24/M25) · Redis 실행 큐(BullMQ, 폴링이 정확성) · 실제 실행 입력 준비도(`missing_inputs`) · 승인된 계획 → 후속 문의 초안(M26/M27)
+- 검증: Backend 499 · Front 79 · Docker `/demo` 12단계 브라우저(페이지 오류 0, operator 로그인) · Redis 있음 153~160 ms / 멈춤 4.3~4.8 s / 재시작 회복 · 대기 중 ai · worker · api · redis 재시작 → 회신 → v1 5,735,000 그대로 · 비밀정보 점검(추적 파일에 값 없음)
+- 실측으로 찾아 고친 결함: Redis 재연결 DNS 가 libuv 스레드풀을 채워 PostgreSQL 연결 시간 초과 · 재연결 뒤 큐 빠른 길 미회복 · DomainSignals 가 앱 사이에 공유됨 · ODCY 반입일을 최종 도착일로 계산 · password_hash CHECK 의 `$` 미이스케이프(생성 SQL 검토에서)
+- 남은 일: 실제 Gmail 왕복(credential) · T-123 · P1 운영/관측 점검 · P2 UI(사용자)
+- 큐 변경: T-118 · T-119 · T-121 · T-115(1차) · T-116 DONE, T-120 → P2, T-122 TODO, **T-123 신규**
+- 주의: 시험 기본 `CERA_AUTH_MODE=dev-header`(`test/db/support.ts`) — 세션 시험은 `auth.test.ts`. Redis 시험은 실제 Redis(`redis://127.0.0.1:56379`) 필요. 실제 실행은 계산되지 않는다(요율 · 목적지 · LFD 없음 — 지어내지 않음)
+
 ## 2026-10-26 · T-112 · T-113 · T-114 DONE — Cost / Risk Engine · Recovery Solver · Recovery Plan · Claude Code (claude-opus-5-5)
 - 상태: **완료 — 사용자 승인**(커밋 3개 · origin push)
 - 한 일: 결정론 Cost / Risk Engine(순수) · Baseline 규칙(같은 비용표) · Solver = HiGHS 0-1 MIP(ADR-038 Proposed) · 계획 판 저장(M22 · M23) · 사실 변경 → OUTDATED → Agent 재계산 · 사람 승인(`plan_hash`) · Agent Tool 4 · 계획 화면. 기록 `docs/24` 18.17 · `docs/08` 10절
