@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNotNull, like, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, like, sql } from 'drizzle-orm';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
 import {
   auditLog,
@@ -56,6 +56,24 @@ export class InboundRepository {
       .where(and(eq(rawInput.sourceName, sourceName), eq(rawInput.sourceRecordKey, externalMessageId)))
       .limit(1);
     return rows.length > 0;
+  }
+
+  /** 수신 폴링 범위(T-118): 이 채널에서 CERA 가 보낸(외부 스레드 id 가 생긴) 열린 스레드 중 최근 활동이 있는 것. */
+  async activeExternalThreadIds(channelType: string, sinceDb: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: commThread.externalThreadId })
+      .from(commThread)
+      .where(
+        and(
+          eq(commThread.channelType, channelType),
+          isNotNull(commThread.externalThreadId),
+          inArray(commThread.threadStatus, ['WAITING_REPLY', 'ANSWERED']),
+          gte(commThread.lastActivityAt, sinceDb),
+        ),
+      )
+      .orderBy(desc(commThread.lastActivityAt))
+      .limit(200);
+    return rows.map((r) => r.id).filter((x): x is string => Boolean(x));
   }
 
   /** 외부 스레드 id(채널 안에서 유일) → 스레드 + 그 스레드의 마지막 보낸(발송 완료) 메시지. */

@@ -559,6 +559,34 @@ Gmail에는 "이 라벨만 읽기" 같은 scope가 없다. 그래서 **권한 �
 - **Q-45 — 2026-09-21 사용자 결정(구조 CLOSED · 기간 OPEN).** **기록과 내용을 나눈다 — 행 삭제 ≠ 내용 파기.** 원문(RFC822, 첨부·HTML 포함)·메시지 제목·본문·승인 문장·추출 인용·제안 조건 원문은 **보관 관리 내용**이고 기록은 참조 + 지문만 갖는다. 사건·외부 메시지 id·지문·시각·구조화 값·승인·발송 시도·감사는 **기록**이라 파기하지 않는다. 원본 HTML 은 따로 저장하지 않는다. 파기는 감사된다(본문 복사 금지). **실제 보관 기간 숫자는 Pilot 정책**(`docs/22` 29절 · ADR-032).
 - **Tech Validation** 은 전용 테스트 계정만 쓰고 개인·회사 실메일을 쓰지 않으며, 단계가 끝나면 원문·내용을 정리한다.
 
+### G.8 구현 (T-118, 2026-10-27) — Gmail 어댑터 · 기술검증 준비
+
+**구조(Mock 과 같은 포트)**: `back/src/channel/gmail-channel-adapter.ts` · `gmail/gmail-client.ts`(fetch 만, Google SDK 없음) · `gmail/gmail-mime.ts`. `CERA_GMAIL_ENABLED=true` 일 때만 GMAIL 어댑터가 생기고, MOCK 은 늘 함께 있다. 어느 채널로 나가는지는 받는 주소의 `channel_type` 이 정한다. 발송은 기존 승인 → Outbox → Worker 경로 그대로다(새 발송 흐름 없음, Agent 는 Gmail 을 부르지 않는다).
+
+| 항목 | 구현 |
+| --- | --- |
+| 인증 | Installed App + 루프백 + PKCE(`npm run gmail:auth`). refresh token 은 `back/.env` 에만, access token 은 메모리에만. scope = `gmail.send` + `gmail.readonly` |
+| 발송 | 승인 사본 → text/plain UTF-8 + `X-CERA-Message` · `X-CERA-Thread`. 헤더 줄바꿈 주입 차단. 같은 대화의 다음 편지는 threadId + In-Reply-To/References |
+| 외부 id | `send_attempt.provider_message_id` = 보낸 편지의 **RFC822 Message-ID**(회신 In-Reply-To 와 대조), `comm_thread.external_thread_id` = Gmail threadId |
+| 중복 방지 | T-090 그대로: 시도 선커밋 → 외부 호출 → 결과. 응답 유실(시간 초과 · 연결 끊김) = UNKNOWN → 다시 보내기 전에 보낸 편지함에서 `X-CERA-Message` 로 조회(`lookupSent`, 범위 `CERA_GMAIL_LOOKUP_DAYS`, 다 훑지 못하면 "확인 불가"로 두고 재전송하지 않음) |
+| 오류 분류 | 401 → 토큰 한 번 갱신 후 다시, 그래도 401 · `invalid_grant` · 그 밖 403 = AUTH(재시도 금지 → `DELIVERY_FAILED`) · 403 rate limit · 429 · 5xx = TRANSIENT(백오프) · 그 밖 4xx = PERMANENT · 발송 중 시간 초과 = UNKNOWN |
+| 수신 | **폴링**(Worker 주기). 메일함 전체를 읽지 않고 **CERA 가 보낸 스레드**(`WAITING_REPLY` · `ANSWERED`, 마지막 활동 `CERA_GMAIL_INBOUND_THREAD_DAYS` 안)만 `threads.get` → CERA 가 보낸 편지(SENT · `X-CERA-Message` · 자기 주소) 제외 → 이미 보존한 것 제외 → `format=raw` RFC822 바이트를 그대로 ContentStore 에. 발신자 판정 · 스레드 연결 · 보류는 기존 InboundProcessor(등록부, AI 없음) |
+| 라벨 | `label:CERA` 는 쓰지 않는다 — 라벨을 붙이려면 `gmail.modify`(더 넓은 권한)가 필요하다. 대신 "CERA 가 아는 스레드 id" 화이트리스트가 더 좁은 수집 조건이다 |
+| 본문 | text/plain 우선, HTML 만 있으면 태그를 걷은 텍스트만(렌더링 없음 → 원격 이미지 · 스크립트 실행 경로 없음). 회신의 인용(이전 편지)은 추출 · 미리보기 입력에서 뺀다 — 원문에는 남는다 |
+| 크기 | `CERA_GMAIL_MAX_MESSAGE_BYTES`(기본 10 MB [ASSUMPTION]) 초과는 받지 않고 저장도 하지 않는다 |
+| Mock / Real | 어댑터가 `declaresSimulated=false` 고정 · 가상 메시지는 거부. 시나리오(시뮬레이션) 실행의 값은 GMAIL 로 나갈 수 없다(초안 단계 `SIMULATION_MISMATCH`). Agent 의 `find_counterparty` 는 실행의 Mock/Real 과 맞는 주소만 eligible 로 돌려준다 |
+
+**기술검증 준비(사람이 한 번)** — 실제 값은 커밋하지 않는다:
+
+1. CERA 전용 Gmail 계정 하나 + 외부 역할 테스트 Gmail 계정 하나(둘 다 새로, 개인 · 회사 계정 금지)
+2. Google Cloud Console: 프로젝트 → Gmail API 사용 설정 → OAuth 동의 화면(External · Testing, 테스트 사용자에 CERA 전용 계정 추가) → 사용자 인증 정보 → OAuth client ID **데스크톱 앱** → client ID · secret 을 `back/.env` 의 `GMAIL_CLIENT_ID` · `GMAIL_CLIENT_SECRET` 에
+3. `back` 에서 `npm run gmail:auth` → 브라우저에서 **CERA 전용 계정**으로 동의 → `.env` 에 `GMAIL_REFRESH_TOKEN` · `GMAIL_ACCOUNT_EMAIL` 기록(화면에 값 표시 없음)
+4. `back/.env`: `CERA_GMAIL_ENABLED=true` · `CERA_TEST_RECIPIENT_ALLOWLIST=<외부 테스트 계정>`
+5. `npm run gmail:tech-validation -- --recipient <외부 테스트 계정>` → 그 주소를 ODCY 연락처의 GMAIL 주소(확인 · 승인 · 활성)로 등록하고 **시뮬레이션이 아닌** 오늘 날짜 계획 실행을 만든다(합성 시나리오 실행의 값은 실채널로 못 나가므로 실제 왕복은 이 실행에서 한다)
+6. API · Worker 재기동 → 그 실행으로 Agent Run → 초안 승인 · 발송 요청(사람) → 외부 계정에서 회신 → Worker 수신 · 추출 → Agent 깨어남
+
+검증 구분: 가짜 Gmail 서버로 하는 시험(`back/test/unit/gmail-channel.test.ts` · `back/test/db/gmail-channel.test.ts`)은 credential 없이 돈다. 실제 Google 왕복은 위 준비 뒤에만 확인할 수 있다.
+
 ---
 
 ## H. 실패 · 중복 · 재시도 정책

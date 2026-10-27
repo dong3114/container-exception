@@ -103,8 +103,8 @@ export class InboundService {
     const out: InboundItemDto[] = [];
     for (const r of rows) {
       const bytes = r.payloadRef ? await this.store.get(r.payloadRef as Parameters<ContentStore['get']>[0]) : ABSENT;
-      const surface = bytes === ABSENT ? null : readInboundSurface(r.sourceName, bytes);
-      const channelReceivedAt = surface ? Instant.parseIso(surface.channelReceivedAt) : Instant.fromDb(r.receivedAt);
+      const surface = bytes === ABSENT ? null : await readInboundSurface(r.sourceName, bytes);
+      const channelReceivedAt = surface?.channelReceivedAt ? Instant.parseIso(surface.channelReceivedAt) : Instant.fromDb(r.receivedAt);
       const rejectReason = (dateRejections.get(r.rawInputId) ?? null) as DateRejectReason | null;
       const from = r.fromAddress ?? (surface ? normalizeAddress(surface.from) : null);
       const sender = from ? await this.inbound.senderLabel(r.sourceName, from) : null;

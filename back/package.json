@@ -27,7 +27,9 @@
     "openapi:emit": "tsx src/openapi/emit-openapi.ts",
     "agent-tools:emit": "tsx src/agent-tools/emit-tool-contracts.ts",
     "runtime:stats": "tsx src/dev/runtime-stats.ts",
-    "validator-conformance:emit": "tsx src/dev/validator-conformance.ts"
+    "validator-conformance:emit": "tsx src/dev/validator-conformance.ts",
+    "gmail:auth": "tsx src/dev/gmail-auth.ts",
+    "gmail:tech-validation": "tsx src/dev/gmail-tech-validation.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.0.4",
@@ -39,6 +41,7 @@
     "fast-xml-parser": "5.11.1",
     "highs": "1.15.3",
     "pg": "8.23.0",
+    "postal-mime": "4.0.5",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "uuid": "14.0.2",

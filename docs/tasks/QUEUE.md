@@ -473,6 +473,22 @@
 - 목표: 제안 계획 저장(PROPOSED · 판 관리) · 사용한 사실 기록 · 사실 변경 → 계획 OUTDATED → Agent 재계산 · 화면 · Docker E2E
 - 완료 조건: [x] M22 · M23(표 2) [x] 판 관리 · OUTDATED · 사람 승인 [x] Agent Tool 4 · 그래프(plan_recovery) [x] 화면 계획 패널 [x] Docker E2E v1 → v2 → v3 → 승인 → PLAN_APPROVED [x] 시험(Backend 426 · Python 85 · Front 79)
 
+### T-118: Real Gmail Channel (2026-10-27 스프린트 1)
+- 상태: **DONE — 코드 · 가짜 Gmail 시험(2026-10-27, 커밋 · push).** 실제 Google 왕복은 사람의 OAuth 준비(`docs/18` G.8) 뒤 T-122 에서 확인 | 우선: P0 | 담당: Claude Code / 2026-10-27
+- 결과: Mock 과 같은 포트의 Gmail 어댑터(발송 · 화해 · 알려진 스레드만 수신 · RFC822 원문 보존 · 인용 제거 · 오류 분류) · `npm run gmail:auth` · `npm run gmail:tech-validation` · Agent 주소 선택 = 실행의 Mock/Real 과 맞는 주소만. 정본 `docs/18` G.8
+
+### T-119: Authentication / RBAC (스프린트 2 — T-098 의 인증 · 역할 부분)
+- 상태: TODO | 우선: P0 | 의존: — | 목표: 로그인 · 세션 · 역할(ADMIN · OPERATOR · FIELD_OPERATOR) · Backend 권한 강제 · `X-CERA-Actor-Id` 는 local/test 전용
+
+### T-120: Control Tower UI 전면 정리 (스프린트 3 — T-098 의 화면 부분)
+- 상태: TODO | 우선: P0 | 의존: T-119 | 목표: 정보 구조 · 내비게이션 · 처리할 일 모음 · 계획 · 사실 · 통신 · Agent 화면
+
+### T-121: Redis execution queue (스프린트 4)
+- 상태: TODO | 우선: P1 | 의존: — | 목표: 빠른 전달 · 지연 재시도 · 깨우기. PostgreSQL 이 정본, Redis 가 없어도 재조정으로 정확
+
+### T-122: Final Integration / Demo Readiness (스프린트 5)
+- 상태: TODO | 우선: P0 | 의존: T-118 ~ T-121 | 목표: 전체 Docker · 실제 Gmail E2E · 권한 E2E · 회귀 · 비밀 점검
+
 ### T-115: 실제 계획 실행의 컨테이너 · 요율 입력 연결
 - 상태: TODO | 우선: P1 | 단계: Phase 1 | 담당: -
 - 의존: T-114

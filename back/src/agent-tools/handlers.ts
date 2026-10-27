@@ -192,9 +192,13 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
       },
     },
     find_counterparty: {
-      async run(input) {
+      async run(input, ctx) {
         const i = input as z.infer<typeof findCounterpartyInput>;
         const list = await deps.registry.listCounterparties();
+        // 이 실행이 쓸 수 있는 주소만 eligible(T-118 · J.3): 시나리오 실행 = 가상(MOCK) 주소, 실제 실행 = 실채널 주소.
+        // 섞이면 초안 단계에서 SIMULATION_MISMATCH · SCENARIO_REQUIRED 로 막히므로, Agent 가 그런 주소를 고르지 않게 Backend 가 미리 가린다
+        const runSimulated = (await deps.context.run(ctx.run.recoveryRunId)).containsSimulated;
+        const usable = (a: { eligible: boolean; is_simulated: boolean }) => a.eligible && a.is_simulated === runSimulated;
         const needle = i.name_contains?.toLowerCase();
         return {
           evaluated_at: list.evaluated_at,
@@ -211,8 +215,14 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
                   person_name: p.person_name ?? null,
                   // 주소 문자열은 돌려주지 않는다 — Agent 는 id 로만 고른다
                   addresses: p.addresses
-                    .filter((a) => !i.eligible_only || a.eligible)
-                    .map((a) => ({ address_id: a.address_id, channel_type: a.channel_type, eligible: a.eligible, blocked_reasons: a.reasons.map((r) => r.code), is_simulated: a.is_simulated })),
+                    .filter((a) => !i.eligible_only || usable(a))
+                    .map((a) => ({
+                      address_id: a.address_id,
+                      channel_type: a.channel_type,
+                      eligible: usable(a),
+                      blocked_reasons: [...a.reasons.map((r) => r.code), ...(a.is_simulated === runSimulated ? [] : ['SIMULATION_MISMATCH'])],
+                      is_simulated: a.is_simulated,
+                    })),
                 }))
                 .filter((p) => p.addresses.length > 0 || !i.eligible_only),
             }))

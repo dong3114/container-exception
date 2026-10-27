@@ -52,6 +52,21 @@ export const envSchema = z.object({
   CERA_MOCK_CHANNEL_DIR: z.string().min(1).default('../data/raw/mock-channel'),
   // Mock 장애 주입(시험 · 시연 전용). production 에서는 none 만 허용한다(아래 refine).
   CERA_MOCK_CHANNEL_FAULT: z.enum(['none', 'transient', 'permanent', 'timeout_after_send', 'crash_after_send']).default('none'),
+  // ── Gmail 채널(T-118 · docs/18 G · ADR-027 Tech Validation). CERA 전용 Gmail 계정 하나. 켜면 GMAIL 주소의 메시지가 이 계정으로 나간다 ──
+  // false(기본)면 GMAIL 어댑터가 없다 → GMAIL 메시지는 CHANNEL_UNAVAILABLE. MOCK 채널은 그대로 함께 쓴다
+  CERA_GMAIL_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // OAuth 2.0 Installed App(데스크톱 앱) client · 그 계정의 refresh token(npm run gmail:auth 로 받는다). 비밀값 — .env 에만, 로그 금지
+  GMAIL_CLIENT_ID: optionalSecret,
+  GMAIL_CLIENT_SECRET: optionalSecret,
+  GMAIL_REFRESH_TOKEN: optionalSecret,
+  // refresh token 을 받은 그 계정 주소(보내는 사람 · 자기 편지 거르기 · 연동 확인)
+  GMAIL_ACCOUNT_EMAIL: optionalSecret,
+  CERA_GMAIL_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000), // [ASSUMPTION / DEVELOPMENT SAFETY CEILING]
+  // 이보다 큰 수신 메일은 받지 않는다(저장도 안 함) — 기본 10 MB [ASSUMPTION]
+  CERA_GMAIL_MAX_MESSAGE_BYTES: z.coerce.number().int().min(10_000).max(50_000_000).default(10_000_000),
+  // 화해 조회가 훑는 보낸 편지함 범위(일) · 수신 폴링이 보는 스레드(마지막 활동이 이 일수 안) [ASSUMPTION]
+  CERA_GMAIL_LOOKUP_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  CERA_GMAIL_INBOUND_THREAD_DAYS: z.coerce.number().int().min(1).max(365).default(14),
   // Worker 폴링 주기 — 기본 5초 [ASSUMPTION](docs/24 14 결정 7)
   CERA_OUTBOX_POLL_MS: z.coerce.number().int().min(200).max(600_000).default(5_000),
   // 일시 실패 재시도: 최대 시도 수 · 첫 간격(지수 백오프, 상한 10분) [ASSUMPTION](docs/18 H.3)
@@ -102,6 +117,11 @@ export const envSchema = z.object({
   if (e.APP_ENV === 'production' && e.CERA_PUBLIC_DATA_MODE === 'replay') fail('CERA_PUBLIC_DATA_MODE', 'replay is not allowed in production');
   if (e.CERA_PUBLIC_DATA_MODE === 'live' && !e.UNIPASS_API_KEY && !e.DATA_GO_KR_SERVICE_KEY) {
     fail('CERA_PUBLIC_DATA_MODE', 'live needs UNIPASS_API_KEY or DATA_GO_KR_SERVICE_KEY');
+  }
+  if (e.CERA_GMAIL_ENABLED) {
+    for (const k of ['GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN', 'GMAIL_ACCOUNT_EMAIL'] as const) {
+      if (!e[k]) fail(k, 'required when CERA_GMAIL_ENABLED=true');
+    }
   }
   if (e.CERA_AGENT_TOOLS_ENABLED && (e.CERA_AGENT_TOOL_TOKEN ?? '').length < 32) {
     fail('CERA_AGENT_TOOL_TOKEN', 'agent tools need a service token of at least 32 characters');

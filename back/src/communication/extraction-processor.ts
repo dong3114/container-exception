@@ -76,7 +76,7 @@ export class ExtractionProcessor {
 
     // AI 가 읽는 텍스트 = 검증기가 인용을 찾는 텍스트(같은 원문 바이트에서 같은 함수로)
     const bytes = subject.payloadRef ? await this.store.get(subject.payloadRef as Parameters<ContentStore['get']>[0]) : ABSENT;
-    const surface = bytes === ABSENT ? null : readInboundSurface(subject.sourceName, bytes);
+    const surface = bytes === ABSENT ? null : await readInboundSurface(subject.sourceName, bytes);
     if (!surface) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_CONTENT, [], '');
     const asks = subject.questions
       .map((q) => buildAsk({ askId: q.askId, questionType: q.questionType, questionText: q.questionText, expectedUnit: q.expectedUnit, values: subject.askedValues }))
@@ -87,7 +87,7 @@ export class ExtractionProcessor {
       schema_version: REPLY_EXTRACT_SCHEMA,
       inbound_message_id: messageId,
       // 상대 날짜의 기준 = 질문의 날짜(없으면 회신 근거 시각의 날짜) — 시스템 현재 시각이 아니다
-      reference_date: subject.askedValues.date ?? Instant.parseIso(surface.channelReceivedAt).toSeoulIso().slice(0, 10),
+      reference_date: subject.askedValues.date ?? (surface.channelReceivedAt ? Instant.parseIso(surface.channelReceivedAt) : Instant.fromDb(subject.rawReceivedAt)).toSeoulIso().slice(0, 10),
       counterparty_name: subject.counterpartyName.slice(0, 100),
       asks,
       message_text: surface.bodyText,

@@ -3,7 +3,7 @@
  *
  *   capabilities()               -> { threading, attachments, structured_reply, delivery_receipt, inbound_push }
  *   send(OutboundMessage)        -> { external_message_id, external_thread_id }   # X-CERA-Message 헤더 포함
- *   fetch_inbound(watermark)     -> (U6 — 아직 없음)
+ *   fetch_inbound(watermark, scope) -> [InboundRawMessage], next_watermark    # Gmail = CERA 가 아는 스레드만(scope)
  *   lookup_sent(cera_message_id) -> external_message_id | None                    # 화해용
  *
  * 구현은 외부 I/O 다 — DB 트랜잭션 안에서 부르지 않는다(`assertOutsideTransaction`, docs/24 15절).
@@ -82,6 +82,16 @@ export interface InboundRawMessage {
   bodyText: string;
 }
 
+/**
+ * 수신 범위(docs/18 G.3 2 · T-118). 실채널은 메일함 전체를 읽지 않는다 — **CERA 가 보낸 스레드**의 외부 id 만 본다.
+ * `alreadyStored` 로 이미 보존한 메일의 원문을 다시 받지 않는다(최적화 — 정확성은 raw_input UNIQUE).
+ * Mock 은 범위를 쓰지 않는다(가상 수신함 전체 = CERA 것).
+ */
+export interface InboundScope {
+  externalThreadIds: readonly string[];
+  alreadyStored(externalMessageId: string): Promise<boolean>;
+}
+
 export interface ChannelAdapter {
   readonly channelType: ChannelType;
   /** true = 가상 채널(시나리오 · 시드 메시지를 받을 수 있다). false = 실채널 — 가상 메시지는 보낼 수 없다(J.3 · G-06). 수신 메시지의 `is_simulated` 도 이 값으로 고정된다(G-07). */
@@ -94,7 +104,7 @@ export interface ChannelAdapter {
    * 워터마크 이후 받은 메일(`fetch_inbound(watermark) -> [InboundRawMessage], next_watermark`). 같은 메일이 다시 나와도 된다 —
    * 중복은 CERA 가 외부 메시지 id UNIQUE 로 막는다(워터마크는 최적화일 뿐 정확성의 근거가 아니다).
    */
-  fetchInbound(watermark: string | null): Promise<{ messages: InboundRawMessage[]; nextWatermark: string | null }>;
+  fetchInbound(watermark: string | null, scope?: InboundScope): Promise<{ messages: InboundRawMessage[]; nextWatermark: string | null }>;
 }
 
 export const CHANNEL_ADAPTERS = Symbol('CERA_CHANNEL_ADAPTERS');

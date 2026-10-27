@@ -1,6 +1,8 @@
 import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { CHANNEL_ADAPTERS, type ChannelAdapter, type InboundRawMessage } from '../channel/channel-adapter.js';
+import { CHANNEL_ADAPTERS, type ChannelAdapter, type InboundRawMessage, type InboundScope } from '../channel/channel-adapter.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import type { ChannelAdapters } from '../channel/channel.module.js';
 import { ContentService } from '../content/content-service.js';
 import { TransactionRunner } from '../db/transaction.js';
@@ -37,6 +39,7 @@ export interface InboundCycleSummary {
 @Injectable()
 export class InboundProcessor {
   private readonly logger = new Logger('InboundProcessor');
+  private readonly inboundThreadDays: number;
 
   constructor(
     @Inject(InboundRepository) private readonly inbound: InboundRepository,
@@ -48,13 +51,25 @@ export class InboundProcessor {
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(CHANNEL_ADAPTERS) private readonly adapters: ChannelAdapters,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
-  ) {}
+    @Inject(ENV) env: Env,
+  ) {
+    this.inboundThreadDays = env.CERA_GMAIL_INBOUND_THREAD_DAYS;
+  }
 
   async runCycle(): Promise<InboundCycleSummary> {
     const summary: InboundCycleSummary = { fetched: 0, NORMAL: 0, HOLD: 0, DUPLICATE: 0 };
     for (const adapter of this.adapters.values()) {
       // 워터마크는 최적화일 뿐 — 같은 메일이 다시 와도 UNIQUE 가 막는다. 저장할 곳이 없어 매 주기 처음부터 받는다(Mock).
-      const { messages } = await adapter.fetchInbound(null);
+      // 실채널(Gmail)은 CERA 가 보낸 스레드만 본다(docs/18 G.3 2) — 메일함 전체를 읽지 않는다
+      let messages: InboundRawMessage[];
+      try {
+        const scope = adapter.declaresSimulated ? undefined : await this.scopeFor(adapter);
+        ({ messages } = await adapter.fetchInbound(null, scope));
+      } catch (error) {
+        // 한 채널의 장애(토큰 만료 · 네트워크)가 다른 채널 수신을 막지 않는다. 다음 주기에 다시
+        this.logger.warn({ msg: 'inbound fetch failed — will retry next cycle', channel: adapter.channelType, error: String(error) });
+        continue;
+      }
       summary.fetched += messages.length;
       for (const m of messages) {
         try {
@@ -68,6 +83,14 @@ export class InboundProcessor {
       }
     }
     return summary;
+  }
+
+  private async scopeFor(adapter: ChannelAdapter): Promise<InboundScope> {
+    const since = this.clock.now().plusMs(-this.inboundThreadDays * 86_400_000);
+    return {
+      externalThreadIds: await this.inbound.activeExternalThreadIds(adapter.channelType, since.toDb()),
+      alreadyStored: (id) => this.inbound.rawInputExists(adapter.channelType, id),
+    };
   }
 
   async ingest(adapter: ChannelAdapter, m: InboundRawMessage): Promise<IngestResult> {
