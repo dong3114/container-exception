@@ -19,8 +19,19 @@ const candidate = (over: Partial<Extraction["candidates"][number]>): Extraction[
   promotion_blocked_reasons: [],
   ...over,
 });
-const view = (e: Partial<Extraction>) =>
-  renderToStaticMarkup(<ExtractionView extraction={{ state: "DONE", no_candidate_outcome: null, candidates: [], failed_attempts: 0, last_error_code: null, ...e }} />);
+const base: Extraction = {
+  state: "DONE",
+  no_candidate_outcome: null,
+  candidates: [],
+  failed_attempts: 0,
+  last_error_code: null,
+  provider_code: null,
+  failure_kind: null,
+  needs_review: false,
+  attempts: [],
+  retry: { available: false, blocked_reason: "EXTRACTION_NOT_REQUIRED" },
+};
+const view = (e: Partial<Extraction>, onRetry?: () => void) => renderToStaticMarkup(<ExtractionView extraction={{ ...base, ...e }} onRetry={onRetry} />);
 
 describe("AI suggestions — candidates with evidence, never facts", () => {
   it("shows AI 제안, the value, the verbatim evidence and the validation result", () => {
@@ -62,5 +73,26 @@ describe("AI suggestions — candidates with evidence, never facts", () => {
     expect(held).toContain("이유: 모호한 표현 · 시간창 검증 불가");
     const rejected = view({ candidates: [candidate({ validation: "REJECTED", review_status: "REJECTED", failed_reasons: ["BAD_QUANTITY"] })] });
     expect(rejected).not.toContain("extraction-promotion");
+  });
+
+  it("T-124: a reply with no usable value asks for a person — why it failed, every attempt, retry and direct entry", () => {
+    const attempt = (n: number, over: Partial<Extraction["attempts"][number]> = {}): Extraction["attempts"][number] => ({
+      attempt_no: n, trigger: "AUTO", result: "FAILED", at: "2026-10-27T13:38:35.000+09:00", error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", outcome: null, retry_request_id: null, requested_by_actor_id: null, ...over,
+    });
+    const failed = { state: "FAILED" as const, failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", failure_kind: "AI_CALL_FAILED" as const, needs_review: true, attempts: [attempt(1), attempt(2), attempt(3)], retry: { available: true, blocked_reason: null } };
+    const html = view(failed, () => undefined);
+    expect(html).toContain("사람 검토 필요");
+    expect(html).toContain("AI 호출 자체가 실패했습니다");
+    expect(html).toContain("NO_RECORDING");
+    expect(html).toContain("시도 3회");
+    expect(html).toContain("data-testid=\"extraction-retry\"");
+    expect(html).toContain("값을 직접 입력");
+    // a running human attempt: no second button, the attempt shows as RUNNING
+    const running = view({ ...failed, state: "RETRYING", attempts: [...failed.attempts, attempt(4, { trigger: "HUMAN_RETRY", result: "RUNNING", error_code: null, provider_code: null })], retry: { available: false, blocked_reason: "EXTRACTION_IN_PROGRESS" } }, () => undefined);
+    expect(running).not.toContain("data-testid=\"extraction-retry\"");
+    expect(running).toContain("#4 사람 요청 RUNNING");
+    expect(running).toContain("추출이 진행 중입니다");
+    // the model found no answer — told apart from an AI call failure
+    expect(view({ state: "NO_CANDIDATE", no_candidate_outcome: "UNPARSEABLE", failure_kind: "NO_ANSWER_FOUND", needs_review: true, attempts: [attempt(1, { result: "NO_CANDIDATE", error_code: null, provider_code: null, outcome: "UNPARSEABLE" })], retry: { available: true, blocked_reason: null } })).toContain("AI 가 회신에서 답을 찾지 못했습니다");
   });
 });

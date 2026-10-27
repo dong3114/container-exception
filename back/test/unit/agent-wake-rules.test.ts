@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { planWakeReason, wakeReason } from '../../src/agent-tools/wake-rules.js';
+import { type AwaitedMessage, planWakeReason, wakeReason } from '../../src/agent-tools/wake-rules.js';
 
 /** T-104 durability — the reconciler wakes a waiting run only from the awaited record's current state. */
-const msg = (status: string, approvalState = 'NONE', replies: { status: string; extractionState: string | null }[] = []) => ({ status, approvalState, replies });
+const msg = (status: string, approvalState = 'NONE', replies: AwaitedMessage['replies'] = []) => ({ status, approvalState, replies });
 
 describe('wakeReason', () => {
   it('approval: wakes once the message left PENDING_APPROVAL (approved, rejected, …)', () => {
@@ -39,5 +39,17 @@ describe('planWakeReason (T-114) — a run waiting on a plan wakes on a human de
     expect(planWakeReason('AWAITING_PLAN_DECISION', 'INFEASIBLE')).toBeNull();
     expect(planWakeReason('AWAITING_PLAN_DECISION', null)).toBe('PLAN_MISSING');
     expect(planWakeReason('AWAITING_REPLY', 'APPROVED')).toBeNull(); // another wait is not a plan wait
+  });
+});
+
+describe('REPLY_REVIEW_REQUIRED (T-124) — a reply gave no usable value; the run waits until a person changes something', () => {
+  const failed = [{ status: 'NORMAL', extractionState: 'FAILED', passedCandidates: 0 }];
+  it('a direct entry (the fact now has a value) or a retried extraction with a validated candidate wakes it; another failed attempt does not', () => {
+    expect(wakeReason('REPLY_REVIEW_REQUIRED', { ...msg('REPLIED', 'ACTIVE', failed), facts: [{ awaitingConfirmation: false, hasValue: false }] })).toBeNull();
+    expect(wakeReason('REPLY_REVIEW_REQUIRED', { ...msg('REPLIED', 'ACTIVE', [{ status: 'NORMAL', extractionState: 'RETRYING', passedCandidates: 0 }]), facts: [] })).toBeNull();
+    expect(wakeReason('REPLY_REVIEW_REQUIRED', { ...msg('REPLIED', 'ACTIVE', failed), facts: [{ awaitingConfirmation: false, hasValue: true }] })).toBe('FACT_STATE_CHANGED');
+    expect(wakeReason('REPLY_REVIEW_REQUIRED', { ...msg('REPLIED', 'ACTIVE', [{ status: 'NORMAL', extractionState: 'DONE', passedCandidates: 1 }]), facts: [] })).toBe('EXTRACTION_RETRIED');
+    // rejected answers only (DONE without a passed candidate) — still a person's job
+    expect(wakeReason('REPLY_REVIEW_REQUIRED', { ...msg('REPLIED', 'ACTIVE', [{ status: 'NORMAL', extractionState: 'DONE', passedCandidates: 0 }]), facts: [] })).toBeNull();
   });
 });

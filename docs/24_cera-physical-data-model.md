@@ -1051,6 +1051,19 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **실측(Docker · /demo 12단계)** — 30대 시나리오 v3 승인 → 조치 3건: ODCY A 2대 · ODCY B 6대(10/13 반입) · K운송 10/13 15:00~18:00 4대 → 초안 3건 PENDING_APPROVAL · 발송 0건 → 그중 K운송 초안 사람 승인 · 발송 요청 → SENT 188 ms(Redis 경로, Mock 채널). 결함 1건을 실측으로 찾아 고쳤다: ODCY 반입일을 최종 도착일(`delivery_day`)로 잡던 것 → 터미널 출발일(`scheduled_at` 서울 날짜)
 - **한계** — 초안 문구는 기존 문의 템플릿("가능 여부")을 쓴다 — "확정 요청" 전용 문구 · 회신 해석은 아직 없다. Agent 가 승인 뒤 후속 초안을 스스로 만들지는 않는다(사람 요청)
 
+### 18.22 T-124 값을 얻지 못한 회신 — 사람 검토 · 추출 재시도 · 직접 입력 (2026-10-27)
+
+배경: 실제 Gmail 왕복(`docs/18` G.8)에서 회신은 정상으로 들어왔지만 추출 공급자가 값을 내지 못했다(replay = 녹화 없음 · 로컬 Qwen3-4B = `UNPARSEABLE`). 안전하게 실패했지만 Agent 실행은 `COMPLETED` 로 끝나 "업무 완료"처럼 보였고, 자동 한도를 넘긴 회신은 다시 읽을 길이 없었다. **"답장이 왔다" ≠ "질문에 답을 얻었다"** 를 코드로 지킨다.
+
+- **상태를 나눠 둔다** — 통신 = 회신 수신(`NORMAL`) · 추출 = `state`(FAILED · NO_CANDIDATE · DONE …) + `failure_kind` · 사실 = 없음 · 공백 = `ASKED` + `candidate_state = NO_VALID_CANDIDATE`. 회신 보기(`InboundExtractionDto`)에 `needs_review` · `failure_kind`(AI_CALL_FAILED = AI 호출 자체 실패 · NO_ANSWER_FOUND = 모델이 답을 못 찾음 · VALIDATOR_REJECTED = 답이 모두 검증 탈락 · NOT_EXTRACTABLE) · `provider_code`(NO_RECORDING 등) · `attempts`(시간순 전부, `AUTO` / `HUMAN_RETRY`) · `retry`(가능 여부 · 막힌 이유)를 더했다. 판정은 순수 함수 하나(`back/src/communication/extraction-status.ts`)가 저장 기록만 보고 한다
+- **Agent** — 회신에서 쓸 만한 값이 없고(EXTRACTION_FAILED · NO_VALID_CANDIDATE) Backend 가 공백을 아직 열린 것(ASKED · MISSING)으로 보면 `COMPLETED` 대신 **`WAITING_HUMAN` · `REPLY_REVIEW_REQUIRED`** 로 멈춘다(새 최상위 상태 없음, 계획 모드도 같다). 재조정(`wake-rules.ts`)은 사람이 사실을 넣어 값이 생겼거나(`FACT_STATE_CHANGED`) 재시도가 검증 통과 후보를 냈을 때(`EXTRACTION_RETRIED`)만 깨운다 — 재시도가 또 실패하면 계속 기다린다. 깨어난 그래프는 회신을 다시 읽고(`read_reply`) 공백을 다시 본다. 대기는 DB(`agent_run.waiting_reason` · `pending_ref`)에 있어 프로세스 재시작 뒤에도 같다
+- **사람 재시도** — `POST /communication/inbound/:messageId/extraction/retry {command_id, note?}` · 권한 `extraction.retry`(ADMIN · OPERATOR, 현장 담당자 · Agent · 시스템 불가) · 활성 HUMAN 만. 요청 하나 = 시도 하나(22.51), 자동 한도는 그대로. 같은 명령 id = 같은 요청(`replayed`), 시도가 열려 있으면 `409 EXTRACTION_IN_PROGRESS`(추출 저장과 같은 advisory lock 으로 줄 세움). 요청 때 다시 확인: 통과 후보가 이미 있음 `EXTRACTION_NOT_REQUIRED` · 원문 · 질문 없음 `NOT_EXTRACTABLE` · 같은 스레드에 더 새 회신 · 새 문의 `REPLY_SUPERSEDED` · 물은 사실이 이미 사람 확인 · 공식 기록으로 알려짐 `GAP_ALREADY_RESOLVED`. 성공한 재시도는 기존 경로(AI → 결정론 검증 → 승격 판정 T-093 → 사람 확인) 그대로 — 새 Truth 경로 없음. 공급자는 지금 설정된 것(요청으로 고르지 않는다)
+- **직접 입력(경로 B)** — 기존 `POST /truth/facts/manual`(현장 담당자도 가능). 넣으면 공백이 닫히고 기다리던 Agent 가 깨어난다. 실패 기록은 그대로 남는다 — 회신 → 모델 실패 → 사람 입력은 나중에 평가 데이터가 된다(T-099)
+- **실행 큐** — 요청 뒤 `EXTRACTION_RETRY_REQUESTED` 알림 → Redis 가 있으면 추출 주기를 바로 깨우고, 없으면 Worker 폴링이 같은 시도를 집는다(Redis 필수 아님)
+- **감사 · 추적** — 요청 = `extraction_retry_request` + 감사 `REPLY_EXTRACTION_RETRY_REQUESTED`(사람 · 회신 · request_id/trace_id 는 `request_context`). 시도 = Worker 로그(`trigger` · `retry_request_id` · `correlation_id` · 모델판 · 지연) + 실패 `system_error`(trace_id) 또는 완료 감사 · 추출 행
+
+**실측 · 시험**: DB 시험 `back/test/db/extraction-retry.test.ts`(자동 2회 실패 → 사람 검토 → 권한 · 멱등 · 진행 중 409 → 사람 시도 실패(자동 재실행 없음) → 다시 요청 → 통과 후보 · 이전 실패 3건 유지 / 답 못 찾음 → 직접 입력 → `GAP_ALREADY_RESOLVED` / 옛 회신 `REPLY_SUPERSEDED` · 동시 요청 하나만 / append-only) · 단위 `extraction-status.test.ts` · `agent-wake-rules.test.ts` · Python `test_agent_graph.py`(사례 B · C · D, 계획 모드)
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).
@@ -2595,6 +2608,32 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 ### 22.50 M27 계획 후속 문의 가드 · 권한 **(T-116)**
 
 - `plan_follow_up`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
+
+### 22.51 `extraction_retry_request` — 사람이 요청한 회신 추출 재시도 **(M28 · T-124)**
+
+- 논리: `DECISION_RECORD`(누가 언제 이 회신을 다시 읽게 했다) · 그룹 **C 통신** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: `retry_request_id`. 사람 × 명령 id 하나 = 요청 하나(UNIQUE — 두 번 누름 · 네트워크 재시도가 같은 요청으로 모인다)
+- 변경 방식: append-only(M29). 요청 하나 = 시도 하나. 시도의 결과는 이 행이 아니라 기존 기록이다(실패 = `system_error` · `operation_name = extractReplyRetry`, 완료 = `audit_log` `EXTRACTION_*` · `extraction` 행). 이전 시도의 기록은 지우거나 고치지 않는다
+- 자동 재시도 한도(`CERA_EXTRACTION_MAX_ATTEMPTS`)는 되돌리지 않는다 — 자동 시도의 실패만 센다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `retry_request_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `message_id` | REF(comm_message) | `uuid` | NOT NULL | — | `uuid()` | FK comm_message · RESTRICT — 다시 읽을 INBOUND 회신 |
+| 3 | `command_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | 멱등 키(요청한 사람 안에서 UNIQUE) |
+| 4 | `requested_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor — 활성 HUMAN(권한 `extraction.retry`) |
+| 5 | `requested_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 이 시각 뒤의 첫 실패 · 완료가 이 요청의 시도다 |
+| 6 | `prior_state` | CODE | `text` | NOT NULL | — | `text()` | IN (FAILED, NO_CANDIDATE, DONE) — 무엇을 보고 다시 시켰나 |
+| 7 | `prior_failed_attempts` | INTEGER | `integer` | NOT NULL | — | `integer()` | CHECK ≥ 0 |
+| 8 | `note` | STRING(200) | `varchar(200)` | NULL | — | `varchar({ length: 200 })` | CHECK 비었으면 NULL |
+| 9 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | 회신의 Mock/Real 구분 |
+
+- **UNIQUE**: (requested_by_actor_id, command_id)
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (message_id, requested_at)
+
+### 22.52 M29 회신 추출 재시도 가드 · 권한 **(T-124)**
+
+- `extraction_retry_request`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

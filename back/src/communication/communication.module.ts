@@ -9,6 +9,7 @@ import { DraftService } from './draft.service.js';
 import { AI_CLIENT, HttpAiClient } from '../ai/ai-client.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import { ExtractionRetryService } from './extraction-retry.service.js';
 import { ExtractionProcessor } from './extraction-processor.js';
 import { ExtractionRepository } from './extraction.repository.js';
 import { InboundController } from './inbound.controller.js';
@@ -37,6 +38,7 @@ import { SendService } from './send.service.js';
     InboundProcessor,
     ExtractionRepository,
     ExtractionProcessor,
+    ExtractionRetryService,
     // Python AI Server 호출(T-092) — Main Backend 만 부른다. 시험은 이 토큰을 가짜로 바꾼다
     { provide: AI_CLIENT, inject: [ENV], useFactory: (env: Env) => new HttpAiClient(env.CERA_AI_SERVER_URL, env.CERA_AI_TIMEOUT_MS) },
     DraftService,

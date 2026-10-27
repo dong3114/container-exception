@@ -11,6 +11,9 @@ import { RuntimeStoreRepository } from './runtime-store.repository.js';
 import { planWakeReason, wakeReason } from './wake-rules.js';
 import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 
+/** 값이 생긴 사실 상태(회신 검토 대기를 깨운다 — T-124). STALE · REVOKED · UNKNOWN 은 값이 없다 */
+const VALUE_STATES: readonly string[] = ['CONFIRMED', 'OBSERVED', 'PROVISIONAL', 'NEEDS_REVIEW'];
+
 export interface ReconcileSummary {
   retried: number;
   woken: number;
@@ -106,9 +109,9 @@ export class AgentReconciler implements OnModuleInit {
       const reason = wakeReason(w.waitingReason, {
         status: dto.message.status ?? '',
         approvalState: dto.approval.state,
-        replies: dto.replies.map((r) => ({ status: r.status, extractionState: r.extraction?.state ?? null })),
-        // 사실 대기만 사실을 읽는다 — 다른 대기는 이 조회가 필요 없다
-        ...(w.waitingReason === 'AWAITING_FACT_VERIFICATION' ? { facts: await this.factStates(w.agentRunId, w.pendingRefId) } : {}),
+        replies: dto.replies.map((r) => ({ status: r.status, extractionState: r.extraction?.state ?? null, passedCandidates: r.extraction?.candidates.filter((c) => c.validation === 'PASSED').length ?? 0 })),
+        // 사실 대기 · 회신 검토 대기만 사실을 읽는다 — 다른 대기는 이 조회가 필요 없다
+        ...(w.waitingReason === 'AWAITING_FACT_VERIFICATION' || w.waitingReason === 'REPLY_REVIEW_REQUIRED' ? { facts: await this.factStates(w.agentRunId, w.pendingRefId) } : {}),
       });
       if (!reason) continue;
       const r = await this.coordinator.resume(w.agentRunId, reason, { type: 'COMM_MESSAGE', id: w.pendingRefId }).catch((e: unknown) => this.warn(w.agentRunId, e));
@@ -118,15 +121,15 @@ export class AgentReconciler implements OnModuleInit {
   }
 
   /** 이 문의가 물은 좌표들의 지금 사실이 "사람 확인 대기"인지 — 사건에서 바로 판정한다(알림 · 파생 표에 기대지 않는다). */
-  private async factStates(agentRunId: string, outboundMessageId: string): Promise<{ awaitingConfirmation: boolean }[]> {
+  private async factStates(agentRunId: string, outboundMessageId: string): Promise<{ awaitingConfirmation: boolean; hasValue: boolean }[]> {
     // 실행의 판정 기준 시각(실제 = 지금 · 시뮬레이션 = 시나리오 시각) — 시간이 지나 STALE 이 된 것도 알림 없이 여기서 보인다
     const recoveryRunId = await this.store.recoveryRunOf(agentRunId);
     const asOf = recoveryRunId ? this.context.evaluationAsOf(await this.context.run(recoveryRunId)) : this.clock.now();
     const coordinates = await this.truth.repo.messageCoordinates(outboundMessageId);
-    const out: { awaitingConfirmation: boolean }[] = [];
+    const out: { awaitingConfirmation: boolean; hasValue: boolean }[] = [];
     for (const c of coordinates) {
       const live = await this.truth.liveForCoordinate(c, asOf);
-      out.push({ awaitingConfirmation: live.state === 'PROVISIONAL' });
+      out.push({ awaitingConfirmation: live.state === 'PROVISIONAL', hasValue: VALUE_STATES.includes(live.state) });
     }
     return out;
   }

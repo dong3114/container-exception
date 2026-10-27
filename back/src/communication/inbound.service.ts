@@ -8,6 +8,7 @@ import { Instant } from '../shared/time/instant.js';
 import type { InboundExtractionDto, InboundItemDto, InboundListDto } from './dto.js';
 import { ExtractionRepository } from './extraction.repository.js';
 import { type Check, failedCodes } from './extraction-rules.js';
+import { extractionStatus } from './extraction-status.js';
 import { InboundRepository } from './inbound.repository.js';
 import { type DateRejectReason, type HoldReason, normalizeAddress } from './inbound-rules.js';
 import { TruthRepository } from '../truth/truth.repository.js';
@@ -51,8 +52,7 @@ export class InboundService {
     const out = new Map<string, InboundExtractionDto>();
     if (messageIds.length === 0) return out;
     const rows = await this.extractions.forMessages(messageIds);
-    const done = await this.extractions.completions(messageIds);
-    const failures = await this.extractions.failures(messageIds);
+    const logs = await this.extractions.attemptLogs(messageIds);
     const blocked = await this.truth.blockedReasons(rows.filter((x) => x.reviewStatus === 'PENDING').map((x) => x.extractionId));
     for (const id of messageIds) {
       const candidates: InboundExtractionDto['candidates'] = [];
@@ -75,20 +75,11 @@ export class InboundService {
           promotion_blocked_reasons: [...new Set(blocked.get(x.extractionId) ?? [])],
         });
       }
-      const fail = failures.get(id);
-      const action = done.get(id) ?? null;
-      const noCandidate = action?.startsWith('EXTRACTION_NO_CANDIDATE_') ?? false;
-      let state: InboundExtractionDto['state'] = 'WAITING';
-      if (candidates.length > 0) state = 'DONE';
-      else if (noCandidate) state = 'NO_CANDIDATE';
-      else if (action?.startsWith('EXTRACTION_SKIPPED_')) state = 'SKIPPED';
-      else if (fail) state = fail.count >= this.maxAttempts ? 'FAILED' : 'RETRYING';
+      const status = extractionStatus(logs.get(id) ?? { failures: [], completions: [], retries: [] }, candidates, this.maxAttempts);
       out.set(id, {
-        state,
-        no_candidate_outcome: noCandidate && action ? action.slice('EXTRACTION_NO_CANDIDATE_'.length) : null,
+        ...status,
+        attempts: status.attempts.map((a) => ({ ...a, at: Instant.fromDb(a.at).toSeoulIso() })),
         candidates,
-        failed_attempts: fail?.count ?? 0,
-        last_error_code: fail?.lastCode ?? null,
       });
     }
     return out;

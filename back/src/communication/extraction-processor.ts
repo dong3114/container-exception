@@ -16,7 +16,7 @@ import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
 import { DraftService } from './draft.service.js';
-import { EXTRACTION_COMPONENT, type ExtractionInsert, ExtractionRepository } from './extraction.repository.js';
+import { EXTRACTION_COMPONENT, EXTRACTION_OPERATION, type ExtractionInsert, ExtractionRepository } from './extraction.repository.js';
 import { buildAsk, validateAnswers } from './extraction-rules.js';
 import { PromotionService } from '../truth/promotion.service.js';
 
@@ -73,15 +73,18 @@ export class ExtractionProcessor {
     const subject = await this.repo.subject(messageId);
     if (!subject) return 'SKIPPED';
     const system = await this.drafts.systemActor();
+    // 사람이 연 재시도(T-124)면 그 요청 뒤의 결과만 "끝남"으로 본다 — 이전 시도의 기록은 그대로 두고 새 시도를 덧붙인다
+    const retry = await this.repo.openRetry(messageId);
+    const since = retry?.requestedAt ?? null;
 
     // AI 가 읽는 텍스트 = 검증기가 인용을 찾는 텍스트(같은 원문 바이트에서 같은 함수로)
     const bytes = subject.payloadRef ? await this.store.get(subject.payloadRef as Parameters<ContentStore['get']>[0]) : ABSENT;
     const surface = bytes === ABSENT ? null : await readInboundSurface(subject.sourceName, bytes);
-    if (!surface) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_CONTENT, [], '');
+    if (!surface) return this.finish(messageId, since, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_CONTENT, [], '');
     const asks = subject.questions
       .map((q) => buildAsk({ askId: q.askId, questionType: q.questionType, questionText: q.questionText, expectedUnit: q.expectedUnit, values: subject.askedValues }))
       .filter((a): a is Ask => a !== null);
-    if (asks.length === 0) return this.finish(messageId, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_QUESTION, [], '');
+    if (asks.length === 0) return this.finish(messageId, since, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_QUESTION, [], '');
 
     const request: ExtractionRequest = {
       schema_version: REPLY_EXTRACT_SCHEMA,
@@ -104,17 +107,17 @@ export class ExtractionProcessor {
       await this.errors.record({
         serviceName: 'cera-worker',
         componentName: EXTRACTION_COMPONENT,
-        operationName: 'extractReply',
+        operationName: retry ? EXTRACTION_OPERATION.HUMAN_RETRY : EXTRACTION_OPERATION.AUTO,
         errorBoundary: 'INTEGRATION',
         errorCategory: 'AI_INTEGRATION',
         errorCode: result.code,
-        safeErrorMessage: `reply extraction failed (${result.providerCode ?? result.code}) — reply kept, will retry`,
+        safeErrorMessage: `reply extraction failed (${result.providerCode ?? result.code}) — reply kept${retry ? ' (human-requested attempt)' : ''}`,
         targetSystem: 'AI_SERVER',
         httpStatus: result.httpStatus,
         retryable: result.retryable,
         relatedEntity: { type: 'COMM_MESSAGE', id: messageId },
       });
-      this.logger.warn({ msg: 'reply extraction failed', message_id: messageId, correlation_id: correlationId, code: result.code, provider_code: result.providerCode });
+      this.logger.warn({ msg: 'reply extraction failed', message_id: messageId, correlation_id: correlationId, trigger: retry ? 'HUMAN_RETRY' : 'AUTO', retry_request_id: retry?.retryRequestId ?? null, code: result.code, provider_code: result.providerCode });
       return 'FAILED';
     }
     const response = result.response;
@@ -150,9 +153,11 @@ export class ExtractionProcessor {
       validatorResult: v.checks,
     }));
     const action = (rows.length > 0 ? AUDIT_ACTION.EXTRACTION_COMPLETED : `EXTRACTION_NO_CANDIDATE_${response.outcome}`) as AuditAction;
-    const outcome = await this.finish(messageId, subject.isSimulated, system, action, rows, surface.bodyText);
+    const outcome = await this.finish(messageId, since, subject.isSimulated, system, action, rows, surface.bodyText);
     this.logger.log({
       msg: 'reply extraction stored',
+      trigger: retry ? 'HUMAN_RETRY' : 'AUTO',
+      retry_request_id: retry?.retryRequestId ?? null,
       message_id: messageId,
       correlation_id: correlationId,
       model_version: response.meta.model_version,
@@ -165,11 +170,11 @@ export class ExtractionProcessor {
   }
 
   /** 한 트랜잭션: 같은 회신을 줄 세우고, 이미 끝났으면 아무것도 하지 않는다(재시도 · 동시 Worker — 중복 행 없음). */
-  private async finish(messageId: string, isSimulated: boolean, system: string, action: AuditAction, rows: ExtractionInsert[], sourceText: string): Promise<ExtractResult> {
+  private async finish(messageId: string, since: string | null, isSimulated: boolean, system: string, action: AuditAction, rows: ExtractionInsert[], sourceText: string): Promise<ExtractResult> {
     let promoted: { entityId: string; factKey: string }[] = [];
     const outcome = await this.tx.run(async (tx) => {
       await this.repo.lockMessage(tx, messageId);
-      if (await this.repo.hasExtractions(tx, messageId)) return 'DUPLICATE' as const;
+      if (await this.repo.hasExtractions(tx, messageId, since)) return 'DUPLICATE' as const;
       await this.repo.insert(tx, rows);
       await this.audit.record(tx, { actorId: system, action, targetType: 'COMM_MESSAGE', targetId: messageId, result: 'SUCCESS', isSimulated });
       if (action.startsWith('EXTRACTION_SKIPPED')) return 'SKIPPED' as const;

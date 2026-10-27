@@ -7,6 +7,8 @@ export type DomainSignal =
   | { type: 'APPROVAL_DECIDED'; messageId: string; decision: 'APPROVED' | 'REJECTED' | 'REVOKED' }
   | { type: 'INBOUND_REPLY_RECEIVED'; externalMessageId: string }
   | { type: 'REPLY_EXTRACTED'; inboundMessageId: string }
+  // T-124: 사람이 회신 하나의 추출을 다시 요청했다 — Worker 의 추출 주기를 바로 깨운다(정확성은 폴링)
+  | { type: 'EXTRACTION_RETRY_REQUESTED'; inboundMessageId: string }
   | { type: 'PLAN_SUPERSEDED'; recoveryRunId: string }
   // T-093: 현재 사실이 바뀌었다(승격 · 확인 · 거절 · 정정) — 사실을 기다리던 Agent 실행을 깨우는 최적화(정확성은 재조정)
   | { type: 'FACT_CHANGED'; entityId: string; factKey: string }

@@ -193,13 +193,52 @@ def test_gaps_that_wait_for_a_person_are_not_gaps_the_agent_asks_about():
     assert (mixed["status"], mixed["waiting_reason"]) == ("WAITING_EXTERNAL", "AWAITING_REPLIES")
 
 
-def test_a_reply_without_a_valid_candidate_needs_a_human():
+def _replied_without_a_usable_value(extraction_state: str, run: str = RUN, params: dict[str, Any] | None = None) -> tuple[FakeTools, AgentRuntime]:
     tools = FakeTools(status="SENT", approval_state="ACTIVE")
-    tools.status["replies"] = [{"status": "NORMAL", "extraction_state": "NO_CANDIDATE"}]
+    tools.status["replies"] = [{"status": "NORMAL", "extraction_state": extraction_state}]
     rt = runtime(tools)
-    rt.start(RUN, RR, "goal", PARAMS)
-    out = rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)
-    assert out["result_code"] == "REPLY_NEEDS_HUMAN_REVIEW" and out["result_summary"]["reply_outcome"] == "NO_VALID_CANDIDATE"
+    rt.start(run, RR, "goal", params or PARAMS)
+    # asked, the reply came, nothing usable came out of it — the backend still lists the gap
+    tools.gaps = [{**gap("ASKED"), "candidate_state": "NO_VALID_CANDIDATE"}]
+    return tools, rt
+
+
+def test_a_reply_without_a_usable_value_waits_for_a_person_instead_of_completing():
+    # CASE B (T-124): reply received + no usable value + gap still open → not "done": the run waits for a person
+    for state in ("NO_CANDIDATE", "FAILED"):
+        tools, rt = _replied_without_a_usable_value(state)
+        tools.overrides["get_reply_candidates"] = lambda a, n, s=state: ok("get_reply_candidates", {"message_id": MSG, "status": "REPLIED", "replies": [{"inbound_message_id": "in-1", "received_at": "x", "extraction_state": s, "no_candidate_outcome": None, "candidates": []}], "note": "n"})
+        out = rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)
+        assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "REPLY_REVIEW_REQUIRED", {"type": "COMM_MESSAGE", "id": MSG})
+        # a human retry that failed again (or a wrong wake) → still waiting; nothing was invented
+        assert rt.resume(RUN, "EXTRACTION_RETRIED", None)["waiting_reason"] == "REPLY_REVIEW_REQUIRED"
+        assert [c[0] for c in tools.calls].count("create_inquiry_draft") == 1
+
+
+def test_after_review_a_direct_entry_or_a_successful_retry_continues_the_run():
+    # CASE C: a person entered the fact directly → the backend no longer lists the gap → the run ends with the confirmed fact
+    tools, rt = _replied_without_a_usable_value("NO_CANDIDATE")
+    assert rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)["waiting_reason"] == "REPLY_REVIEW_REQUIRED"
+    tools.gaps = []
+    done = rt.resume(RUN, "FACT_STATE_CHANGED", None)
+    assert (done["status"], done["result_code"]) == ("COMPLETED", "FACT_CONFIRMED")
+    assert done["result_summary"]["business_gap_state"] == "KNOWN"
+    # CASE D: a human retry produced a validated candidate the backend promoted → the usual provisional-fact wait
+    tools, rt = _replied_without_a_usable_value("FAILED")
+    assert rt.resume(RUN, "INBOUND_REPLY_RECEIVED", None)["waiting_reason"] == "REPLY_REVIEW_REQUIRED"
+    tools.candidates = [{"extraction_id": "e-7", "field": "quantity", "value": "4", "unit": "TRUCK", "validation": "PASSED", "failed_reasons": [], "review_status": "ACCEPTED", "generated_by": "LLM", "fact_event_id": "ev-7", "promotion_blocked_reasons": []}]
+    tools.gaps = [{**gap("PROVISIONAL_AVAILABLE"), "candidate_state": "CANDIDATE_ACCEPTED"}]
+    out = rt.resume(RUN, "EXTRACTION_RETRIED", None)
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "AWAITING_FACT_VERIFICATION")
+    tools.gaps = []
+    assert rt.resume(RUN, "FACT_STATE_CHANGED", None)["result_code"] == "FACT_CONFIRMED"
+
+
+def test_with_planning_on_a_reply_without_a_usable_value_still_waits_for_review_first():
+    tools, rt = _replied_without_a_usable_value("NO_CANDIDATE", "run-plan", {**PARAMS, "plan_recovery": True})
+    out = rt.resume("run-plan", "INBOUND_REPLY_RECEIVED", None)
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "REPLY_REVIEW_REQUIRED")
+    assert "calculate_recovery_costs" not in [c[0] for c in tools.calls]
 
 
 def test_tool_call_budget_is_per_active_stretch_and_steps_bound_the_whole_run():

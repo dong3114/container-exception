@@ -190,6 +190,20 @@
       "when": 1793068171591,
       "tag": "0026_m27_plan_follow_up_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793078230043,
+      "tag": "0027_m28_extraction_retry",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793078231426,
+      "tag": "0028_m29_extraction_retry_guards",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { type AgentRun, type AgentRunListItem, createAgentRun, getAgentRun, listAgentRuns, resumeAgentRun, startAgentRun } from "@/api/agentRuns";
 import { type DemoStatus, type RuntimeStatus, getDemoStatus, getRuntimeStatus, injectMockReply } from "@/api/demo";
 import { type Draft, approveDraft, listDrafts, listRuns, sendDraft } from "@/api/drafts";
+import { ReplyReview } from "@/components/drafts/InboundViews";
 import { describeApiError } from "@/api/errors";
 import { type FollowUps, type Plan, type PlanList, approvePlan, createFollowUps, getPlan, listFollowUps, listPlans } from "@/api/plans";
 import { type FactCoordinate, type FactList, confirmFact, correctFact, enterFact, listFacts } from "@/api/truth";
@@ -22,10 +23,10 @@ const POLL_MS = 3_000;
 /** 녹화 재생(AI Server CERA_LLM_MODE=replay)은 녹화된 문장에만 답한다 — 그래서 문장을 고정해 둔다. */
 const REPLY_PRESETS = [
   { id: "ok", label: "정상 — 오후 3시 이후 4대 가능", body: "오후 3시 이후 차량 4대 가능합니다.", expect: "후보 통과 → K운송 차량 4대 '임시 사실(사람 확인 전)' → 계획 v1 자동 생성" },
-  { id: "unparseable", label: "예외 — 값이 없는 답", body: "확인했습니다. 요청하신 대로 가능합니다.", expect: "AI 가 값을 못 찾음(NO_CANDIDATE · UNPARSEABLE) → 사실 없음 · 계획 없음 · Agent 는 회신을 더 기다림" },
-  { id: "hallucinated", label: "예외 — AI 가 인용을 지어냄", body: "확인 후 다시 연락드리겠습니다.", expect: "AI 는 '4대'를 냈지만 인용이 원문에 없음 → 검증 REJECTED(QUOTE_NOT_IN_SOURCE) · 사실 없음" },
+  { id: "unparseable", label: "예외 — 값이 없는 답", body: "확인했습니다. 요청하신 대로 가능합니다.", expect: "AI 가 값을 못 찾음(NO_CANDIDATE · UNPARSEABLE) → 사실 없음 · 계획 없음 · Agent 는 사람 검토를 기다림(REPLY_REVIEW_REQUIRED) — [다시 추출] 또는 직접 입력" },
+  { id: "hallucinated", label: "예외 — AI 가 인용을 지어냄", body: "확인 후 다시 연락드리겠습니다.", expect: "AI 는 '4대'를 냈지만 인용이 원문에 없음 → 검증 REJECTED(QUOTE_NOT_IN_SOURCE) · 사실 없음 · Agent 는 사람 검토를 기다림" },
   { id: "money", label: "예외 — 금액을 수량으로 읽음", body: "대당 18만원이면 가능합니다.", expect: "수량 자리에 180000 KRW → 검증 REJECTED(UNIT_MISMATCH:KRW · VALUE_NOT_IN_QUOTE) · 사실 없음" },
-  { id: "norecord", label: "예외 — 녹화 없는 문장", body: "내일 다시 확인해 보겠습니다. 담당자 부재중입니다.", expect: "녹화 재생에 그 문장이 없음 → 3회 시도 뒤 추출 FAILED(EXTRACTION_PROVIDER_FAILED) · 원문은 보존 · 사실 없음" },
+  { id: "norecord", label: "예외 — 녹화 없는 문장", body: "내일 다시 확인해 보겠습니다. 담당자 부재중입니다.", expect: "녹화 재생에 그 문장이 없음 → 3회 시도 뒤 추출 FAILED(EXTRACTION_PROVIDER_FAILED) · 원문은 보존 · 사실 없음 · Agent 는 사람 검토를 기다림 — [다시 추출] 또는 직접 입력" },
   { id: "stranger", label: "예외 — 등록 안 된 발신자", body: "오후 3시 이후 차량 4대 가능합니다.", from: "stranger@example.invalid", expect: "발신자 판정 = 미등록 → 보류함(HOLD · UNKNOWN_SENDER) · AI 에 보내지 않음 · 문의 상태 · Agent 대기 그대로" },
 ] as const;
 
@@ -293,6 +294,7 @@ export default function DemoPage() {
                   <span className="badge b-teal">회신</span> {r.from_address} · “{r.preview}” · 추출 {r.extraction?.state ?? "—"}
                   {r.extraction?.last_error_code ? ` (${r.extraction.last_error_code})` : ""}
                   {r.extraction?.no_candidate_outcome ? ` · ${r.extraction.no_candidate_outcome}` : ""}
+                  <ReplyReview item={r} />
                 </div>
               ))}
             </div>

@@ -35,6 +35,9 @@ export class SignalToQueueBridge implements OnModuleInit, OnApplicationShutdown 
         await this.queue.enqueue({ job_type: 'EXTRACTION_CYCLE', entity_id: 'cycle', trace_id: trace });
         await this.queue.enqueue({ job_type: 'AGENT_RECONCILE', entity_id: 'cycle', trace_id: trace });
         return;
+      case 'EXTRACTION_RETRY_REQUESTED':
+        await this.queue.enqueue({ job_type: 'EXTRACTION_CYCLE', entity_id: 'cycle', trace_id: trace });
+        return;
       default:
         // 승인 결정 · 발송됨 · 추출됨 · 사실 · 계획 변경 → 기다리던 Agent 실행을 다시 본다
         await this.queue.enqueue({ job_type: 'AGENT_RECONCILE', entity_id: 'cycle', trace_id: trace });

@@ -41,6 +41,8 @@ export const AUDIT_ACTION = {
   EXTRACTION_NO_CANDIDATE_VALUES: 'EXTRACTION_NO_CANDIDATE_VALUES',
   EXTRACTION_SKIPPED_NO_CONTENT: 'EXTRACTION_SKIPPED_NO_CONTENT',
   EXTRACTION_SKIPPED_NO_QUESTION: 'EXTRACTION_SKIPPED_NO_QUESTION',
+  // T-124 사람이 회신 하나를 다시 읽게 했다(요청 기록 = extraction_retry_request). `EXTRACTION_` 로 시작하지 않는다 — 그 접두어는 "추출이 끝났다"는 뜻이다
+  REPLY_EXTRACTION_RETRY_REQUESTED: 'REPLY_EXTRACTION_RETRY_REQUESTED',
   // T-102 공공데이터 — 누가 외부 공공 API 호출(또는 녹화 재생)을 일으켰나. 결과는 호출 원장(public_data_fetch)에 있다
   PUBLIC_DATA_FETCHED: 'PUBLIC_DATA_FETCHED',
   // T-103 Agent Tool — 초안을 사람의 승인 대기로 올렸다(승인이 아니다)

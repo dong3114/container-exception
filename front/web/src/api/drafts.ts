@@ -93,6 +93,19 @@ export function getDraft(messageId: string, signal?: AbortSignal) {
 /** Received mail (T-091): attached replies and the hold box. Read-only — the worker fetches mail; the screen never creates any. */
 export type InboundItem = components["schemas"]["InboundItemDto"];
 export type InboundList = components["schemas"]["InboundListDto"];
+export type ExtractionRetryResult = components["schemas"]["ExtractionRetryResultDto"];
+
+/**
+ * 사람이 회신 하나를 다시 읽게 한다(T-124). 시도 하나를 열 뿐 — 결과는 Worker 가 기록하고 화면은 다시 읽는다.
+ * `commandId` 는 같은 클릭의 재전송이 같은 요청으로 모이게 하는 멱등 키다. 권한(운영자 · 관리자)은 Backend 가 판정한다.
+ */
+export function retryExtraction(messageId: string, commandId: string, actorId: string, signal?: AbortSignal, fetchImpl?: typeof fetch) {
+  return apiRequest<ExtractionRetryResult>(
+    `/communication/inbound/${encodeURIComponent(messageId)}/extraction/retry`,
+    { method: "POST", body: { command_id: commandId }, headers: { [ACTOR_HEADER]: actorId }, signal },
+    fetchImpl,
+  );
+}
 
 export function listInbound(status?: "NORMAL" | "HOLD", signal?: AbortSignal) {
   return apiRequest<InboundList>(`/communication/inbound${status ? `?status=${status}` : ""}`, { signal });

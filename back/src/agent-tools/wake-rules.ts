@@ -8,9 +8,13 @@
 export interface AwaitedMessage {
   status: string;
   approvalState: string;
-  replies: { status: string; extractionState: string | null }[];
-  /** 이 문의가 물은 사실들의 지금 상태(T-093) — `fact_state` 가 PROVISIONAL 이고 충돌 · 보류가 없으면 "사람 확인을 기다리는 중" */
-  facts?: { awaitingConfirmation: boolean }[];
+  /** `passedCandidates` = 결정론 검증을 통과한 후보 수(T-124 — 사람 재시도가 쓸 만한 후보를 냈는가) */
+  replies: { status: string; extractionState: string | null; passedCandidates?: number }[];
+  /**
+   * 이 문의가 물은 사실들의 지금 상태(T-093) — `awaitingConfirmation` = PROVISIONAL(사람 확인 대기) ·
+   * `hasValue` = 값이 생겼다(확인 · 공식 기록 · 임시 · 검토 필요 — 사람 직접 입력 포함, T-124)
+   */
+  facts?: { awaitingConfirmation: boolean; hasValue?: boolean }[];
 }
 
 /**
@@ -44,6 +48,11 @@ export function wakeReason(waitingReason: string | null, m: AwaitedMessage): str
     // 임시 사실이 사람 확인을 기다리는 동안은 계속 기다린다 — 확인 · 거절 · 정정 · 충돌로 더는 "확인 대기"가 아니면 깨운다
     case 'AWAITING_FACT_VERIFICATION':
       return m.facts && m.facts.some((f) => f.awaitingConfirmation) ? null : 'FACT_STATE_CHANGED';
+    // 회신은 왔지만 쓸 만한 값이 없어 사람을 기다린다(T-124): 사람이 사실을 직접 넣었거나(값이 생김) 다시 읽게 한 시도가 통과 후보를 내면 깨운다.
+    // 다시 읽게 했는데 또 실패하면 계속 기다린다 — 실행은 "답을 얻었다"고 꾸미지 않는다
+    case 'REPLY_REVIEW_REQUIRED':
+      if (m.facts?.some((f) => f.hasValue)) return 'FACT_STATE_CHANGED';
+      return m.replies.some((r) => r.status === 'NORMAL' && (r.passedCandidates ?? 0) > 0) ? 'EXTRACTION_RETRIED' : null;
     default:
       return null;
   }

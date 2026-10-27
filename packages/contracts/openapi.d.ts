@@ -241,6 +241,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/communication/inbound/{messageId}/extraction/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask for one more extraction of a reply that gave no validated value (automatic retries exhausted, no answer found, or every answer rejected). Opens one new attempt; earlier attempts stay recorded. The usual validation and promotion rules apply */
+        post: operations["InboundController_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planning/runs": {
         parameters: {
             query?: never;
@@ -1261,18 +1278,57 @@ export interface components {
              */
             generated_by: "RECORDED_REPLAY" | "LLM";
         };
+        ExtractionAttemptDto: {
+            attempt_no: number;
+            /**
+             * @description AUTO = the worker (within CERA_EXTRACTION_MAX_ATTEMPTS) · HUMAN_RETRY = an operator asked for it
+             * @enum {string}
+             */
+            trigger: "AUTO" | "HUMAN_RETRY";
+            /** @enum {string} */
+            result: "FAILED" | "DONE" | "NO_CANDIDATE" | "SKIPPED" | "RUNNING";
+            /** @description When it was recorded (RUNNING: when it was requested) */
+            at: string;
+            error_code: string | null;
+            provider_code: string | null;
+            /** @description NO_CANDIDATE: NO_CHANGE · REFUSAL · UNPARSEABLE · VALUES */
+            outcome: string | null;
+            /** Format: uuid */
+            retry_request_id: string | null;
+            /** Format: uuid */
+            requested_by_actor_id: string | null;
+        };
+        ExtractionRetryAvailabilityDto: {
+            /** @description Whether a person may ask for one more attempt now (the request re-checks thread, gap and supersession) */
+            available: boolean;
+            /** @enum {string|null} */
+            blocked_reason: "EXTRACTION_IN_PROGRESS" | "EXTRACTION_NOT_REQUIRED" | "NOT_EXTRACTABLE" | null;
+        };
         InboundExtractionDto: {
             /**
-             * @description WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry), FAILED (retry limit)
+             * @description WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry — or a human-requested attempt is running), FAILED (automatic retry limit, or a human-requested attempt failed)
              * @enum {string}
              */
             state: "WAITING" | "DONE" | "NO_CANDIDATE" | "SKIPPED" | "RETRYING" | "FAILED";
             /** @description NO_CHANGE, REFUSAL, UNPARSEABLE or VALUES when nothing was extracted */
             no_candidate_outcome: string | null;
             candidates: components["schemas"]["ExtractionCandidateDto"][];
-            /** @description Technical failures so far */
+            /** @description Technical failures so far (automatic and human-requested attempts) */
             failed_attempts: number;
+            /** @description Last technical failure: AI_SERVER_UNAVAILABLE · EXTRACTION_TIMEOUT · EXTRACTION_PROVIDER_FAILED · EXTRACTION_OUTPUT_INVALID · EXTRACTION_REQUEST_REJECTED */
             last_error_code: string | null;
+            /** @description The AI server's own code for the last technical failure (NO_RECORDING · PROVIDER_NOT_CONFIGURED …) */
+            provider_code: string | null;
+            /**
+             * @description Why no usable value came out: AI_CALL_FAILED (the AI call itself failed) · NO_ANSWER_FOUND (the model found no answer) · VALIDATOR_REJECTED (answers failed the backend checks) · NOT_EXTRACTABLE (no content / no question)
+             * @enum {string|null}
+             */
+            failure_kind: "AI_CALL_FAILED" | "NO_ANSWER_FOUND" | "VALIDATOR_REJECTED" | "NOT_EXTRACTABLE" | null;
+            /** @description A reply arrived but no validated value came out — a person reviews it: retry the extraction or enter the fact directly */
+            needs_review: boolean;
+            /** @description Every attempt in order. Earlier attempts are never removed */
+            attempts: components["schemas"]["ExtractionAttemptDto"][];
+            retry: components["schemas"]["ExtractionRetryAvailabilityDto"];
         };
         InboundItemDto: {
             /**
@@ -1385,6 +1441,23 @@ export interface components {
         };
         InboundListDto: {
             items: components["schemas"]["InboundItemDto"][];
+        };
+        ExtractionRetryRequestDto: {
+            /**
+             * Format: uuid
+             * @description Idempotency: the same command id returns the same request (double click · network retry)
+             */
+            command_id: string;
+            /** @description Why the operator asks again (e.g. provider changed) */
+            note?: string;
+        };
+        ExtractionRetryResultDto: {
+            /** Format: uuid */
+            retry_request_id: string;
+            /** @description true = this command id was already accepted; nothing new was started */
+            replayed: boolean;
+            /** @description The reply with its attempts — the new attempt shows as RUNNING until the worker records it */
+            reply: components["schemas"]["InboundItemDto"];
         };
         RunSummaryDto: {
             /** Format: uuid */
@@ -2571,6 +2644,71 @@ export interface operations {
             };
             /** @description INVALID_STATUS */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    InboundController_retry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Requesting operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                /** @description The INBOUND message (reply) id */
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExtractionRetryRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionRetryResultDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_RETRY_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EXTRACTION_IN_PROGRESS · EXTRACTION_NOT_REQUIRED · NOT_EXTRACTABLE · REPLY_SUPERSEDED · GAP_ALREADY_RESOLVED · COMMAND_ID_REUSED */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

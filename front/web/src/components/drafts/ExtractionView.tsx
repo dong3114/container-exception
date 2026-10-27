@@ -30,6 +30,19 @@ const STATE_TEXT: Record<Extraction["state"], string> = {
   FAILED: "AI 추출 실패 — 재시도 한도에 도달(회신 원문은 그대로 보관)",
 };
 
+/** 왜 값을 못 얻었나(Backend 판정) — AI 호출 실패와 "답을 못 찾음"을 나눠 보여 준다 */
+const FAILURE_TEXT: Record<NonNullable<Extraction["failure_kind"]>, string> = {
+  AI_CALL_FAILED: "AI 호출 자체가 실패했습니다",
+  NO_ANSWER_FOUND: "AI 가 회신에서 답을 찾지 못했습니다",
+  VALIDATOR_REJECTED: "AI 의 답이 모두 검증에서 탈락했습니다",
+  NOT_EXTRACTABLE: "추출할 원문 또는 질문이 없습니다",
+};
+const RETRY_BLOCK_TEXT: Record<string, string> = {
+  EXTRACTION_IN_PROGRESS: "추출이 진행 중입니다",
+  EXTRACTION_NOT_REQUIRED: "검증을 통과한 후보가 이미 있습니다",
+  NOT_EXTRACTABLE: "다시 읽을 수 없는 회신입니다",
+};
+
 const reason = (r: string) => (r.startsWith("UNIT_MISMATCH:") ? `단위가 맞지 않음(${r.slice(14)})` : (REASON_LABEL[r] ?? r));
 /** Where the candidate stands after validation: still a candidate, a provisional fact, or left for a person. */
 function promotionNote(c: Candidate): { text: string; badge: string } | null {
@@ -44,7 +57,7 @@ const show = (c: Candidate) => `${c.value}${c.unit ? (UNIT_LABEL[c.unit] ?? ` ${
  * AI 제안(T-092) — 회신 원문에서 AI 가 찾은 **값 후보**와 그 근거 문장, Backend 검증 결과. 확정된 사실이 아니다:
  * 통과한 후보도 아직 업무에 반영되지 않았다(사실로 만드는 것은 다음 단계 — Backend 규칙과 사람 확인).
  */
-export function ExtractionView({ extraction }: { extraction: Extraction }) {
+export function ExtractionView({ extraction, onRetry, retryError }: { extraction: Extraction; onRetry?: () => void; retryError?: string | null }) {
   const replay = extraction.candidates.some((c) => c.generated_by === "RECORDED_REPLAY");
   const candidates: Candidate[] = extraction.candidates;
   return (
@@ -59,6 +72,31 @@ export function ExtractionView({ extraction }: { extraction: Extraction }) {
           {STATE_TEXT[extraction.state]}
           {extraction.no_candidate_outcome ? ` (${extraction.no_candidate_outcome})` : ""}
           {extraction.last_error_code && extraction.state !== "NO_CANDIDATE" ? ` · ${extraction.last_error_code}` : ""}
+        </div>
+      )}
+      {extraction.needs_review && (
+        <div data-testid="extraction-review" style={{ fontSize: 12, display: "grid", gap: 3, background: "var(--bg-soft, transparent)", padding: "4px 0" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span className="badge b-orange">사람 검토 필요</span>
+            <span>
+              회신은 왔지만 쓸 수 있는 값을 얻지 못했습니다{extraction.failure_kind ? ` — ${FAILURE_TEXT[extraction.failure_kind]}` : ""}
+              {extraction.provider_code ? ` (${extraction.provider_code})` : ""}
+            </span>
+          </div>
+          <div className="muted" style={{ fontSize: 11.5 }} data-testid="extraction-attempts">
+            시도 {extraction.attempts.length}회:{" "}
+            {extraction.attempts.map((a) => `#${a.attempt_no} ${a.trigger === "HUMAN_RETRY" ? "사람 요청" : "자동"} ${a.result}${a.error_code ? `(${a.error_code})` : a.outcome ? `(${a.outcome})` : ""}`).join(" · ")}
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {onRetry && extraction.retry.available && (
+              <button type="button" className="btn" data-testid="extraction-retry" onClick={onRetry}>
+                다시 추출
+              </button>
+            )}
+            {!extraction.retry.available && extraction.retry.blocked_reason && <span className="muted">다시 추출 불가 — {RETRY_BLOCK_TEXT[extraction.retry.blocked_reason] ?? extraction.retry.blocked_reason}</span>}
+            <span className="muted" style={{ fontSize: 11.5 }}>또는 회신을 읽고 ‘사실 판단’에서 값을 직접 입력하세요. 이전 시도 기록은 지워지지 않습니다.</span>
+          </div>
+          {retryError && <div className="muted" style={{ color: "var(--red, inherit)" }} data-testid="extraction-retry-error">{retryError}</div>}
         </div>
       )}
       {candidates.map((c) => {

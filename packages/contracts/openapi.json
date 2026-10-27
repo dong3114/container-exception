@@ -809,6 +809,99 @@
         ]
       }
     },
+    "/communication/inbound/{messageId}/extraction/retry": {
+      "post": {
+        "operationId": "InboundController_retry",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The INBOUND message (reply) id"
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Requesting operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractionRetryRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionRetryResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_RETRY_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EXTRACTION_IN_PROGRESS · EXTRACTION_NOT_REQUIRED · NOT_EXTRACTABLE · REPLY_SUPERSEDED · GAP_ALREADY_RESOLVED · COMMAND_ID_REUSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ask for one more extraction of a reply that gave no validated value (automatic retries exhausted, no answer found, or every answer rejected). Opens one new attempt; earlier attempts stay recorded. The usual validation and promotion rules apply",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
     "/planning/runs": {
       "get": {
         "operationId": "PlanningRunController_list",
@@ -4455,6 +4548,92 @@
           "generated_by"
         ]
       },
+      "ExtractionAttemptDto": {
+        "type": "object",
+        "properties": {
+          "attempt_no": {
+            "type": "number"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "AUTO",
+              "HUMAN_RETRY"
+            ],
+            "description": "AUTO = the worker (within CERA_EXTRACTION_MAX_ATTEMPTS) · HUMAN_RETRY = an operator asked for it"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "FAILED",
+              "DONE",
+              "NO_CANDIDATE",
+              "SKIPPED",
+              "RUNNING"
+            ]
+          },
+          "at": {
+            "type": "string",
+            "description": "When it was recorded (RUNNING: when it was requested)"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "provider_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "outcome": {
+            "type": "string",
+            "nullable": true,
+            "description": "NO_CANDIDATE: NO_CHANGE · REFUSAL · UNPARSEABLE · VALUES"
+          },
+          "retry_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "requested_by_actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "required": [
+          "attempt_no",
+          "trigger",
+          "result",
+          "at",
+          "error_code",
+          "provider_code",
+          "outcome",
+          "retry_request_id",
+          "requested_by_actor_id"
+        ]
+      },
+      "ExtractionRetryAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "description": "Whether a person may ask for one more attempt now (the request re-checks thread, gap and supersession)"
+          },
+          "blocked_reason": {
+            "type": "string",
+            "enum": [
+              "EXTRACTION_IN_PROGRESS",
+              "EXTRACTION_NOT_REQUIRED",
+              "NOT_EXTRACTABLE"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "available",
+          "blocked_reason"
+        ]
+      },
       "InboundExtractionDto": {
         "type": "object",
         "properties": {
@@ -4468,7 +4647,7 @@
               "RETRYING",
               "FAILED"
             ],
-            "description": "WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry), FAILED (retry limit)"
+            "description": "WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry — or a human-requested attempt is running), FAILED (automatic retry limit, or a human-requested attempt failed)"
           },
           "no_candidate_outcome": {
             "type": "string",
@@ -4483,11 +4662,42 @@
           },
           "failed_attempts": {
             "type": "number",
-            "description": "Technical failures so far"
+            "description": "Technical failures so far (automatic and human-requested attempts)"
           },
           "last_error_code": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Last technical failure: AI_SERVER_UNAVAILABLE · EXTRACTION_TIMEOUT · EXTRACTION_PROVIDER_FAILED · EXTRACTION_OUTPUT_INVALID · EXTRACTION_REQUEST_REJECTED"
+          },
+          "provider_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "The AI server's own code for the last technical failure (NO_RECORDING · PROVIDER_NOT_CONFIGURED …)"
+          },
+          "failure_kind": {
+            "type": "string",
+            "enum": [
+              "AI_CALL_FAILED",
+              "NO_ANSWER_FOUND",
+              "VALIDATOR_REJECTED",
+              "NOT_EXTRACTABLE"
+            ],
+            "nullable": true,
+            "description": "Why no usable value came out: AI_CALL_FAILED (the AI call itself failed) · NO_ANSWER_FOUND (the model found no answer) · VALIDATOR_REJECTED (answers failed the backend checks) · NOT_EXTRACTABLE (no content / no question)"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "description": "A reply arrived but no validated value came out — a person reviews it: retry the extraction or enter the fact directly"
+          },
+          "attempts": {
+            "description": "Every attempt in order. Earlier attempts are never removed",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractionAttemptDto"
+            }
+          },
+          "retry": {
+            "$ref": "#/components/schemas/ExtractionRetryAvailabilityDto"
           }
         },
         "required": [
@@ -4495,7 +4705,12 @@
           "no_candidate_outcome",
           "candidates",
           "failed_attempts",
-          "last_error_code"
+          "last_error_code",
+          "provider_code",
+          "failure_kind",
+          "needs_review",
+          "attempts",
+          "retry"
         ]
       },
       "InboundItemDto": {
@@ -4913,6 +5128,50 @@
         },
         "required": [
           "items"
+        ]
+      },
+      "ExtractionRetryRequestDto": {
+        "type": "object",
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency: the same command id returns the same request (double click · network retry)"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Why the operator asks again (e.g. provider changed)"
+          }
+        },
+        "required": [
+          "command_id"
+        ]
+      },
+      "ExtractionRetryResultDto": {
+        "type": "object",
+        "properties": {
+          "retry_request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replayed": {
+            "type": "boolean",
+            "description": "true = this command id was already accepted; nothing new was started"
+          },
+          "reply": {
+            "description": "The reply with its attempts — the new attempt shows as RUNNING until the worker records it",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InboundItemDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "retry_request_id",
+          "replayed",
+          "reply"
         ]
       },
       "RunSummaryDto": {

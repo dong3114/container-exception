@@ -8,6 +8,7 @@
       │                                             ├─ AWAIT_DELIVERY     → wait_delivery ⟲ INTERRUPT(EXTERNAL) → track_message
       │                                             ├─ AWAIT_REPLY        → wait_reply ⟲ INTERRUPT(EXTERNAL) → track_message
       │                                             ├─ REPLY_READY        → read_reply → reassess_gaps ─┬─ PROVISIONAL → wait_fact_verification ⟲ INTERRUPT(HUMAN) → reassess_gaps
+      │                                             │                                               ├─ no usable value · gap open → wait_reply_review ⟲ INTERRUPT(HUMAN) → read_reply
       │                                             │                                               └─ otherwise   → build_result
       │                                             └─ REJECTED · WITHDRAWN · DELIVERY_FAILED → build_result
       ├─ PLAN          → calculate_costs → solve_recovery → propose_plan → wait_plan_decision ⟲ INTERRUPT(HUMAN)
@@ -23,6 +24,9 @@ The agent never sends: after approval a person requests the send, the backend Ou
 and the graph only observes the message status and waits. A reply's extraction candidates are suggestions: the backend
 may promote a validated one to a *provisional* fact (never confirmed). While a provisional fact waits for a person, the run
 waits too (AWAITING_FACT_VERIFICATION) and re-reads the gap when the fact changes — only a human confirmation closes the gap (T-093).
+A reply that gave no usable value (extraction failed, no answer found, every answer rejected) while the gap is still open is
+not a finished job: the run waits for a person (REPLY_REVIEW_REQUIRED) — who asks for another extraction or enters the fact —
+and re-reads the reply when either changes something (T-124). "A reply arrived" is not "the question was answered".
 
 Rules this graph keeps (ADR-036):
 - the graph is **not** an authority: it never approves, sends or confirms; it calls Backend tools only
@@ -429,6 +433,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         ("observe_public_data", observe_public_data), ("wait_send_request", _wait("HUMAN", "AWAITING_SEND_REQUEST")),
         ("wait_delivery", _wait("EXTERNAL", "AWAITING_DELIVERY")), ("wait_reply", _wait("EXTERNAL", "AWAITING_REPLY")),
         ("read_reply", read_reply), ("reassess_gaps", reassess_gaps), ("wait_fact_verification", _wait("HUMAN", "AWAITING_FACT_VERIFICATION")),
+        ("wait_reply_review", _wait("HUMAN", "REPLY_REVIEW_REQUIRED")),
         ("calculate_costs", calculate_costs), ("solve_recovery", solve_recovery), ("propose_plan", propose_plan),
         ("wait_plan_decision", wait_plan_decision), ("track_plan", track_plan),
     ]:
@@ -471,12 +476,14 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     g.add_conditional_edges("read_reply", ok("reassess_gaps"), ["reassess_gaps", "build_result"])
     # a provisional fact waits for a person: the run waits with it, then re-reads the gap (confirmed → closed · rejected / corrected → re-read)
     # with planning on, the run goes back to the gaps (other gaps · then the plan; a provisional value is used with a penalty)
+    # a reply with no usable value while the gap is open waits for a person first (retry the extraction or enter the fact) — with or without planning
     g.add_conditional_edges(
         "reassess_gaps",
-        lambda state: "build_result" if state.get("halt") else "inspect_gaps" if (state.get("parameters") or {}).get("plan_recovery") else "wait_fact_verification" if (state.get("reassessment") or {}).get("business_gap_state") == "PROVISIONAL_AVAILABLE" else "build_result",
-        ["wait_fact_verification", "build_result", "inspect_gaps"],
+        lambda state: "build_result" if state.get("halt") else "wait_reply_review" if needs_reply_review(state) else "inspect_gaps" if (state.get("parameters") or {}).get("plan_recovery") else "wait_fact_verification" if (state.get("reassessment") or {}).get("business_gap_state") == "PROVISIONAL_AVAILABLE" else "build_result",
+        ["wait_reply_review", "wait_fact_verification", "build_result", "inspect_gaps"],
     )
     g.add_edge("wait_fact_verification", "reassess_gaps")
+    g.add_edge("wait_reply_review", "read_reply")
     g.add_conditional_edges("fetch_public_data", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
     g.add_edge("wait_external", "refresh_context")
     g.add_conditional_edges("refresh_context", ok("inspect_gaps"), ["inspect_gaps", "build_result"])
@@ -484,7 +491,16 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     return g.compile(checkpointer=checkpointer)
 
 
-WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification", "wait_plan_decision")
+WAIT_NODES = ("wait_for_human", "wait_send_request", "wait_delivery", "wait_reply", "wait_external", "wait_fact_verification", "wait_reply_review", "wait_plan_decision")
+NO_USABLE_VALUE = ("EXTRACTION_FAILED", "NO_VALID_CANDIDATE")
+OPEN_GAP_STATES = ("ASKED", "MISSING")
+
+
+def needs_reply_review(state: RecoveryState) -> bool:
+    """The reply came but gave no usable value and the backend still reports the gap open — a person must act (T-124)."""
+    reply = state.get("reply_summary") or {}
+    gap_state = (state.get("reassessment") or {}).get("business_gap_state")
+    return reply.get("outcome") in NO_USABLE_VALUE and gap_state in OPEN_GAP_STATES
 EXTRACTION_SETTLED = ("DONE", "NO_CANDIDATE", "SKIPPED", "FAILED")
 
 

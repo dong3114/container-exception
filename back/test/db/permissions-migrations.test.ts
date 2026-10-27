@@ -19,10 +19,10 @@ afterAll(async () => {
   await owner.end();
 });
 
-describe('migration history (fresh M01 → M27)', () => {
+describe('migration history (fresh M01 → M29)', () => {
   const files = readdirSync('drizzle/migrations').filter((f) => f.endsWith('.sql')).sort();
 
-  it('twenty-seven reviewed migrations M01..M27 are committed in order', () => {
+  it('twenty-nine reviewed migrations M01..M29 are committed in order', () => {
     expect(files).toEqual([
       '0000_m01_foundation.sql',
       '0001_m02_registry.sql',
@@ -51,6 +51,8 @@ describe('migration history (fresh M01 → M27)', () => {
       '0024_m25_auth_guards.sql',
       '0025_m26_plan_follow_up.sql',
       '0026_m27_plan_follow_up_guards.sql',
+      '0027_m28_extraction_retry.sql',
+      '0028_m29_extraction_retry_guards.sql',
     ]);
   });
 
@@ -91,8 +93,9 @@ describe('runtime role cera_app (C layer)', () => {
        WHERE grantee = 'cera_app' AND table_schema = 'cera'
        GROUP BY table_name`);
     const privs = Object.fromEntries(rows.map((r) => [r.table, r.privs]));
-    expect(Object.keys(privs)).toHaveLength(45);
+    expect(Object.keys(privs)).toHaveLength(46);
     expect(privs.plan_follow_up).toBe('INSERT,SELECT');
+    expect(privs.extraction_retry_request).toBe('INSERT,SELECT');
     expect(privs.user_account).toBe('INSERT,SELECT,UPDATE');
     expect(privs.user_session).toBe('INSERT,SELECT,UPDATE');
     expect(privs.recovery_plan).toBe('INSERT,SELECT,UPDATE');

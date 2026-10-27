@@ -9,13 +9,28 @@ import {
   commThread,
   counterparty,
   extraction,
+  extractionRetryRequest,
   questionItem,
   rawInput,
   systemError,
 } from '../db/schema/index.js';
 
 export type ExtractionInsert = typeof extraction.$inferInsert;
+export type RetryRequestRow = typeof extractionRetryRequest.$inferSelect;
 export const EXTRACTION_COMPONENT = 'ReplyExtraction';
+/** 기술 실패 기록의 operation_name — 자동 시도와 사람이 요청한 시도를 구분한다(T-124) */
+export const EXTRACTION_OPERATION = { AUTO: 'extractReply', HUMAN_RETRY: 'extractReplyRetry' } as const;
+
+/** 한 회신의 추출 기록(시간순). 실패 = system_error · 완료 = audit_log(EXTRACTION_*) · 재시도 요청 = extraction_retry_request. */
+export interface AttemptLog {
+  failures: { at: string; code: string; operation: string; providerCode: string | null }[];
+  completions: { at: string; action: string }[];
+  retries: RetryRequestRow[];
+}
+
+/** 사람이 연 재시도가 아직 결과 없이 열려 있다(요청 뒤에 완료 감사도 기술 실패도 없다). `r` = extraction_retry_request 별칭 */
+const OPEN_RETRY = sql`NOT EXISTS (SELECT 1 FROM cera.audit_log a WHERE a.target_type = 'COMM_MESSAGE' AND a.target_id = r.message_id::text AND a.action LIKE 'EXTRACTION\\_%' AND a.occurred_at >= r.requested_at)
+  AND NOT EXISTS (SELECT 1 FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = r.message_id::text AND e.component_name = ${EXTRACTION_COMPONENT} AND e.occurred_at >= r.requested_at)`;
 
 export interface ExtractionSubject {
   messageId: string;
@@ -34,7 +49,8 @@ export interface ExtractionSubject {
 
 /**
  * 회신 추출(T-092 U7)의 읽기 · 쓰기. 추출할 회신 = 스레드에 붙은 INBOUND 메시지(정상 회신 — 보류는 메시지가 없어 대상이 될 수 없다)
- * 중 아직 추출 기록 · 완료 감사가 없고 기술 실패가 한도 미만인 것. 작업 표를 새로 만들지 않는다.
+ * 중 아직 추출 기록 · 완료 감사가 없고 기술 실패가 한도 미만인 것(자동), 또는 사람이 연 재시도가 결과 없이 열려 있는 것
+ * (T-124 — 요청 하나 = 시도 하나, 자동 한도는 되돌리지 않는다). 작업 표를 새로 만들지 않는다.
  */
 @Injectable()
 export class ExtractionRepository {
@@ -47,9 +63,12 @@ export class ExtractionRepository {
       .where(
         and(
           eq(commMessage.direction, 'INBOUND'),
-          sql`NOT EXISTS (SELECT 1 FROM cera.extraction x WHERE x.message_id = ${commMessage.messageId})`,
-          sql`NOT EXISTS (SELECT 1 FROM cera.audit_log a WHERE a.target_type = 'COMM_MESSAGE' AND a.target_id = ${commMessage.messageId}::text AND a.action LIKE 'EXTRACTION\\_%')`,
-          sql`(SELECT count(*) FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = ${commMessage.messageId}::text AND e.component_name = ${EXTRACTION_COMPONENT}) < ${maxAttempts}`,
+          sql`(
+            (NOT EXISTS (SELECT 1 FROM cera.extraction x WHERE x.message_id = ${commMessage.messageId})
+              AND NOT EXISTS (SELECT 1 FROM cera.audit_log a WHERE a.target_type = 'COMM_MESSAGE' AND a.target_id = ${commMessage.messageId}::text AND a.action LIKE 'EXTRACTION\\_%')
+              AND (SELECT count(*) FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = ${commMessage.messageId}::text AND e.component_name = ${EXTRACTION_COMPONENT}) < ${maxAttempts})
+            OR EXISTS (SELECT 1 FROM cera.extraction_retry_request r WHERE r.message_id = ${commMessage.messageId} AND ${OPEN_RETRY})
+          )`,
         ),
       )
       .orderBy(asc(commMessage.createdAt), asc(commMessage.messageId))
@@ -115,15 +134,52 @@ export class ExtractionRepository {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`cera.extraction:${messageId}`}, 0))`);
   }
 
-  async hasExtractions(tx: DbTransaction, messageId: string): Promise<boolean> {
-    const rows = await tx.select({ id: extraction.extractionId }).from(extraction).where(eq(extraction.messageId, messageId)).limit(1);
-    if (rows.length > 0) return true;
+  /**
+   * 이미 끝났는가. 자동 시도 = 이 회신에 추출 기록 · 완료 감사가 하나라도 있으면. 사람이 연 시도(`since` = 요청 시각) = 그 뒤의 완료 감사가 있으면 —
+   * 이전 시도의 추출 행 · 감사는 그대로 두고 새 시도의 결과를 덧붙인다(T-124).
+   */
+  async hasExtractions(tx: DbTransaction, messageId: string, since: string | null = null): Promise<boolean> {
+    if (since === null) {
+      const rows = await tx.select({ id: extraction.extractionId }).from(extraction).where(eq(extraction.messageId, messageId)).limit(1);
+      if (rows.length > 0) return true;
+    }
     const done = await tx
       .select({ id: auditLog.auditId })
       .from(auditLog)
-      .where(and(eq(auditLog.targetType, 'COMM_MESSAGE'), eq(auditLog.targetId, messageId), like(auditLog.action, 'EXTRACTION\\_%')))
+      .where(
+        and(
+          eq(auditLog.targetType, 'COMM_MESSAGE'),
+          eq(auditLog.targetId, messageId),
+          like(auditLog.action, 'EXTRACTION\\_%'),
+          ...(since === null ? [] : [sql`${auditLog.occurredAt} >= ${since}`]),
+        ),
+      )
       .limit(1);
     return done.length > 0;
+  }
+
+  /** 결과 없이 열려 있는 사람 재시도 요청(있으면 최신 하나). */
+  async openRetry(messageId: string, q: Database | DbTransaction = this.db): Promise<RetryRequestRow | null> {
+    const open = await q.execute<{ id: string }>(
+      sql`SELECT r.retry_request_id AS id FROM cera.extraction_retry_request r WHERE r.message_id = ${messageId} AND ${OPEN_RETRY} ORDER BY r.requested_at DESC LIMIT 1`,
+    );
+    const id = open.rows[0]?.id;
+    if (!id) return null;
+    const rows = await q.select().from(extractionRetryRequest).where(eq(extractionRetryRequest.retryRequestId, id)).limit(1);
+    return rows[0] ?? null;
+  }
+
+  async retryByCommand(actorId: string, commandId: string, q: Database | DbTransaction = this.db): Promise<RetryRequestRow | null> {
+    const rows = await q
+      .select()
+      .from(extractionRetryRequest)
+      .where(and(eq(extractionRetryRequest.requestedByActorId, actorId), eq(extractionRetryRequest.commandId, commandId)))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async insertRetry(tx: DbTransaction, row: typeof extractionRetryRequest.$inferInsert): Promise<void> {
+    await tx.insert(extractionRetryRequest).values(row);
   }
 
   async insert(tx: DbTransaction, rows: ExtractionInsert[]): Promise<void> {
@@ -135,29 +191,29 @@ export class ExtractionRepository {
     return this.db.select().from(extraction).where(inArray(extraction.messageId, [...messageIds])).orderBy(asc(extraction.askId), asc(extraction.extractionId));
   }
 
-  /** 추출 완료 · 건너뜀 감사(후보가 없을 때의 결과 종류). */
-  async completions(messageIds: readonly string[]): Promise<Map<string, string>> {
-    const out = new Map<string, string>();
+  /** 회신마다 추출 기록을 시간순으로 — 상태 · 시도 이력 · 재시도 판정이 같은 기록을 본다. */
+  async attemptLogs(messageIds: readonly string[], q: Database | DbTransaction = this.db): Promise<Map<string, AttemptLog>> {
+    const out = new Map<string, AttemptLog>(messageIds.map((id) => [id, { failures: [], completions: [], retries: [] }]));
     if (messageIds.length === 0) return out;
-    const rows = await this.db
-      .select({ targetId: auditLog.targetId, action: auditLog.action })
-      .from(auditLog)
-      .where(and(eq(auditLog.targetType, 'COMM_MESSAGE'), inArray(auditLog.targetId, [...messageIds]), like(auditLog.action, 'EXTRACTION\\_%')))
-      .orderBy(asc(auditLog.occurredAt));
-    for (const r of rows) out.set(r.targetId, r.action);
-    return out;
-  }
-
-  /** 기술 실패(시도 수 · 마지막 코드). */
-  async failures(messageIds: readonly string[]): Promise<Map<string, { count: number; lastCode: string }>> {
-    const out = new Map<string, { count: number; lastCode: string }>();
-    if (messageIds.length === 0) return out;
-    const rows = await this.db
-      .select({ id: systemError.relatedEntityId, code: systemError.errorCode })
+    const ids = [...messageIds];
+    const failures = await q
+      .select({ id: systemError.relatedEntityId, at: systemError.occurredAt, code: systemError.errorCode, operation: systemError.operationName, message: systemError.safeErrorMessage })
       .from(systemError)
-      .where(and(eq(systemError.relatedEntityType, 'COMM_MESSAGE'), inArray(systemError.relatedEntityId, [...messageIds]), eq(systemError.componentName, EXTRACTION_COMPONENT)))
+      .where(and(eq(systemError.relatedEntityType, 'COMM_MESSAGE'), inArray(systemError.relatedEntityId, ids), eq(systemError.componentName, EXTRACTION_COMPONENT)))
       .orderBy(asc(systemError.occurredAt), asc(systemError.errorId));
-    for (const r of rows) if (r.id) out.set(r.id, { count: (out.get(r.id)?.count ?? 0) + 1, lastCode: r.code });
+    for (const f of failures) {
+      // 공급자 코드(NO_RECORDING · PROVIDER_NOT_CONFIGURED …)는 기록기가 안전 메시지 괄호 안에 남긴 것뿐이다(원문 · 비밀값 없음)
+      const providerCode = /\(([A-Z][A-Z0-9_]{1,59})\)/.exec(f.message)?.[1] ?? null;
+      if (f.id) out.get(f.id)?.failures.push({ at: f.at, code: f.code, operation: f.operation, providerCode: providerCode === f.code ? null : providerCode });
+    }
+    const completions = await q
+      .select({ targetId: auditLog.targetId, at: auditLog.occurredAt, action: auditLog.action })
+      .from(auditLog)
+      .where(and(eq(auditLog.targetType, 'COMM_MESSAGE'), inArray(auditLog.targetId, ids), like(auditLog.action, 'EXTRACTION\\_%')))
+      .orderBy(asc(auditLog.occurredAt), asc(auditLog.auditId));
+    for (const c of completions) out.get(c.targetId)?.completions.push({ at: c.at, action: c.action });
+    const retries = await q.select().from(extractionRetryRequest).where(inArray(extractionRetryRequest.messageId, ids)).orderBy(asc(extractionRetryRequest.requestedAt));
+    for (const r of retries) out.get(r.messageId)?.retries.push(r);
     return out;
   }
 }

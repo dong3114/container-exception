@@ -5,6 +5,7 @@ import { APPROVAL_BLOCK_REASONS } from './approval-rules.js';
 import { HOLD_REASONS } from './inbound-rules.js';
 import { SEND_BLOCK_REASONS } from './send-rules.js';
 import { INQUIRY_INTENTS } from './inquiry-intents.js';
+import { EXTRACTION_STATES, FAILURE_KINDS, RETRY_BLOCKS } from './extraction-status.js';
 
 /**
  * 문의 초안 계약(T-088 U3 — OpenAPI 정본, ADR-028). JSON 은 snake_case, 시각은 +09:00.
@@ -457,7 +458,7 @@ export class InboundSenderLabelDto {
   contact_name!: string;
 }
 
-export const EXTRACTION_STATES = ['WAITING', 'DONE', 'NO_CANDIDATE', 'SKIPPED', 'RETRYING', 'FAILED'] as const;
+export { EXTRACTION_STATES };
 
 export class ExtractionCandidateDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -497,8 +498,45 @@ export class ExtractionCandidateDto {
   generated_by!: 'RECORDED_REPLAY' | 'LLM';
 }
 
+export class ExtractionAttemptDto {
+  @ApiProperty({ type: Number })
+  attempt_no!: number;
+
+  @ApiProperty({ enum: ['AUTO', 'HUMAN_RETRY'], description: 'AUTO = the worker (within CERA_EXTRACTION_MAX_ATTEMPTS) · HUMAN_RETRY = an operator asked for it' })
+  trigger!: 'AUTO' | 'HUMAN_RETRY';
+
+  @ApiProperty({ enum: ['FAILED', 'DONE', 'NO_CANDIDATE', 'SKIPPED', 'RUNNING'] })
+  result!: 'FAILED' | 'DONE' | 'NO_CANDIDATE' | 'SKIPPED' | 'RUNNING';
+
+  @ApiProperty({ type: String, description: 'When it was recorded (RUNNING: when it was requested)' })
+  at!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  error_code!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  provider_code!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'NO_CANDIDATE: NO_CHANGE · REFUSAL · UNPARSEABLE · VALUES' })
+  outcome!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  retry_request_id!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  requested_by_actor_id!: string | null;
+}
+
+export class ExtractionRetryAvailabilityDto {
+  @ApiProperty({ type: Boolean, description: 'Whether a person may ask for one more attempt now (the request re-checks thread, gap and supersession)' })
+  available!: boolean;
+
+  @ApiProperty({ enum: RETRY_BLOCKS, nullable: true })
+  blocked_reason!: (typeof RETRY_BLOCKS)[number] | null;
+}
+
 export class InboundExtractionDto {
-  @ApiProperty({ enum: EXTRACTION_STATES, description: 'WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry), FAILED (retry limit)' })
+  @ApiProperty({ enum: EXTRACTION_STATES, description: 'WAITING (not run yet), DONE (candidates), NO_CANDIDATE, SKIPPED, RETRYING (technical failure, will retry — or a human-requested attempt is running), FAILED (automatic retry limit, or a human-requested attempt failed)' })
   state!: (typeof EXTRACTION_STATES)[number];
 
   @ApiProperty({ type: String, nullable: true, description: 'NO_CHANGE, REFUSAL, UNPARSEABLE or VALUES when nothing was extracted' })
@@ -507,11 +545,26 @@ export class InboundExtractionDto {
   @ApiProperty({ type: [ExtractionCandidateDto] })
   candidates!: ExtractionCandidateDto[];
 
-  @ApiProperty({ type: Number, description: 'Technical failures so far' })
+  @ApiProperty({ type: Number, description: 'Technical failures so far (automatic and human-requested attempts)' })
   failed_attempts!: number;
 
-  @ApiProperty({ type: String, nullable: true })
+  @ApiProperty({ type: String, nullable: true, description: 'Last technical failure: AI_SERVER_UNAVAILABLE · EXTRACTION_TIMEOUT · EXTRACTION_PROVIDER_FAILED · EXTRACTION_OUTPUT_INVALID · EXTRACTION_REQUEST_REJECTED' })
   last_error_code!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: "The AI server's own code for the last technical failure (NO_RECORDING · PROVIDER_NOT_CONFIGURED …)" })
+  provider_code!: string | null;
+
+  @ApiProperty({ enum: FAILURE_KINDS, nullable: true, description: 'Why no usable value came out: AI_CALL_FAILED (the AI call itself failed) · NO_ANSWER_FOUND (the model found no answer) · VALIDATOR_REJECTED (answers failed the backend checks) · NOT_EXTRACTABLE (no content / no question)' })
+  failure_kind!: (typeof FAILURE_KINDS)[number] | null;
+
+  @ApiProperty({ type: Boolean, description: 'A reply arrived but no validated value came out — a person reviews it: retry the extraction or enter the fact directly' })
+  needs_review!: boolean;
+
+  @ApiProperty({ type: [ExtractionAttemptDto], description: 'Every attempt in order. Earlier attempts are never removed' })
+  attempts!: ExtractionAttemptDto[];
+
+  @ApiProperty({ type: ExtractionRetryAvailabilityDto })
+  retry!: ExtractionRetryAvailabilityDto;
 }
 
 export class InboundItemDto {
@@ -573,6 +626,25 @@ export class InboundItemDto {
 export class InboundListDto {
   @ApiProperty({ type: [InboundItemDto] })
   items!: InboundItemDto[];
+}
+
+export class ExtractionRetryRequestDto {
+  @ApiProperty({ type: String, format: 'uuid', description: 'Idempotency: the same command id returns the same request (double click · network retry)' })
+  command_id!: string;
+
+  @ApiPropertyOptional({ type: String, maxLength: 200, description: 'Why the operator asks again (e.g. provider changed)' })
+  note?: string;
+}
+
+export class ExtractionRetryResultDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  retry_request_id!: string;
+
+  @ApiProperty({ type: Boolean, description: 'true = this command id was already accepted; nothing new was started' })
+  replayed!: boolean;
+
+  @ApiProperty({ type: InboundItemDto, description: 'The reply with its attempts — the new attempt shows as RUNNING until the worker records it' })
+  reply!: InboundItemDto;
 }
 
 export class DraftDto {
