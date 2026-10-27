@@ -10,7 +10,7 @@
 
 ## Status
 
-**REVIEWING — 운영 준비(Final Operational Readiness) 끝, 사용자 검토 대기(2026-10-27, Orchestrator: Claude Code). Backend 업무 로직 feature freeze — 이후 blocker · 보안 · 데이터 무결성 · 시연 · 배포/복구 결함만.** (이전: Final Stabilization · Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
+**REVIEWING — CERA final logic freeze 검토 대기(2026-10-27 18:00 KST, Orchestrator: Claude Code). T-128 · T-127 까지 끝. Backend 업무 로직 freeze — 이후 blocker · 보안 · 데이터 무결성 · 시연 · 배포/복구 결함만.** (직전: 운영 준비) (이전: Final Stabilization · Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
 
 ### 이번 스프린트에서 끝난 것 (모두 commit · origin push)
 | 커밋 | 내용 | 정본 |
@@ -26,6 +26,8 @@
 | `8814407` · `96f10ef` · `6a5542e` | **T-123** 실제 계획 입력 — 운영 기록 표 4(M30 · M31) · 일괄 입력 · LIVE 입력 생성기 · 준비도(필드 단위 누락) · 스냅숏 출처 · 운영 기록 변경 → OUTDATED · E2E 결함 2 수정 | `docs/24` 18.23 |
 | `eb8dfe2` | **T-125** 자동 추출 재시도 간격 · 같은 실패는 바로 사람 검토 | `docs/24` 18.24 |
 | `a9365dd` · `91fed46` · `c97802b` | **운영 준비** — 받는 사람 = 등록부 운영 거래처(M32, 잘못된 회사로 문의 BLOCKER 수정) · 연락처 없으면 사람 대기 · `/health` 큐 상태 · 새 설치 · 백업/복원 · 장애 복구 runbook | `docs/24` 18.25 · `infra/README.md` |
+| `3143e62` | **T-128** 이미 보낸 후속의 정정 · 취소 — 결정론 delta · 원래 받는 주소 · 보낸 메일 불변 · 멱등 · M33 | `docs/24` 22.49 |
+| `6bd7416` | **T-127** 실행 중 등록부 등록 — ADMIN · 새 주소 UNVERIFIED/PENDING · 중복 409 · 관리자 승인 · `REGISTRY_CHANGED` 로 연락처 대기 Agent 깨움 | `docs/24` 18.25 |
 | `4e6bd07` · `54aa09e` | **T-124** 값을 못 얻은 회신 — 사람 검토(`needs_review` · `failure_kind` · 시도 이력) · Agent `REPLY_REVIEW_REQUIRED` 대기 · 사람 추출 재시도 API(M28 · M29) · production 설정 방어(Redis URL) | `docs/24` 18.22 |
 
 ### 실제 Gmail 왕복 — 확인됨(2026-10-27)
@@ -36,7 +38,8 @@ OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · �
 
 ### 다음 한 걸음
 1. ~~실제 Gmail 왕복 확인~~ · ~~T-124~~ · ~~운영 설정 점검 · 회귀 · Docker E2E~~ (DONE 2026-10-27)
-2. ~~T-123~~ · ~~T-125~~ · ~~운영 준비~~ DONE. feature freeze. 다음 실행 가능: T-127(등록부 관리 API) · T-128 · T-108~T-110 · T-126
+2. ~~T-123~~ · ~~T-125~~ · ~~운영 준비~~ · ~~T-128~~ · ~~T-127~~ DONE. **사용자 final logic freeze 검토.** 다음 실행 가능: T-129(주소 중지 · 거절 · 수동 선택) · T-108~T-110 · T-126
+3. 시연 스택 `cera-demo` 는 2026-10-27 17:35 새 볼륨으로 다시 설치 · 시드 · `/demo` 12단계를 한 번 돌린 상태다 — 시연 전에 다시 초기화(`down -v` → `up` → `db:seed`, `infra/README.md`)
 
 ### 알려진 제한 (2026-10-27 분류 — blocker 아님)
 - 외부 의존: 고객 TMS · WMS · 배차 · 요율 시스템 미연동(T-126 — 지금은 CSV · 행 · API · 사람 입력) · 상용 LLM 공급자 미검증(T-099 — 녹화 재생 · 로컬 Qwen3-4B 는 실제 회신을 못 읽는다 → 사람 검토 · 재시도 · 직접 입력으로 복구) · Gmail Testing 모드 refresh token 약 7일

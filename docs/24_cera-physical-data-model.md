@@ -1100,7 +1100,7 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **이미 보낸 v1 후속**: 판이 바뀌어도 보낸 기록은 지우지 않는다. 옛 판의 미발송 초안은 승인 · 발송 요청이 `PLAN_SUPERSEDED` 로 막힌다(실측). 정정 · 취소 문안을 자동으로 만들지는 않는다(알려진 제한)
 
 **최종 검증(2026-10-27, `a9365dd` 기준 새 설치 `cera-fresh`)**
-- 새 설치: 빈 볼륨 → 명령 2개 · 58초 → migration 32 · 표 50 · 트리거 130 · CHECK 281 · FK 106 · 시드 사용자 3(scrypt). 앱 역할 UPDATE/DELETE 거부 · 소유 역할 append-only 트리거
+- 새 설치: 빈 볼륨 → 명령 2개 · 58초 → migration 32 · 표 50 · 트리거 130 · CHECK 281 · FK 106 (T-128 뒤 다시 실측: migration 33 · CHECK 282 · FK 107 · 기존 DB 위 M33 업그레이드도 확인) · 시드 사용자 3(scrypt). 앱 역할 UPDATE/DELETE 거부 · 소유 역할 append-only 트리거
 - LIVE 전체(실제 Gmail 1통): 로그인 → 실제 실행 → 운영 입력(122 ms) → 사실 → 준비도 READY → Agent 가 ODCY A 공백 → 등록부 운영 거래처의 GMAIL 주소 하나 → 초안 → 승인 → 실제 발송(1.66초) → 회신 대기 중 API · Worker 재시작(세션 · 상태 유지, 사칭 머리말 403, 세션 없음 401) → 실제 회신("3대정도는 가능할거같아요") 수신 · 같은 스레드 · 등록 발신자 · 중복 없음 → 녹화 재생이 못 읽음(1회 뒤 바로 사람 검토) → `REPLY_REVIEW_REQUIRED` → 현장 담당자 재시도 403 · 운영자 재시도 = 새 시도 → 현장 담당자 직접 입력 3 → Agent 1.6초 안에 깨어나 v1(OPTIMAL 48 ms, 총 1,960,000 · Baseline 3,590,000) → 요율 변경 → v1 무효 · Agent 재계산 v2(1.6초, 2,020,000) → 승인 → 후속 초안 ODCY A(GMAIL, 승인 · 발송 직전) · ODCY B `NO_ELIGIBLE_CONTACT`(다른 회사로 보내지 않음) → 사실 정정 → v2 OUTDATED → v2 초안 발송 요청 409 `PLAN_SUPERSEDED`
 - 장애: Redis 중단 · FLUSHALL · Worker 중단 · AI 중단 · API 재시작 — infra/README "운영 준비" 실측 표
 - 백업/복원: pg_dump(0.5초) → 새 인스턴스 pg_restore(0.9초) → 행 수 · 권한 · 트리거 동일 → Redis 없이 API 조회 정상. ContentStore 는 DB 밖 — 함께 백업

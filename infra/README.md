@@ -76,12 +76,12 @@ CERA_COMPOSE_EXTRA=infra/local/compose.gpu.yaml bash infra/local/eval-ladder.sh 
 
 ```text
 FRESH="docker compose -p cera-fresh -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env"
-$FRESH --profile app --profile web up -d --build --wait          # postgres · redis · migrate(M01~M32) · api · worker · ai · web — 실측 58초
+$FRESH --profile app --profile web up -d --build --wait          # postgres · redis · migrate(M01~M33) · api · worker · ai · web — 실측 58초
 $FRESH --profile app run --rm migrate npm run db:seed            # 등록부 · 합성 시나리오 · 사용자(admin · operator · field)
 ```
 
 - 사용자는 `back/.env` 의 `CERA_SEED_ADMIN_PASSWORD` · `CERA_SEED_OPERATOR_PASSWORD` · `CERA_SEED_FIELD_PASSWORD`(12자 이상)가 있을 때만 만든다 — 비밀번호는 저장소에 없고 DB 에는 scrypt 해시만
-- 실측(빈 볼륨): migration 32 · 표 50 · 트리거 130 · CHECK 281 · FK 106. 앱 역할은 append-only 표를 고치거나 지울 수 없고(권한), 소유 역할도 트리거가 막는다
+- 실측(빈 볼륨, 2026-10-27 T-128 뒤): migration 33 · 표 50 · 트리거 130 · CHECK 282 · FK 107 · 23초(이미지 빌드 제외).  이전 실측: migration 32 · CHECK 281 · FK 106. 앱 역할은 append-only 표를 고치거나 지울 수 없고(권한), 소유 역할도 트리거가 막는다
 - 같은 호스트 포트를 쓰므로 다른 프로젝트(`cera-demo` · `cera-local`)는 먼저 `stop` 한다(볼륨은 그대로)
 - **Mock 수신함 폴더**: `compose.demo.yaml` 을 겹친 스택들은 `data/raw/mock-channel-demo` 를 함께 쓴다 — 다른 스택의 Mock 회신은 맞는 스레드가 없어 보류(`NO_MATCHING_THREAD`)된다(잘못 붙지는 않는다). 깨끗하게 하려면 스택마다 `CERA_MOCK_CHANNEL_DIR` 를 나눈다
 

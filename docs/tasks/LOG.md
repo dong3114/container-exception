@@ -21,6 +21,17 @@
 
 ---
 
+## 2026-10-27 · T-128 정정 · 취소 후속 · T-127 실행 중 등록부 등록 · Claude Code (claude-opus-5-5)
+- 상태: 완료 — CERA final logic freeze 검토 대기
+- 한 일:
+  - T-128(`3143e62`): 같은 계획 실행의 다른 판에서 **이미 보낸** 후속과 새 승인 판의 조치를 결정론으로 비교(`followUpDelta`, 순수). 사라진 조치 → 취소 초안, 수량 변경 → 정정 초안(이전 → 새 수량), 상대 거래처 변경 → 옛 상대 취소 + 새 상대 요청, 같으면 다시 보내지 않음(`unchanged`). 받는 사람 = 원래 보낸 주소. 문장 = 결정론 템플릿 `[취소]` · `[정정]` + 숫자 검사. 보낸 메시지 · 원문 · 해시는 그대로. M33 `follow_up_kind` · `refers_to_message_id`
+  - T-127(`6bd7416`): ADMIN 등록 API 3개(거래처 · 연락처+주소 · 주소 확인/관계 승인). 새 주소 자동 승인 없음 · 정규화 중복 409 · 감사 3종. `REGISTRY_CHANGED` 알림 + 재조정: `CONTACT_REGISTRATION_REQUIRED` 로 기다리던 실행은 공백 주인에게 이 실행이 쓸 수 있는(Mock/Real 일치) 적격 주소가 생기면 깨어남 → 그래프가 등록부를 다시 읽고 초안. `CONTACT_SELECTION_REQUIRED` 는 등록부 변경으로 깨우지 않음(사람이 고름)
+- 변경 파일: `back/src/planning/{follow-up,follow-up.service}.ts` · `back/src/communication/{draft-prose,inquiry-intents}.ts` · `back/src/db/schema/{codes,m26-plan-follow-up}.ts` · migration 0032 · `back/src/registry/{registry.service,registry.controller,dto}.ts` · `back/src/agent-tools/reconciler.ts` · `back/src/shared/signals/domain-signals.ts` · `back/src/persistence/catalog.ts` · 시험 `back/test/{unit/follow-up,unit/draft-number-check,db/recovery-plan,db/contact-registration,db/schema-catalog,db/permissions-migrations}.test.ts` · `ai/tests/test_agent_graph.py` · `packages/contracts/openapi.{json,d.ts}` · `docs/24`
+- 검증: Backend 532 · Python 90 · Front 80 · typecheck · drizzle-kit check · OpenAPI 최신. DB 통합: v1 승인 → 협력 트럭 후속 발송(Mock) → 가용 0 → v1 OUTDATED → v2 승인 → 취소 초안(원래 주소 · 사람 승인 대기 · 멱등 · 보낸 메일 불변 · Agent 승인 403) → v2 무효 → 취소 초안 승인 409 PLAN_SUPERSEDED. 등록: OPERATOR · FIELD 403 · 중복 409 · 승인 전 Gate 막힘 → ADMIN 승인 → 통과 · 감사. Agent: 주소 없음/승인 전/Real 실행에 Mock 주소 → 깨우지 않음 · 승인된 Mock 주소 → `REGISTRY_CHANGED` 로 깨움 → 그래프가 새 주소로 초안(승인 호출 없음). Docker: 기존 `cera-demo` DB 위 M33 업그레이드(재빌드 · 재시작 · health ok) → 실행 중 스택에서 세션 로그인으로 등록 API(OPERATOR 403 · ADMIN 201 · UNVERIFIED/PENDING · 중복 409 · 승인 뒤 eligible) → 빈 볼륨 새 설치 23초(migration 33 · 표 50 · 트리거 130 · CHECK 282 · FK 107) → 시드 → `/demo` 12단계 브라우저(페이지 오류 0 · v1 5,735,000 그대로). **실제 Gmail LIVE 왕복은 이번에 다시 하지 않았다**(실제 외부 발송 = 건마다 사람 승인 — 정정 · 취소 초안은 Mock 채널로만 확인)
+- 남은 일 / 다음 한 걸음: 사용자 final logic freeze 검토. T-129(주소 중지 · 거절 · 수동 선택) · T-099(상용 키) · T-120(UI, 사용자)
+- 큐 변경: T-127 · T-128 DONE · **T-129 신규**
+- 주의사항: 주소 승인 = 관리자가 CERA 밖에서 확인했다는 기록 [ASSUMPTION — 메일 소유 확인 흐름 없음]. 연락처가 아직 없는 새 거래처는 `GET /registry/counterparties`(주소 기준 목록)에 안 보인다 — 등록 응답의 id 로 연락처를 붙인다. 시험 주소는 모두 example.com · example.invalid
+
 ## 2026-10-27 · 운영 준비(Final Operational Readiness) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 사용자 검토 대기 · Backend feature freeze
 - 한 일:
