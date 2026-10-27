@@ -10,7 +10,7 @@
 
 ## Status
 
-**REVIEWING — T-123 실제 계획 입력 · T-125 재시도 간격 끝, 사용자 검토 대기(2026-10-27, Orchestrator: Claude Code). Backend 업무 로직 feature freeze 후보 — 판단은 사용자.** (이전: Final Stabilization · Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
+**REVIEWING — 운영 준비(Final Operational Readiness) 끝, 사용자 검토 대기(2026-10-27, Orchestrator: Claude Code). Backend 업무 로직 feature freeze — 이후 blocker · 보안 · 데이터 무결성 · 시연 · 배포/복구 결함만.** (이전: Final Stabilization · Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
 
 ### 이번 스프린트에서 끝난 것 (모두 commit · origin push)
 | 커밋 | 내용 | 정본 |
@@ -25,6 +25,7 @@
 | `7d595cf` | 실제 Gmail 왕복 기록(테스트 계정 2개) | `docs/18` G.8 |
 | `8814407` · `96f10ef` · `6a5542e` | **T-123** 실제 계획 입력 — 운영 기록 표 4(M30 · M31) · 일괄 입력 · LIVE 입력 생성기 · 준비도(필드 단위 누락) · 스냅숏 출처 · 운영 기록 변경 → OUTDATED · E2E 결함 2 수정 | `docs/24` 18.23 |
 | `eb8dfe2` | **T-125** 자동 추출 재시도 간격 · 같은 실패는 바로 사람 검토 | `docs/24` 18.24 |
+| `a9365dd` · `91fed46` · `c97802b` | **운영 준비** — 받는 사람 = 등록부 운영 거래처(M32, 잘못된 회사로 문의 BLOCKER 수정) · 연락처 없으면 사람 대기 · `/health` 큐 상태 · 새 설치 · 백업/복원 · 장애 복구 runbook | `docs/24` 18.25 · `infra/README.md` |
 | `4e6bd07` · `54aa09e` | **T-124** 값을 못 얻은 회신 — 사람 검토(`needs_review` · `failure_kind` · 시도 이력) · Agent `REPLY_REVIEW_REQUIRED` 대기 · 사람 추출 재시도 API(M28 · M29) · production 설정 방어(Redis URL) | `docs/24` 18.22 |
 
 ### 실제 Gmail 왕복 — 확인됨(2026-10-27)
@@ -35,7 +36,12 @@ OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · �
 
 ### 다음 한 걸음
 1. ~~실제 Gmail 왕복 확인~~ · ~~T-124~~ · ~~운영 설정 점검 · 회귀 · Docker E2E~~ (DONE 2026-10-27)
-2. ~~T-123~~ · ~~T-125~~ DONE. 사용자 검토 → feature freeze 판단. 그 뒤 실행 가능: T-108~T-110(유지보수) · T-126(내부 시스템 자동 연동 — 대상이 정해지면)
+2. ~~T-123~~ · ~~T-125~~ · ~~운영 준비~~ DONE. feature freeze. 다음 실행 가능: T-127(등록부 관리 API) · T-128 · T-108~T-110 · T-126
+
+### 알려진 제한 (2026-10-27 분류 — blocker 아님)
+- 외부 의존: 고객 TMS · WMS · 배차 · 요율 시스템 미연동(T-126 — 지금은 CSV · 행 · API · 사람 입력) · 상용 LLM 공급자 미검증(T-099 — 녹화 재생 · 로컬 Qwen3-4B 는 실제 회신을 못 읽는다 → 사람 검토 · 재시도 · 직접 입력으로 복구) · Gmail Testing 모드 refresh token 약 7일
+- 운영 가정 `[ASSUMPTION]`: 비용 정책 벌점(잠정 · 오래됨) · 신선도 기간 · 재시도 간격 10초 · 30초 · 상한 120초 · 계획 기간 3일 · 일괄 입력 512 KB / 2000행 · 날짜 상식 범위 ± 365일
+- 제품 제한: UI/UX 미완성(사용자) · 거래처 · 연락처 쓰기 API 없음(T-127, 시드 · 개발 명령만) · 보낸 후속의 정정 · 취소 문안 자동 없음(T-128) · 후속 문안이 문의 템플릿("가능 여부") · Worker 전용 HTTP 상태 끝점 없음(컨테이너 · 로그로 본다) · 실제 실행 숫자는 기준 시각(지금)에 따라 달라진다(그날 출발 시간창) · 여러 날 · 여러 터미널 물류 제약 미지원(한 실행 = 한 터미널 · 3일) · Mock 수신함 폴더를 여러 스택이 함께 쓰면 다른 스택 회신은 보류된다
 3. 사람 대기: T-099(상용 LLM 키 — 실제 회신 추출) · T-120 P2 UI(사용자)
 4. 관측 한계(알고 있음): 회신 하나는 id 로 끝까지 이어진다(send_attempt.provider_message_id → comm_thread.external_thread_id → INBOUND comm_message → raw_input → system_error · extraction · event → agent_run.pending_ref). 다만 Worker 의 추출 시도와 Agent 실행은 **서로 다른 trace_id** 다 — 하나의 trace 로 묶지 않았다
 

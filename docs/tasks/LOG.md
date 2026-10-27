@@ -21,6 +21,16 @@
 
 ---
 
+## 2026-10-27 · 운영 준비(Final Operational Readiness) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 사용자 검토 대기 · Backend feature freeze
+- 한 일:
+  - Agent 연락처 제약 분석 → **BLOCKER**: 시설 공백 문의 · ODCY 반입 후속이 "같은 역할의 첫 거래처"로 가 다른 회사로 갈 수 있었다(ODCY B → ODCY A 실측) · 연락처 없으면 Agent FAILED. 고침(`a9365dd`): 시설 운영 거래처(M32) · 주인 없음/여럿 = 고르지 않음 · `WAITING_HUMAN` CONTACT_* 대기 · 공백이 닫히면 깨움 · ADMIN 등록부 API · 시드 연결
+  - `/health` 큐 상태 · Gmail 5xx/4xx 분류 시험(`91fed46`) · 새 설치 · 백업/복원 · 장애 복구 runbook(`c97802b`)
+- 검증: 새 볼륨 설치(58초 · migration 32) · LIVE 전체 E2E(실제 Gmail 발송 1 · 실제 회신 1, 사람 검토 → 재시도 → 직접 입력 → v1 → 재계획 v2 → 승인 → 후속 → 무효화 차단) · 장애(Redis 중단 · FLUSHALL · Worker · AI · API 재시작) · pg_dump/pg_restore 새 인스턴스 · production 설정 방어 8 · 비밀 · 로그 점검 0건 · 추적 체인 · `/demo` 12단계(오류 0, 숫자 그대로) · LIVE 회귀 · Backend 523 · Python 89 · Front 80 · lint 오류 0
+- 남은 일 / 다음 한 걸음: 사용자 검토. T-127(등록부 관리 API) · T-128 · T-099(상용 키) · T-120(UI)
+- 큐 변경: **T-127 · T-128 신규**
+- 주의사항: 백업 = DB + ContentStore 폴더(원문 · Agent 체크포인트). 복원하면 세션도 살아난다(필요하면 모두 끊기). 실제 실행 숫자는 기준 시각에 따라 바뀐다
+
 ## 2026-10-27 · T-123 실제 계획 입력 · T-125 재시도 간격 · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 사용자 검토 대기(feature freeze 판단)
 - 한 일:
