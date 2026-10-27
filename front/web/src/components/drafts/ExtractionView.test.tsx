@@ -26,6 +26,7 @@ const base: Extraction = {
   failed_attempts: 0,
   last_error_code: null,
   provider_code: null,
+  next_attempt_at: null,
   failure_kind: null,
   needs_review: false,
   attempts: [],
@@ -79,7 +80,7 @@ describe("AI suggestions — candidates with evidence, never facts", () => {
     const attempt = (n: number, over: Partial<Extraction["attempts"][number]> = {}): Extraction["attempts"][number] => ({
       attempt_no: n, trigger: "AUTO", result: "FAILED", at: "2026-10-27T13:38:35.000+09:00", error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", outcome: null, retry_request_id: null, requested_by_actor_id: null, ...over,
     });
-    const failed = { state: "FAILED" as const, failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", failure_kind: "AI_CALL_FAILED" as const, needs_review: true, attempts: [attempt(1), attempt(2), attempt(3)], retry: { available: true, blocked_reason: null } };
+    const failed = { state: "FAILED" as const, failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", next_attempt_at: null, failure_kind: "AI_CALL_FAILED" as const, needs_review: true, attempts: [attempt(1), attempt(2), attempt(3)], retry: { available: true, blocked_reason: null } };
     const html = view(failed, () => undefined);
     expect(html).toContain("사람 검토 필요");
     expect(html).toContain("AI 호출 자체가 실패했습니다");

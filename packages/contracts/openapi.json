@@ -5119,6 +5119,11 @@
             "nullable": true,
             "description": "The AI server's own code for the last technical failure (NO_RECORDING · PROVIDER_NOT_CONFIGURED …)"
           },
+          "next_attempt_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "RETRYING: when the next automatic attempt may run (the retry spacing grows after each transient failure). A failure that would repeat (retryable = false) is not retried automatically"
+          },
           "failure_kind": {
             "type": "string",
             "enum": [
@@ -5152,6 +5157,7 @@
           "failed_attempts",
           "last_error_code",
           "provider_code",
+          "next_attempt_at",
           "failure_kind",
           "needs_review",
           "attempts",

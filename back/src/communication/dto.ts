@@ -554,6 +554,9 @@ export class InboundExtractionDto {
   @ApiProperty({ type: String, nullable: true, description: "The AI server's own code for the last technical failure (NO_RECORDING · PROVIDER_NOT_CONFIGURED …)" })
   provider_code!: string | null;
 
+  @ApiProperty({ type: String, nullable: true, description: 'RETRYING: when the next automatic attempt may run (the retry spacing grows after each transient failure). A failure that would repeat (retryable = false) is not retried automatically' })
+  next_attempt_at!: string | null;
+
   @ApiProperty({ enum: FAILURE_KINDS, nullable: true, description: 'Why no usable value came out: AI_CALL_FAILED (the AI call itself failed) · NO_ANSWER_FOUND (the model found no answer) · VALIDATOR_REJECTED (answers failed the backend checks) · NOT_EXTRACTABLE (no content / no question)' })
   failure_kind!: (typeof FAILURE_KINDS)[number] | null;
 

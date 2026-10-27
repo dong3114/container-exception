@@ -17,6 +17,7 @@ import { CHANNEL_ADAPTERS } from '../../src/channel/channel-adapter.js';
 import type { ChannelAdapters } from '../../src/channel/channel.module.js';
 import type { MockChannelAdapter } from '../../src/channel/mock-channel-adapter.js';
 import { ExtractionProcessor } from '../../src/communication/extraction-processor.js';
+import { ExtractionRepository } from '../../src/communication/extraction.repository.js';
 import { InboundProcessor } from '../../src/communication/inbound-processor.js';
 import { OutboxDispatcher } from '../../src/communication/outbox-dispatcher.js';
 import type { Env } from '../../src/config/env.js';
@@ -79,6 +80,7 @@ afterAll(async () => {
 });
 
 const noRecording = () => ({ status: 502, body: { code: 'NO_RECORDING', retryable: false } });
+const down = () => ({ status: 503, body: { code: 'MODEL_LOADING', retryable: true } }); // 일시 실패(콜드 스타트 · 장애)
 const unparseable = () => ({
   status: 200,
   body: { schema_version: 'reply-extract/1', outcome: 'UNPARSEABLE', answers: [], unmapped_statements: [REPLY], ambiguity_flags: [], meta: { provider: 'local', model_version: 'test-local', prompt_version: 'reply-extract-v1', latency_ms: 5, usage: null } },
@@ -168,13 +170,14 @@ const errorsOf = async (inboundId: string) =>
 describe('T-124 A. automatic retries exhausted → a person reviews → asks again; every attempt stays recorded', () => {
   it('FAILED needs review; only an active OPERATOR/ADMIN human may retry; one request = one new attempt; success flows through the usual validation', async () => {
     const w = await world();
-    handler = noRecording;
+    handler = down;
     const { draftId, inboundId } = await repliedInquiry(w);
     await extractor.runCycle();
     await extractor.runCycle();
     await extractor.runCycle(); // 한도(2) 뒤에는 자동으로 부르지 않는다
     let x = await view(draftId, inboundId);
-    expect(x).toMatchObject({ state: 'FAILED', failed_attempts: 2, last_error_code: 'EXTRACTION_PROVIDER_FAILED', provider_code: 'NO_RECORDING', failure_kind: 'AI_CALL_FAILED', needs_review: true, retry: { available: true, blocked_reason: null } });
+    expect(x).toMatchObject({ state: 'FAILED', failed_attempts: 2, last_error_code: 'AI_SERVER_UNAVAILABLE', provider_code: 'MODEL_LOADING', failure_kind: 'AI_CALL_FAILED', needs_review: true, retry: { available: true, blocked_reason: null } });
+    handler = noRecording;
     expect(x.attempts.map((a) => [a.attempt_no, a.trigger, a.result])).toEqual([
       [1, 'AUTO', 'FAILED'],
       [2, 'AUTO', 'FAILED'],
@@ -276,3 +279,30 @@ describe('T-124 C. an old reply cannot be re-read once a newer reply exists; con
     await expect(app.query('DELETE FROM cera.extraction_retry_request WHERE message_id = $1', [newer])).rejects.toThrow();
   });
 });
+
+describe('T-125 automatic retry spacing — from stored failure times, so a restart or a missing Redis changes nothing', () => {
+  it('a transient failure waits base × 3^(n−1) before the next automatic attempt; a failure that would repeat is not retried; a human retry has no wait', async () => {
+    const w = await world();
+    const repo = worker.get(ExtractionRepository);
+    const backoff = { baseMs: 60_000, maxMs: 120_000 };
+    const pending = async (id: string, offsetMs: number) => (await repo.pendingMessageIds(500, 3, new Date(Date.now() + offsetMs).toISOString(), backoff)).includes(id);
+
+    handler = down;
+    const transient = (await repliedInquiry(w)).inboundId;
+    expect(await pending(transient, 0)).toBe(true); // 아직 시도 전 — 바로
+    expect(await extractor.extractOne(transient)).toBe('FAILED');
+    expect(await pending(transient, 5_000)).toBe(false); // 60초가 지나기 전에는 다시 부르지 않는다
+    expect(await pending(transient, 61_000)).toBe(true);
+    expect(await extractor.extractOne(transient)).toBe('FAILED');
+    expect(await pending(transient, 61_000)).toBe(false); // 두 번째 실패 뒤 = 180초 → 상한 120초
+    expect(await pending(transient, 121_000)).toBe(true);
+
+    handler = noRecording;
+    const repeat = (await repliedInquiry(w)).inboundId;
+    expect(await extractor.extractOne(repeat)).toBe('FAILED');
+    expect(await pending(repeat, 3_600_000)).toBe(false); // 다시 해도 같은 실패 — 자동으로 부르지 않는다(사람 검토)
+    await retry(repeat, w.humanId).expect(200);
+    expect(await pending(repeat, 0)).toBe(true); // 사람이 연 시도는 바로
+  });
+});
+

@@ -31,9 +31,11 @@ export class InboundService {
     @Inject(ENV) env: Env,
   ) {
     this.maxAttempts = env.CERA_EXTRACTION_MAX_ATTEMPTS;
+    this.backoff = { baseMs: env.CERA_EXTRACTION_RETRY_BASE_MS, maxMs: env.CERA_EXTRACTION_RETRY_MAX_MS };
   }
 
   private readonly maxAttempts: number;
+  private readonly backoff: { baseMs: number; maxMs: number };
 
   async list(status: string | undefined): Promise<InboundListDto> {
     if (status !== undefined && status !== 'NORMAL' && status !== 'HOLD') {
@@ -75,9 +77,10 @@ export class InboundService {
           promotion_blocked_reasons: [...new Set(blocked.get(x.extractionId) ?? [])],
         });
       }
-      const status = extractionStatus(logs.get(id) ?? { failures: [], completions: [], retries: [] }, candidates, this.maxAttempts);
+      const status = extractionStatus(logs.get(id) ?? { failures: [], completions: [], retries: [] }, candidates, this.maxAttempts, this.backoff);
       out.set(id, {
         ...status,
+        next_attempt_at: status.next_attempt_at ? Instant.fromDb(status.next_attempt_at).toSeoulIso() : null,
         attempts: status.attempts.map((a) => ({ ...a, at: Instant.fromDb(a.at).toSeoulIso() })),
         candidates,
       });

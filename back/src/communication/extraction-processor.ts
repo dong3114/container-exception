@@ -56,11 +56,14 @@ export class ExtractionProcessor {
     @Inject(ENV) env: Env,
   ) {
     this.maxAttempts = env.CERA_EXTRACTION_MAX_ATTEMPTS;
+    this.backoff = { baseMs: env.CERA_EXTRACTION_RETRY_BASE_MS, maxMs: env.CERA_EXTRACTION_RETRY_MAX_MS };
   }
+
+  private readonly backoff: { baseMs: number; maxMs: number };
 
   async runCycle(): Promise<Record<ExtractResult, number>> {
     const summary: Record<ExtractResult, number> = { EXTRACTED: 0, NO_CANDIDATE: 0, FAILED: 0, SKIPPED: 0, DUPLICATE: 0 };
-    for (const id of await this.repo.pendingMessageIds(10, this.maxAttempts)) {
+    for (const id of await this.repo.pendingMessageIds(10, this.maxAttempts, this.clock.now().toDb(), this.backoff)) {
       const result = await this.extractOne(id);
       summary[result] += 1;
       // 커밋 뒤 알림(T-105) — 회신을 기다리던 Agent 를 깨우는 최적화(정확성은 재조정)

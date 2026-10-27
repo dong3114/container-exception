@@ -37,6 +37,8 @@ export interface ExtractionStatus {
   failed_attempts: number;
   last_error_code: string | null;
   provider_code: string | null;
+  /** RETRYING(자동)일 때 다음 자동 시도가 가능한 시각(T-125 간격). 그 밖에는 null */
+  next_attempt_at: string | null;
   failure_kind: FailureKind | null;
   needs_review: boolean;
   attempts: AttemptView[];
@@ -45,21 +47,28 @@ export interface ExtractionStatus {
 
 type TimelineEntry =
   | { kind: 'RETRY'; at: string; id: string; actor: string }
-  | { kind: 'FAILURE'; at: string; code: string; providerCode: string | null }
+  | { kind: 'FAILURE'; at: string; code: string; providerCode: string | null; retryable: boolean }
   | { kind: 'COMPLETION'; at: string; action: string };
 
 const NO_CANDIDATE_PREFIX = 'EXTRACTION_NO_CANDIDATE_';
 
-export function extractionStatus(log: AttemptLog, candidates: { validation: 'PASSED' | 'REJECTED'; review_status: string }[], maxAttempts: number): ExtractionStatus {
+/** 자동 재시도 간격(T-125): n 번째 실패 뒤 base × 3^(n−1), 상한 max [ASSUMPTION]. 0 이면 간격 없음. */
+export function retryDelayMs(failures: number, backoff: { baseMs: number; maxMs: number }): number {
+  if (backoff.baseMs <= 0 || failures <= 0) return 0;
+  return Math.min(backoff.baseMs * 3 ** (failures - 1), backoff.maxMs);
+}
+
+export function extractionStatus(log: AttemptLog, candidates: { validation: 'PASSED' | 'REJECTED'; review_status: string }[], maxAttempts: number, backoff: { baseMs: number; maxMs: number } = { baseMs: 0, maxMs: 0 }): ExtractionStatus {
   // 같은 시각이면 요청이 먼저(요청 뒤에 그 시도가 기록된다)
   const order = { RETRY: 0, FAILURE: 1, COMPLETION: 1 } as const;
   const timeline: TimelineEntry[] = [
     ...log.retries.map((r): TimelineEntry => ({ kind: 'RETRY', at: r.requestedAt, id: r.retryRequestId, actor: r.requestedByActorId })),
-    ...log.failures.map((f): TimelineEntry => ({ kind: 'FAILURE', at: f.at, code: f.code, providerCode: f.providerCode })),
+    ...log.failures.map((f): TimelineEntry => ({ kind: 'FAILURE', at: f.at, code: f.code, providerCode: f.providerCode, retryable: f.retryable })),
     ...log.completions.map((c): TimelineEntry => ({ kind: 'COMPLETION', at: c.at, action: c.action })),
   ].sort((a, b) => Instant.fromDb(a.at).compareTo(Instant.fromDb(b.at)) || order[a.kind] - order[b.kind]);
 
   const attempts: AttemptView[] = [];
+  let autoNonRetryable = false;
   let open: { id: string; actor: string; at: string } | null = null;
   for (const e of timeline) {
     if (e.kind === 'RETRY') {
@@ -69,7 +78,10 @@ export function extractionStatus(log: AttemptLog, candidates: { validation: 'PAS
     const manual: { id: string; actor: string } | null = open;
     open = null;
     const base = { attempt_no: attempts.length + 1, trigger: manual ? ('HUMAN_RETRY' as const) : ('AUTO' as const), at: e.at, retry_request_id: manual?.id ?? null, requested_by_actor_id: manual?.actor ?? null };
-    if (e.kind === 'FAILURE') attempts.push({ ...base, result: 'FAILED', error_code: e.code, provider_code: e.providerCode, outcome: null });
+    if (e.kind === 'FAILURE') {
+      attempts.push({ ...base, result: 'FAILED', error_code: e.code, provider_code: e.providerCode, outcome: null });
+      if (!manual && !e.retryable) autoNonRetryable = true;
+    }
     else attempts.push({ ...base, result: completionResult(e.action), error_code: null, provider_code: null, outcome: e.action.startsWith(NO_CANDIDATE_PREFIX) ? e.action.slice(NO_CANDIDATE_PREFIX.length) : null });
   }
   if (open) attempts.push({ attempt_no: attempts.length + 1, trigger: 'HUMAN_RETRY', result: 'RUNNING', at: open.at, error_code: null, provider_code: null, outcome: null, retry_request_id: open.id, requested_by_actor_id: open.actor });
@@ -83,7 +95,8 @@ export function extractionStatus(log: AttemptLog, candidates: { validation: 'PAS
 
   let state: ExtractionState = 'WAITING';
   if (open) state = 'RETRYING';
-  else if (last?.result === 'FAILED') state = last.trigger === 'HUMAN_RETRY' || autoFailures >= maxAttempts ? 'FAILED' : 'RETRYING';
+  // 재시도해도 같은 실패(retryable = false — 녹화 없음 · 출력 형식 · 요청 거부)는 자동으로 다시 부르지 않는다(T-125) — 바로 사람 검토
+  else if (last?.result === 'FAILED') state = last.trigger === 'HUMAN_RETRY' || autoFailures >= maxAttempts || autoNonRetryable ? 'FAILED' : 'RETRYING';
   else if (last) state = last.result as ExtractionState;
 
   let failureKind: FailureKind | null = null;
@@ -103,6 +116,7 @@ export function extractionStatus(log: AttemptLog, candidates: { validation: 'PAS
     failed_attempts: failures.length,
     last_error_code: lastFailure?.error_code ?? null,
     provider_code: lastFailure?.provider_code ?? null,
+    next_attempt_at: state === 'RETRYING' && !open && last ? Instant.ofEpochMs(Instant.fromDb(last.at).epochMs + retryDelayMs(autoFailures, backoff)).toDb() : null,
     failure_kind: failureKind,
     needs_review: failureKind !== null,
     attempts,

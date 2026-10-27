@@ -218,18 +218,18 @@ describe('B · C. hallucinated quote and a wrong value are rejected', () => {
 });
 
 describe('E · F. technical failures never touch the reply and are retried up to the limit', () => {
-  it('malformed output → EXTRACTION_OUTPUT_INVALID; timeout → retry; limit → FAILED; reply stays', async () => {
+  it('timeout → retry (transient); malformed output → EXTRACTION_OUTPUT_INVALID stops at once (T-125 — it would repeat); reply stays', async () => {
     const w = await world();
     const a = await repliedInquiry(w, { body: '시험용 — 깨진 응답' });
-    handler = () => ({ status: 200, body: { schema_version: 'reply-extract/1', outcome: 'VALUES', answers: [{ ask_id: 'Q1' }] } });
-    expect(await extractor.extractOne(a.inboundId as string)).toBe('FAILED');
-    let view = await replyView(a.draftId);
-    expect(view.extraction).toMatchObject({ state: 'RETRYING', failed_attempts: 1, last_error_code: 'EXTRACTION_OUTPUT_INVALID', candidates: [] });
-
     handler = () => ({ ...ok([]), delayMs: 1500 }); // 시간 제한 600ms
     expect(await extractor.extractOne(a.inboundId as string)).toBe('FAILED');
+    let view = await replyView(a.draftId);
+    expect(view.extraction).toMatchObject({ state: 'RETRYING', failed_attempts: 1, last_error_code: 'EXTRACTION_TIMEOUT', candidates: [], needs_review: false });
+
+    handler = () => ({ status: 200, body: { schema_version: 'reply-extract/1', outcome: 'VALUES', answers: [{ ask_id: 'Q1' }] } });
+    expect(await extractor.extractOne(a.inboundId as string)).toBe('FAILED');
     view = await replyView(a.draftId);
-    expect(view.extraction).toMatchObject({ state: 'FAILED', failed_attempts: 2, last_error_code: 'EXTRACTION_TIMEOUT' });
+    expect(view.extraction).toMatchObject({ state: 'FAILED', failed_attempts: 2, last_error_code: 'EXTRACTION_OUTPUT_INVALID', needs_review: true, next_attempt_at: null });
     // 한도에 닿으면 주기가 더 부르지 않는다
     calls.length = 0;
     await extractor.runCycle();
@@ -238,8 +238,8 @@ describe('E · F. technical failures never touch the reply and are retried up to
     expect(view).toMatchObject({ status: 'NORMAL', content_available: true });
     const errors = (await app.query("SELECT error_code, retryable FROM cera.system_error WHERE related_entity_type = 'COMM_MESSAGE' AND related_entity_id = $1 ORDER BY occurred_at", [a.inboundId])).rows;
     expect(errors).toEqual([
-      { error_code: 'EXTRACTION_OUTPUT_INVALID', retryable: false },
       { error_code: 'EXTRACTION_TIMEOUT', retryable: true },
+      { error_code: 'EXTRACTION_OUTPUT_INVALID', retryable: false },
     ]);
   });
 

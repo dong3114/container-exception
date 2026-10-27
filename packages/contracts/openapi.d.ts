@@ -1391,6 +1391,8 @@ export interface components {
             last_error_code: string | null;
             /** @description The AI server's own code for the last technical failure (NO_RECORDING · PROVIDER_NOT_CONFIGURED …) */
             provider_code: string | null;
+            /** @description RETRYING: when the next automatic attempt may run (the retry spacing grows after each transient failure). A failure that would repeat (retryable = false) is not retried automatically */
+            next_attempt_at: string | null;
             /**
              * @description Why no usable value came out: AI_CALL_FAILED (the AI call itself failed) · NO_ANSWER_FOUND (the model found no answer) · VALIDATOR_REJECTED (answers failed the backend checks) · NOT_EXTRACTABLE (no content / no question)
              * @enum {string|null}

@@ -97,6 +97,10 @@ export const envSchema = z.object({
   CERA_AI_TIMEOUT_MS: z.coerce.number().int().min(500).max(1_800_000).default(330_000),
   // 같은 회신의 추출 시도 한도(기술 실패 기준) [ASSUMPTION]
   CERA_EXTRACTION_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  // 자동 추출 재시도 간격(T-125): 일시 실패(retryable) 뒤 다음 자동 시도까지 base × 3^(실패 수 − 1), 상한 max [ASSUMPTION]
+  // 기본 10초 → 30초(한도 3이면 약 40초 안에 끝) — 모델 콜드 스타트 · 잠깐의 장애를 넘기되 사람을 오래 기다리게 하지 않는다. 0 = 간격 없음(시험)
+  CERA_EXTRACTION_RETRY_BASE_MS: z.coerce.number().int().min(0).max(600_000).default(10_000),
+  CERA_EXTRACTION_RETRY_MAX_MS: z.coerce.number().int().min(0).max(3_600_000).default(120_000),
   // ── 공공 데이터(docs/11 3절 · T-102 예정) — Main Backend 의 Public Data Adapter 만 부른다. Agent 는 직접 부르지 않는다(ADR-036) ──
   // off = 호출 없음(기본) · replay = 마스킹 fixture 재생(네트워크 없음) · live = 실제 API(키가 있는 출처만, 없으면 그 출처 호출이 PUBLIC_DATA_KEY_MISSING)
   CERA_PUBLIC_DATA_MODE: z.enum(['off', 'replay', 'live']).default('off'),

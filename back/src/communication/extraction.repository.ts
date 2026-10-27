@@ -23,7 +23,7 @@ export const EXTRACTION_OPERATION = { AUTO: 'extractReply', HUMAN_RETRY: 'extrac
 
 /** 한 회신의 추출 기록(시간순). 실패 = system_error · 완료 = audit_log(EXTRACTION_*) · 재시도 요청 = extraction_retry_request. */
 export interface AttemptLog {
-  failures: { at: string; code: string; operation: string; providerCode: string | null }[];
+  failures: { at: string; code: string; operation: string; providerCode: string | null; retryable: boolean }[];
   completions: { at: string; action: string }[];
   retries: RetryRequestRow[];
 }
@@ -56,7 +56,12 @@ export interface ExtractionSubject {
 export class ExtractionRepository {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async pendingMessageIds(limit: number, maxAttempts: number): Promise<string[]> {
+  /**
+   * 자동 시도(T-125): 기술 실패가 한도 미만 · 재시도해도 같은 실패(retryable = false)가 없고 · 마지막 실패에서 간격(`retryDelayMs`)이 지났을 때만.
+   * 간격은 저장된 실패 시각으로 센다 — 프로세스 재시작 · Redis 유무와 관계없이 같다. 사람이 연 시도에는 간격이 없다.
+   */
+  async pendingMessageIds(limit: number, maxAttempts: number, now: string = new Date().toISOString(), backoff: { baseMs: number; maxMs: number } = { baseMs: 0, maxMs: 0 }): Promise<string[]> {
+    const autoFailures = sql`(SELECT count(*) FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = ${commMessage.messageId}::text AND e.component_name = ${EXTRACTION_COMPONENT})`;
     const rows = await this.db
       .select({ id: commMessage.messageId })
       .from(commMessage)
@@ -66,7 +71,12 @@ export class ExtractionRepository {
           sql`(
             (NOT EXISTS (SELECT 1 FROM cera.extraction x WHERE x.message_id = ${commMessage.messageId})
               AND NOT EXISTS (SELECT 1 FROM cera.audit_log a WHERE a.target_type = 'COMM_MESSAGE' AND a.target_id = ${commMessage.messageId}::text AND a.action LIKE 'EXTRACTION\\_%')
-              AND (SELECT count(*) FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = ${commMessage.messageId}::text AND e.component_name = ${EXTRACTION_COMPONENT}) < ${maxAttempts})
+              AND ${autoFailures} < ${maxAttempts}
+              AND NOT EXISTS (SELECT 1 FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = ${commMessage.messageId}::text AND e.component_name = ${EXTRACTION_COMPONENT} AND e.retryable = false)
+              AND coalesce(
+                (SELECT max(e.occurred_at) FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = ${commMessage.messageId}::text AND e.component_name = ${EXTRACTION_COMPONENT})
+                  + make_interval(secs => least(${backoff.baseMs}::float8 * power(3, greatest(${autoFailures} - 1, 0)), ${backoff.maxMs}::float8) / 1000),
+                '-infinity'::timestamptz) <= ${now}::timestamptz)
             OR EXISTS (SELECT 1 FROM cera.extraction_retry_request r WHERE r.message_id = ${commMessage.messageId} AND ${OPEN_RETRY})
           )`,
         ),
@@ -197,14 +207,14 @@ export class ExtractionRepository {
     if (messageIds.length === 0) return out;
     const ids = [...messageIds];
     const failures = await q
-      .select({ id: systemError.relatedEntityId, at: systemError.occurredAt, code: systemError.errorCode, operation: systemError.operationName, message: systemError.safeErrorMessage })
+      .select({ id: systemError.relatedEntityId, at: systemError.occurredAt, code: systemError.errorCode, operation: systemError.operationName, message: systemError.safeErrorMessage, retryable: systemError.retryable })
       .from(systemError)
       .where(and(eq(systemError.relatedEntityType, 'COMM_MESSAGE'), inArray(systemError.relatedEntityId, ids), eq(systemError.componentName, EXTRACTION_COMPONENT)))
       .orderBy(asc(systemError.occurredAt), asc(systemError.errorId));
     for (const f of failures) {
       // 공급자 코드(NO_RECORDING · PROVIDER_NOT_CONFIGURED …)는 기록기가 안전 메시지 괄호 안에 남긴 것뿐이다(원문 · 비밀값 없음)
       const providerCode = /\(([A-Z][A-Z0-9_]{1,59})\)/.exec(f.message)?.[1] ?? null;
-      if (f.id) out.get(f.id)?.failures.push({ at: f.at, code: f.code, operation: f.operation, providerCode: providerCode === f.code ? null : providerCode });
+      if (f.id) out.get(f.id)?.failures.push({ at: f.at, code: f.code, operation: f.operation, providerCode: providerCode === f.code ? null : providerCode, retryable: f.retryable });
     }
     const completions = await q
       .select({ targetId: auditLog.targetId, at: auditLog.occurredAt, action: auditLog.action })
