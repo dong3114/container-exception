@@ -57,7 +57,7 @@ const show = (c: Candidate) => `${c.value}${c.unit ? (UNIT_LABEL[c.unit] ?? ` ${
  * AI 제안(T-092) — 회신 원문에서 AI 가 찾은 **값 후보**와 그 근거 문장, Backend 검증 결과. 확정된 사실이 아니다:
  * 통과한 후보도 아직 업무에 반영되지 않았다(사실로 만드는 것은 다음 단계 — Backend 규칙과 사람 확인).
  */
-export function ExtractionView({ extraction, onRetry, retryError }: { extraction: Extraction; onRetry?: () => void; retryError?: string | null }) {
+export function ExtractionView({ extraction, onRetry, retryError, retryBusy = false }: { extraction: Extraction; onRetry?: () => void; retryError?: string | null; retryBusy?: boolean }) {
   const replay = extraction.candidates.some((c) => c.generated_by === "RECORDED_REPLAY");
   const candidates: Candidate[] = extraction.candidates;
   return (
@@ -89,8 +89,8 @@ export function ExtractionView({ extraction, onRetry, retryError }: { extraction
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             {onRetry && extraction.retry.available && (
-              <button type="button" className="btn" data-testid="extraction-retry" onClick={onRetry}>
-                다시 추출
+              <button type="button" className="btn" data-testid="extraction-retry" onClick={onRetry} disabled={retryBusy || extraction.state === "RETRYING"}>
+                {retryBusy ? "요청 중…" : extraction.state === "RETRYING" ? "다시 읽는 중…" : "다시 추출"}
               </button>
             )}
             {!extraction.retry.available && extraction.retry.blocked_reason && <span className="muted">다시 추출 불가 — {RETRY_BLOCK_TEXT[extraction.retry.blocked_reason] ?? extraction.retry.blocked_reason}</span>}

@@ -25,34 +25,39 @@ const POLL_MS = 3_000;
 /** 다시 추출(T-124): 같은 시도 이력에서 누른 것은 같은 명령 id — 두 번 눌러도 요청은 하나다. 결과는 Worker 가 기록하고 화면이 다시 읽는다. */
 function useRetry(item: InboundItem, onRequested?: () => void) {
   const [error, setError] = useState<string | null>(null);
+  // 요청이 나가 있는 동안 버튼을 끈다(연타 방지 — 같은 명령 id 라 두 번 가도 요청은 하나지만, 사람에게는 "진행 중"을 보인다)
+  const [busy, setBusy] = useState(false);
   // 시도 수마다 명령 id 하나 — 같은 이력에서 다시 누르면 같은 요청, 새 시도가 기록된 뒤에는 새 요청
   const commands = useRef(new Map<number, string>());
   const retry = async () => {
-    if (!item.message_id) return;
+    if (!item.message_id || busy) return;
     const attempts = item.extraction?.attempts.length ?? 0;
     const commandId = commands.current.get(attempts) ?? crypto.randomUUID();
     commands.current.set(attempts, commandId);
     setError(null);
+    setBusy(true);
     try {
       const me = await getMe();
       await retryExtraction(item.message_id, commandId, me.data.actor_id);
       onRequested?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "다시 추출 요청 실패");
+    } finally {
+      setBusy(false);
     }
   };
-  return { retry, error };
+  return { retry, error, busy };
 }
 
 /** 값을 얻지 못한 회신의 검토 상자만(T-124) — 다른 화면(시연 콘솔)이 회신을 한 줄로 보여 줄 때 덧붙인다. */
 export function ReplyReview({ item, onRetried }: { item: InboundItem; onRetried?: () => void }) {
-  const { retry, error } = useRetry(item, onRetried);
+  const { retry, error, busy } = useRetry(item, onRetried);
   if (!item.extraction?.needs_review) return null;
-  return <ExtractionView extraction={item.extraction} onRetry={item.message_id ? () => void retry() : undefined} retryError={error} />;
+  return <ExtractionView extraction={item.extraction} onRetry={item.message_id ? () => void retry() : undefined} retryError={error} retryBusy={busy} />;
 }
 
 function InboundCard({ item, compact = false, onRetried }: { item: InboundItem; compact?: boolean; onRetried?: () => void }) {
-  const { retry, error } = useRetry(item, onRetried);
+  const { retry, error, busy } = useRetry(item, onRetried);
   const who = item.sender_label ? `${item.sender_label.counterparty_name} · ${item.sender_label.contact_name}` : "등록부에 없는 주소";
   return (
     <div className="msg in" data-testid="inbound-item" data-inbound-status={item.status} style={{ display: "grid", gap: 3 }}>
@@ -73,7 +78,7 @@ function InboundCard({ item, compact = false, onRetried }: { item: InboundItem; 
           {item.content_available ? item.preview : "(원문을 찾을 수 없음)"}
         </div>
       )}
-      {item.extraction && !compact && <ExtractionView extraction={item.extraction} onRetry={item.message_id ? () => void retry() : undefined} retryError={error} />}
+      {item.extraction && !compact && <ExtractionView extraction={item.extraction} onRetry={item.message_id ? () => void retry() : undefined} retryError={error} retryBusy={busy} />}
       <div className="muted" style={{ fontSize: 11 }}>
         받은 시각 {time(item.channel_received_at)} · 근거 시각 {time(item.evidence_time)} (
         {item.evidence_basis === "DATE_HEADER" ? "Date 헤더" : `채널 수신 시각${item.date_header_reject_reason ? ` — ${REJECT_LABEL[item.date_header_reject_reason]}` : ""}`})

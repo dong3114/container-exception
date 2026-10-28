@@ -1216,3 +1216,34 @@ table.tbl {
 .act-btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
 .act-btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--blue); }
 .act-btn.row { width: 100%; height: auto; min-height: 30px; padding: 6px 10px; justify-content: flex-start; text-align: left; font-weight: 500; }
+
+/* ── 운영 콘솔(T-120) — 기존 토큰 · 카드 · 배지를 그대로 쓰고 배치만 더한다 ── */
+.ops-shell { max-width: 1440px; margin: 0 auto; padding: 14px 16px 40px; display: grid; gap: 14px; }
+.ops-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ops-top h1 { font-size: 17px; margin: 0; letter-spacing: -0.02em; }
+.ops-main { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; gap: 14px; align-items: start; }
+@media (max-width: 960px) { .ops-main { grid-template-columns: 1fr; } }
+.ops-action { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 9px 12px; border: 1px solid var(--amber-border); background: var(--amber-soft); border-radius: 8px; cursor: pointer; font: inherit; color: var(--text); }
+.ops-action:hover, .ops-action:focus-visible { border-color: var(--amber); outline: none; box-shadow: 0 0 0 2px var(--amber-border); }
+.ops-action-icon { font-size: 18px; text-align: center; }
+.ops-action-go { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.ops-run { display: grid; gap: 2px; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; font: inherit; color: var(--text); }
+.ops-run:hover, .ops-run:focus-visible { border-color: #94a3b8; outline: none; }
+.ops-run.selected { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-border); }
+.ops-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding: 0 12px; background: #fff; }
+.ops-tab { border: 0; border-bottom: 2px solid transparent; background: none; padding: 9px 10px; font: inherit; font-size: 13px; cursor: pointer; color: var(--text-2); }
+.ops-tab[aria-selected="true"] { border-bottom-color: var(--blue); color: var(--text); font-weight: 700; }
+.ops-tab .badge { margin-left: 4px; }
+.ops-subcard { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.ops-human { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--amber-border); border-left: 4px solid var(--amber); background: var(--amber-soft); border-radius: 6px; }
+.ops-dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 12.5px; }
+.ops-dl dt { color: var(--text-3); }
+.ops-dl dd { margin: 0; }
+.ops-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ops-table th, .ops-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.ops-table th { color: var(--text-3); font-weight: 600; font-size: 11.5px; }
+.ops-timeline { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; }
+.ops-timeline li { display: grid; grid-template-columns: 120px 82px 1fr; gap: 8px; align-items: baseline; }
+.ops-contact { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; cursor: pointer; }
+.ops-contact.disabled { opacity: 0.6; cursor: not-allowed; background: var(--slate-soft); }
+.ops-comm-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; width: 100%; text-align: left; border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; cursor: pointer; color: var(--text); }

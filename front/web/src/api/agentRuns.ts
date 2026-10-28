@@ -60,6 +60,8 @@ export interface AgentRunListItem {
   status: AgentRunStatus;
   current_node: string | null;
   waiting_reason: string | null;
+  pending_ref?: { type: string; id: string } | null;
+  last_error_code?: string | null;
   started_at: string;
   finished_at: string | null;
 }

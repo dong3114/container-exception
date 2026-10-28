@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { type Me, ROLE_LABEL, getMe, login, logout } from "@/api/auth";
 import { describeApiError } from "@/api/errors";
 import { toApiError } from "@/state/async";
+import { MeContext } from "./MeContext";
 
 /**
  * 로그인 관문(T-119) — 최소 화면. 세션이 없으면 로그인 폼, 있으면 위쪽 한 줄(사용자 · 역할 · 로그아웃) + 원래 화면.
@@ -54,7 +55,7 @@ export function LoginGate({ children }: { children: ReactNode }) {
           </button>
         )}
       </div>
-      {children}
+      <MeContext.Provider value={me}>{children}</MeContext.Provider>
     </>
   );
 }
