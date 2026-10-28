@@ -12,6 +12,9 @@
 
 **IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인) → 키 갱신 뒤 **COMMERCIAL LLM SMOKE VERIFIED**(Gemini `gemini-3.8-flash` · 1건 · 모델 선정 아님). 2026-10-28 최종 시연 준비 끝 — **Frontend 도 Demo Freeze**. 이어서 **T-131 공개 포트폴리오 배포 준비 DONE**(배포 경계만 — 업무 로직 FROZEN 그대로, ADR-039 Proposed · 실제 서버 배포는 사용자)(이후 blocker · security · demo-breaking 만). 시연 준비 완료.**
 
+### 2026-10-28 산출물 문서 패키지
+- `docs/deliverables/` — 구현 기준 산출물 11종 + 부록 2(자동 생성) + 검토 발견사항. 입구 `docs/deliverables/CERA_DOCUMENT_INDEX.md`. 코드 변경 없음. 사용자 검토 대기
+
 ### 2026-10-28 T-131 공개 포트폴리오 배포 준비 (사용자 지시 — Deployment work, Core FROZEN 유지)
 - 공개 포트폴리오 배포 준비(T-131 · ADR-039 Proposed): `CERA_PORTFOLIO_DEMO_MODE`(Backend · AI) — Gmail · 실제 수신자 · 공공데이터 · 상용 LLM · dev-header 설정이면 기동 거부 · [데모 시작] = `POST /auth/demo-session`(포트폴리오 모드에서만, DEMO_VISITOR 한 계정 · 비밀번호 없는 정식 세션) · 역할 DEMO_VISITOR(M36 — 등록부 · 사용자 관리 · 운영 입력 · 공공데이터 없음) · 실제 채널 발송 403 · Mock 답장은 정해진 문장만 · IP 별 요청 한도 + 하루 Agent 한도 · Origin 검사(CSRF 2차) · API 보안 헤더 · `infra/portfolio/`(Caddy HTTPS · nginx CSP · 내부망 · restart · 메모리 상한 · 초기화 스크립트 · runbook · env 템플릿) · 화면 PORTFOLIO DEMO 소개 · 띠 · README 재작성
 - 격리 결정: 공유 상태 + 서버 초기화(`reset-demo.sh --if-idle 20` cron). 방문자별 실행 복제는 사실이 개체 단위라 섞이고, 세션 이름공간은 멀티테넌시라 범위 밖(ADR-039 6)

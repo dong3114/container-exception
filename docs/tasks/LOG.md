@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-28 · CERA 산출물 문서 패키지(docs/deliverables) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 문서만(제품 코드 변경 없음). Backend FROZEN · Frontend Demo Freeze 유지
+- 한 일: 현재 구현 기준 산출물 11종 + 자동 생성 부록 2 + 검토 발견사항 — 기획서 · 요구사항(기능 73 · 비기능 27) · 유스케이스 26 + 시퀀스 5 · 데이터 분석(소스 16) · 테이블 설계(51표 · FK 111 · CHECK 285 · 트리거 132, 부록 A 626 컬럼 = 카탈로그 자동 생성) · 아키텍처 · API(77 경로, 부록 B = Controller 자동 생성 · Agent Tool 14) · 비기능 · 운영 · 추적성 매트릭스 · 화면 정의서 초안(DRAFT / NON-FINAL) · 용어집 · INDEX
+- 검증: 문서 간 요구사항 ID · UC ID · API 경로 · 테이블 · 컬럼 · 권한 · 코드값 · 링크를 코드 인벤토리와 스크립트로 대조(불일치 0 — 남은 표시는 의도한 표기)
+- 발견: `docs/deliverables/DOCUMENTATION_REVIEW_FINDINGS.md`(F-1~F-6 코드 관찰 · D-1~D-6 기존 문서 불일치 — 고치지 않음)
+- 남은 일: 사용자 검토(특히 10 화면 정의서 · 02 우선순위 · 발견사항 조치 여부)
+
 ## 2026-10-28 · T-131 공개 포트폴리오 배포 준비 · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 배포 산출물까지(실제 서버 배포는 사용자). Backend 업무 로직 FROZEN 유지(배포 경계 · 권한 역할 · 설정만), Frontend 는 안내 화면만
 - 한 일: 공개 포트폴리오 배포 준비(T-131 · ADR-039 Proposed): `CERA_PORTFOLIO_DEMO_MODE`(Backend · AI) — Gmail · 실제 수신자 · 공공데이터 · 상용 LLM · dev-header 설정이면 기동 거부 · [데모 시작] = `POST /auth/demo-session`(포트폴리오 모드에서만, DEMO_VISITOR 한 계정 · 비밀번호 없는 정식 세션) · 역할 DEMO_VISITOR(M36 — 등록부 · 사용자 관리 · 운영 입력 · 공공데이터 없음) · 실제 채널 발송 403 · Mock 답장은 정해진 문장만 · IP 별 요청 한도 + 하루 Agent 한도 · Origin 검사(CSRF 2차) · API 보안 헤더 · `infra/portfolio/`(Caddy HTTPS · nginx CSP · 내부망 · restart · 메모리 상한 · 초기화 스크립트 · runbook · env 템플릿) · 화면 PORTFOLIO DEMO 소개 · 띠 · README 재작성
