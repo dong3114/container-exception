@@ -1,0 +1,213 @@
+# CERA 공개 포트폴리오 배포(T-131 · ADR-039) — 어느 VPS · 클라우드 VM 에서나 Docker Compose 하나로 돈다(특정 클라우드 IaC 없음).
+# 사용법 정본 = infra/portfolio/README.md(배포 · migration · 재시작 · 로그 · 상태 · 백업 · 복원 · 데모 초기화 · 키 교체).
+#
+#   cp infra/portfolio/.env.example infra/portfolio/.env      # 값 채우기(비밀값 — 커밋 금지)
+#   P="docker compose -f infra/portfolio/compose.yaml --env-file infra/portfolio/.env"
+#   $P up -d --build --wait                                      # DB → migration(한 번) → API · Worker · AI · 화면 · HTTPS
+#   $P run --rm seed                                             # 포트폴리오 시드(합성 시나리오 + 데모 방문자). 반복 실행 안전
+#
+# 무엇이 다른가(로컬 compose 와 비교):
+# - 공개 포트는 HTTPS 프록시(caddy) 하나뿐. PostgreSQL · Redis · API · AI 는 외부 접속이 없는 내부망(internal)에만 있다
+# - APP_ENV=production + CERA_PORTFOLIO_DEMO_MODE=true: Gmail · 실제 수신자 · 공공데이터 · 상용 LLM 을 쓰는 설정이면 기동하지 않는다
+# - 비밀값은 이 파일에 없다. 모두 infra/portfolio/.env(서버에만)에서 온다. 상용 LLM · Gmail 키는 아예 넘기지 않는다
+name: cera-portfolio
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-back: &back
+  build: ../../back
+  image: cera-back:portfolio
+  <<: *restart
+  networks: [internal]
+  environment: &back-env
+    APP_ENV: production
+    LOG_LEVEL: log
+    NODE_ENV: production
+    DATABASE_URL: postgres://cera_app:${CERA_APP_PASSWORD:?}@postgres:5432/cera
+    MIGRATION_DATABASE_URL: postgres://cera_owner:${CERA_OWNER_PASSWORD:?}@postgres:5432/cera
+    CERA_PORTFOLIO_DEMO_MODE: "true"
+    CERA_PORTFOLIO_MAX_AGENT_RUNS_PER_DAY: ${CERA_PORTFOLIO_MAX_AGENT_RUNS_PER_DAY:-200}
+    CERA_ALLOWED_ORIGINS: ${CERA_PUBLIC_ORIGIN:?set CERA_PUBLIC_ORIGIN (e.g. https://cera.example.com)}
+    # caddy(HTTPS) → web(nginx) → api: nginx 가 넘기는 방문자 IP(X-Forwarded-For 한 값)로 요청 한도를 센다
+    CERA_TRUST_PROXY_HOPS: "1"
+    CERA_AUTH_MODE: session
+    CERA_SESSION_COOKIE_SECURE: "true"
+    CERA_SESSION_TTL_MINUTES: ${CERA_SESSION_TTL_MINUTES:-120}
+    CERA_GMAIL_ENABLED: "false"
+    CERA_PUBLIC_DATA_MODE: "off"
+    CERA_TEST_RECIPIENT_ALLOWLIST: ""
+    CERA_REDIS_URL: redis://:${CERA_REDIS_PASSWORD:?}@redis:6379
+    CERA_AI_SERVER_URL: http://ai:8100
+    CERA_AGENT_RUNTIME_URL: http://ai:8100
+    CERA_AGENT_TOOLS_ENABLED: "true"
+    CERA_AGENT_TOOL_TOKEN: ${CERA_AGENT_TOOL_TOKEN:?set a random 32+ character token}
+    # 원문 · Agent 체크포인트 · Mock 메일함 = 영속 볼륨 하나(합성 내용만)
+    CERA_CONTENT_DIR: /srv/content/content
+    CERA_MOCK_CHANNEL_DIR: /srv/content/mock-channel
+    CERA_PUBLIC_DATA_RAW_DIR: /srv/content/public-data
+    UV_THREADPOOL_SIZE: "16"
+    # 포트폴리오 시드만 데모 방문자를 만든다. 관리자 계정이 필요하면 아래에 12자 이상(비우면 만들지 않는다)
+    CERA_SEED_ADMIN_PASSWORD: ${CERA_SEED_ADMIN_PASSWORD:-}
+  volumes:
+    - content:/srv/content
+    # 합성 시나리오 팩(시드 · Mock 계획 제공자가 읽는다) — 읽기 전용
+    - ../../data/scenarios:/srv/data/scenarios:ro
+
+services:
+  postgres:
+    image: postgres:18.6
+    <<: *restart
+    networks: [internal]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CERA_PG_SUPERUSER_PASSWORD:?}
+      POSTGRES_DB: postgres
+      CERA_DB_NAME: cera
+      CERA_TEST_DB_NAME: cera_unused
+      CERA_OWNER_PASSWORD: ${CERA_OWNER_PASSWORD:?}
+      CERA_APP_PASSWORD: ${CERA_APP_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../local/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+
+  # 실행 큐 — 업무 정본이 아니다(저장 끔). 내부망 + 비밀번호. 멈춰도 PostgreSQL 폴링이 같은 일을 한다
+  redis:
+    image: redis:7.4.2
+    <<: *restart
+    networks: [internal]
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--requirepass", "${CERA_REDIS_PASSWORD:?}", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${CERA_REDIS_PASSWORD:?}
+    mem_limit: 128m
+
+  # migration 은 이 한 번짜리 컨테이너만 돈다(API · Worker 는 끝난 뒤에만 뜬다 — 여러 API 가 동시에 migration 하지 않는다)
+  migrate:
+    <<: *back
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "db:migrate"]
+
+  # 포트폴리오 시드(합성 시나리오 + 데모 방문자) — `run --rm seed` 로만. CERA_PORTFOLIO_DEMO_MODE 가 아니면 시드 명령이 거부한다
+  seed:
+    <<: *back
+    restart: "no"
+    profiles: [seed]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["npm", "run", "db:seed"]
+
+  api:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *back-env
+      API_PORT: "3100"
+    command: ["node", "dist/main.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 768m
+
+  worker:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command: ["node", "dist/worker.js"]
+    mem_limit: 768m
+
+  # AI Server + Agent Runtime. 녹화 재생만(상용 LLM 키를 넘기지 않는다 — 공개 방문자가 비용을 만들 수 없다)
+  ai:
+    build:
+      context: ../..
+      dockerfile: ai/Dockerfile
+    image: cera-ai:portfolio
+    <<: *restart
+    networks: [internal]
+    environment:
+      CERA_AI_ENV: production
+      CERA_PORTFOLIO_DEMO_MODE: "true"
+      CERA_AI_HOST: 0.0.0.0
+      CERA_LLM_MODE: replay
+      CERA_DECISION_MODE: "off"
+      CERA_AGENT_MODE: "on"
+      CERA_BACKEND_TOOL_URL: http://api:3100
+      CERA_AGENT_TOOL_TOKEN: ${CERA_AGENT_TOOL_TOKEN:?}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/health').status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 768m
+
+  # 화면(정적 빌드 + nginx) — /backend/* 만 API 로 넘긴다(내부 Tool 경로는 막는다). 보안 헤더 · 요청 속도 제한
+  web:
+    build:
+      context: ../..
+      dockerfile: front/web/Dockerfile
+    image: cera-web:portfolio
+    <<: *restart
+    networks: [internal, edge]
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./security-headers.inc:/etc/nginx/conf.d/security-headers.inc:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 64m
+
+  # HTTPS 종단(Let's Encrypt 자동 발급 · 갱신). 인터넷에 열리는 유일한 컨테이너
+  caddy:
+    image: caddy:2.8.4
+    <<: *restart
+    networks: [edge]
+    ports:
+      - "${CERA_HTTP_PORT:-80}:80"
+      - "${CERA_HTTPS_PORT:-443}:443"
+    environment:
+      CERA_DOMAIN: ${CERA_DOMAIN:?set CERA_DOMAIN (e.g. cera.example.com)}
+      CERA_ACME_EMAIL: ${CERA_ACME_EMAIL:?set CERA_ACME_EMAIL (certificate expiry notices)}
+      CERA_HSTS_MAX_AGE: ${CERA_HSTS_MAX_AGE:-31536000}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    # 실측 약 110 MB(인증서 · TLS) — 여유를 둔다
+    mem_limit: 256m
+
+networks:
+  # 바깥으로 나가는 길도 없는 내부망 — DB · Redis · API · AI 는 인터넷과 직접 통하지 않는다
+  internal:
+    internal: true
+  edge: {}
+
+volumes:
+  pgdata:
+  content:
+  caddy-data:
+  caddy-config:

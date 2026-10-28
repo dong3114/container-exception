@@ -1,0 +1,16 @@
+# CERA 공개 포트폴리오 HTTPS 종단(T-131). CERA_DOMAIN 으로 Let's Encrypt 인증서를 자동 발급 · 갱신한다(localhost 면 Caddy 내부 인증서).
+# 인터넷에 열리는 유일한 컨테이너다. 화면 · API 는 모두 web(nginx)을 거친다 — 브라우저는 AI · DB · Redis 를 직접 부를 수 없다.
+# 신뢰 프록시를 두지 않는다: 방문자가 보낸 X-Forwarded-For 는 버리고 실제 접속 주소로 다시 쓴다(요청 한도가 꾸민 IP 를 세지 않게).
+# 앞에 CDN · 부하분산기를 두면 그 주소 범위를 global options 의 servers { trusted_proxies static <범위> } 로 더한다.
+{
+	email {$CERA_ACME_EMAIL}
+}
+
+{$CERA_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age={$CERA_HSTS_MAX_AGE:31536000}"
+		-Server
+	}
+	reverse_proxy web:80
+}
