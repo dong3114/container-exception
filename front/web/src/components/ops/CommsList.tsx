@@ -1,7 +1,9 @@
 import type { Draft } from "@/api/drafts";
 import { useMe } from "@/app/MeContext";
 import { DraftView } from "@/components/drafts/DraftView";
+import type { FactCoordinate } from "@/api/truth";
 import { DELTA_LABEL, FOLLOW_UP_KIND, can, messageStatus, shortTime } from "./opsLabels";
+import { questionAnswered } from "./opsModel";
 
 export interface FollowUpTag {
   kind: "REQUEST" | "CORRECTION" | "CANCELLATION";
@@ -14,7 +16,7 @@ export interface FollowUpTag {
  * 이 실행의 연락 — 문의 · 후속 요청 · 정정 · 취소와 받은 답장을 시간 순서로. 한 건을 열면 기존 초안 화면(승인 · 거절 · 발송 요청 · 답장 · 다시 읽기)이 그대로 열린다.
  * 버튼은 권한에 맞게 끄지만, 막는 것은 Backend 다. 이전 계획 기준 초안은 승인 · 발송이 막힌 이유를 보여 준다.
  */
-export function CommsList({ drafts, tags, openId, onOpen, onChanged }: { drafts: Draft[]; tags: Map<string, FollowUpTag>; openId: string | null; onOpen: (id: string | null) => void; onChanged: (d: Draft) => void }) {
+export function CommsList({ drafts, tags, openId, onOpen, onChanged, facts = [] }: { drafts: Draft[]; tags: Map<string, FollowUpTag>; openId: string | null; onOpen: (id: string | null) => void; onChanged: (d: Draft) => void; facts?: FactCoordinate[] }) {
   const me = useMe();
   const approver = can(me, "communication.approve") ? (me?.actor_id ?? null) : null;
   const sorted = [...drafts].sort((a, b) => a.message.created_at.localeCompare(b.message.created_at));
@@ -32,7 +34,10 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged }: { drafts:
         const tag = tags.get(id);
         const kind = tag ? FOLLOW_UP_KIND[tag.kind]! : { label: "[문의]", badge: "b-outline" };
         const st = messageStatus(d.message.status);
-        const review = d.replies.some((r) => r.extraction?.needs_review);
+        const answered = questionAnswered(d, facts);
+        // 답장의 검토 표시는 Backend 그대로 두되, 물은 정보가 이미 채워졌으면 '처리 완료'로 보인다(아직 할 일로 오해하지 않게)
+        const review = d.replies.some((r) => r.extraction?.needs_review) && !answered;
+        const reviewDone = d.replies.some((r) => r.extraction?.needs_review) && answered;
         const superseded = d.blocked_reasons.includes("PLAN_SUPERSEDED");
         return (
           <div key={id} className="ops-subcard" data-testid="comm-item" data-message-id={id} data-kind={tag?.kind ?? "INQUIRY"} data-status={d.message.status}>
@@ -52,12 +57,18 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged }: { drafts:
               )}
               {d.replies.length > 0 && <span className="badge b-green">✉ 답장 {d.replies.length}</span>}
               {review && <span className="badge b-amber">! 답장 검토 필요</span>}
+              {reviewDone && <span className="badge b-green" data-testid="review-done">✓ 처리 완료(정보가 이미 채워짐)</span>}
               {superseded && <span className="badge b-orange">↻ 이전 계획 기준</span>}
               <span className="muted mono">{shortTime(d.dispatch.sent_at ?? d.message.created_at)}</span>
             </button>
             {superseded && (
               <span className="muted" style={{ fontSize: 12 }}>
                 이 초안이 기댄 계획이 바뀌어 승인 · 발송할 수 없습니다. 새 계획의 후속 요청을 쓰세요.
+              </span>
+            )}
+            {openId === id && reviewDone && (
+              <span className="muted" style={{ fontSize: 12 }}>
+                이 답장에서 AI 가 값을 얻지 못했지만, 물은 정보는 이미 다른 길(직접 입력 등)로 채워졌습니다 — 다시 추출할 필요가 없습니다.
               </span>
             )}
             {openId === id && <DraftView key={`${id}:${d.message.status}:${d.approval.history.length}:${d.replies.length}`} draft={d} approverId={approver} onChanged={onChanged} />}

@@ -6,6 +6,7 @@ import type { Draft, InboundItem } from "@/api/drafts";
 import { ApiError } from "@/api/errors";
 import { type ContactAddress, type Counterparty, type Readiness, selectFollowUpContact, selectRunContact } from "@/api/ops";
 import type { PlanItem, PlanSummary } from "@/api/plans";
+import type { FactCoordinate } from "@/api/truth";
 import { MeContext } from "@/app/MeContext";
 import { ExtractionView } from "@/components/drafts/ExtractionView";
 import { AgentStatus } from "./AgentStatus";
@@ -15,7 +16,7 @@ import { ErrorNotice } from "./ErrorNotice";
 import { OperationalInput } from "./OperationalInput";
 import { ReadinessPanel } from "./ReadinessPanel";
 import { HUMAN_REASON, can, errorText } from "./opsLabels";
-import { addressState, agentNarrative, buildTimeline, candidateCompanies, createPoller, deriveActions, outdatedText, planDiff, runGroup, usable } from "./opsModel";
+import { addressState, agentNarrative, buildTimeline, candidateCompanies, createPoller, deriveActions, outdatedText, ownerFromInquiries, planDiff, questionAnswered, runGroup, usable } from "./opsModel";
 
 /** 운영 콘솔(T-120) — 화면은 Backend 기록을 모아 쉬운 말로 보일 뿐이다. 계약 모양의 합성 값만 쓴다 */
 const RUN = "01a11040-0000-7000-8000-0000000000r1";
@@ -293,5 +294,27 @@ describe("K · L · M · N — 준비도 · 권한 · 오류 · 다시 읽기", 
       "AI 읽기 1회차 — FAILED (EXTRACTION_PROVIDER_FAILED)",
       "계획 v1 계산 — OPTIMAL",
     ]);
+  });
+});
+
+describe("시연 전 다듬기 — 트럭 풀 상대 회사 · 이미 채워진 답장", () => {
+  it("the truck pool owner comes from the inquiries already sent to that pool (the backend only sends to the owner); none → unknown", () => {
+    const d = draft();
+    (d.question as { target_entity_id: string }).target_entity_id = "pool-1";
+    (d.thread as { counterparty_id: string }).counterparty_id = "k-trucking";
+    expect(ownerFromInquiries([d], "pool-1")).toBe("k-trucking");
+    expect(ownerFromInquiries([d], "pool-2")).toBeNull();
+  });
+
+  it("a reply the AI could not read shows 'done' once the asked fact has a value — the backend flag is left as it is", () => {
+    const d = draft({ status: "SENT", replies: [reply(true)] });
+    const fact = { entity_id: FAC, fact_key: "capacity.day(2026-10-13)", fact_state: "CONFIRMED", current: { value: 3 } } as unknown as FactCoordinate;
+    expect(questionAnswered(d, [])).toBe(false);
+    expect(questionAnswered(d, [fact])).toBe(true);
+    const open = withMe(OPERATOR, <CommsList drafts={[d]} tags={new Map()} openId={null} onOpen={() => undefined} onChanged={() => undefined} />);
+    expect(open).toContain("답장 검토 필요");
+    const done = withMe(OPERATOR, <CommsList drafts={[d]} tags={new Map()} openId={null} onOpen={() => undefined} onChanged={() => undefined} facts={[fact]} />);
+    expect(done).toContain("처리 완료");
+    expect(done).not.toContain("답장 검토 필요");
   });
 });

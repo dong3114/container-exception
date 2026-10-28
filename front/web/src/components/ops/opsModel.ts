@@ -319,3 +319,20 @@ export function createPoller(fn: (signal: AbortSignal) => Promise<unknown>, ms: 
     clearInterval(id);
   };
 }
+
+/**
+ * 트럭 풀 · 시설의 상대 회사 단서 — 그 대상에 이미 나간 문의의 받는 회사. Backend 는 문의를 대상의 주인(운영 거래처 · 풀 소유 운송사)에게만
+ * 보내므로(운영 준비) 이 기록이 주인이다. 기록이 없으면 null(모른다 — 지어내지 않는다). 최종 판정은 여전히 Backend(WRONG_COUNTERPARTY).
+ */
+export function ownerFromInquiries(drafts: Draft[], targetId: string | null): string | null {
+  if (!targetId) return null;
+  const hit = drafts.filter((d) => d.question?.target_entity_id === targetId).sort((a, b) => b.message.created_at.localeCompare(a.message.created_at))[0];
+  return hit?.thread.counterparty_id ?? null;
+}
+
+/** 이 문의가 물은 정보가 이미 값이 있나(사람 직접 입력 · 확인 등) — 답장 검토 표시를 "처리 완료"로 바꾸는 데만 쓴다(Backend 표시는 그대로) */
+export function questionAnswered(d: Draft, facts: FactCoordinate[]): boolean {
+  const q = d.question;
+  if (!q) return false;
+  return facts.some((f) => f.entity_id === q.target_entity_id && f.fact_key === q.target_fact_key && f.current !== null && ["CONFIRMED", "OBSERVED", "PROVISIONAL"].includes(f.fact_state));
+}

@@ -24,7 +24,7 @@ import { ReadinessPanel } from "@/components/ops/ReadinessPanel";
 import { RunList } from "@/components/ops/RunList";
 import { Timeline } from "@/components/ops/Timeline";
 import { can, shortId } from "@/components/ops/opsLabels";
-import { type ActionItem, type OpsTab, type RunRow, buildTimeline, createPoller, deriveActions, draftRunId, gapRows, latestAgentByRun } from "@/components/ops/opsModel";
+import { type ActionItem, type OpsTab, type RunRow, buildTimeline, createPoller, deriveActions, draftRunId, gapRows, latestAgentByRun, ownerFromInquiries } from "@/components/ops/opsModel";
 import { toApiError, useAsyncAction } from "@/state/async";
 
 const POLL_MS = 5_000;
@@ -204,19 +204,19 @@ export function OpsConsole() {
                 {tab === "overview" && (
                   <>
                     {agent ? <AgentStatus run={agent} /> : <div className="muted">이 실행에는 아직 Agent 가 없습니다 — Agent 탭에서 시작할 수 있습니다.</div>}
-                    {contactWait && <ContactResolver key={`${contactWait.agent_run_id}:${contactWait.waiting_reason}`} problem={{ scope: "AGENT", agentRunId: contactWait.agent_run_id, reason: contactWait.waiting_reason as "CONTACT_SELECTION_REQUIRED", subject: contactWait.pending_ref! }} simulated={row.run.contains_simulated} onResolved={bump} />}
+                    {contactWait && <ContactResolver key={`${contactWait.agent_run_id}:${contactWait.waiting_reason}`} problem={{ scope: "AGENT", agentRunId: contactWait.agent_run_id, reason: contactWait.waiting_reason as "CONTACT_SELECTION_REQUIRED", subject: contactWait.pending_ref! }} simulated={row.run.contains_simulated} ownerHint={ownerFromInquiries(board.drafts, contactWait.pending_ref!.id)} onResolved={bump} />}
                     {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
                     <GapTable rows={gapRows(detail?.facts ?? [], runDrafts)} />
                   </>
                 )}
-                {tab === "agent" && <AgentTab row={row} agent={agent} contactWait={contactWait} onChanged={bump} />}
+                {tab === "agent" && <AgentTab row={row} agent={agent} contactWait={contactWait} ownerHint={contactWait ? ownerFromInquiries(board.drafts, contactWait.pending_ref!.id) : null} onChanged={bump} />}
                 {tab === "facts" && (
                   <>
                     <GapTable rows={gapRows(detail?.facts ?? [], runDrafts)} />
                     <FactsPanel recoveryRunId={row.run.run_id} actorId={can(me, "truth.manual_entry") || can(me, "truth.review") ? (me?.actor_id ?? null) : null} refreshKey={`${nonce}:${agent?.updated_at ?? ""}`} isSimulated={row.run.contains_simulated} scenarioId={row.run.scenario_id ?? null} />
                   </>
                 )}
-                {tab === "comms" && <CommsList drafts={runDrafts} tags={tags} openId={openMessage} onOpen={setOpenMessage} onChanged={bump} />}
+                {tab === "comms" && <CommsList drafts={runDrafts} tags={tags} openId={openMessage} onOpen={setOpenMessage} onChanged={bump} facts={detail?.facts ?? []} />}
                 {tab === "plan" && (
                   <>
                     {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
@@ -227,7 +227,7 @@ export function OpsConsole() {
                   <>
                     <PlanCompare plans={detail?.plans ?? []} names={names} />
                     {approvedPlan ? (
-                      <FollowUpsPanel key={approvedPlan.plan_id} planId={approvedPlan.plan_id} runId={row.run.run_id} simulated={row.run.contains_simulated} drafts={runDrafts} onChanged={bump} onLoaded={(list) => setFollowUpsOf({ runId: row.run.run_id, list })} />
+                      <FollowUpsPanel key={approvedPlan.plan_id} planId={approvedPlan.plan_id} runId={row.run.run_id} simulated={row.run.contains_simulated} drafts={board.drafts} onChanged={bump} onLoaded={(list) => setFollowUpsOf({ runId: row.run.run_id, list })} />
                     ) : (
                       <div className="muted">승인된 계획이 아직 없습니다 — 계획을 승인하면 필요한 후속 요청이 여기에 나옵니다.</div>
                     )}
@@ -287,7 +287,7 @@ function NewLiveRun({ onCreated }: { onCreated: (runId: string) => void }) {
   );
 }
 
-function AgentTab({ row, agent, contactWait, onChanged }: { row: RunRow; agent: AgentRun | null; contactWait: AgentRun | null; onChanged: () => void }) {
+function AgentTab({ row, agent, contactWait, ownerHint, onChanged }: { row: RunRow; agent: AgentRun | null; contactWait: AgentRun | null; ownerHint: string | null; onChanged: () => void }) {
   const me = useMe();
   const [qty, setQty] = useState("2");
   const [plan, setPlan] = useState(true);
@@ -312,7 +312,7 @@ function AgentTab({ row, agent, contactWait, onChanged }: { row: RunRow; agent: 
   return (
     <div style={{ display: "grid", gap: 10 }} data-testid="agent-tab">
       {agent && <AgentStatus run={agent} />}
-      {contactWait && <ContactResolver key={`${contactWait.agent_run_id}:${contactWait.waiting_reason}`} problem={{ scope: "AGENT", agentRunId: contactWait.agent_run_id, reason: contactWait.waiting_reason as "CONTACT_SELECTION_REQUIRED", subject: contactWait.pending_ref! }} simulated={row.run.contains_simulated} onResolved={onChanged} />}
+      {contactWait && <ContactResolver key={`${contactWait.agent_run_id}:${contactWait.waiting_reason}`} problem={{ scope: "AGENT", agentRunId: contactWait.agent_run_id, reason: contactWait.waiting_reason as "CONTACT_SELECTION_REQUIRED", subject: contactWait.pending_ref! }} simulated={row.run.contains_simulated} ownerHint={ownerHint} onResolved={onChanged} />}
       {agent && manage && isActive(agent.status) && agent.status !== "RUNNING" && (
         <div style={{ display: "flex", gap: 6 }}>
           <button type="button" className="act-btn" onClick={() => wake.run(agent.agent_run_id)} disabled={wake.state.status === "LOADING"} data-testid="agent-wake">

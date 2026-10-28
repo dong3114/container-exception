@@ -6,6 +6,7 @@ import { useAsyncAction } from "@/state/async";
 import { ContactResolver } from "./ContactResolver";
 import { ErrorNotice } from "./ErrorNotice";
 import { DELTA_LABEL, FOLLOW_UP_BLOCKED, FOLLOW_UP_KIND, can, messageStatus } from "./opsLabels";
+import { ownerFromInquiries } from "./opsModel";
 
 /**
  * 승인된 계획의 후속 요청(T-116) · 정정 · 취소(T-128). 계획 승인 ≠ 발송 — 여기서는 초안만 만들고, 초안마다 사람이 승인 · 발송 요청한다.
@@ -73,6 +74,7 @@ export function FollowUpsPanel({ planId, runId, simulated, drafts, onChanged, on
                   facilityId: f.kind === "ODCY_RECEIVE" ? f.target_id : null,
                 }}
                 simulated={simulated}
+                ownerHint={f.kind === "PARTNER_TRUCKS" ? ownerFromInquiries(drafts, f.target_id) : null}
                 onResolved={() => (can(me, "communication.draft") ? make.run() : load())}
               />
             )}

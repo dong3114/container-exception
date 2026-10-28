@@ -26,7 +26,7 @@ const STATUS_BADGE: Record<string, { label: string; badge: string }> = {
   PENDING: { label: "⏳ 승인 전", badge: "b-amber" },
   UNVERIFIED: { label: "? 확인 전", badge: "b-amber" },
 };
-export function ContactResolver({ problem, simulated, onResolved }: { problem: ContactProblem; simulated: boolean; onResolved: () => void }) {
+export function ContactResolver({ problem, simulated, onResolved, ownerHint = null }: { problem: ContactProblem; simulated: boolean; onResolved: () => void; /** 이전 문의 기록으로 안 상대 회사(트럭 풀 소유 운송사) */ ownerHint?: string | null }) {
   const me = useMe();
   const [chosen, setChosen] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -41,11 +41,12 @@ export function ContactResolver({ problem, simulated, onResolved }: { problem: C
 
   const facilityId = problem.scope === "AGENT" ? (problem.subject.type === "FACILITY" ? problem.subject.id : null) : problem.facilityId;
   const facility = facilities.state.status === "SUCCESS" ? (facilities.state.data.facilities.find((f) => f.facility_id === facilityId) ?? null) : null;
-  const ownerId = problem.scope === "FOLLOW_UP" && problem.counterpartyId ? problem.counterpartyId : (facility?.operator_counterparty_id ?? null);
+  const ownerId = problem.scope === "FOLLOW_UP" && problem.counterpartyId ? problem.counterpartyId : (facility?.operator_counterparty_id ?? ownerHint ?? null);
+  const fromHint = Boolean(ownerHint && ownerId === ownerHint && !facility?.operator_counterparty_id && !(problem.scope === "FOLLOW_UP" && problem.counterpartyId));
   const role = problem.scope === "FOLLOW_UP" ? problem.role : problem.subject.type === "TRUCK_POOL" ? "TRUCKING" : (facility?.facility_type ?? null);
   const all = parties.state.status === "SUCCESS" ? parties.state.data.counterparties : [];
   const companies = candidateCompanies(all, ownerId, role);
-  const ownerUnknown = !ownerId && problem.scope === "AGENT" && problem.subject.type === "TRUCK_POOL";
+  const ownerUnknown = !ownerId && role === "TRUCKING";
 
   const select = useAsyncAction(async (signal, addressId: string) => {
     const res =
@@ -64,7 +65,8 @@ export function ContactResolver({ problem, simulated, onResolved }: { problem: C
         {facility ? `대상: ${facility.facility_name}` : problem.scope === "AGENT" ? `대상: ${problem.subject.type === "TRUCK_POOL" ? "트럭 풀" : "시설"} ${problem.subject.id.slice(-6)}` : ""}
         {" · "}선택은 이번 한 건에만 적용됩니다(기본 담당자를 바꾸지 않음).
       </span>
-      {ownerUnknown && <span className="badge b-outline" style={{ whiteSpace: "normal" }}>트럭 풀의 소유 운송사는 화면에서 알 수 없어 운송사 목록을 보여 줍니다 — 다른 회사의 담당자를 고르면 CERA 가 거부합니다.</span>}
+      {fromHint && <span className="muted" style={{ fontSize: 12 }} data-testid="owner-from-history">이 트럭 풀에 보낸 이전 문의 기록으로 소유 운송사를 확인했습니다.</span>}
+      {ownerUnknown && <span className="badge b-outline" style={{ whiteSpace: "normal" }} data-testid="owner-unknown">이 트럭 풀에 보낸 문의 기록이 없어 소유 운송사를 화면에서 알 수 없습니다 — 운송사 목록을 보여 주며, 다른 회사의 담당자를 고르면 CERA 가 거부합니다.</span>}
 
       {companies.map((c) => (
         <div key={c.counterparty_id} style={{ display: "grid", gap: 4 }} data-testid="contact-company">
