@@ -10,7 +10,20 @@
 
 ## Status
 
-**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code).** 확정 뒤 Post-Freeze Hardening 으로 T-129 · T-108(재조정 결함)만 처리하고 다시 FROZEN. **새 기능 확장 금지.** 고치는 범위 = blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end. 진행 중인 Task 없음.
+**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인).** 확정 뒤 Post-Freeze Hardening 으로 T-129 · T-108(재조정 결함)만 처리하고 다시 FROZEN. **새 기능 확장 금지.** 고치는 범위 = blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end. 진행 중인 Task 없음.
+
+### 2026-10-28 T-120 운영 콘솔 · T-099 smoke (커밋 · origin push 승인)
+| 커밋 | 내용 |
+| --- | --- |
+| `eacab50` | AI Server 예비 공급자(failover) — 기술 실패에서만 한 번(ADR-037 6) |
+| `bdd51ce` | 운영 화면 부품 — 쉬운 말 라벨 · 할 일 도출 · 실행 묶음 · Agent 설명 · 타임라인 · 연락처 등록/선택(자동 선택 없음) · 정보 표 · 준비도 · 오류 안내 · 역할 버튼 · 다시 추출 연타 방지 |
+| `2840006` | `/` = 운영 콘솔(Backend 데이터만) · `/prototype` = 옛 Mock 재생 · `/demo` 그대로. 탭: 개요 · Agent · 정보·사실 · 연락 · 복구 계획 · 변경·후속 · 기록 · 운영 입력 |
+| `af28138` | Front 시험 A~N(17) |
+
+- **Backend 변경 없음**(계약 그대로). 발견한 Backend 관련 사항은 모두 NON_BLOCKER: ① 트럭 풀 소유 운송사가 사람용 API 에 없음 → 화면은 운송사 목록을 보이고 다른 회사 선택은 Backend 가 `WRONG_COUNTERPARTY` 로 거부 ② 답장의 `needs_review` 는 공백이 닫혀도 남음 → 화면이 Agent 가 넘어간 실행의 답장은 할 일에서 뺌 ③ 후속 목록 GET 에는 막힌 이유가 없음 → [필요한 초안 만들기] 뒤에 보임 ④ 정보 공백 목록은 Agent 전용 Tool → 화면은 사실 · 문의 · 준비도로 조합
+- 검증: Front 97 · typecheck · lint 오류 0 · build. 실제 스택 브라우저 E2E(로그인 → Agent → 연락처 없음 → 관리자 등록 → 초안 → 승인 · 발송 → AI 못 읽은 답장 → 다시 추출 → 직접 입력 → 계획 승인 → 후속 → 트럭 담당 퇴사 · 가용 0 → OUTDATED → 다시 계산 · 승인 → 판 비교 → 취소 담당자 선택(아무것도 미리 안 고름 · 퇴사 주소 선택 불가) → [취소] 초안 → 기록 · FIELD 권한, 페이지 오류 0) · `/demo` 12단계(오류 0 · v1 5,735,000 · v3 5,835,000) · `/prototype` 로그인 뒤 렌더(오류 0)
+- **T-099 smoke(1회)**: OpenAI 키 401(무효) · Gemini 키 정상. `gemini-3.8-flash` 503 · `gemini-flash-latest` 실제 추출 503 → 504 → 자동 3회 실패 → 사람 검토(값 지어내지 않음). 상용 공급자로 PROVISIONAL 까지는 **아직 확인 못 함**. 다음: 공급자 회복 뒤 같은 smoke 1회 · OpenAI 키 재발급
+- 알려진 제한(UI): 디자인 디테일 · 모바일 P2(사용자) · 관리자 전용 콘솔 없음(등록부는 지금 일을 푸는 최소 흐름만) · `npm run smoke` 는 로그인하지 않아 세션 모드에서는 로그인 화면에서 멈춤(T-119 이후 그대로 — `/prototype` 은 로그인 뒤 정상)
 
 ### 2026-10-28 Post-Freeze Hardening (커밋 · origin push 승인)
 | 커밋 | 내용 | 정본 |

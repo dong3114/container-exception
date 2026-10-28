@@ -21,6 +21,16 @@
 
 ---
 
+## 2026-10-28 · T-120 운영 콘솔(Frontend Operational UI) · T-099 smoke · Claude Code (claude-opus-5-5)
+- 상태: 완료 — Backend FROZEN 유지(Backend 변경 없음)
+- 한 일: `/` 를 운영 콘솔로(`front/web/src/app/ops/OpsConsole.tsx`), 옛 Mock 재생 = `/prototype`, `/demo` 그대로. 첫 화면 = 지금 해야 할 일. 실행 목록(사람 조치 · 진행 · 완료 · 중단) · Agent 지금/대기/마지막/다음 · 연락처 등록(관리자)/선택(쓸 수 있는 주소만, 미리 고르지 않음) · 정보 표 · 사실(기존 패널 재사용) · 연락([문의] · [요청] · [정정] · [취소] · 이전 계획 기준) · 계획(기존 패널) · 판 비교 · 후속 · 기록 · 운영 입력(검증 먼저). 5초 갱신(`createPoller` — 안 보이면 건너뜀 · 겹침 없음) · 역할 버튼(`/auth/me` permissions) · 쉬운 말 오류 + 기술 상세. 기존 결함 고침: 계획 패널이 운영 기록 변경 무효 사유를 `undefined` 로 보이던 것 · 다시 추출 연타
+- 커밋: `bdd51ce` 부품 · `2840006` 콘솔 · `af28138` 시험(+ 앞서 `eacab50` AI failover)
+- 검증: Front 97(신규 17) · typecheck · lint 오류 0 · build. 실제 `cera-demo` 브라우저 E2E 전 구간 통과(페이지 오류 0) · `/demo` 12단계 회귀(v1 5,735,000 · v3 5,835,000) · `/prototype` 로그인 뒤 렌더. E2E 로 찾아 고친 UX: 연락처가 하나도 없을 때 등록 칸이 접혀 있던 것 · 이미 정보가 채워진 답장이 할 일에 남던 것
+- Backend 관련(모두 NON_BLOCKER, 고치지 않음): 트럭 풀 소유 운송사가 사람용 API 에 없음 · 답장 `needs_review` 는 공백이 닫혀도 남음 · 후속 GET 에 막힌 이유 없음 · 정보 공백 목록은 Agent 전용
+- T-099 smoke(1회): OpenAI 401(키 무효) · Gemini 키 정상, `gemini-3.8-flash` 503 · `gemini-flash-latest` 추출 503 → 504 → 사람 검토(값 지어내지 않음). 상용 공급자 PROVISIONAL 사슬 미확인 — 공급자 회복 뒤 다시. ai 컨테이너는 replay 로 되돌림(.env 무변경)
+- 남은 일: 디자인 디테일 · 모바일 · 관리자 콘솔(사용자, P2) · T-099 smoke 재시도 · OpenAI 키 재발급
+- 주의: 세션 모드에서 `npm run smoke` 는 로그인하지 않아 멈춘다(T-119 이후) — `/prototype` 은 로그인 뒤 정상
+
 ## 2026-10-28 · AI Server 장애 대비 예비 공급자(failover) · .env 정리 · Claude Code (claude-opus-5-5)
 - 상태: 완료(커밋 전 — 사용자 확인 대기)
 - 한 일: 사용자 지시로 `ai/` 에 failover 추가(Backend 변경 없음 — Backend freeze 유지). 설정 `CERA_LLM_FALLBACK_PROVIDER` · `CERA_LLM_FALLBACK_MODEL`(선택, live 만, 기본과 달라야 함, 그 공급자 키 필요 — `config.py` 가 검사). `FailoverProvider`: 기본 공급자의 기술 실패(`PROVIDER_KEY_MISSING` · `PROVIDER_CALL_FAILED` — 401/403/429/5xx 포함 · `MODEL_TIMEOUT`)에서만 같은 요청을 예비로 한 번. 답의 문제(JSON 아님 · 스키마 · 거부 · 잘림)는 넘기지 않음. 답한 공급자 · 모델 = `meta.provider` · `model_version`. 둘 다 실패면 예비의 코드 · retryable = 둘 중 하나라도 일시 실패. 가격 순 자동 선택은 하지 않음(순서 = 설정). 앞서 `back/.env` 빠진 키 10개 · `ai/.env` 3개를 `.env.example` 값으로 채움 · `CERA_REDIS_URL=redis://127.0.0.1:56379`(로컬 값, 커밋 대상 아님)

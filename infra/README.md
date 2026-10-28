@@ -26,7 +26,7 @@ GPU 는 `infra/local/compose.gpu.yaml` 을 하나 더 겹쳐 쓴다(`llm` 만 �
 ```text
 DC up -d --wait                                                  # DB 만
 DC --profile app up -d --build                                   # + migration · API · Worker · AI
-DC --profile app --profile web up -d --build                     # + 화면 http://127.0.0.1:3000
+DC --profile app --profile web up -d --build                     # + 화면 http://127.0.0.1:3000 (/ 운영 콘솔 · /demo 시연 콘솔 · /prototype Mock 재생)
 DC --profile app --profile web --profile llm up -d --build       # + 로컬 모델
 DC --profile app run --rm migrate npm run db:seed               # 첫 실행 뒤 시드(반복 안전)
 DC --profile app --profile web --profile llm --profile eval down # 정지(데이터 삭제는 down -v)

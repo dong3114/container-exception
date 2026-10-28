@@ -35,9 +35,10 @@ npm run typecheck           # tsc --noEmit
 npm test                    # vitest — API 경계 · 상태 매핑 단위 시험(브라우저 · Backend 불필요)
 npm run lint                # eslint
 npm run build && npm run start   # 타입 검사 + vite build → dist/ 정적 파일, vite preview http://localhost:3000
-npm run smoke               # 서버가 떠 있을 때: Edge/Chrome 헤드리스로 9단계 재생·화면 값 확인, 스크린샷 front/web/.smoke/
+npm run smoke               # 서버가 떠 있을 때: Edge/Chrome 헤드리스로 9단계 재생·화면 값 확인(/prototype — 로그인 필요한 세션 모드에서는 먼저 로그인 · 13절), 스크린샷 front/web/.smoke/
 npm run dev                 # Vite 개발 서버 http://localhost:3000 (CSR 만 — 서버 렌더링 없음)
-                            # /dev/api = Backend 응답 확인 화면. /backend/* 는 Main Backend(CERA_API_URL, 기본 127.0.0.1:3100)로 프록시
+                            # 경로(T-120): / = 운영 콘솔(Backend 데이터만) · /demo = 시연 콘솔 · /prototype = 이 문서의 Mock 재생 화면 · /dev/api = Backend 응답 확인
+                            # /backend/* 는 Main Backend(CERA_API_URL, 기본 127.0.0.1:3100)로 프록시
 ```
 
 키보드: `→` 다음 이벤트, `←` 이전, `Esc` 상세 닫기.
@@ -192,3 +193,25 @@ Current Exposure는 "조치하지 않을 때"의 값이라 계획이 바뀌어�
 - 사람 승인·확인 버튼은 재생 단계로만 보여준다(클릭으로 상태를 바꾸지 않는다). 짧은 액션 UI(SCR-03)는 범위 밖이다.
 - 3D(Three.js)는 쓰지 않았다. 2D SVG가 상태 변화를 더 분명히 보여줬다(ADR-022). 필요하면 T-056에서 다시 판단한다.
 - 다음 단계: 사람 검토(T-064) → 화면·데이터 요구사항 수정(T-065) → Recovery Optimization 설계 재개(T-036) → Backend/Solver 연결.
+
+## 13. 운영 콘솔 (T-120 · 2026-10-28)
+
+`/` 는 이제 **운영 콘솔**이다(`front/web/src/app/ops/OpsConsole.tsx`). 이 문서 앞부분의 Mock 재생 화면은 `/prototype` 으로 옮겼고, 시연 콘솔은 `/demo` 그대로다. 운영 콘솔은 **Backend 데이터만** 쓴다(Mock · 시나리오 팩을 읽지 않는다 — 시뮬레이션 실행은 배지로 구분). Backend 계약은 바꾸지 않았다(기존 endpoint 만).
+
+| 영역 | 내용 | 쓰는 API |
+| --- | --- | --- |
+| 지금 해야 할 일(첫 화면) | Agent 사람 대기(사유 → 쉬운 말) · 승인 대기 초안 · 발송 요청 대기 · AI 가 못 읽은 답장 · 승인 대기 계획 · 담당자가 필요한 후속. 같은 일은 한 번만 | `GET /agent-runs` · `/communication/drafts` · `/communication/inbound` · `/planning/runs/:id/plans` |
+| 복구 실행 목록 | 사람 조치 필요 · 진행 중 · 완료 · 중단/오류로 묶음. Agent 상태 · 대기 사유 · 현재 판 | `GET /planning/runs` |
+| 개요 · Agent | 지금 하는 일 · 기다리는 것 · 마지막 작업 · 다음 예상(기록된 단계로만) · Agent 시작 · 다시 확인 · 취소 | `GET/POST /agent-runs*` |
+| 연락처 문제 | 등록 필요 → (관리자) 운영 회사 · 담당자 등록 · 승인 / 선택 필요 → 쓸 수 있는 주소만 고를 수 있음, **처음에 아무것도 고르지 않음**, 중지 · 거절 · 미승인 주소는 상태와 함께 보이되 고를 수 없음 | `/registry/*` · `POST /agent-runs/:id/contact-selection` · `POST /planning/plans/:id/follow-ups/contact-selection` |
+| 정보 · 사실 | 필요한 정보 표(무엇 · 대상 · 상태 · 누구에게 물었나 · 답장 · 지금 값 · 확정) + 기존 사실 판단 · 직접 입력 | `GET /truth/facts` · `POST /truth/*` |
+| 연락 | 문의 · [요청] · [정정] · [취소]와 답장을 시간 순서로, 이전 계획 기준 초안 표시. 한 건을 열면 기존 초안 화면(승인 · 거절 · 발송 요청 · 답장 · 다시 추출) | `/communication/*` |
+| 복구 계획 | 준비도 + 기존 계획 패널(판 · KPI · 컨테이너별 조치 · OUTDATED 이유 · 다시 계산 · 승인) | `/planning/*` |
+| 변경 · 후속 | 판 비교(컨테이너별 추가 · 빠짐 · 변경 · 같음, 무효 이유) · 승인된 판의 후속 · 정정 · 취소(Backend delta 그대로) | `GET /planning/plans/:id` · `/follow-ups` |
+| 기록 | Agent 단계 · 초안 · 승인 · 발송 · 답장 · AI 읽기 시도 · 계획을 시간 순서로(새 이벤트 시스템 없음) | 위 기록 조합 |
+| 운영 입력(실제 실행만) | CSV · 파일 → **검증만** 먼저 → 오류 0 이고 같은 내용일 때만 저장(행 · 필드 · 이유 표, 저장 안 됨 명시) | `POST /planning/runs/:id/inputs/containers` · `/planning/inputs/*` |
+
+- 갱신: 5초마다 다시 읽는다(화면이 안 보이면 건너뜀 · 겹쳐 부르지 않음 — `createPoller`). WebSocket 없음
+- 권한: `GET /auth/me` 의 `permissions` 로 버튼을 숨기거나 끈다(편의). 최종 권한은 Backend 401 · 403 — 현장 담당자는 직접 입력만
+- 오류: 코드 → 쉬운 말, 코드 · HTTP · request id 는 펼쳐 보기(`ErrorNotice`). 색만으로 상태를 나타내지 않는다(기호 · 글자 함께)
+- 한계: 트럭 풀의 소유 운송사는 사람용 API 에 없어, 트럭 풀 담당자 선택은 운송사 목록을 보여 주고 다른 회사 선택은 Backend 가 거부(`WRONG_COUNTERPARTY`) · 정보 공백 목록은 Agent 전용 Tool 이라 화면은 사실 · 문의 · 준비도로 조합 · 후속 목록 조회(GET)에는 막힌 이유가 없어 [필요한 초안 만들기] 뒤에 보인다 · 디자인 · 모바일은 P2(사용자)
