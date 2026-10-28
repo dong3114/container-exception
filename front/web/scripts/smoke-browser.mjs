@@ -16,7 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const scenarioDir = join(here, "..", "..", "..", "data", "scenarios", "busan-wh-capacity-01"); // front/web/scripts → repo root
 const scenario = JSON.parse(readFileSync(join(scenarioDir, "scenario.json"), "utf8"));
 const plans = JSON.parse(readFileSync(join(scenarioDir, "plans.json"), "utf8"));
-const url = process.env.SMOKE_URL ?? "http://localhost:3000";
+const url = process.env.SMOKE_URL ?? "http://localhost:3000/prototype"; // 옛 Mock 재생 화면(T-120 뒤 / 는 운영 콘솔)
 const out = process.env.SMOKE_OUT ?? join(here, "..", ".smoke");
 mkdirSync(out, { recursive: true });
 

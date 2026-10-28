@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { type Plan, approvePlan, getPlan, listPlans, recalculatePlan } from "@/api/plans";
 import { describeApiError } from "@/api/errors";
 import { krw } from "@/components/format";
+import { outdatedText } from "@/components/ops/opsModel";
 import { useAsyncAction } from "@/state/async";
 import {
   ACTION_BADGE,
@@ -13,7 +14,6 @@ import {
   costLines,
   factReasonLabel,
   nameMap,
-  outdatedLabel,
   reasonLabel,
   usageLabel,
 } from "./planLabels";
@@ -130,7 +130,7 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
               {plan.outdated_reasons.map((r, i) => (
                 <span key={i}>
                   {i > 0 ? " · " : ""}
-                  {names.get(String(r.subject_id)) ?? String(r.subject_id).slice(0, 8)} {String(r.fact_key)} {outdatedLabel(String(r.code))}
+                  {outdatedText(r as Record<string, unknown>, names)}
                 </span>
               ))}
             </div>
