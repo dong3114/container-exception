@@ -95,7 +95,7 @@ export class AgentReconciler implements OnModuleInit {
       if (r && !r.already) summary.retried += 1;
     }
 
-    for (const w of await this.store.waitingOnRecords(limit)) {
+    for (const w of await this.allWaiting(limit)) {
       if (w.pendingRefType === 'RECOVERY_PLAN' && w.pendingRefId) {
         // 계획 판을 기다리는 실행(T-114) — 판의 지금 상태로 판정한다
         summary.checked += 1;
@@ -145,6 +145,18 @@ export class AgentReconciler implements OnModuleInit {
       if (r && !r.already) summary.woken += 1;
     }
     return summary;
+  }
+
+  /** 기다리는 실행 전부(쪽마다 `limit` 건씩 이어 읽는다 — T-108). 한 쪽이 `limit` 보다 적으면 끝 */
+  private async allWaiting(limit: number) {
+    const all: Awaited<ReturnType<RuntimeStoreRepository['waitingOnRecords']>> = [];
+    let after: string | null = null;
+    for (;;) {
+      const page = await this.store.waitingOnRecords(limit, after);
+      all.push(...page);
+      if (page.length < limit) return all;
+      after = page[page.length - 1]!.agentRunId;
+    }
   }
 
   /** 이 문의가 물은 좌표들의 지금 사실이 "사람 확인 대기"인지 — 사건에서 바로 판정한다(알림 · 파생 표에 기대지 않는다). */

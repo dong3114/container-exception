@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
 import { agentCheckpoint, agentCheckpointWrite, agentRun, agentStep } from '../db/schema/index.js';
 
@@ -94,12 +94,18 @@ export class RuntimeStoreRepository {
   }
 
   /** 재조정 대상: 업무 기록을 기다리는 실행(오래 기다린 것부터). */
-  async waitingOnRecords(limit: number) {
+  /**
+   * 기다리는 실행 한 쪽(page). 재조정은 `afterId` 로 이어 읽어 **전부** 본다(T-108) — 예전에는 가장 오래된 `limit` 건만 봐서,
+   * 깨울 일이 없는 실행이 그만큼 쌓이면 그 뒤의 실행은 폴링으로 다시 보이지 않았다(알림을 놓치면 영영 기다림).
+   * 순서 = 실행 id(UUIDv7 — 만든 순서). 깨우지 않은 실행의 updated_at 은 바뀌지 않으므로 그것으로 순서를 매기면 같은 쪽만 반복된다.
+   */
+  async waitingOnRecords(limit: number, afterId: string | null = null) {
+    const waiting = and(inArray(agentRun.status, ['WAITING_HUMAN', 'WAITING_EXTERNAL']), isNotNull(agentRun.pendingRefId));
     return this.db
       .select({ agentRunId: agentRun.agentRunId, waitingReason: agentRun.waitingReason, pendingRefType: agentRun.pendingRefType, pendingRefId: agentRun.pendingRefId })
       .from(agentRun)
-      .where(and(inArray(agentRun.status, ['WAITING_HUMAN', 'WAITING_EXTERNAL']), isNotNull(agentRun.pendingRefId)))
-      .orderBy(asc(agentRun.updatedAt), asc(agentRun.agentRunId))
+      .where(afterId ? and(waiting, gt(agentRun.agentRunId, afterId)) : waiting)
+      .orderBy(asc(agentRun.agentRunId))
       .limit(limit);
   }
 
