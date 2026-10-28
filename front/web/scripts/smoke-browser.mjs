@@ -4,8 +4,13 @@
  * Drives a real browser (installed Microsoft Edge or Chrome via playwright-core, no browser download)
  * through every playback step and checks what is on screen against scenario.json.
  *
- * Usage: start the app (npm run build && npm run start), then `npm run smoke`.
- * Env: SMOKE_URL (default http://localhost:3000), SMOKE_CHANNEL (msedge | chrome), SMOKE_OUT (screenshot dir, default front/web/.smoke)
+ * Usage: start the app (npm run build && npm run start, or the Docker web profile), then `npm run smoke`.
+ * Env: SMOKE_URL (default http://localhost:3000/prototype), SMOKE_CHANNEL (msedge | chrome), SMOKE_OUT (screenshot dir, default front/web/.smoke)
+ *
+ * Session auth (T-119): the screens sit behind the login gate, so the smoke logs in first through the normal login API
+ * (POST /backend/auth/login — no bypass). Account: SMOKE_LOGIN (default operator) · password SMOKE_PASSWORD or
+ * CERA_SEED_OPERATOR_PASSWORD; for a localhost URL only, it falls back to back/.env (the seed password, never printed).
+ * After the playback checks it opens the operations console (/) and the demo console (/demo) and checks core API answers.
  */
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -32,6 +37,30 @@ const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, de
 const consoleErrors = [];
 page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
 page.on("pageerror", (e) => consoleErrors.push(String(e)));
+
+const origin = new URL(url).origin;
+const local = ["localhost", "127.0.0.1"].includes(new URL(url).hostname);
+function seedPassword() {
+  if (process.env.SMOKE_PASSWORD) return process.env.SMOKE_PASSWORD;
+  if (process.env.CERA_SEED_OPERATOR_PASSWORD) return process.env.CERA_SEED_OPERATOR_PASSWORD;
+  if (!local) return null; // 원격 주소에는 로컬 시드 비밀번호를 쓰지 않는다
+  try {
+    return readFileSync(join(here, "..", "..", "..", "back", ".env"), "utf8").match(/^CERA_SEED_OPERATOR_PASSWORD=(.*)$/m)?.[1]?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+// 이미 신원이 있으면(dev-header 모드) 그대로, 없으면 정식 로그인 API 로 세션을 만든다(브라우저 문맥과 쿠키를 함께 쓴다)
+if ((await page.request.get(`${origin}/backend/auth/me`)).status() === 401) {
+  const password = seedPassword();
+  if (!password) {
+    console.error("smoke: login required — set SMOKE_PASSWORD (or CERA_SEED_OPERATOR_PASSWORD)");
+    process.exit(2);
+  }
+  const res = await page.request.post(`${origin}/backend/auth/login`, { data: { login_id: process.env.SMOKE_LOGIN ?? "operator", password } });
+  check(res.status() === 200, `login through POST /auth/login (${res.status()})`);
+  if (res.status() !== 200) process.exit(1);
+}
 
 await page.goto(url, { waitUntil: "networkidle" });
 await page.getByTestId("narrative").waitFor();
@@ -113,6 +142,21 @@ check(true, "play advances automatically");
 await page.getByTestId("btn-play").click();
 
 await page.screenshot({ path: join(out, "full-S1.png"), fullPage: true });
+
+// 운영 콘솔(/) · 시연 콘솔(/demo) · 핵심 API(T-120)
+for (const path of ["/health", "/auth/me", "/agent-runs?limit=5", "/planning/runs", "/communication/drafts"]) {
+  const r = await page.request.get(`${origin}/backend${path}`);
+  check(r.status() === 200, `API ${path} → ${r.status()}`);
+}
+await page.goto(`${origin}/`, { waitUntil: "networkidle" });
+await page.getByTestId("ops-console").waitFor();
+await page.getByTestId("action-required").waitFor();
+await page.getByTestId("run-list").waitFor();
+check(true, "operations console (/) renders: action list · run list");
+await page.screenshot({ path: join(out, "ops-console.png"), fullPage: true });
+await page.goto(`${origin}/demo`, { waitUntil: "networkidle" });
+await page.getByTestId("demo-page").waitFor();
+check(true, "demo console (/demo) renders");
 check(consoleErrors.length === 0, `no browser console errors${consoleErrors.length ? `: ${consoleErrors.join(" | ")}` : ""}`);
 await browser.close();
 
