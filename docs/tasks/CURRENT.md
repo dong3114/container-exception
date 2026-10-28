@@ -10,7 +10,19 @@
 
 ## Status
 
-**REVIEWING — CERA final logic freeze 검토 대기(2026-10-27 18:00 KST, Orchestrator: Claude Code). T-128 · T-127 까지 끝. Backend 업무 로직 freeze — 이후 blocker · 보안 · 데이터 무결성 · 시연 · 배포/복구 결함만.** (직전: 운영 준비) (이전: Final Stabilization · Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
+**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code).** 확정 뒤 Post-Freeze Hardening 으로 T-129 · T-108(재조정 결함)만 처리하고 다시 FROZEN. **새 기능 확장 금지.** 고치는 범위 = blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end. 진행 중인 Task 없음.
+
+### 2026-10-28 Post-Freeze Hardening (커밋 · origin push 승인)
+| 커밋 | 내용 | 정본 |
+| --- | --- | --- |
+| (재검토) | T-127 · T-128 코드 · 시험을 다시 확인 — 등록 · 연락처 · 운영사 연결 · 등록/고르기 대기 · 등록 뒤 재개 · RBAC · 감사, 보낸 후속 비교 · 취소 · 정정 · 새 상대 요청 · 사람 승인 뒤 발송 · append-only · 중복 방지 · 판 무효 시 차단. 문제 없음 → freeze 확정. 단 "고르기 대기를 사람이 풀 길 없음" · "정정 · 취소의 원래 주소가 중지되면 끝" 은 T-129 로 고침 | `docs/24` 18.25 · 22.49 |
+| `251ba2d` | **T-129** 주소 중지 · 다시 사용 · 거절 · 담당자 비활성(ADMIN · 사유 코드 · 감사, 행 삭제 없음) · 사람의 이번 한 건 받는 주소 선택(M34 · M35, `contact.select` = ADMIN · OPERATOR, 회사 · 역할 · Mock/Real · Contact Gate 재판정) · Agent 재개(`CONTACT_SELECTED`) · 대기 주체 결함 수정 · 정정 · 취소 = 원래 회사의 지금 쓸 수 있는 주소 | `docs/24` 18.26 · 22.58 · 22.59 |
+| `4ec1169` | **T-108(일부)** 재조정이 기다리는 실행을 100건만 보던 dead-end 결함 — 끝까지 쪽 읽기 | `docs/24` 18.27 |
+
+- 재평가(QUEUE 에 이유 기록): T-108 나머지 · T-109 · T-110 · T-130(옛 "T-108" 설정 통합 — ID 중복 정리) = **P2_LATER** · T-126 · T-099 = **EXTERNAL_DEPENDENCY** · T-120 = 사용자(UI)
+- 검증: Backend 538 · Python 93 · Front 80 · typecheck · build · Front lint 오류 0 · drizzle-kit check · OpenAPI · Agent Tool 계약 최신. 실제 스택: 기존 DB 위 M34 · M35 업그레이드 · 빈 볼륨 새 설치 19초(migration 35 · 표 51 · 트리거 132) · `/demo` 12단계 브라우저(오류 0 · v1 5,735,000 · v3 5,835,000) · T-129 Agent E2E · T-128 결합 E2E · LIVE 회귀(v1 1,140,000 → 요율 변경 → v2 1,200,000 → 승인 → 완료). 실제 Gmail 발송은 이번에 하지 않았다
+
+(직전: final logic freeze 검토 대기 2026-10-27) (그 전: 운영 준비) (이전: Final Stabilization · Final Productization Sprint) 커밋 · push 승인된 스프린트. 우선순위는 사용자 2차 지시(2026-10-27): P0 = Auth/RBAC → Real Gmail → Redis → T-115 → T-116 → Agent E2E → 실패 · 재시도 · 멱등 · 권한 · 복구 / P1 = 운영 설정 · 보안 · 관측 · 엣지 · 최종 회귀 / **P2 = UI 디자인(사용자가 직접 — 기능 검증에 꼭 필요한 최소 화면만)**
 
 ### 이번 스프린트에서 끝난 것 (모두 commit · origin push)
 | 커밋 | 내용 | 정본 |
@@ -34,17 +46,17 @@
 OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · 허용목록 = 외부 테스트 계정(값은 로컬만). 결과표 `docs/18` G.8: 발송 1회 성공 · 실제 회신 수신 · 원문 보존 · 발신자 판정 · Agent 재개 OK. **추출은 후보 없음**(replay = 녹화 없음, 로컬 Qwen3-4B = `UNPARSEABLE`) → 운영자 직접 입력으로 Truth · 재평가 확인. 남은 것: 추출 공급자(T-099 — 상용 키 필요). 상한 넘긴 회신 재시도 경로는 T-124 로 DONE. Testing 모드 refresh token 은 약 7일 뒤 만료 → `npm run gmail:auth` 다시
 
 ### 시연 스택 상태
-`cera-demo` 가 떠 있다(초기화 · 시드됨). 로그인 operator · admin · field — 비밀번호는 `back/.env` 의 `CERA_SEED_*_PASSWORD`. 평소 개발 스택 `cera-local` 은 멈춤(데이터 유지). 바탕화면 `CERA_시연_테스트_시나리오.md` = 단계별 기대값(실측)
+`cera-demo` 가 떠 있다(2026-10-28 새 볼륨 · M35 까지 · 시드만 한 깨끗한 상태). 로그인 operator · admin · field — 비밀번호는 `back/.env` 의 `CERA_SEED_*_PASSWORD`. 평소 개발 스택 `cera-local` 은 멈춤(데이터 유지 · M35 까지 적용됨). 바탕화면 `CERA_시연_테스트_시나리오.md` = 단계별 기대값(실측)
 
 ### 다음 한 걸음
-1. ~~실제 Gmail 왕복 확인~~ · ~~T-124~~ · ~~운영 설정 점검 · 회귀 · Docker E2E~~ (DONE 2026-10-27)
-2. ~~T-123~~ · ~~T-125~~ · ~~운영 준비~~ · ~~T-128~~ · ~~T-127~~ DONE. **사용자 final logic freeze 검토.** 다음 실행 가능: T-129(주소 중지 · 거절 · 수동 선택) · T-108~T-110 · T-126
-3. 시연 스택 `cera-demo` 는 2026-10-27 17:35 새 볼륨으로 다시 설치 · 시드 · `/demo` 12단계를 한 번 돌린 상태다 — 시연 전에 다시 초기화(`down -v` → `up` → `db:seed`, `infra/README.md`)
+1. ~~T-127 · T-128 승인 · freeze 확정 · T-129 · T-108 재조정 결함~~ (DONE 2026-10-28)
+2. **Backend FROZEN 유지.** freeze 예외에 해당하는 결함이 나올 때만 고친다. 사용자: T-120 UI · T-099 상용 LLM 키 · T-126 연동 대상 결정
+3. 시연 전에는 그대로 써도 된다(깨끗한 시드 상태). 한 번 돌린 뒤 다시 하려면 초기화(`down -v` → `up` → `db:seed`, `infra/README.md`)
 
 ### 알려진 제한 (2026-10-27 분류 — blocker 아님)
 - 외부 의존: 고객 TMS · WMS · 배차 · 요율 시스템 미연동(T-126 — 지금은 CSV · 행 · API · 사람 입력) · 상용 LLM 공급자 미검증(T-099 — 녹화 재생 · 로컬 Qwen3-4B 는 실제 회신을 못 읽는다 → 사람 검토 · 재시도 · 직접 입력으로 복구) · Gmail Testing 모드 refresh token 약 7일
 - 운영 가정 `[ASSUMPTION]`: 비용 정책 벌점(잠정 · 오래됨) · 신선도 기간 · 재시도 간격 10초 · 30초 · 상한 120초 · 계획 기간 3일 · 일괄 입력 512 KB / 2000행 · 날짜 상식 범위 ± 365일
-- 제품 제한: UI/UX 미완성(사용자) · 거래처 · 연락처 쓰기 API 없음(T-127, 시드 · 개발 명령만) · 보낸 후속의 정정 · 취소 문안 자동 없음(T-128) · 후속 문안이 문의 템플릿("가능 여부") · Worker 전용 HTTP 상태 끝점 없음(컨테이너 · 로그로 본다) · 실제 실행 숫자는 기준 시각(지금)에 따라 달라진다(그날 출발 시간창) · 여러 날 · 여러 터미널 물류 제약 미지원(한 실행 = 한 터미널 · 3일) · Mock 수신함 폴더를 여러 스택이 함께 쓰면 다른 스택 회신은 보류된다
+- 제품 제한: UI/UX 미완성(사용자 — 연락처 수명주기 · 선택은 API 만, 화면 없음) · 메일 소유 확인 흐름(확인 메일 · 링크) 없음 [ASSUMPTION — 관리자가 CERA 밖에서 확인 뒤 승인] · 거래처 자체 비활성 API 없음(담당자 · 주소 단위로 막는다) · 후속 문안이 문의 템플릿("가능 여부") · Worker 전용 HTTP 상태 끝점 없음(컨테이너 · 로그로 본다) · 실제 실행 숫자는 기준 시각(지금)에 따라 달라진다(그날 출발 시간창) · 여러 날 · 여러 터미널 물류 제약 미지원(한 실행 = 한 터미널 · 3일) · Mock 수신함 폴더를 여러 스택이 함께 쓰면 다른 스택 회신은 보류된다
 3. 사람 대기: T-099(상용 LLM 키 — 실제 회신 추출) · T-120 P2 UI(사용자)
 4. 관측 한계(알고 있음): 회신 하나는 id 로 끝까지 이어진다(send_attempt.provider_message_id → comm_thread.external_thread_id → INBOUND comm_message → raw_input → system_error · extraction · event → agent_run.pending_ref). 다만 Worker 의 추출 시도와 Agent 실행은 **서로 다른 trace_id** 다 — 하나의 trace 로 묶지 않았다
 
@@ -71,7 +83,7 @@ OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · �
 - **로컬 모델 판정**(20건만으로 순위 확정 안 함, `ai/evals/runs/2026-10-26-local-ladder/README.md`): 0.5B = 연결 smoke 전용 · 1.5B = 제외(no-answer 환각) · 3B = 연구 기준선만(Qwen Research License) · **Qwen3-4B-Instruct-2507 = Local candidate 유지** · 7B = 충분한 GPU 에서 재평가. 모델 출처 `ai/evals/local-models.json`(저장소 · revision · 파일 해시 · 라이선스; Qwen3-4B 는 **unsloth 제3자 GGUF 변환**, 파일 sha256 직접 확인)
 - **GPU**: Docker Desktop GPU 전달 + CUDA 이미지 동작 확인(GTX 1650/Turing, p50 4182 → 1268ms). **GTX 1080(Pascal)은 미확인 `[TO VERIFY]`**
 - **run artifact 정책**: `ai/evals/runs/` 의 `smoke-*` · `ladder-*` 최상위는 gitignore(재생성 가능). 선정 근거 요약만 날짜 폴더(report · metrics · run)에 커밋. 기존 `2026-10-22-baselines` 는 그대로
-- **유지보수 후보(직접 대조한 것만)**: QUEUE T-108(os.environ) · T-109(큰 파일) · T-110(모듈 순환 · CI · ai lockfile). Validator drift 는 해결되어 별도 Task 없음. 큐잉 보강: T-110 은 "GitHub CI 가 conformance · contract · 시험을 자동 실행"하는 목적
+- **유지보수 후보(직접 대조한 것만)**: QUEUE T-130(os.environ — 옛 표기 T-108, 2026-10-28 ID 정리) · T-109(큰 파일) · T-110(모듈 순환 · CI · ai lockfile). Validator drift 는 해결되어 별도 Task 없음. 큐잉 보강: T-110 은 "GitHub CI 가 conformance · contract · 시험을 자동 실행"하는 목적
 - **환경 파일**: `back/.env` DB 비밀번호를 `infra/local/.env` 에 맞춤 · 빠진 키 추가 · `ai/.env` 생성 · `CERA_AGENT_TOOL_TOKEN` 로컬 값(양쪽 동일). 상용 비밀번호는 사용자가 나중에 직접
 - **주의(Windows)**: Git Bash 는 컨테이너 경로 인자(`/srv/...`)를 `C:/Program Files/Git/...` 로 바꾼다 · curl 에 한글을 인자로 직접 주면 깨진다(`--data-binary @파일` 사용)
 

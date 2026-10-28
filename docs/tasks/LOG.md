@@ -21,6 +21,19 @@
 
 ---
 
+## 2026-10-28 · Backend Core Logic Freeze 확정 · Post-Freeze Hardening(T-129 · T-108 일부 · T-108~T-110 재평가) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — Backend 다시 FROZEN
+- 한 일:
+  - 시작 상태 `0e762a0` · 작업 트리 깨끗 · origin/main 과 같음. T-127 · T-128 코드 · 시험을 다시 확인 → 사용자 승인대로 **freeze 확정**(CURRENT `REVIEWING` → `IDLE · FROZEN`)
+  - T-129(`251ba2d`): 주소 PAUSED · INACTIVE · ACTIVE · REJECTED · 담당자 비활성 API(ADMIN · 사유 코드 · 감사, 행 삭제 없음 — 스키마 변경 없이 기존 열). 쓸 수 있는 주소 한 규칙 `usableAddresses`. 사람의 이번 한 건 받는 주소 선택 M34 `contact_selection`(append-only M35) — Agent 실행 × 주체 / 계획 판 × 후속 조치, `contact.select` = ADMIN · OPERATOR, 회사 · 역할 · Mock/Real · Contact Gate 재판정. 재조정 `contactWakeReason`(`CONTACT_SELECTED` · 고를 필요가 없어지면 `REGISTRY_CHANGED`), Tool 공백에 `selected_address_id`, 그래프는 그 주소로만 초안. 정정 · 취소 = 원래 회사의 지금 쓸 수 있는 주소(없으면 `NO_ELIGIBLE_CONTACT` · 둘이면 `CONTACT_SELECTION_REQUIRED` — 다른 회사로 안 감)
+  - 찾아 고친 결함: 그래프가 사유와 다른 공백을 대기 주체로 남김(고르기 대기인데 등록 대기 공백을 기다림 → 풀리지 않는 변화에 계속 깨어날 수 있었다) · 재조정이 기다리는 실행을 가장 오래된 100건만 봄(T-108 — 쌓이면 새 실행은 폴링으로 영영 안 보임, `4ec1169`)
+  - 재평가: T-108 나머지(화면 DTO · checkpoint 보관) · T-109 · T-110 · T-130 = P2_LATER, T-126 · T-099 = EXTERNAL_DEPENDENCY. **T-108 ID 중복 정리**: 2026-10-26 의 "AI 설정 읽기 통합"을 T-130 으로(먼저 생긴 표의 T-108 유지)
+- 변경 파일: `back/src/registry/{registry.service,registry.controller,dto,registry.module,contact-selection.repository}.ts` · `back/src/agent-tools/{contact-selection.service,agent-runs.controller,agent-tools.module,agent-tools.service,context.service,handlers,reconciler,runtime-store.repository,schemas,wake-rules}.ts` · `back/src/planning/follow-up.{service,controller}.ts` · `back/src/auth/permissions.ts` · `back/src/persistence/catalog.ts` · `back/src/db/schema/{codes,index,m34-contact-selection}.ts` · migration 0033 · 0034 · 시험 `back/test/db/{contact-lifecycle,agent-reconcile-paging}.test.ts`(신규) · `{contact-registration,contact-routing,recovery-plan,permissions-migrations,schema-catalog}.test.ts` · `ai/cera_ai/agent/graph.py` · `ai/tests/test_agent_graph.py` · `packages/contracts/{openapi.json,openapi.d.ts,agent-tools/agent-tools.v1.json}` · `docs/24`(18.26 · 18.27 · 22.58 · 22.59) · QUEUE · CURRENT · AGENTS
+- 검증: Backend 538(unit + DB) · Python 93 · Front 80 · typecheck · build · Front lint 오류 0 · drizzle-kit check · OpenAPI · Agent Tool 계약 · validator conformance(시험 안). 새 시험은 고치기 전 코드에서 실패 · 고친 뒤 통과 확인(Python 2 · 재조정 1). Docker `cera-demo`: 기존 DB 위 M34 · M35 업그레이드 → 빈 볼륨 새 설치 19초(migration 35 · 표 51 · 트리거 132) → `/demo` 12단계 브라우저(페이지 오류 0, v1 5,735,000 · Baseline 7,220,000 · v3 5,835,000 · 승인 · 후속 초안 3) → T-128 결합 E2E(후속 3통 발송 → 트럭 받는 주소 INACTIVE → 가용 0 → v3 OUTDATED → v4 승인 → 취소 필요 · `NO_ELIGIBLE_CONTACT` · 다른 회사 초안 0 → 담당 둘 → `CONTACT_SELECTION_REQUIRED` → FIELD 403 · 중지 주소 거부 → 선택 → 취소 초안 승인 대기 → 승인 · 발송 → 원래 메일 불변) → 초기화 → T-129 Agent E2E(연락처 없는 운영사 → `CONTACT_REGISTRATION_REQUIRED` → 미승인 주소로는 안 깨움 → 둘 → `CONTACT_SELECTION_REQUIRED` → API · Worker · Redis 재시작 뒤 대기 유지 → FIELD 403 · 다른 회사 422 → 선택 → 재개(`REGISTRY_CHANGED`, `CONTACT_SELECTED`) → 고른 주소로 초안 → 승인 · 발송 → 그 주소 INACTIVE → 승인된 초안 발송 403 · 새 초안 403 → 다른 담당으로 발송) → 초기화 → LIVE 회귀(운영 기록 → 사실 → READY → Agent → v1 OPTIMAL 1,140,000 · Baseline 2,640,000 → 요율 인상 → v2 1,200,000 → 승인 → Agent COMPLETED → 후속: ODCY A = `NO_ELIGIBLE_CONTACT`(실제 실행에 Mock 주소만 있음 — 다른 회사로 안 감)). **실제 Gmail 발송은 하지 않았다**
+- 남은 일 / 다음 한 걸음: Backend FROZEN 유지. 사용자: T-120(UI) · T-099(상용 LLM 키) · T-126(연동 대상)
+- 큐 변경: T-129 DONE · T-108 부분 DONE · T-130 신규 번호(옛 "T-108" 설정 통합) · T-108 나머지 · T-109 · T-110 · T-126 · T-099 재평가 기록
+- 주의사항: E2E 에서 두 주소를 한꺼번에 쓸 수 있게 하려고 운영사를 잠시 비운 뒤 둘 다 승인하고 되돌렸다 — 하나만 먼저 승인되면 그 하나로 문의하는 것이 규칙상 맞다. 선택 · 승인은 자격을 보장하지 않는다(발송 직전 Contact Gate). 메일 소유 확인 흐름은 아직 없다 [ASSUMPTION]. 시험 주소는 모두 example.invalid
+
 ## 2026-10-27 · T-128 정정 · 취소 후속 · T-127 실행 중 등록부 등록 · Claude Code (claude-opus-5-5)
 - 상태: 완료 — CERA final logic freeze 검토 대기
 - 한 일:

@@ -1,13 +1,13 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-10-27 (**T-128 정정 · 취소 후속(`3143e62`, M33) · T-127 실행 중 등록부 등록(`6bd7416`) DONE — CERA final logic freeze 검토 대기**) / 이전 2026-10-27 (**운영 준비 — 연락처 BLOCKER 수정(`a9365dd`) · 새 설치 · 백업/복원 · 장애 복구 · LIVE 전체(실제 Gmail) 검증 끝. Backend 업무 로직 feature freeze. 후속 T-127 · T-128 · T-126**) / 이전 2026-10-27 (**T-123 실제 계획 입력 DONE — 시나리오 없이 운영자가 넣은 운영 기록 + Truth 로 같은 Cost Engine · Solver · 계획 · 승인 · 후속 초안 · 재계획. T-125 자동 추출 재시도 간격 DONE. Backend 업무 로직 feature freeze 판단은 사용자**) / 이전 2026-10-27 (**Final Stabilization — T-124 DONE(값을 못 얻은 회신: 사람 검토 · 추출 재시도 · 직접 입력), production 설정 방어 보강, 전체 회귀 · Docker E2E. Backend 핵심 기능 feature freeze — 이후 blocker · 보안 · 시연 깨짐만. 후속 T-125(자동 재시도 간격) · T-123 · T-099(상용 키 대기) · T-120 P2 UI(사용자)**) / 이전 2026-10-26 (**T-099 체크포인트: 전체 Docker 실행 · 로컬 모델 사다리(Qwen3-4B Local candidate) · Validator conformance 완료 — T-099 는 IN_PROGRESS, 다음은 상용(OpenAI · Gemini) live 평가 · 유지보수 후보 T-108~T-110 추가**) / 이전 2026-10-22 (**T-099 평가 기반 중간 checkpoint 커밋 · origin push(사용자 지시) — T-099 는 IN_PROGRESS 유지. 실제 상용 공급자 평가 대기 — blocker: 실제 API credentials. API 키 없이 T-093 등 큰 작업을 시작하지 않는다.**) 이전: 2026-10-22 (**T-105 DONE(사용자 승인 — 업무 fact state 와 Agent candidate_state 분리 유지). T-099 재개(IN_PROGRESS) — 실제 CERA Runtime 에 넣을 AI 선정. T-093 은 T-099 뒤.**) 이전: 2026-10-22 (**T-105 구현 · 검증 끝 — 사용자 검토 대기(커밋 전). 승인 → 발송 → 회신 → 추출 → 재평가 한 그래프 · 실제 프로세스 E2E(LIVE 공공데이터) · Agent 진행 화면. 시험 Backend 329 · Python 56 · Front 42.**) 이전: 2026-10-22 (**T-104 DONE — 사용자 승인 + durability 보강(재조정 · WAITING_RUNTIME · crash window 시험). 시험 Backend 328 · Python 53 · Front 39. T-105 IN_PROGRESS.**) 이전: 2026-10-22 (**T-104 구현 · 검증 끝 — 사용자 검토 대기(커밋 전).**) 이전: 2026-10-22 (**T-103 DONE — Agent Tool Layer(사용자 승인 · M16 · M17). 다음 T-104 LangGraph Runtime.**) 이전: 2026-10-22 (**T-102 DONE — live 검증(실제 DS-03 · DS-02 응답 확인, 차이 최소 수정: 비표준 시설 코드 · 신청구분 · 입항 신고 일시 = `ARRIVAL_DECLARED` · 데이터 없음 = `00` + 0건).**) 이전: 2026-10-22 (**T-100 DONE(`1c58f08` 설정 정리) · T-101 DONE(ADR-036 Accepted — Agent Runtime 설계) · T-102~T-107 등록 · T-005/T-006 DEPRECATED(→ T-106/T-102) · T-099 재배치(T-105 뒤) · T-102 IN_PROGRESS.**) 이전: 2026-10-07 (**T-092 DONE — U7 회신 추출 파이프라인(Python AI Server · 녹화 재생 · 결정론 검증기) · DB 변경 없음 · 시험 266 + Python 7 + 프론트 39. 다음: T-099(실제 AI 공급자 검증 + CERA 평가셋) → 그 뒤 T-093. 시작하지 않음.**) 이전: 2026-10-07 (**T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함 · DB 변경 없음 · 시험 247 + 프론트 37. 다음: T-092(U7 추출), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · M13 · 시험 232 + 프론트 34. 다음: T-091(U6 수신), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · M12 · 시험 211 + 프론트 27. 다음: T-090(U5), 시작하지 않음.**) 이전: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
+- 최종 수정: 2026-10-28 (**Backend Core Logic Freeze 확정(사용자 승인) · T-129 연락처 수명주기 · 수동 선택 DONE(M34 · M35) · T-108 재조정 페이지 넘김 결함 수정(부분 DONE) · T-108~T-110 재평가 · T-108 ID 중복 정리(설정 통합 → T-130) — Backend 다시 FROZEN**) / 이전 2026-10-27 (**T-128 정정 · 취소 후속(`3143e62`, M33) · T-127 실행 중 등록부 등록(`6bd7416`) DONE — CERA final logic freeze 검토 대기**) / 이전 2026-10-27 (**운영 준비 — 연락처 BLOCKER 수정(`a9365dd`) · 새 설치 · 백업/복원 · 장애 복구 · LIVE 전체(실제 Gmail) 검증 끝. Backend 업무 로직 feature freeze. 후속 T-127 · T-128 · T-126**) / 이전 2026-10-27 (**T-123 실제 계획 입력 DONE — 시나리오 없이 운영자가 넣은 운영 기록 + Truth 로 같은 Cost Engine · Solver · 계획 · 승인 · 후속 초안 · 재계획. T-125 자동 추출 재시도 간격 DONE. Backend 업무 로직 feature freeze 판단은 사용자**) / 이전 2026-10-27 (**Final Stabilization — T-124 DONE(값을 못 얻은 회신: 사람 검토 · 추출 재시도 · 직접 입력), production 설정 방어 보강, 전체 회귀 · Docker E2E. Backend 핵심 기능 feature freeze — 이후 blocker · 보안 · 시연 깨짐만. 후속 T-125(자동 재시도 간격) · T-123 · T-099(상용 키 대기) · T-120 P2 UI(사용자)**) / 이전 2026-10-26 (**T-099 체크포인트: 전체 Docker 실행 · 로컬 모델 사다리(Qwen3-4B Local candidate) · Validator conformance 완료 — T-099 는 IN_PROGRESS, 다음은 상용(OpenAI · Gemini) live 평가 · 유지보수 후보 T-108~T-110 추가**) / 이전 2026-10-22 (**T-099 평가 기반 중간 checkpoint 커밋 · origin push(사용자 지시) — T-099 는 IN_PROGRESS 유지. 실제 상용 공급자 평가 대기 — blocker: 실제 API credentials. API 키 없이 T-093 등 큰 작업을 시작하지 않는다.**) 이전: 2026-10-22 (**T-105 DONE(사용자 승인 — 업무 fact state 와 Agent candidate_state 분리 유지). T-099 재개(IN_PROGRESS) — 실제 CERA Runtime 에 넣을 AI 선정. T-093 은 T-099 뒤.**) 이전: 2026-10-22 (**T-105 구현 · 검증 끝 — 사용자 검토 대기(커밋 전). 승인 → 발송 → 회신 → 추출 → 재평가 한 그래프 · 실제 프로세스 E2E(LIVE 공공데이터) · Agent 진행 화면. 시험 Backend 329 · Python 56 · Front 42.**) 이전: 2026-10-22 (**T-104 DONE — 사용자 승인 + durability 보강(재조정 · WAITING_RUNTIME · crash window 시험). 시험 Backend 328 · Python 53 · Front 39. T-105 IN_PROGRESS.**) 이전: 2026-10-22 (**T-104 구현 · 검증 끝 — 사용자 검토 대기(커밋 전).**) 이전: 2026-10-22 (**T-103 DONE — Agent Tool Layer(사용자 승인 · M16 · M17). 다음 T-104 LangGraph Runtime.**) 이전: 2026-10-22 (**T-102 DONE — live 검증(실제 DS-03 · DS-02 응답 확인, 차이 최소 수정: 비표준 시설 코드 · 신청구분 · 입항 신고 일시 = `ARRIVAL_DECLARED` · 데이터 없음 = `00` + 0건).**) 이전: 2026-10-22 (**T-100 DONE(`1c58f08` 설정 정리) · T-101 DONE(ADR-036 Accepted — Agent Runtime 설계) · T-102~T-107 등록 · T-005/T-006 DEPRECATED(→ T-106/T-102) · T-099 재배치(T-105 뒤) · T-102 IN_PROGRESS.**) 이전: 2026-10-07 (**T-092 DONE — U7 회신 추출 파이프라인(Python AI Server · 녹화 재생 · 결정론 검증기) · DB 변경 없음 · 시험 266 + Python 7 + 프론트 39. 다음: T-099(실제 AI 공급자 검증 + CERA 평가셋) → 그 뒤 T-093. 시작하지 않음.**) 이전: 2026-10-07 (**T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함 · DB 변경 없음 · 시험 247 + 프론트 37. 다음: T-092(U7 추출), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · M13 · 시험 232 + 프론트 34. 다음: T-091(U6 수신), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · M12 · 시험 211 + 프론트 27. 다음: T-090(U5), 시작하지 않음.**) 이전: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
 
 ## 다음 추천 태스크
 
-**(2026-10-27 T-127 · T-128 뒤 — CERA final logic freeze 검토 대기)** 이제 blocker · 보안 · 데이터 무결성 · 시연 · 배포/복구 결함만 고친다. 다음 실행 가능 = **T-129**(주소 일시 중지 · 거절 · 연락처 수동 선택 API) · T-108~T-110(유지보수) · T-126(외부 연동, 대상 정해지면) · T-117(Solver 확장). 사람 대기 = T-099(상용 LLM 키) · T-120(UI, 사용자). 사람 대기 = **T-099**(상용 LLM 키 — 실제 회신 추출 품질) · **T-120**(UI/UX — 사용자가 직접). Gmail Testing 모드 refresh token 은 약 7일마다 `npm run gmail:auth` 다시.
+**(2026-10-28 — Backend Core Logic FROZEN 확정)** 새 기능 확장은 하지 않는다. 고치는 것은 blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end 뿐이다. T-129 DONE · T-108 의 재조정 결함만 고침. 남은 실행 가능 작업은 모두 freeze 예외가 아니다: T-108 나머지(화면 계약 · checkpoint 보관, P2) · T-109 · T-110 · T-130(유지보수 P2 — 다음에 그 파일을 고치는 작업과 함께) · T-117(Solver 확장, freeze 뒤). 외부 의존 = **T-099**(상용 LLM 키) · **T-126**(고객 TMS · WMS · 요율 시스템이 정해지면). 사람 = **T-120**(UI/UX — 사용자가 직접). 3개 이상 실행 가능 규칙: freeze 로 새 기능 Task 를 일부러 늘리지 않는다(사용자 지시 2026-10-28). Gmail Testing 모드 refresh token 은 약 7일마다 `npm run gmail:auth` 다시.
 
 **(2026-10-22 사용자 승인 — 이 순서가 위의 옛 순서보다 우선한다)** ~~T-100 설정 정리~~ → ~~T-101 Agent Runtime 설계(ADR-036)~~ → ~~T-102 DS-03 + DS-02 Public Data Adapter~~(DONE · live 검증) → ~~T-103 Agent Tool Layer~~(DONE) → ~~T-104 LangGraph Runtime~~(DONE) → ~~T-105 첫 Agent Vertical Slice~~(DONE) → **T-099 재개(진행 중 — 사용자 지시 2026-10-22)** → T-093(U8) → T-106 UNI-PASS Adapter → T-107 Demo Scenario v2 → T-098. 설계 `docs/tasks/plans/T-101-agent-runtime-design.md` 13절.
 
@@ -226,11 +226,13 @@
 | **T-103** | Agent Tool Layer v1 | Agent 가 쓸 수 있는 typed Tool | Tool 계약 · 서비스 토큰 · 실행 범위 · 부작용 등급 · 감사 | `back/src/agent-tools/*` · `packages/contracts/agent-tools.json` | **M16** `agent_run` · `agent_tool_call` + **M17** 가드(`agent_step` · `agent_checkpoint` 는 T-104 에서 필요할 때) | 없음(토큰 로컬 생성) | T-101 · ~~T-102~~ | **DONE**(2026-10-22 사용자 승인) |
 | **T-104** | Agent Runtime 기반 (LangGraph) | 그래프 실행 뼈대 | 실행 시작 · interrupt · resume · 상한 · 추적 | `ai/cera_ai/agent/*` · `ai/pyproject.toml` · `back/src/agent-tools/coordinator.ts` 외 | **M18** `agent_step` · `agent_checkpoint` · `agent_checkpoint_write` + `agent_run` 생애주기 · **M19** 가드 | 없음(replay) | T-103 | **DONE**(2026-10-22 사용자 승인) |
 | **T-105** | 첫 Agent Vertical Slice — "정보 공백 하나를 Agent 가 메운다" | 공공데이터로 풀 공백은 Tool 로, 안 되는 공백은 문의 초안 → 승인 interrupt → Mock 발송 → 회신 interrupt → 추출 · 판정 → Backend 검증 · 솔버 없음은 정직하게 표시(설계 9.3) | 실행 타임라인(노드 · Tool · interrupt · resume) — `/dev` 수준 | 그래프 노드 · Coordinator · `/dev` 화면 | 없음 예상 | 없음(replay) / 선택: LLM 키 | ~~T-104~~ · ~~T-102~~ | **DONE**(2026-10-22 사용자 승인) |
-| **T-108** | Agent 실행 화면 계약 · 재조정 확장 (T-105 후속) | 화면 · 운영 규모 | Agent 실행 보기 OpenAPI DTO(지금은 느슨한 object — 화면이 자체 타입) · 재조정 페이지 넘김(기다리는 실행이 100건 넘으면 오래된 것만 보는 문제) · checkpoint 보관 · 정리 주기 | `back/src/agent-tools/` · `front/web/src/api/agentRuns.ts` | 없음 예상 | 없음 | T-105 | TODO · P2 |
+| **T-108** | Agent 실행 화면 계약 · 재조정 확장 (T-105 후속) | 화면 · 운영 규모 | Agent 실행 보기 OpenAPI DTO(지금은 느슨한 object — 화면이 자체 타입) · 재조정 페이지 넘김(기다리는 실행이 100건 넘으면 오래된 것만 보는 문제) · checkpoint 보관 · 정리 주기 | `back/src/agent-tools/` · `front/web/src/api/agentRuns.ts` | 없음 예상 | 없음 | T-105 | **부분 DONE(2026-10-28)** — 재조정 페이지 넘김 = dead-end 결함이라 freeze 예외로 고침(`docs/24` 18.27). 나머지(화면 DTO · checkpoint 보관) = P2_LATER(화면 · 운영 규모) |
 | **T-106** | UNI-PASS Adapter (DS-01) | 통관 진행 · 반출입 이력 | 실제 B/L 의 통관 진행 조회 | `back/src/public-data/` 아래 DS-01 어댑터 | 작음(필요 시 M16+) | `UNIPASS_API_KEY` + 실제 B/L 5~20건(T-002) | T-102 · T-002 | TODO |
 | **T-107** | Demo Scenario v2 (REAL 공공 + SYNTHETIC 사설) | 실제 부산 사건 기반 시연 | 실제 입항 · 컨테이너 + 합성 창고 · 트럭 · 요율 · 회신 | `data/scenarios/` v2 | 없음 | `DATA_GO_KR_SERVICE_KEY` | T-102 (T-106 있으면 더 좋음) | TODO |
 
 ### T-099 — 실제 AI 공급자 검증 + CERA 추출 평가셋 (T-093 전에)
+
+- **재평가(2026-10-28): EXTERNAL_DEPENDENCY** — 상용 LLM 키가 없다. 안전성 blocker 가 아니다: 추출 실패 → 사람 검토 → 사람 재시도 → 직접 입력(T-124 · T-111)으로 복구된다. 키가 준비되면 재개
 
 - 상태: TODO(재배치 — 2026-10-12 중단, WIP `5ba83ab`) | 우선: P1 | 단계: Slice 1 | 담당: -(직전 Claude Code / 2026-10-12)
 - 의존: ~~T-092~~ · **T-105**(사용자 결정 2026-10-22 — Agent Runtime 기반 · 실제 공공데이터 Tool 기반 뒤에 재개. 폐기 아님). 재개 시 범위에 **Tool Selection · Workflow 평가와 single-call vs graph 비교**를 더한다(설계 12.2). **T-093(U8)은 이 작업 뒤에 시작한다**(사용자 결정 2026-10-07)
@@ -423,8 +425,10 @@
 
 > **T-099 점검에서 나온 유지보수 후보 (2026-10-26)** — 근거 위치를 오케스트레이터가 직접 대조한 것만 올렸다(하위 에이전트 보고 중 "모듈 순환 없음"은 **틀렸다**: `persistence` ↔ `content` 순환이 있다). 지금 feature 작업을 멈추고 하지 않는다. 사용자가 순서를 정한다.
 
-### T-108: AI 설정 읽기 통합 (os.environ → Settings)
+### T-130: AI 설정 읽기 통합 (os.environ → Settings) — 옛 표기 "T-108"
+- **ID 정리(2026-10-28)**: 2026-10-26 에 이 작업을 T-108 로 올렸지만 T-108 은 2026-10-22 에 이미 "Agent 실행 화면 계약 · 재조정 확장"(위 표)이었다. 먼저 생긴 쪽이 T-108 을 유지하고 이 작업은 T-130 이 된다. CURRENT · LOG 의 "T-108(os.environ)" 은 이 작업이다
 - 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
+- **재평가(2026-10-28): P2_LATER** — 외부 동작 불변 refactor 다. 설정 키 검증은 `config.py` 가 이미 하고(잘못된 값은 기동 때 막힘), 흩어진 읽기는 같은 키를 읽을 뿐 안전성 · 데이터 무결성 결함이 아니다. freeze 중 Python 런타임 전역을 바꾸는 위험이 이득보다 크다 — 다음에 그 모듈을 고치는 작업과 함께
 - 의존: 없음 (T-099 와 독립)
 - 참조 문서: `ai/cera_ai/config.py`, `AGENTS.md` 6절
 - 목표: 설정 키 이름 · 검증이 `config.py` 한 곳이라는 원칙을 모듈 코드에도 적용한다.
@@ -433,6 +437,7 @@
 
 ### T-109: 큰 파일 책임 분리 (기능 변경 없음)
 - 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
+- **재평가(2026-10-28): P2_LATER** — 기능 변경 없는 대규모 구조 변경이라 freeze 예외가 아니다(위험만 있고 안전성 이득 없음). 원래 계획대로 그 파일을 고치는 Task 가 시작될 때 함께
 - 의존: 해당 영역 feature 작업 사이의 빈 구간
 - 목표: 한 파일에 여러 책임이 모인 곳을 나눈다. 대규모 refactor 로 feature 를 멈추지 않는다 — 다음에 그 파일을 고치는 Task 가 시작될 때 함께 한다.
 - 근거(직접 확인 2026-10-26, 줄 수): `back/src/communication/draft.service.ts` 955 · `communication/dto.ts` 654 · `public-data/public-data.service.ts` 589 · `public-data.repository.ts` 430 · `db/schema/m04-communication.ts` 521 · `ai/cera_ai/agent/graph.py` 455 · `ai/cera_ai/decision.py` 330(공급자 5종 `Jev` · `LlmJudge` · `Nli` · `Prior` · `Recorded` 가 한 파일)
@@ -440,6 +445,7 @@
 
 ### T-110: 모듈 순환 · CI · ai 의존성 고정
 - 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
+- **재평가(2026-10-28): P2_LATER(배포 전 권장)** — (1) 모듈 순환: 동작 결함 없음(파일 단위 순환 아님) · 구조 변경이라 freeze 뒤. (2) CI: 원격 GitHub Actions 실행 = 저장소 밖에서 돌고 비용 · 권한 판단이 사용자 몫이며, 지금은 같은 검사(conformance · 계약 최신 · 시험)를 로컬 `npm test` · `pytest` 가 강제한다 — 사용자가 원할 때. (3) ai lockfile: 핵심 의존(langgraph · checkpoint)은 이미 정확한 판(==), 나머지는 상한. 2026-10-28 새 설치 · 이미지 재빌드가 정상이라 지금 결함은 아니다 — 운영 배포 전에 재현 가능한 잠금 파일을 만든다
 - 의존: 없음
 - 목표: (1) `back/src/persistence` ↔ `content` 모듈 순환 해소 — `persistence.module.ts:2-4` 가 `content/*` 를 import 하고, `content/content-service.ts:7-9` 가 `persistence/*` 를 import 한다(파일 단위 순환은 아니지만 모듈 경계가 흐리다). (2) `.github` 가 없다 — typecheck · 시험 · `docker compose config` 와 conformance(`validator-conformance.test.ts` · `test_validator_conformance.py`) · 계약 최신 여부 시험을 GitHub 에서 자동 실행하는 CI(검증기 drift 자체는 T-099 에서 시험으로 해결됨 — 자동 실행만 남음). (3) `ai/` 의존성 lockfile(지금은 상한만 있다)
 - 완료 조건: [ ] 순환 제거 또는 의도 문서화 [ ] CI 가 conformance 두 시험을 돌림 [ ] ai lockfile
@@ -510,9 +516,9 @@
 - 목표: 기술 실패 뒤 다음 자동 시도까지 최소 간격(지수 백오프, `system_error.occurred_at` 기준 — 새 표 없이), 일시 실패(`retryable`)만 재시도. 사람 재시도에는 적용하지 않는다
 
 ### T-129: 주소 일시 중지 · 거절 · 연락처 수동 선택(CONTACT_SELECTION_REQUIRED 해소)
-- 상태: TODO | 우선: P2 | 의존: T-127
-- 배경: T-127 은 등록 · 승인까지만 만들었다. 적격 주소가 둘 이상이면 Agent 는 고르지 않고 `CONTACT_SELECTION_REQUIRED` 로 기다린다 — 지금은 운영자가 값을 직접 넣거나 남는 주소를 정리해야 풀린다. 주소 PAUSED · INACTIVE · REJECTED 전이 API(ADMIN · 감사)와, 공백 하나에 대해 사람이 주소 하나를 고르는 명령(그 선택으로 Agent 깨움)이 필요하다. 메일 소유 확인 흐름(확인 메일 · 링크)도 아직 없다 [ASSUMPTION — 지금은 관리자가 CERA 밖에서 확인한 뒤 승인]
-- 목표: 기존 표 · Contact Gate 그대로. 새 연락처 시스템은 만들지 않는다
+- 상태: **DONE (2026-10-28, Post-Freeze Hardening · 사용자 승인 · 커밋 · push)** | 우선: P2 → freeze 예외(사람 없이 못 푸는 대기 · 잘못된 외부 행동 방지) | 의존: T-127 | 담당: Claude Code / 2026-10-28
+- 결과: 주소 PAUSED · INACTIVE · ACTIVE(다시 사용) · REJECTED(되돌리지 않음) · 담당자 비활성 API(ADMIN · 사유 코드 · 감사, 행 삭제 없음 · 보낸 메일 받는 사람 그대로) · 쓸 수 있는 주소 한 규칙(`usableAddresses`) · 사람의 이번 한 건 받는 주소 선택(M34 `contact_selection` append-only · M35, 범위 = Agent 실행 × 주체 / 계획 판 × 후속 조치, 권한 `contact.select` = ADMIN · OPERATOR, 회사 · 역할 · Mock/Real · Contact Gate 재판정) · Agent 재개(`CONTACT_SELECTED` · 고를 필요가 없어지면 `REGISTRY_CHANGED`) · 대기 주체 = 사유와 맞는 공백(결함 수정) · 정정 · 취소 = 원래 회사의 지금 쓸 수 있는 주소(없으면 대기 · 둘이면 사람) · 발송 직전 재검증(기존). 시험 DB 5 + 기존 3 수정 · Python 3. 실제 스택 E2E 2종. 정본 `docs/24` 18.26 · 22.58 · 22.59
+- 남은 것(새 Task 아님 — 알려진 제한): 메일 소유 확인 흐름(확인 메일 · 링크) 없음 [ASSUMPTION — 관리자가 CERA 밖에서 확인]
 
 ### T-127: 등록부 관리 API(거래처 · 연락처 · 주소 · 검증 · 승인)
 - 상태: **DONE (2026-10-27, 커밋 `6bd7416`)** | 우선: P1 | 의존: 운영 준비(`a9365dd`) | 담당: Claude Code / 2026-10-27
@@ -528,6 +534,7 @@
 
 ### T-126: 내부 시스템 자동 연동(TMS · 배차 · 요율) — 필요할 때
 - 상태: TODO | 우선: P2 | 의존: T-123
+- **재평가(2026-10-28): EXTERNAL_DEPENDENCY** — 대상 고객 시스템 · 권한이 정해지기 전에는 만들지 않는다. 지금의 입력 경계 = CSV · JSON 행 · Backend API · 사람 직접 입력(Truth). 업체별 connector 를 미리 만들지 않는다
 - 목표: 지금은 운영자가 CSV · 행으로 넣는다(T-123). 회사 TMS · 배차 시스템 · 요율 시스템이 정해지면 같은 운영 기록 표로 자동 수신하는 어댑터(같은 검증 · 판 · 멱등). 연동 대상 · 권한이 정해지기 전에는 착수하지 않는다
 
 ### T-123: 실제 실행의 내부 계획 정보 입력 경로(컨테이너 사실 · 요율표 · 자사 트럭 명부)
