@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-28 · 최종 시연 준비(T-099 smoke 재확인 · 시연 다듬기 · smoke 로그인 · 최종 리허설) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 시연 준비 완료 · Backend FROZEN · **Frontend Demo Freeze**
+- 한 일: T-099 = 인증 확인 각 1회(OpenAI 401 `INVALID_CREDENTIALS` → 중단 · Gemini 정상) · ADR 후보 `gemini-3.8-flash` 리허설 전후 각 1회 503 → 모델 탐색 · 반복 없이 기록만. `449ed20` 트럭 풀 담당 회사 식별(이미 나간 문의의 받는 회사) · 처리 완료 답장 표시. `ea85853` smoke 정식 로그인. 바탕화면 시연 문서 10-28 흐름으로 갱신
+- 검증: Front 99 · typecheck · lint 오류 0 · build · `npm run smoke` OK(로그인 200 · API 5 · `/` · `/demo`). 새 볼륨 리허설: 운영 콘솔 브라우저 전 구간(연락처 없음 → 등록 → 승인 · 발송 → AI 못 읽음 → 다시 추출 → 직접 입력 → "처리 완료" → 계획 승인 → 후속 → 퇴사 · 가용 0 → OUTDATED → 다시 계산 · 승인 → 판 비교 → 취소 담당자 선택(그 회사만 · 미리 안 고름) → 기록 · FIELD 권한), 페이지 오류 0 · 5xx 0 · LIVE · `/demo` 12단계. Backend 변경 0 → Backend 회귀 생략
+- 남은 일: OpenAI 키 재발급 또는 Gemini 회복 뒤 T-099 smoke 1회 · Gmail 토큰 갱신(실제 메일을 보일 때) · 디자인(사용자)
+- 주의: 리허설 스크립트는 scratchpad(커밋 안 함). 시연 스택은 깨끗한 시드 상태
+
 ## 2026-10-28 · T-120 운영 콘솔(Frontend Operational UI) · T-099 smoke · Claude Code (claude-opus-5-5)
 - 상태: 완료 — Backend FROZEN 유지(Backend 변경 없음)
 - 한 일: `/` 를 운영 콘솔로(`front/web/src/app/ops/OpsConsole.tsx`), 옛 Mock 재생 = `/prototype`, `/demo` 그대로. 첫 화면 = 지금 해야 할 일. 실행 목록(사람 조치 · 진행 · 완료 · 중단) · Agent 지금/대기/마지막/다음 · 연락처 등록(관리자)/선택(쓸 수 있는 주소만, 미리 고르지 않음) · 정보 표 · 사실(기존 패널 재사용) · 연락([문의] · [요청] · [정정] · [취소] · 이전 계획 기준) · 계획(기존 패널) · 판 비교 · 후속 · 기록 · 운영 입력(검증 먼저). 5초 갱신(`createPoller` — 안 보이면 건너뜀 · 겹침 없음) · 역할 버튼(`/auth/me` permissions) · 쉬운 말 오류 + 기술 상세. 기존 결함 고침: 계획 패널이 운영 기록 변경 무효 사유를 `undefined` 로 보이던 것 · 다시 추출 연타

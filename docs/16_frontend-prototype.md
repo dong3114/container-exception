@@ -214,4 +214,5 @@ Current Exposure는 "조치하지 않을 때"의 값이라 계획이 바뀌어�
 - 갱신: 5초마다 다시 읽는다(화면이 안 보이면 건너뜀 · 겹쳐 부르지 않음 — `createPoller`). WebSocket 없음
 - 권한: `GET /auth/me` 의 `permissions` 로 버튼을 숨기거나 끈다(편의). 최종 권한은 Backend 401 · 403 — 현장 담당자는 직접 입력만
 - 오류: 코드 → 쉬운 말, 코드 · HTTP · request id 는 펼쳐 보기(`ErrorNotice`). 색만으로 상태를 나타내지 않는다(기호 · 글자 함께)
-- 한계: 트럭 풀의 소유 운송사는 사람용 API 에 없어, 트럭 풀 담당자 선택은 운송사 목록을 보여 주고 다른 회사 선택은 Backend 가 거부(`WRONG_COUNTERPARTY`) · 정보 공백 목록은 Agent 전용 Tool 이라 화면은 사실 · 문의 · 준비도로 조합 · 후속 목록 조회(GET)에는 막힌 이유가 없어 [필요한 초안 만들기] 뒤에 보인다 · 디자인 · 모바일은 P2(사용자)
+- 시연 전 다듬기(2026-10-28): 트럭 풀 소유 운송사 = 그 풀에 이미 나간 문의의 받는 회사(Backend 는 주인에게만 보낸다 — `ownerFromInquiries`), 정정 · 취소는 원래 받은 회사 · 물은 정보가 이미 채워진 답장은 연락 탭에서 "처리 완료"(Backend `needs_review` 는 그대로) · `npm run smoke` 는 정식 로그인 API 로 세션을 만든 뒤 `/prototype` · 핵심 API · `/` · `/demo` 확인(비밀번호 = `SMOKE_PASSWORD` · `CERA_SEED_OPERATOR_PASSWORD` · localhost 이면 `back/.env`)
+- 한계: 트럭 풀에 문의 기록이 아직 없으면 소유 운송사를 화면에서 알 수 없어 운송사 목록을 보여 주고 다른 회사 선택은 Backend 가 거부(`WRONG_COUNTERPARTY`) · 받은 메일 보류함은 `/prototype` 에만 · 정보 공백 목록은 Agent 전용 Tool 이라 화면은 사실 · 문의 · 준비도로 조합 · 후속 목록 조회(GET)에는 막힌 이유가 없어 [필요한 초안 만들기] 뒤에 보인다 · 디자인 · 모바일은 P2(사용자)

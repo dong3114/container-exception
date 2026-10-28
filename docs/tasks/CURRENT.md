@@ -10,7 +10,18 @@
 
 ## Status
 
-**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인).** 확정 뒤 Post-Freeze Hardening 으로 T-129 · T-108(재조정 결함)만 처리하고 다시 FROZEN. **새 기능 확장 금지.** 고치는 범위 = blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end. 진행 중인 Task 없음.
+**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인). 2026-10-28 최종 시연 준비 끝 — **Frontend 도 Demo Freeze**(이후 blocker · security · demo-breaking 만). 시연 준비 완료.**
+
+### 2026-10-28 최종 시연 준비 (커밋 · push 승인)
+| 커밋 | 내용 |
+| --- | --- |
+| `449ed20` | 트럭 풀 담당 회사 = 그 풀에 이미 나간 문의의 받는 회사(Backend 는 주인에게만 보냄) · 물은 정보가 채워진 답장은 연락 탭에서 "처리 완료" |
+| `ea85853` | `npm run smoke` 가 정식 로그인 API 로 세션을 만든 뒤 `/prototype` · 핵심 API 5 · `/` · `/demo` 확인(우회 없음, 비밀번호는 env · localhost 이면 back/.env) |
+
+- 최종 리허설(새 볼륨 · web 재빌드): 운영 콘솔 브라우저 전 구간 통과(페이지 오류 0 · 5xx 0 · 4xx = 로그인 전 `/auth/me` 401 1종) · LIVE(v1 1,140,000 → 요율 → v2 1,200,000 → 승인) · `/demo` 12단계(v1 5,735,000 · v3 5,835,000, 오류 0) · smoke OK. 바탕화면 `CERA_시연_테스트_시나리오.md` 를 10-28 흐름으로 갱신(2b절 운영 콘솔 대본 · 화면 3개 · 실제/합성 구분 · T-099 결과)
+- **T-099**: OpenAI `INVALID_CREDENTIALS`(401) · Gemini 키 정상 · ADR 후보 `gemini-3.8-flash` 503(리허설 전후 각 1회). 상용 사슬 미확인 — EXTERNAL_DEPENDENCY 유지. fail-closed(값 없음 → 사람 검토 → 직접 입력) 확인
+- 시연 스택 `cera-demo` = 깨끗한 시드 상태(리허설 뒤 초기화). `cera-local` 은 건드리지 않음(멈춤)
+- 발표 전 사용자: 실제 Gmail 을 보여 줄 거라면 `cd back && npm run gmail:auth`(Testing 모드 토큰 약 7일 — 10-27 인증) · 상용 LLM 을 보여 줄 거라면 OpenAI 키 재발급 후 smoke 1회 확정 뒤 Post-Freeze Hardening 으로 T-129 · T-108(재조정 결함)만 처리하고 다시 FROZEN. **새 기능 확장 금지.** 고치는 범위 = blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end. 진행 중인 Task 없음.
 
 ### 2026-10-28 T-120 운영 콘솔 · T-099 smoke (커밋 · origin push 승인)
 | 커밋 | 내용 |
