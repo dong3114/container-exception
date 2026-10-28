@@ -12,7 +12,11 @@ export interface Me {
   auth_mode?: "session" | "dev-header";
   /** 공개 포트폴리오 데모 배포(T-131)인가 — 화면 위 안내 띠를 띄운다. 막는 것은 Backend 다 */
   portfolio_demo?: boolean;
+  /** 배포 모드(T-133) — 운영자가 지금 어디에 있는지. 설정에서만 정한다 */
+  deployment_mode?: DeploymentMode;
 }
+
+export type DeploymentMode = "PUBLIC_PORTFOLIO_DEMO" | "PRIVATE_STAGING" | "PRODUCTION" | "LOCAL";
 
 export const ROLE_LABEL: Record<Me["role"], string> = { ADMIN: "관리자", OPERATOR: "운영자", FIELD_OPERATOR: "현장 담당자", DEMO_VISITOR: "데모 방문자" };
 

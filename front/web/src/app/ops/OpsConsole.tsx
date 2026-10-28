@@ -5,6 +5,8 @@ import { ApiError } from "@/api/errors";
 import { getRuntimeStatus } from "@/api/demo";
 import { getHealth } from "@/api/health";
 import { type ExceptionList, listExceptions } from "@/api/exceptions";
+import { type SystemStatus as SystemStatusData, getSystemStatus } from "@/api/systemStatus";
+import { describeApiError } from "@/api/errors";
 import { type FollowUpList, type Readiness, createLiveRun, getReadiness } from "@/api/ops";
 import { type PlanSummary, listPlans } from "@/api/plans";
 import { type FactCoordinate, listFacts } from "@/api/truth";
@@ -17,6 +19,9 @@ import { AgentStatus } from "@/components/ops/AgentStatus";
 import { CommsList, type FollowUpTag } from "@/components/ops/CommsList";
 import { ContactResolver } from "@/components/ops/ContactResolver";
 import { ErrorNotice } from "@/components/ops/ErrorNotice";
+import { ExceptionBoard } from "@/components/ops/ExceptionBoard";
+import { SystemHealth } from "@/components/ops/SystemHealth";
+import { OVERALL_CLASS, OVERALL_LABEL } from "@/components/ops/systemStatusText";
 import { FollowUpsPanel } from "@/components/ops/FollowUpsPanel";
 import { GapTable } from "@/components/ops/GapTable";
 import { OperationalInput } from "@/components/ops/OperationalInput";
@@ -24,7 +29,7 @@ import { PlanCompare } from "@/components/ops/PlanCompare";
 import { ReadinessPanel } from "@/components/ops/ReadinessPanel";
 import { RunList } from "@/components/ops/RunList";
 import { Timeline } from "@/components/ops/Timeline";
-import { can, shortId } from "@/components/ops/opsLabels";
+import { HUMAN_REASON, can, shortId } from "@/components/ops/opsLabels";
 import { type ActionItem, type OpsTab, type RunRow, buildTimeline, createPoller, deriveActions, draftRunId, gapRows, latestAgentByRun, ownerFromInquiries, runGroup } from "@/components/ops/opsModel";
 import { toApiError, useAsyncAction } from "@/state/async";
 
@@ -47,8 +52,11 @@ interface Board {
   drafts: Draft[];
   inbound: InboundItem[];
   health: { db?: string; queue?: string } | null;
-  /** T-132 운영 예외 요약(진행 중 · 오늘 탐지) — 탐지가 없거나 실패하면 null */
-  exceptions: ExceptionList["summary"] | null;
+  /** T-132 운영 예외(목록 + 요약) — 탐지가 없거나 실패하면 null */
+  exceptions: ExceptionList | null;
+  /** T-133 시스템 상태 — `system.monitor` 권한이 있을 때만 읽는다 */
+  system: SystemStatusData | null;
+  systemError: string | null;
   error: ApiError | null;
   at: string;
 }
@@ -80,7 +88,8 @@ function usePoll(fn: (signal: AbortSignal) => Promise<void>, deps: unknown[]) {
  */
 export function OpsConsole() {
   const me = useMe();
-  const [board, setBoard] = useState<Board>({ rows: [], drafts: [], inbound: [], health: null, exceptions: null, error: null, at: "" });
+  const [board, setBoard] = useState<Board>({ rows: [], drafts: [], inbound: [], health: null, exceptions: null, system: null, systemError: null, error: null, at: "" });
+  const monitor = can(me, "system.monitor");
   const [detail, setDetail] = useState<Detail | null>(null);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("run"));
   const [tab, setTab] = useState<OpsTab>("overview");
@@ -93,18 +102,26 @@ export function OpsConsole() {
   usePoll(
     async (signal) => {
       try {
-        const [runs, agents, drafts, inbound, health, exceptions] = await Promise.all([listRuns(signal), listAgentRuns(signal), listDrafts(signal), listInbound("NORMAL", signal), getHealth(signal).catch(() => null), listExceptions(signal).catch(() => null)]);
+        const [runs, agents, drafts, inbound, health, exceptions, system] = await Promise.all([
+          listRuns(signal),
+          listAgentRuns(signal),
+          listDrafts(signal),
+          listInbound("NORMAL", signal),
+          getHealth(signal).catch(() => null),
+          listExceptions(signal).catch(() => null),
+          monitor ? getSystemStatus(signal).then((r) => ({ data: r.data, error: null }), (e) => ({ data: null, error: describeApiError(toApiError(e)) })) : Promise.resolve({ data: null, error: null }),
+        ]);
         const byRun = latestAgentByRun(agents.data.runs as AgentRunListItem[]);
         const recent = runs.data.runs.slice(0, PLAN_ROWS);
         const plans = await Promise.all(recent.map((r) => listPlans(r.run_id, signal).then((p) => p.data.plans.find((x) => x.plan_id === p.data.current_plan_id) ?? p.data.plans[0] ?? null, () => null)));
         const rows: RunRow[] = runs.data.runs.map((run, i) => ({ run, agent: byRun.get(run.run_id) ?? null, plan: i < PLAN_ROWS ? (plans[i] ?? null) : null }));
-        setBoard({ rows, drafts: drafts.data.drafts, inbound: inbound.data.items, health: health ? { db: health.data.db, queue: (health.data as { queue?: string }).queue } : null, exceptions: exceptions?.data.summary ?? null, error: null, at: new Date().toISOString() });
+        setBoard({ rows, drafts: drafts.data.drafts, inbound: inbound.data.items, health: health ? { db: health.data.db, queue: (health.data as { queue?: string }).queue } : null, exceptions: exceptions?.data ?? null, system: system.data, systemError: system.error, error: null, at: new Date().toISOString() });
       } catch (e) {
         const err = toApiError(e);
         if (err.kind !== "ABORTED") setBoard((b) => ({ ...b, error: err }));
       }
     },
-    [nonce],
+    [nonce, monitor],
   );
 
   const row = board.rows.find((r) => r.run.run_id === selected) ?? null;
@@ -153,6 +170,14 @@ export function OpsConsole() {
     return `실행 #${shortId(runId)}${r ? ` (${r.run.trigger_ref})` : ""}`;
   }, [board.rows]);
 
+  const openRun = (runId: string) => {
+    setSelected(runId);
+    setTab("overview");
+    setOpenMessage(null);
+    document.querySelector('[data-testid="run-detail"]')?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
+  const runSource = (runId: string) => board.rows.find((r) => r.run.run_id === runId)?.run.source ?? null;
+
   const open = (a: ActionItem) => {
     if (a.runId) setSelected(a.runId);
     setTab(a.tab);
@@ -173,7 +198,7 @@ export function OpsConsole() {
     <main className="ops-shell" data-testid="ops-console">
       <header className="ops-top">
         <h1>CERA 운영 콘솔</h1>
-        <SystemStatus board={board} />
+        <SystemStatus board={board} monitor={monitor} />
         <span style={{ flex: 1 }} />
         <NewLiveRun onCreated={(id) => { setSelected(id); setTab("inputs"); bump(); }} />
         <a className="act-btn" href="/demo">시연 콘솔(별도) →</a>
@@ -182,9 +207,10 @@ export function OpsConsole() {
       <OpsCounters board={board} actions={actions} />
 
       <ActionRequired actions={actions} runLabel={runLabel} onOpen={open} />
+      <ExceptionBoard exceptions={board.exceptions?.exceptions ?? null} runSource={runSource} onOpenRun={openRun} />
 
       <div className="ops-main">
-        <RunList rows={board.rows} actions={actions} selectedId={selected} onSelect={(id) => { setSelected(id); setTab("overview"); setOpenMessage(null); }} />
+        <RunList rows={board.rows} actions={actions} selectedId={selected} onSelect={openRun} />
         <section className="card" data-testid="run-detail" aria-label="선택한 실행">
           {!row && <div className="card-body muted">왼쪽에서 복구 실행을 고르세요.</div>}
           {row && (
@@ -249,6 +275,18 @@ export function OpsConsole() {
           )}
         </section>
       </div>
+      {can(me, "planning.input") && !me?.portfolio_demo && (
+        <details className="card" data-testid="baseline-input">
+          <summary className="card-head" style={{ cursor: "pointer" }}>
+            <span className="card-title">운영 기준 계획 입력</span>
+            <span className="card-meta">실제 화물 CSV · 검증 → 저장 → CERA 가 예외를 찾습니다</span>
+          </summary>
+          <div className="card-body">
+            <OperationalInput runId={null} />
+          </div>
+        </details>
+      )}
+      {monitor && <SystemHealth status={board.system} error={board.systemError} />}
       <footer className="muted" style={{ fontSize: 11 }}>
         상태는 {POLL_MS / 1000}초마다 다시 읽습니다. 버튼을 숨기거나 끄는 것은 편의일 뿐이고, 권한은 Backend 가 판정합니다. 계획 승인은 배차 · 발송 지시가 아닙니다.
       </footer>
@@ -256,15 +294,18 @@ export function OpsConsole() {
   );
 }
 
-/** 개요 숫자(T-132) — 진행 중 예외 · 오늘 탐지 · 사람 대기 · 진행 중 복구 실행. 분석 대시보드가 아니라 지금 상태 한 줄 */
+/** 업무 숫자(T-132 · T-133) — 진행 중 예외 · 오늘 자동 탐지 · 사람 조치 대기 · 진행 중 복구 실행 · 승인 대기 계획 · 검토 필요 회신. 분석 대시보드가 아니라 지금 상태 한 줄 */
 function OpsCounters({ board, actions }: { board: Board; actions: ActionItem[] }) {
-  const waitingHuman = board.rows.filter((r) => r.agent?.status === "WAITING_HUMAN").length;
   const activeRuns = board.rows.filter((r) => ["ACTION", "ACTIVE"].includes(runGroup(r, actions))).length;
+  const plansWaiting = board.rows.filter((r) => r.plan?.plan_status === "PROPOSED").length;
+  const repliesToReview = actions.filter((a) => a.title === HUMAN_REASON.REPLY_REVIEW_REQUIRED!.title).length;
   const items: [string, string, number | string][] = [
-    ["kpi-active-exceptions", "진행 중 예외", board.exceptions?.active ?? "—"],
-    ["kpi-detected-today", "오늘 탐지", board.exceptions?.detected_today ?? "—"],
-    ["kpi-waiting-human", "사람 대기", waitingHuman],
+    ["kpi-active-exceptions", "진행 중 예외", board.exceptions?.summary.active ?? "—"],
+    ["kpi-detected-today", "오늘 자동 탐지", board.exceptions?.summary.detected_today ?? "—"],
+    ["kpi-waiting-human", "사람 조치 대기", actions.length],
     ["kpi-active-runs", "진행 중 복구 실행", activeRuns],
+    ["kpi-plans-waiting", "승인 대기 계획", plansWaiting],
+    ["kpi-replies-review", "검토 필요 회신", repliesToReview],
   ];
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 0 8px" }} data-testid="ops-kpis">
@@ -277,7 +318,7 @@ function OpsCounters({ board, actions }: { board: Board; actions: ActionItem[] }
   );
 }
 
-function SystemStatus({ board }: { board: Board }) {
+function SystemStatus({ board, monitor }: { board: Board; monitor: boolean }) {
   const runtime = useAsyncAction((signal) => getRuntimeStatus(signal));
   const { run } = runtime;
   useEffect(() => {
@@ -285,6 +326,21 @@ function SystemStatus({ board }: { board: Board }) {
   }, [run, board.at]);
   const rt = runtime.state.status === "SUCCESS" ? runtime.state.data : null;
   const down = board.error?.kind === "NETWORK" || board.error?.kind === "TIMEOUT";
+  // T-133: 운영 권한이 있으면 전체 상태 하나(자세한 것은 아래 시스템 상태). 없으면(데모 방문자 · 현장 담당자) 내부 구성 요소를 늘어놓지 않는다
+  if (monitor && board.system && !down) {
+    return (
+      <a href="#system-health-title" className={`badge ${OVERALL_CLASS[board.system.overall.status]}`} data-testid="system-status" data-status={board.system.overall.status}>
+        시스템 {OVERALL_LABEL[board.system.overall.status]}
+      </a>
+    );
+  }
+  if (!monitor) {
+    return (
+      <span className={`badge ${down ? "b-red" : "b-green"}`} data-testid="system-status">
+        {down ? "✕ 서버 연결 안 됨" : "✓ 서비스 연결됨"}
+      </span>
+    );
+  }
   return (
     <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }} data-testid="system-status">
       <span className={`badge ${down ? "b-red" : board.health?.db === "up" ? "b-green" : "b-amber"}`}>{down ? "✕ Backend 연결 안 됨" : board.health?.db === "up" ? "✓ Backend · DB 정상" : "? Backend 확인 중"}</span>

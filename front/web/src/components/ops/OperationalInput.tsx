@@ -11,11 +11,14 @@ const KINDS: { kind: InputKind; label: string; header: string }[] = [
   { kind: "facility-profiles", label: "시설 계획 정보", header: "facility,accepts,open_from_hour,last_departure_hour,trip_hours,max_storage_days" },
 ];
 
+const BASELINE = { kind: "containers" as const, label: "컨테이너(운영 기준 계획)", header: "container_no,size_type,carrier,pickup_ready,terminal,destination,planned_day,planned_depart_hour,status" };
+
 /**
- * 실제 실행의 운영 기록 입력(T-123) — 최소 화면. 늘 **검증만** 먼저 하고, 오류 없는 같은 내용일 때만 저장 버튼이 켜진다.
+ * 실제 실행의 운영 기록 입력(T-123). `runId` 가 없으면 운영 기준 계획(T-132 · T-133 — 어느 실행에도 속하지 않은 원래 반입 계획, 저장되면 예외 탐지) — 최소 화면. 늘 **검증만** 먼저 하고, 오류 없는 같은 내용일 때만 저장 버튼이 켜진다.
  * 한 묶음은 전부 저장되거나 하나도 저장되지 않는다(Backend). 큰 기준정보 관리 화면이 아니다.
  */
-export function OperationalInput({ runId }: { runId: string }) {
+export function OperationalInput({ runId }: { runId: string | null }) {
+  const kinds = runId ? KINDS : [BASELINE, ...KINDS.slice(1)];
   const me = useMe();
   const [kind, setKind] = useState<InputKind>("containers");
   const [csv, setCsv] = useState("");
@@ -26,7 +29,7 @@ export function OperationalInput({ runId }: { runId: string }) {
     return res;
   });
   const allowed = can(me, "planning.input");
-  const header = KINDS.find((k) => k.kind === kind)!.header;
+  const header = kinds.find((k) => k.kind === kind)!.header;
   const report = action.state.status === "SUCCESS" ? action.state.data : null;
   const canStore = allowed && checked?.csv === csv && checked.kind === kind;
   return (
@@ -34,7 +37,7 @@ export function OperationalInput({ runId }: { runId: string }) {
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <b>운영 기록 입력(CSV)</b>
         <select value={kind} onChange={(e) => setKind(e.target.value as InputKind)} aria-label="입력 종류">
-          {KINDS.map((k) => (
+          {kinds.map((k) => (
             <option key={k.kind} value={k.kind}>
               {k.label}
             </option>

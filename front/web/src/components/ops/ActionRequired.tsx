@@ -33,7 +33,7 @@ export function ActionRequired({ actions, runLabel, onOpen }: { actions: ActionI
                 {a.detail ? ` — ${a.detail}` : ""}
               </span>
             </span>
-            <span className="ops-action-go">열기 →</span>
+            <span className="ops-action-go" data-testid="action-cta">{a.cta ?? "열기 →"}</span>
           </button>
         ))}
       </div>

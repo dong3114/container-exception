@@ -31,3 +31,19 @@ export interface ExceptionList {
 export function listExceptions(signal?: AbortSignal) {
   return apiRequest<ExceptionList>("/exceptions", { signal });
 }
+
+/** 관측 기록 = 왜 그렇게 판단했나(append-only). 처음 발견 · 근거 변화 · 해소 · 판단 불가 */
+export interface ExceptionObservation {
+  observation_id: string;
+  kind: "DETECTED" | "CHANGED" | "RESOLVED" | "INDETERMINATE";
+  as_of: string;
+  observed_at: string;
+  scheduled_demand: number;
+  capacity: number | null;
+  capacity_state: string;
+  shortage: number;
+}
+
+export function getException(exceptionId: string, signal?: AbortSignal) {
+  return apiRequest<OperationalException & { observations: ExceptionObservation[] }>(`/exceptions/${encodeURIComponent(exceptionId)}`, { signal });
+}

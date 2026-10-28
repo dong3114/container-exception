@@ -100,7 +100,8 @@ export function setFacilityOperator(facilityId: string, counterpartyId: string |
 // ── 운영 기록 입력(T-123) — 검증만(dry_run) 먼저, 오류가 없을 때만 저장 ──
 export type InputKind = "containers" | "rates" | "facility-profiles";
 export function importOperationalInput(kind: InputKind, runId: string | null, csv: string, dryRun: boolean, actorId: string, signal?: AbortSignal) {
-  const path = kind === "containers" ? `/planning/runs/${encodeURIComponent(runId ?? "")}/inputs/containers` : `/planning/inputs/${kind}`;
+  // 컨테이너: 실행이 있으면 그 실행의 입력, 없으면 운영 기준 계획(T-132 — 실행 밖, 저장되면 예외 탐지)
+  const path = kind === "containers" ? (runId ? `/planning/runs/${encodeURIComponent(runId)}/inputs/containers` : "/planning/inputs/containers") : `/planning/inputs/${kind}`;
   return apiRequest<ImportReport>(path, { method: "POST", body: { command_id: commandId(), dry_run: dryRun, csv }, headers: actor(actorId), signal, timeoutMs: 60_000 });
 }
 

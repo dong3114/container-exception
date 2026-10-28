@@ -1,3 +1,4 @@
+import { ModeBadge } from "@/components/ops/ModeBadge";
 import { type ReactNode, useEffect, useState } from "react";
 import { type Me, ROLE_LABEL, getDemoInfo, getMe, login, logout, startDemo } from "@/api/auth";
 import { describeApiError } from "@/api/errors";
@@ -78,6 +79,7 @@ export function LoginGate({ children }: { children: ReactNode }) {
     <>
       {me.portfolio_demo && <PortfolioBanner />}
       <div data-testid="session-bar" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", padding: "4px 16px", fontSize: 12, borderBottom: "1px solid var(--line)" }}>
+        <ModeBadge mode={me.deployment_mode} />
         <span>
           {me.display_name} · <b>{ROLE_LABEL[me.role]}</b>
           {me.via === "DEV_HEADER" ? " · 개발 모드" : ""}

@@ -46,12 +46,24 @@ $S run --rm bootstrap            # SYSTEM · AI_AGENT 행위자 + 사람 계정.
 ## 4. 실제 데이터 넣기 → 자동 예외 탐지
 
 1. 관리자: 시설(창고 · ODCY) · 거래처 · 담당자 · 주소 등록 · 승인(실제 주소는 허용 목록 안에서)
-2. 운영자: 운영 기준 계획 = 원래 반입 계획 CSV → `POST /planning/inputs/containers`(실행 없이). 요율 · 시설 계획 정보 → `/planning/inputs/rates` · `/facility-profiles`
+2. 운영자: 운영 기준 계획 = 원래 반입 계획 CSV → 운영 콘솔 "운영 기준 계획 입력"(검증만 → 저장) 또는 `POST /planning/inputs/containers`(실행 없이). **복구 대안(ODCY · 트럭 풀)과 요율도 먼저 넣는다** — 대안이 하나도 없으면 Agent 가 물을 곳 없이 비용 계산으로 가 실패한다(FINDINGS F-7). 요율 · 시설 계획 정보 → `/planning/inputs/rates` · `/facility-profiles`
 3. 현장 · 운영자: 그날 창고 수용량 → `POST /truth/facts/manual`(첫 값) · 바뀌면 `POST /truth/events/{id}/correct`
 4. CERA: 예정 반입 > 확정 수용량이면 예외(`/exceptions`) + 복구 실행(출처 AUTO_DETECTED)을 스스로 만든다
-5. 운영자: 운영 콘솔 "지금 해야 할 일"의 "자동 탐지된 예외 — Agent 시작이 필요합니다" → 문의 수량을 정해 Agent 시작 → 초안 승인 → 발송 요청 → (실제 Gmail) → 회신 → (상용 LLM) 추출 → 사실 → 계획 → 승인
+5. 운영자: 운영 콘솔 "지금 해야 할 일"의 "복구 조사를 시작해 주세요" [Agent 시작] → 문의 수량을 정해 Agent 시작 → 초안 승인 → 발송 요청 → (실제 Gmail) → 회신 → (상용 LLM) 추출 → 사실 → 계획 → 승인
 
 ## 5. 운영
+
+**운영 Dashboard(T-133)**: 관리자 · 운영자로 로그인하면 운영 콘솔 첫 화면이 지금 해야 할 일 → 현재 예외(이력) → 복구 실행 → 운영 기준 계획 입력 → **시스템 상태** 순이다. 위 배지가 `PRIVATE STAGING` 인지 먼저 본다.
+
+| 화면 표시 | 뜻 · 할 일 |
+| --- | --- |
+| 시스템 정상 | 모든 구성 요소 정상 |
+| 일부 지연 · 대체 경로로 운영 중 | 업무는 계속된다. 예: Redis 장애 → PostgreSQL 폴링(데이터 손실 없음, 느릴 수 있음) · AI 장애 → 답장은 사람 검토 · 직접 입력 → `$S start redis` / `$S start ai` |
+| 사람 조치 필요 | Worker 멈춤(마지막 확인 90초 넘음 — 발송 · 수신 · 추출이 서 있음) → `$S start worker` · Gmail 인증 거부 → 아래 토큰 갱신 |
+| 중단 | PostgreSQL 에 닿지 않음 → `$S ps postgres` · 로그 |
+
+- 빌드 commit 을 화면에 보이려면 `.env` 에 `CERA_BUILD_COMMIT=$(git rev-parse --short HEAD)`(git 해시만 표시) → `$S up -d api`
+- 상태 API: `GET /backend/ops/system-status`(ADMIN · OPERATOR 세션) — 주소 · 키 · 경로를 내주지 않는다. 장기 지표 · 알림은 없다(현재 상태만)
 
 ```bash
 $S ps ; $S logs -f --tail=200 api ; $S logs --tail=200 worker

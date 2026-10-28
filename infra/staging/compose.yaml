@@ -56,6 +56,8 @@ x-back: &back
     CERA_AGENT_TOOL_TOKEN: ${CERA_AGENT_TOOL_TOKEN:?set a random 32+ character token}
     # 예외 자동 탐지(결정론) — 운영 기준 계획(실행 없이 넣은 컨테이너) + 수용량 사실로 창고 수용량 부족을 찾아 복구 실행을 만든다
     CERA_EXCEPTION_DETECTION: ${CERA_EXCEPTION_DETECTION:-on}
+    # 운영 화면에 보일 빌드 commit(T-133, 선택 — git 해시만). 예: CERA_BUILD_COMMIT=$(git rev-parse --short HEAD)
+    CERA_BUILD_COMMIT: ${CERA_BUILD_COMMIT:-}
     CERA_CONTENT_DIR: /srv/content/content
     CERA_MOCK_CHANNEL_DIR: /srv/content/mock-channel
     CERA_PUBLIC_DATA_RAW_DIR: /srv/content/public-data

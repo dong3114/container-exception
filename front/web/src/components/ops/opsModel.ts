@@ -49,6 +49,8 @@ export interface ActionItem {
   tab: OpsTab;
   /** 화면이 바로 열 대상(초안 · 회신 · 계획) */
   ref: { type: "AGENT_RUN" | "COMM_MESSAGE" | "INBOUND" | "PLAN" | "FOLLOW_UP"; id: string } | null;
+  /** 버튼 문구(없으면 "열기 →") */
+  cta?: string;
 }
 
 const TAB_FOR_REASON: Record<string, OpsTab> = {
@@ -125,7 +127,8 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
   // T-132: 탐지기가 만든 실행은 Agent 를 자동으로 시작하지 않는다 — 문의 수량 · 시간대는 사람이 정한다
   for (const { run, agent } of rows) {
     if (run.source !== "AUTO_DETECTED" || agent || run.exception?.status !== "ACTIVE") continue;
-    add({ key: `auto:${run.run_id}`, runId: run.run_id, icon: "⚡", title: "자동 탐지된 예외 — Agent 시작이 필요합니다", detail: exceptionText(run.exception), target: null, tab: "agent", ref: null });
+    // T-133: 왜 자동으로 시작하지 않았는지는 설명하지 않는다 — 할 일만 쉬운 말로
+    add({ key: `auto:${run.run_id}`, runId: run.run_id, icon: "⚡", title: "복구 조사를 시작해 주세요", detail: `[자동 탐지] ${exceptionText(run.exception)}`, target: null, tab: "agent", ref: null, cta: "Agent 시작" });
   }
 
   for (const { run, plan } of rows) {

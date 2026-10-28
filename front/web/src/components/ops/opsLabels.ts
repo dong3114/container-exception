@@ -143,7 +143,8 @@ export type Permission =
   | "plan.approve"
   | "planning.input"
   | "contact.select"
-  | "registry.manage";
+  | "registry.manage"
+  | "system.monitor";
 export const can = (me: Pick<Me, "permissions"> | null, p: Permission) => Boolean(me?.permissions.includes(p));
 
 export const shortTime = (iso: string | null | undefined) => (iso ? iso.slice(5, 16).replace("T", " ") : "—");
