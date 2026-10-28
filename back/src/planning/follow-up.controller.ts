@@ -1,5 +1,6 @@
-import { Controller, Get, Headers, HttpCode, Inject, Param, Post } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post } from '@nestjs/common';
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ContactSelectionDto, SelectFollowUpContactRequestDto } from '../registry/dto.js';
 import { RequirePermission } from '../auth/auth.decorators.js';
 import { PlanFollowUpService } from './follow-up.service.js';
 import { PLAN_ACTOR_HEADER, RecoveryPlanService } from './recovery-plan.service.js';
@@ -35,5 +36,17 @@ export class PlanFollowUpController {
   async create(@Param('planId') planId: string, @Headers(PLAN_ACTOR_HEADER) actorHeader: string | undefined) {
     const actorId = await this.plans.resolveHuman(actorHeader);
     return this.followUps.createDrafts(planId, actorId);
+  }
+
+  @RequirePermission('contact.select')
+  @Post('contact-selection')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'T-129: choose the recipient address for one follow-up action that is blocked with CONTACT_SELECTION_REQUIRED (this plan and this action only). The backend re-checks counterparty, role, channel kind and the Contact Gate; call POST follow-ups again to draft to it' })
+  @ApiParam(PLAN_ID)
+  @ApiBody({ type: SelectFollowUpContactRequestDto })
+  @ApiCreatedResponse({ type: ContactSelectionDto })
+  async selectContact(@Param('planId') planId: string, @Headers(PLAN_ACTOR_HEADER) actorHeader: string | undefined, @Body() body: unknown) {
+    const actorId = await this.plans.resolveHuman(actorHeader);
+    return this.followUps.selectContact(planId, actorId, body);
   }
 }

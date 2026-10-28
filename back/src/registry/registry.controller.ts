@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Patch, Post } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiHeader, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
 import { RequirePermission } from '../auth/auth.decorators.js';
-import { ContactEligibilityDto, CounterpartyListDto, CounterpartySummaryDto, CreateContactRequestDto, CreateCounterpartyRequestDto, FacilityListDto, FacilitySummaryDto, SetFacilityOperatorRequestDto } from './dto.js';
+import { ContactEligibilityDto, CounterpartyListDto, CounterpartySummaryDto, CreateContactRequestDto, CreateCounterpartyRequestDto, FacilityListDto, FacilitySummaryDto, RejectAddressRequestDto, SetAddressStatusRequestDto, SetContactActiveRequestDto, SetFacilityOperatorRequestDto } from './dto.js';
 import { RegistryService } from './registry.service.js';
 
 const ERROR_SCHEMA = { $ref: '#/components/schemas/ErrorResponse' };
@@ -88,6 +88,50 @@ export class RegistryController {
   @ApiConflictResponse({ description: 'ADDRESS_REJECTED', schema: ERROR_SCHEMA })
   approveAddress(@Param('addressId') addressId: string, @Headers('x-cera-actor-id') actor: string | undefined) {
     return this.registry.approveAddress(addressId, actor);
+  }
+
+  @RequirePermission('registry.manage')
+  @Patch('addresses/:addressId/status')
+  @ApiOperation({ summary: 'T-129: pause, retire (INACTIVE) or re-activate an address. The row is never deleted — sent mail and audit keep pointing at it; only future selection, drafts, approvals and sends are blocked by the Contact Gate. A changed e-mail address = retire this one and register a new one' })
+  @ApiParam({ name: 'addressId', required: true, schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiBody({ type: SetAddressStatusRequestDto })
+  @ApiOkResponse({ type: ContactEligibilityDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'ADDRESS_NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'ADDRESS_REJECTED', schema: ERROR_SCHEMA })
+  setAddressStatus(@Param('addressId') addressId: string, @Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.setAddressStatus(addressId, actor, body);
+  }
+
+  @RequirePermission('registry.manage')
+  @Post('addresses/:addressId/reject')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'T-129: record that this address must not be contacted (relationship REJECTED — final; register a new address to use one again). A person decides; CERA does not read replies to block addresses' })
+  @ApiParam({ name: 'addressId', required: true, schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiBody({ type: RejectAddressRequestDto })
+  @ApiOkResponse({ type: ContactEligibilityDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'ADDRESS_NOT_FOUND', schema: ERROR_SCHEMA })
+  rejectAddress(@Param('addressId') addressId: string, @Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.rejectAddress(addressId, actor, body);
+  }
+
+  @RequirePermission('registry.manage')
+  @Patch('contacts/:contactId')
+  @ApiOperation({ summary: 'T-129: deactivate (person left, no longer responsible) or re-activate a contact. Every address of an inactive contact fails the Contact Gate (CONTACT_INACTIVE)' })
+  @ApiParam({ name: 'contactId', required: true, schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiBody({ type: SetContactActiveRequestDto })
+  @ApiOkResponse({ type: CounterpartySummaryDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'NOT_FOUND', schema: ERROR_SCHEMA })
+  setContactActive(@Param('contactId') contactId: string, @Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.setContactActive(contactId, actor, body);
   }
 
   @Get('addresses/:addressId/eligibility')

@@ -7,7 +7,6 @@ import { RecoveryContextService } from '../../src/agent-tools/context.service.js
 import { createApiApp } from '../../src/app/create-api.js';
 import { hashPassword } from '../../src/auth/password.js';
 import { PlanFollowUpService } from '../../src/planning/follow-up.service.js';
-import { RegistryService } from '../../src/registry/registry.service.js';
 import { T0, actor, hashOf } from './fixtures.js';
 import { appPool, testEnv } from './support.js';
 
@@ -99,13 +98,13 @@ describe('contact routing (operational readiness) — the registry decides the r
     expect([owner(fx), owner(fy), owner(fz)]).toEqual([x.cp, y.cp, null]);
 
     // 후속 초안의 받는 사람(같은 규칙): X = 그 주소 하나 · Y = 둘이라 사람이 고른다 · Z = 아무도 아님(다른 ODCY 회사로 보내지 않는다)
-    const svc = api.get(PlanFollowUpService) as unknown as { addressFor: (a: unknown, cps: unknown, sim: boolean) => Promise<unknown> };
-    const cps = (await api.get(RegistryService).listCounterparties()).counterparties;
-    const act = (facilityId: string) => ({ action_key: `ODCY_RECEIVE:${facilityId}:2026-10-13`, kind: 'ODCY_RECEIVE', intent: 'FACILITY_CAPACITY', facility_id: facilityId, date: '2026-10-13', quantity: 2 });
-    expect(await svc.addressFor(act(fx), cps, true)).toEqual({ address: x.addrs[0] });
-    expect(await svc.addressFor(act(fy), cps, true)).toEqual({ blocked: 'CONTACT_SELECTION_REQUIRED' });
-    expect(await svc.addressFor(act(fz), cps, true)).toEqual({ blocked: 'NO_ELIGIBLE_CONTACT' });
+    const svc = api.get(PlanFollowUpService) as unknown as { recipientFor: (planId: string, it: unknown, sim: boolean) => Promise<unknown> };
+    const act = (facilityId: string) => ({ action_key: `ODCY_RECEIVE:${facilityId}:2026-10-13`, action: { action_key: `ODCY_RECEIVE:${facilityId}:2026-10-13`, kind: 'ODCY_RECEIVE', intent: 'FACILITY_CAPACITY', facility_id: facilityId, date: '2026-10-13', quantity: 2 }, to_address_id: null });
+    const plan = v7(); // 선택 기록이 없는 판(사람이 아직 고르지 않음)
+    expect(await svc.recipientFor(plan, act(fx), true)).toEqual({ address: x.addrs[0] });
+    expect(await svc.recipientFor(plan, act(fy), true)).toEqual({ blocked: 'CONTACT_SELECTION_REQUIRED' });
+    expect(await svc.recipientFor(plan, act(fz), true)).toEqual({ blocked: 'NO_ELIGIBLE_CONTACT' });
     // 실제 실행에는 가상(MOCK) 주소가 적격이 아니다
-    expect(await svc.addressFor(act(fx), cps, false)).toEqual({ blocked: 'NO_ELIGIBLE_CONTACT' });
+    expect(await svc.recipientFor(plan, act(fx), false)).toEqual({ blocked: 'NO_ELIGIBLE_CONTACT' });
   });
 });

@@ -143,7 +143,7 @@ export class RegistryService {
   }
 
   /** 활성 HUMAN 인지(등록부를 바꾸는 사람). 권한(registry.manage)은 가드가 먼저 본다 */
-  private async human(actorHeader: string | undefined): Promise<string> {
+  async human(actorHeader: string | undefined): Promise<string> {
     if (!actorHeader || !UUID.test(actorHeader)) throw new ValidationError('ACTOR_REQUIRED', 'X-CERA-Actor-Id header is required', ['x-cera-actor-id']);
     const [h] = await this.db.select({ id: actor.actorId }).from(actor).where(and(eq(actor.actorId, actorHeader), eq(actor.actorType, 'HUMAN'), eq(actor.isActive, true))).limit(1);
     if (!h) throw new BusinessRuleError('ACTOR_NOT_ALLOWED', 'Only an active human can change the registry', 403);
@@ -236,6 +236,122 @@ export class RegistryService {
     return this.getEligibility(addressId);
   }
 
+  /**
+   * T-129 주소 사용 상태 바꾸기(ADMIN · 감사) — ACTIVE(다시 사용) · PAUSED(잠시 중지) · INACTIVE(더는 안 씀: 주소 폐기 · 담당자 퇴사).
+   * 행은 지우지 않는다: 보낸 메일의 받는 사람 · 감사는 그대로 이 주소를 가리킨다. 앞으로의 자동 선택 · 초안 · 승인 · 발송만 Contact Gate 가 막는다.
+   * 주소가 바뀌면 이 행을 고치지 않고(주소 열은 DB 가 막는다 — M11) 옛 주소를 INACTIVE 로 두고 새 주소를 등록한다.
+   * 거절된 주소(REJECTED)는 다시 쓰지 않는다 — 상태를 바꿀 수 없다(409).
+   */
+  async setAddressStatus(addressId: string, actorHeader: string | undefined, body: unknown): Promise<ContactEligibilityDto> {
+    if (!UUID.test(addressId)) throw new ValidationError('INVALID_ID', 'addressId must be a UUID', ['addressId']);
+    const parsed = z.object({ communication_status: z.enum(['ACTIVE', 'PAUSED', 'INACTIVE']), reason_code: z.enum(LIFECYCLE_REASON) }).strict().safeParse(body ?? {});
+    if (!parsed.success) throw new ValidationError('INVALID_REGISTRY_REQUEST', 'communication_status (ACTIVE | PAUSED | INACTIVE) and reason_code are required', parsed.error.issues.map((i) => i.path.join('.')));
+    const actorId = await this.human(actorHeader);
+    const row = await this.registry.findAddress(addressId);
+    if (!row) throw new BusinessRuleError('ADDRESS_NOT_FOUND', 'No address with this id', 404);
+    if (row.relationshipStatus === 'REJECTED') throw new BusinessRuleError('ADDRESS_REJECTED', 'A rejected address is not used again — register a new one', 409);
+    const next = parsed.data.communication_status;
+    if (row.communicationStatus !== next) {
+      await this.tx.run(async (t) => {
+        await t.update(contactChannelAddress).set({ communicationStatus: next }).where(eq(contactChannelAddress.addressId, addressId));
+        await this.audit.record(t, {
+          actorId,
+          action: AUDIT_ACTION.CONTACT_ADDRESS_STATUS_CHANGED,
+          targetType: 'CONTACT_CHANNEL_ADDRESS',
+          targetId: addressId,
+          beforeRef: `communication_status=${row.communicationStatus}`,
+          afterRef: `communication_status=${next};reason=${parsed.data.reason_code}`,
+          result: 'SUCCESS',
+          isSimulated: row.channelType === 'MOCK',
+        });
+      });
+      this.signals.emit({ type: 'REGISTRY_CHANGED', counterpartyId: row.counterpartyId });
+    }
+    return this.getEligibility(addressId);
+  }
+
+  /**
+   * T-129 주소 거절(ADMIN · 감사) — "이 주소로 더는 연락하지 마세요" 같은 요청을 사람이 확인한 뒤 남긴다(메일을 자동으로 읽어 막지 않는다).
+   * 관계 = REJECTED(되돌리지 않는다 — 다시 쓰려면 새로 등록 · 승인). 보낸 메일 기록은 그대로 둔다.
+   */
+  async rejectAddress(addressId: string, actorHeader: string | undefined, body: unknown): Promise<ContactEligibilityDto> {
+    if (!UUID.test(addressId)) throw new ValidationError('INVALID_ID', 'addressId must be a UUID', ['addressId']);
+    const parsed = z.object({ reason_code: z.enum(LIFECYCLE_REASON) }).strict().safeParse(body ?? {});
+    if (!parsed.success) throw new ValidationError('INVALID_REGISTRY_REQUEST', 'reason_code is required', parsed.error.issues.map((i) => i.path.join('.')));
+    const actorId = await this.human(actorHeader);
+    const row = await this.registry.findAddress(addressId);
+    if (!row) throw new BusinessRuleError('ADDRESS_NOT_FOUND', 'No address with this id', 404);
+    if (row.relationshipStatus !== 'REJECTED') {
+      await this.tx.run(async (t) => {
+        await t.update(contactChannelAddress).set({ relationshipStatus: 'REJECTED' }).where(eq(contactChannelAddress.addressId, addressId));
+        await this.audit.record(t, {
+          actorId,
+          action: AUDIT_ACTION.CONTACT_ADDRESS_REJECTED,
+          targetType: 'CONTACT_CHANNEL_ADDRESS',
+          targetId: addressId,
+          beforeRef: `relationship_status=${row.relationshipStatus}`,
+          afterRef: `relationship_status=REJECTED;reason=${parsed.data.reason_code}`,
+          result: 'SUCCESS',
+          isSimulated: row.channelType === 'MOCK',
+        });
+      });
+      this.signals.emit({ type: 'REGISTRY_CHANGED', counterpartyId: row.counterpartyId });
+    }
+    return this.getEligibility(addressId);
+  }
+
+  /** T-129 담당자 비활성 · 다시 활성(ADMIN · 감사) — 퇴사 · 담당 변경. 비활성 담당자의 주소는 모두 Contact Gate 에서 막힌다(CONTACT_INACTIVE) */
+  async setContactActive(contactId: string, actorHeader: string | undefined, body: unknown): Promise<CounterpartySummaryDto> {
+    if (!UUID.test(contactId)) throw new ValidationError('INVALID_ID', 'contactId must be a UUID', ['contactId']);
+    const parsed = z.object({ is_active: z.boolean(), reason_code: z.enum(LIFECYCLE_REASON) }).strict().safeParse(body ?? {});
+    if (!parsed.success) throw new ValidationError('INVALID_REGISTRY_REQUEST', 'is_active and reason_code are required', parsed.error.issues.map((i) => i.path.join('.')));
+    const actorId = await this.human(actorHeader);
+    const [c] = await this.db.select({ active: counterpartyContact.isActive, counterpartyId: counterpartyContact.counterpartyId }).from(counterpartyContact).where(eq(counterpartyContact.contactId, contactId)).limit(1);
+    if (!c) throw new BusinessRuleError('NOT_FOUND', 'No contact with this id', 404);
+    if (c.active !== parsed.data.is_active) {
+      await this.tx.run(async (t) => {
+        await t.update(counterpartyContact).set({ isActive: parsed.data.is_active }).where(eq(counterpartyContact.contactId, contactId));
+        await this.audit.record(t, {
+          actorId,
+          action: AUDIT_ACTION.CONTACT_STATUS_CHANGED,
+          targetType: 'COUNTERPARTY_CONTACT',
+          targetId: contactId,
+          beforeRef: `is_active=${c.active}`,
+          afterRef: `is_active=${parsed.data.is_active};reason=${parsed.data.reason_code}`,
+          result: 'SUCCESS',
+          isSimulated: false,
+        });
+      });
+      this.signals.emit({ type: 'REGISTRY_CHANGED', counterpartyId: c.counterpartyId });
+    }
+    return this.summary(c.counterpartyId);
+  }
+
+  /**
+   * T-129 이 거래처에서 지금 쓸 수 있는 주소(활성 거래처 · 활성 담당자 · Contact Gate 통과 · 실행의 Mock/Real 과 같은 종류).
+   * Agent 의 find_counterparty · 재조정 · 후속 초안이 같은 규칙을 쓴다 — 몇 개인지만 보고, 둘 이상이면 고르지 않는다.
+   */
+  async usableAddresses(counterpartyId: string, simulated: boolean): Promise<string[]> {
+    const party = (await this.listCounterparties()).counterparties.find((c) => c.counterparty_id === counterpartyId && c.is_active);
+    return party ? party.contacts.filter((p) => p.is_active).flatMap((p) => p.addresses.filter((a) => a.eligible && a.is_simulated === simulated).map((a) => a.address_id)) : [];
+  }
+
+  /**
+   * T-129 사람이 고른 주소가 이 한 건에 쓸 수 있는지 Backend 가 다시 판정한다 — 아무 주소 id 나 받지 않는다.
+   * 그 거래처(공백의 주인 · 원래 받은 회사) 소속 · 필요한 역할 · 활성 담당자 · Contact Gate 통과 · 실행의 Mock/Real 과 같은 종류.
+   */
+  async assertSelectable(addressId: string, expect: { counterpartyId: string; role: string | null; simulated: boolean }): Promise<CounterpartyAddressRow> {
+    if (!UUID.test(addressId)) throw new ValidationError('INVALID_ID', 'address_id must be a UUID', ['address_id']);
+    const row = await this.registry.findAddress(addressId);
+    if (!row) throw new BusinessRuleError('ADDRESS_NOT_FOUND', 'No address with this id', 404);
+    if (row.counterpartyId !== expect.counterpartyId) throw new BusinessRuleError('WRONG_COUNTERPARTY', 'This address belongs to a different counterparty than the one this message must go to', 422);
+    if (expect.role && row.sourceRole !== expect.role) throw new BusinessRuleError('ROLE_MISMATCH', `This message needs a ${expect.role} counterparty (this one is ${row.sourceRole})`, 422);
+    if ((row.channelType === 'MOCK') !== expect.simulated) throw new BusinessRuleError('SIMULATION_MISMATCH', expect.simulated ? 'A scenario run can only use a simulated (MOCK) address' : 'A real run cannot use a simulated (MOCK) address', 422);
+    const gate = this.evaluate(row);
+    if (!gate.eligible) throw new BusinessRuleError('RECIPIENT_NOT_ELIGIBLE', `Recipient is not eligible: ${gate.reasons.map((r) => r.code).join(', ')}`, 403);
+    return row;
+  }
+
   /** 거래처 하나의 요약. 아직 연락처가 없는 거래처(방금 등록)는 목록(주소 기준)에 없으므로 거래처 행으로 만든다 */
   private async summary(counterpartyId: string): Promise<CounterpartySummaryDto> {
     const listed = (await this.listCounterparties()).counterparties.find((c) => c.counterparty_id === counterpartyId);
@@ -251,6 +367,9 @@ export function normalizeAddress(address: string): string {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** T-129 수명주기 변경 사유(감사에 코드로만 남긴다 — 자유 문장 · 메일 내용 없음) */
+export const LIFECYCLE_REASON = ['ADDRESS_UNUSED', 'PERSON_LEFT', 'COUNTERPARTY_REQUEST', 'ENTERED_IN_ERROR', 'OTHER'] as const;
 
 function addressStatus(row: CounterpartyAddressRow): AddressStatusDto {
   return {

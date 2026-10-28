@@ -597,3 +597,41 @@ def test_registering_a_contact_wakes_the_run_and_it_drafts_to_the_new_address():
     assert len(drafts) == 1 and drafts[0][1]["address_id"] == ADDR
     assert woke["status"] == "WAITING_HUMAN" and woke["waiting_reason"] != "CONTACT_REGISTRATION_REQUIRED"
     assert all(not c[0].startswith("approve") for c in tools.calls)
+
+
+ADDR2 = "01a1a4c0-7e10-7a3b-9c21-5d0f00a0c009"
+
+
+def test_a_person_chooses_one_of_several_addresses_and_the_run_drafts_to_that_one_only():
+    # T-129: two usable addresses -> the run waits (CONTACT_SELECTION_REQUIRED); a person chooses ADDR2 -> the backend reports it on the gap
+    # (selected_address_id, only while it is still usable) and wakes the run (CONTACT_SELECTED) -> one draft, to ADDR2, never to the first one
+    two = lambda a, n: ok("find_counterparty", {"counterparties": [{"counterparty_id": CP, "contacts": [{"addresses": [{"address_id": ADDR, "eligible": True}]}, {"addresses": [{"address_id": ADDR2, "eligible": True}]}]}]})
+    tools = FakeTools({"find_counterparty": two})
+    rt = runtime(tools)
+    out = rt.start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "CONTACT_SELECTION_REQUIRED", {"type": "TRUCK_POOL", "id": POOL})
+    tools.gaps = [{**gap(), "selected_address_id": ADDR2}]
+    woke = rt.resume(RUN, "CONTACT_SELECTED", {"type": "TRUCK_POOL", "id": POOL})
+    drafts = [c for c in tools.calls if c[0] == "create_inquiry_draft"]
+    assert len(drafts) == 1 and drafts[0][1]["address_id"] == ADDR2
+    assert (woke["status"], woke["waiting_reason"]) == ("WAITING_HUMAN", "HUMAN_APPROVAL_REQUIRED")
+
+
+def test_a_choice_that_is_no_longer_usable_is_ignored_and_the_run_keeps_waiting_for_a_person():
+    # the chosen address was paused afterwards: it is no longer eligible -> not used; still two others -> wait again (no guessing)
+    two = lambda a, n: ok("find_counterparty", {"counterparties": [{"counterparty_id": CP, "contacts": [{"addresses": [{"address_id": ADDR, "eligible": True}]}, {"addresses": [{"address_id": ADDR2, "eligible": True}]}]}]})
+    tools = FakeTools({"find_counterparty": two}, gaps=[{**gap(), "selected_address_id": "01a1a4c0-7e10-7a3b-9c21-5d0f00a0c00a"}])
+    out = runtime(tools).start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"]) == ("WAITING_HUMAN", "CONTACT_SELECTION_REQUIRED")
+    assert "create_inquiry_draft" not in [c[0] for c in tools.calls]
+
+
+def test_the_run_waits_on_the_gap_whose_reason_it_reports():
+    # gap:0 (sorted first) has an owner without usable addresses (registration), gap:1 has two (selection) -> reason = selection, and the
+    # pending subject is gap:1's pool, not gap:0's: waiting on gap:0 would let the backend wake the run for changes that do not unblock it
+    pool0, cp0 = "01a1a4c0-7e10-7a3b-9c21-5d0f00a0c0a1", "01a1a4c0-7e10-7a3b-9c21-5d0f00a0c0aa"
+    first = {**gap(), "gap_id": "gap:0", "subject_id": pool0, "owner_counterparty_id": cp0}
+    both = lambda a, n: ok("find_counterparty", {"counterparties": [{"counterparty_id": cp0, "contacts": []}, {"counterparty_id": CP, "contacts": [{"addresses": [{"address_id": ADDR, "eligible": True}]}, {"addresses": [{"address_id": ADDR2, "eligible": True}]}]}]})
+    tools = FakeTools({"find_counterparty": both}, gaps=[first, gap()])
+    out = runtime(tools).start(RUN, RR, "goal", PARAMS)
+    assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "CONTACT_SELECTION_REQUIRED", {"type": "TRUCK_POOL", "id": POOL})

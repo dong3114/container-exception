@@ -3,6 +3,7 @@ import type { DraftService } from '../communication/draft.service.js';
 import type { DraftDto } from '../communication/dto.js';
 import type { PublicDataService } from '../public-data/public-data.service.js';
 import type { RecoveryPlanService } from '../planning/recovery-plan.service.js';
+import type { ContactSelectionRepository } from '../registry/contact-selection.repository.js';
 import type { RegistryService } from '../registry/registry.service.js';
 import { BusinessRuleError } from '../shared/errors/cera-error.js';
 import { Instant } from '../shared/time/instant.js';
@@ -35,6 +36,7 @@ export interface HandlerDeps {
   context: RecoveryContextService;
   runs: AgentRunRepository;
   plans: RecoveryPlanService;
+  selections: ContactSelectionRepository;
 }
 
 type MessageStatus = z.infer<typeof messageStatusSchema>;
@@ -150,6 +152,13 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
     get_information_gaps: {
       async run(input, ctx) {
         const out = await deps.context.informationGaps(scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id));
+        // T-129: 사람이 이 실행 · 이 주체의 받는 주소를 골랐고 그 주소가 지금도 쓸 수 있으면 알려 준다(그래프는 그 주소로만 초안). 못 쓰게 됐으면 알리지 않는다
+        const simulated = (await deps.context.run(ctx.run.recoveryRunId)).containsSimulated;
+        for (const gap of out.gaps) {
+          if (!gap.owner_counterparty_id) continue;
+          const chosen = await deps.selections.latestForAgentRun(ctx.run.agentRunId, gap.subject_id);
+          if (chosen && (await deps.registry.usableAddresses(gap.owner_counterparty_id, simulated)).includes(chosen.addressId)) gap.selected_address_id = chosen.addressId;
+        }
         for (const gap of out.gaps) {
           if (gap.open_question_message_ids.length === 0) continue;
           const c = candidateState(await Promise.all(gap.open_question_message_ids.map((id) => deps.drafts.get(id))));

@@ -1107,6 +1107,19 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - 추적: recovery_run → agent_run(trace) → thread(Gmail threadId) → message → send_attempt(RFC822 Message-ID) → raw_input → system_error(trace · operation) → retry_request → plan v1/v2(agent_run) → plan_follow_up → message, 입력 묶음
 - 비밀: 추적 파일 · 이력 · 컨테이너 로그(api · worker · ai) 토큰 · Authorization · 실제 주소 · 회신 본문 0건
 - 시나리오 `/demo` 12단계: v1 5,735,000 · v3 5,835,000 · Baseline 7,220,000 그대로, 후속 초안 ODCY B 는 이제 ODCY B 운영 거래처로
+### 18.26 T-129 연락처 수명주기 · 사람의 받는 주소 선택 (2026-10-28 · Post-Freeze Hardening)
+
+- **문제**: T-127 은 등록 · 승인까지만 있었다. 주소가 더는 쓰이지 않거나(퇴사 · 주소 폐기 · "이 주소로 연락하지 마세요") 같은 회사에 쓸 수 있는 주소가 둘 이상이면, 실행은 `CONTACT_SELECTION_REQUIRED` 로 멈춘 뒤 사람이 풀 길이 없었다(값을 직접 넣거나 남는 주소를 지우는 수밖에 — 지우는 API 도 없다). T-128 정정 · 취소는 원래 받은 주소로만 가서, 그 주소가 중지되면 초안이 `RECIPIENT_NOT_ELIGIBLE` 로 막혀 끝났다
+- **수명주기(스키마 변경 없음 — 기존 열)**: 주소 `communication_status` ACTIVE · PAUSED(잠시 중지) · INACTIVE(더는 안 씀), 관계 `relationship_status` REJECTED(거절 — 되돌리지 않음), 담당자 `counterparty_contact.is_active`. 행은 지우지 않는다 — 보낸 메일의 `to_address_id` · 감사는 그대로 이 행을 가리킨다. 주소가 바뀌면 행을 고치지 않고(주소 열은 M11 이 막는다) 옛 주소를 INACTIVE 로 두고 새 주소를 등록한다
+- **등록부 API(ADMIN · `registry.manage` · 활성 HUMAN · 감사)**: `PATCH /registry/addresses/:id/status {communication_status, reason_code}` — 거절된 주소는 409 `ADDRESS_REJECTED` · `POST /registry/addresses/:id/reject {reason_code}` — 사람이 확인한 뒤 남긴다(CERA 가 메일을 읽어 자동으로 막지 않는다), 다시 승인도 409 · `PATCH /registry/contacts/:id {is_active, reason_code}`. 사유 = 코드(ADDRESS_UNUSED · PERSON_LEFT · COUNTERPARTY_REQUEST · ENTERED_IN_ERROR · OTHER)만, 감사 `before_ref` · `after_ref` 에 전후 상태와 함께(자유 문장 없음). 감사 `CONTACT_ADDRESS_STATUS_CHANGED` · `CONTACT_ADDRESS_REJECTED` · `CONTACT_STATUS_CHANGED`. 바뀌면 `REGISTRY_CHANGED` 알림(재조정)
+- **쓸 수 있는 주소(한 규칙)**: `RegistryService.usableAddresses(거래처, Mock/Real)` = 활성 거래처 · 활성 담당자 · Contact Gate 통과 · 실행과 같은 종류. Agent `find_counterparty` · 재조정 · 후속 초안이 같은 규칙. 둘 이상이면 고르지 않는다(`contacts[0]` 없음)
+- **사람의 선택(M34 `contact_selection` · append-only M35, 22.58)**: 범위 = 이번 한 건 — `POST /agent-runs/:id/contact-selection {address_id, note?}`(실행이 `WAITING_HUMAN · CONTACT_SELECTION_REQUIRED` 일 때만, 대상 = 그 실행 × 대기 주체) · `POST /planning/plans/:id/follow-ups/contact-selection {action_key, address_id, note?}`(승인된 판 · 아직 초안이 없는 조치만, 정정 · 취소 키 포함). 권한 `contact.select` = ADMIN · OPERATOR(FIELD_OPERATOR 403 · 등록부 자체는 못 바꾼다). Backend 가 다시 판정한다: 그 상대 회사 소속(아니면 422 `WRONG_COUNTERPARTY`) · 역할(422 `ROLE_MISMATCH`) · Mock/Real(422 `SIMULATION_MISMATCH`) · Contact Gate(403 `RECIPIENT_NOT_ELIGIBLE`). 대기 아님 409 `NOT_WAITING_FOR_CONTACT_SELECTION` · 공백이 닫힘 409 `GAP_ALREADY_RESOLVED` · 이미 초안 409 `FOLLOW_UP_ALREADY_DRAFTED`. 감사 `CONTACT_SELECTED`(대상 `CONTACT_SELECTION`). 다시 고르면 새 행, 가장 최근 행이 선택
+- **Agent 재개**: `get_information_gaps` 의 공백에 `selected_address_id`(그 실행 · 그 주체에 사람이 고른 주소가 **지금도 쓸 수 있을 때만**) — 그래프는 그 주소로만 초안. 재조정 `contactWakeReason`(순수): 등록 대기 = 쓸 수 있는 주소가 생기면 `REGISTRY_CHANGED` · 고르기 대기 = 고른 주소가 쓸 수 있으면 `CONTACT_SELECTED`, 고를 필요가 없어지면(하나만 남음 · 모두 막힘) `REGISTRY_CHANGED` 로 깨워 그래프가 다시 판정, 여전히 둘 이상 · 선택 없음이면 계속 대기. 그래프의 대기 주체 = 보고하는 사유를 가진 첫 공백(다른 사유의 공백을 기다리면 풀리지 않는 변화에 깨어나는 결함이 있었다 — 시험으로 확인 뒤 고침)
+- **후속 초안의 받는 주소(T-128 결합)**: 상대 회사 = 새 요청은 등록부의 지금 주인, 정정 · 취소는 **원래 받은 주소의 회사**(같은 역할의 다른 회사로 대신 보내지 않는다). 그 회사의 쓸 수 있는 주소 중: 사람이 이 조치에 고른 주소 → 정정 · 취소는 원래 주소(아직 쓸 수 있으면) → 정확히 하나면 그 주소 → 없으면 `NO_ELIGIBLE_CONTACT` · 둘 이상이면 `CONTACT_SELECTION_REQUIRED`(초안 없음 · 이유만). 보낸 메일의 받는 사람 기록은 그대로
+- **선택 · 승인은 자격을 보장하지 않는다**: 초안 · 승인 · 발송 요청 · Worker 발송 직전에 Contact Gate 를 다시 본다(기존 경계). 승인된 초안의 주소가 중지되면 발송 요청 403 `RECIPIENT_NOT_ELIGIBLE` · 대기열에 있던 것은 Worker 가 내보내지 않고 APPROVED 로 되돌린다(`send blocked: RECIPIENT_NOT_ELIGIBLE`, 시도 행 없음)
+- **검증**: DB 시험 `contact-lifecycle.test.ts`(A · B · C · D · E · F · G · H · I · J · K · L · N) · `recovery-plan.test.ts` M · `contact-routing.test.ts` · `contact-registration.test.ts`(고르기 대기의 새 깨우기 규칙) · Python 그래프 3(고친 뒤 통과 · 고치기 전 실패 확인). 실제 스택(`cera-demo`): ① 연락처 없는 운영사 → `CONTACT_REGISTRATION_REQUIRED` → 담당 둘 등록 · 승인 → `CONTACT_SELECTION_REQUIRED` → API · Worker · Redis 재시작 뒤 대기 유지 → FIELD 403 · 다른 회사 주소 422 → OPERATOR 선택 → Agent 재개(`REGISTRY_CHANGED`, `CONTACT_SELECTED`) → 고른 주소로 초안 → 사람 승인 · 발송 → 그 주소 INACTIVE → 승인된 다음 초안 발송 403 · 새 초안 403 → 다른 담당으로 정상 발송 · 보낸 메일 기록 불변 ② `/demo` 뒤 후속 3통 발송 → 트럭 받는 주소 INACTIVE → 가용 0 입력 → v3 OUTDATED → v4 승인 → 취소 필요 · `NO_ELIGIBLE_CONTACT`(다른 회사 초안 0) → 같은 회사에 담당 둘 → `CONTACT_SELECTION_REQUIRED` → 선택 → 취소 초안(승인 대기) → 승인 · 발송 → 원래 요청 메일 불변
+- **E2E 방법 메모**: 두 주소를 "동시에" 쓸 수 있게 하려고 시험에서는 운영사를 잠시 비우고 둘 다 승인한 뒤 되돌렸다 — 하나만 먼저 쓸 수 있게 되면 그 하나로 문의하는 것이 규칙상 맞다(그때 쓸 수 있는 주소가 하나뿐이므로)
+- **메일 소유 확인 흐름(확인 메일 · 링크)은 여전히 없다** [ASSUMPTION — 관리자가 CERA 밖에서 확인한 뒤 승인]
 
 ## 20. migration 전략
 
@@ -2792,6 +2805,35 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 ### 22.57 M31 실제 계획 입력 가드 · 권한 **(T-123)**
 
 - `planning_input_batch` · `planning_container_record` · `tariff_rate` · `facility_planning_profile`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
+
+### 22.58 `contact_selection` — 사람이 고른 이번 한 건의 받는 주소 **(M34 · T-129)**
+
+- 논리: `DECISION_RECORD`(누가 언제 이 한 건을 이 주소로 보내라고 정했다) · 그룹 **R 등록부** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- PK: `selection_id`. 범위는 둘 중 하나뿐이다 — 기다리는 Agent 실행의 공백 주체 하나(`AGENT_RUN`: 실행 × 시설 · 트럭 풀) · 승인된 계획 판의 후속 조치 하나(`PLAN_FOLLOW_UP`: 판 × 조치 키). **전역 기본값이 아니다**
+- 변경 방식: append-only(M35). 다시 고르면 새 행이고 범위마다 가장 최근 행이 선택이다. 프로세스 메모리에 두지 않는다 — 재시작 뒤에도 DB 에서 읽는다
+- 선택은 자격을 보장하지 않는다: 고를 때 Backend 가 판정하고(그 상대 회사 소속 · 역할 · 활성 담당자 · Contact Gate · 실행의 Mock/Real), 초안 · 승인 · 발송 때 Contact Gate 를 다시 본다. 고른 주소가 뒤에 중지 · 거절되면 선택은 무시되고(쓸 수 있는 주소만 고른다) 발송은 `RECIPIENT_NOT_ELIGIBLE` 로 막힌다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `selection_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `scope_type` | CODE(CONTACT_SELECTION_SCOPE) | `text` | NOT NULL | — | `text()` | CHECK IN (AGENT_RUN, PLAN_FOLLOW_UP) |
+| 3 | `agent_run_id` | REF(agent_run) | `uuid` | NULL | — | `uuid()` | FK agent_run · RESTRICT — AGENT_RUN 범위만 |
+| 4 | `plan_id` | REF(recovery_plan) | `uuid` | NULL | — | `uuid()` | FK recovery_plan · RESTRICT — PLAN_FOLLOW_UP 범위만 |
+| 5 | `action_key` | STRING(120) | `varchar(120)` | NULL | — | `varchar({ length: 120 })` | PLAN_FOLLOW_UP 범위만(정정 · 취소 키 포함) |
+| 6 | `subject_type` | CODE(CONTACT_SELECTION_SUBJECT) | `text` | NOT NULL | — | `text()` | CHECK IN (FACILITY, TRUCK_POOL) |
+| 7 | `subject_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | 시설 · 트럭 풀(공백 주체 · 조치 대상) |
+| 8 | `address_id` | REF(contact_channel_address) | `uuid` | NOT NULL | — | `uuid()` | FK contact_channel_address · RESTRICT |
+| 9 | `selected_by_actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor — 활성 HUMAN(권한 `contact.select` = ADMIN · OPERATOR) |
+| 10 | `selected_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 11 | `note` | STRING(200) | `varchar(200)` | NULL | — | `varchar({ length: 200 })` | 왜 이 사람인가(선택 사항) |
+
+- **CHECK** `ck_contact_selection__scope`: AGENT_RUN = agent_run_id 만 · PLAN_FOLLOW_UP = plan_id + action_key 만
+- **인덱스(PK·UNIQUE·FK 인덱스 외)**: (agent_run_id, subject_id) · (plan_id, action_key)
+- 감사: `CONTACT_SELECTED`(대상 `CONTACT_SELECTION`, after_ref = 범위 · 주소 id)
+
+### 22.59 M35 연락처 수동 선택 가드 · 권한 **(T-129)**
+
+- `contact_selection`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

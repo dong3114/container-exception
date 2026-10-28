@@ -57,3 +57,19 @@ export function wakeReason(waitingReason: string | null, m: AwaitedMessage): str
       return null;
   }
 }
+
+/**
+ * 연락처 때문에 사람을 기다리는 실행(운영 준비 · T-127 · T-129, 대기 대상 = 공백 주체). 공백이 아직 열려 있을 때만 부른다.
+ * `usable` = 공백 주인에게서 이 실행이 지금 쓸 수 있는 주소들 · `selected` = 사람이 이 실행 · 이 주체에 고른 가장 최근 주소.
+ * - 등록 대기: 쓸 수 있는 주소가 하나라도 생기면 깨운다(그래프가 하나면 초안 · 여럿이면 고르기 대기로 바꾼다)
+ * - 고르기 대기: 사람이 고른 주소가 지금도 쓸 수 있으면 깨운다. 고를 필요가 없어져도(하나만 남음 · 모두 막힘) 깨워 그래프가 다시 판정하게 한다.
+ *   쓸 수 있는 주소가 여전히 둘 이상이고 쓸 만한 선택이 없으면 그대로 기다린다(첫 주소를 임의로 고르지 않는다)
+ */
+export function contactWakeReason(waitingReason: string | null, usable: readonly string[], selected: string | null): string | null {
+  if (waitingReason === 'CONTACT_REGISTRATION_REQUIRED') return usable.length > 0 ? 'REGISTRY_CHANGED' : null;
+  if (waitingReason === 'CONTACT_SELECTION_REQUIRED') {
+    if (selected && usable.includes(selected)) return 'CONTACT_SELECTED';
+    return usable.length >= 2 ? null : 'REGISTRY_CHANGED';
+  }
+  return null;
+}

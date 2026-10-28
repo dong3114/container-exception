@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
 import { RequirePermission } from '../auth/auth.decorators.js';
-import { ApiBody, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiHeader, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
+import { ContactSelectionDto, SelectContactRequestDto } from '../registry/dto.js';
+import { AgentContactSelectionService } from './contact-selection.service.js';
 import { AgentToolsService } from './agent-tools.service.js';
 import { AgentCoordinator } from './coordinator.js';
 
@@ -23,6 +25,7 @@ export class AgentRunsController {
   constructor(
     @Inject(AgentToolsService) private readonly tools: AgentToolsService,
     @Inject(AgentCoordinator) private readonly coordinator: AgentCoordinator,
+    @Inject(AgentContactSelectionService) private readonly selection: AgentContactSelectionService,
   ) {}
 
   @Get()
@@ -103,6 +106,23 @@ export class AgentRunsController {
   async cancel(@Param('agentRunId') agentRunId: string, @Headers('x-cera-actor-id') actor: string | undefined) {
     await this.tools.cancelRun(agentRunId, actor);
     return this.coordinator.view(agentRunId);
+  }
+
+  @RequirePermission('contact.select')
+  @Post(':agentRunId/contact-selection')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'T-129: a person chooses the recipient address for a run waiting with CONTACT_SELECTION_REQUIRED (this run and this facility / truck pool only — not a global default). The backend re-checks counterparty, role, channel kind and the Contact Gate; the run then wakes and drafts to that address' })
+  @ApiParam({ name: 'agentRunId', required: true, schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader(ACTOR)
+  @ApiBody({ type: SelectContactRequestDto })
+  @ApiCreatedResponse({ type: ContactSelectionDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · INVALID_SELECTION_REQUEST · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED · RECIPIENT_NOT_ELIGIBLE', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'NOT_FOUND · ADDRESS_NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'NOT_WAITING_FOR_CONTACT_SELECTION · GAP_ALREADY_RESOLVED · NO_OWNER_REGISTERED', schema: ERROR_SCHEMA })
+  @ApiUnprocessableEntityResponse({ description: 'WRONG_COUNTERPARTY · ROLE_MISMATCH · SIMULATION_MISMATCH', schema: ERROR_SCHEMA })
+  selectContact(@Param('agentRunId') agentRunId: string, @Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.selection.select(agentRunId, actor, body);
   }
 }
 

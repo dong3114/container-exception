@@ -204,7 +204,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         r = s.call("get_information_gaps", {})
         if not r.ok:
             return failed(r.error.code if r.error else "GAPS_UNAVAILABLE")
-        keep = ("gap_id", "gap_kind", "subject_type", "subject_id", "state", "public_data_can_resolve", "suggested_source", "suggested_intent", "suggested_counterparty_role", "owner_counterparty_id", "candidate_state", "refresh_basis_event_id")
+        keep = ("gap_id", "gap_kind", "subject_type", "subject_id", "state", "public_data_can_resolve", "suggested_source", "suggested_intent", "suggested_counterparty_role", "owner_counterparty_id", "selected_address_id", "candidate_state", "refresh_basis_event_id")
         gaps = [{k: g.get(k) for k in keep} for g in r.output["gaps"]]
         known = [k["evidence"]["event_id"] for k in r.output["known"]]
         return {"information_gaps": gaps, "known_fact_refs": sorted(set((state.get("known_fact_refs") or []) + known))[:100]}
@@ -242,6 +242,10 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
                     return failed(r.error.code if r.error else "COUNTERPARTY_UNAVAILABLE")
                 by_role[role] = r.output["counterparties"]
             eligible = [a["address_id"] for c in by_role[role] if c["counterparty_id"] == owner for contact in c["contacts"] for a in contact["addresses"] if a["eligible"]]
+            # T-129: a person chose the recipient for this run and this subject, and it is still usable -> that one only
+            chosen = gap.get("selected_address_id")
+            if chosen and chosen in eligible:
+                return {"target_gap": gap, "address_id": chosen, "contact_blocked_gaps": []}
             if len(eligible) == 1:
                 return {"target_gap": gap, "address_id": eligible[0], "contact_blocked_gaps": []}
             blocked.append({"gap_id": gap["gap_id"], "subject_type": gap.get("subject_type"), "subject_id": gap.get("subject_id"), "reason": "CONTACT_SELECTION_REQUIRED" if eligible else "NO_ELIGIBLE_CONTACT"})
@@ -249,8 +253,10 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         reason = "CONTACT_SELECTION_REQUIRED" if any(b["reason"] == "CONTACT_SELECTION_REQUIRED" for b in blocked) else "CONTACT_REGISTRATION_REQUIRED"
         if not blocked:
             return failed("NO_ACTIONABLE_GAP")
-        # the run waits on the first blocked gap's subject (facility / truck pool): it wakes when that gap is no longer open
-        first = blocked[0]
+        # the run waits on the first blocked gap with that reason (facility / truck pool): it wakes when that gap is no longer open,
+        # or when the reason can be acted on (a person chose · an address became usable). Waiting on a gap with a different reason
+        # would make the backend wake the run for a change that does not unblock it (T-129).
+        first = next(b for b in blocked if (b["reason"] == "CONTACT_SELECTION_REQUIRED") == (reason == "CONTACT_SELECTION_REQUIRED"))
         return {"contact_blocked_gaps": blocked[:20], "pending_human_action": {"kind": "CONTACT", "ref_type": first["subject_type"], "ref_id": first["subject_id"], "reason": reason}}
 
     def create_draft(state: RecoveryState, s: ToolSession) -> dict[str, Any]:

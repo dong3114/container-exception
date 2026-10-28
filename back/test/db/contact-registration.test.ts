@@ -99,6 +99,7 @@ describe('T-127 runtime registry registration', () => {
       { CERA_AGENT_RECONCILE_ENABLED: true } as never,
       { subscribe: () => undefined } as never,
       registry,
+      { latestForAgentRun: async () => null } as never,
     );
     // 주소 없음 → 깨우지 않는다
     expect((await reconciler.runOnce()).woken).toBe(0);
@@ -117,7 +118,7 @@ describe('T-127 runtime registry registration', () => {
     expect(resumed).toEqual([{ id: 'run-1', reason: 'REGISTRY_CHANGED' }]);
   });
 
-  it('CONTACT_SELECTION_REQUIRED waits are not woken by registry changes (a person chooses)', async () => {
+  it('T-129: a CONTACT_SELECTION_REQUIRED wait whose owner no longer has two usable addresses is woken so the graph re-decides (here: none left → it will wait for registration)', async () => {
     const registry = api.get(RegistryService);
     const resumed: string[] = [];
     const facilityId = v7();
@@ -132,8 +133,9 @@ describe('T-127 runtime registry registration', () => {
       { CERA_AGENT_RECONCILE_ENABLED: true } as never,
       { subscribe: () => undefined } as never,
       registry,
+      { latestForAgentRun: async () => null } as never,
     );
-    expect((await reconciler.runOnce()).woken).toBe(0);
-    expect(resumed).toEqual([]);
+    expect((await reconciler.runOnce()).woken).toBe(1);
+    expect(resumed).toEqual(['run-2']);
   });
 });

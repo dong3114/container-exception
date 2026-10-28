@@ -232,6 +232,20 @@
       "when": 1793088630280,
       "tag": "0032_m33_plan_follow_up_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793146838266,
+      "tag": "0033_m34_contact_selection",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793146844713,
+      "tag": "0034_m35_contact_selection_guards",
+      "breakpoints": true
     }
   ]
 }

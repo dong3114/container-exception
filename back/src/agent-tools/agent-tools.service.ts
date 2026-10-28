@@ -15,6 +15,7 @@ import { RecoveryContextService } from './context.service.js';
 import { AgentServiceAuth } from './service-auth.js';
 import { ENVELOPE_SCHEMA_VERSION, type ToolEnvelope, ToolExecutor, type ToolHandler } from './executor.js';
 import { buildHandlers } from './handlers.js';
+import { ContactSelectionRepository } from '../registry/contact-selection.repository.js';
 import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 import { findTool, TOOLS, type ToolName } from './registry.js';
 import { toolCatalog } from './tool-contracts.js';
@@ -69,6 +70,7 @@ export class AgentToolsService {
     @Inject(DraftService) drafts: DraftService,
     @Inject(RecoveryContextService) context: RecoveryContextService,
     @Inject(RecoveryPlanService) plans: RecoveryPlanService,
+    @Inject(ContactSelectionRepository) selections: ContactSelectionRepository,
     @Inject(AgentServiceAuth) private readonly auth: AgentServiceAuth,
   ) {
     this.executor = new ToolExecutor(
@@ -81,7 +83,7 @@ export class AgentToolsService {
       clock,
       ids,
     );
-    this.handlers = buildHandlers({ publicData, registry, drafts, context, runs, plans });
+    this.handlers = buildHandlers({ publicData, registry, drafts, context, runs, plans, selections });
   }
 
   /** 인증 · 실행 확인 뒤 도구 목록(계약 파일과 같은 내용). */

@@ -194,3 +194,67 @@ export class CreateContactRequestDto {
   @ApiProperty({ type: String, maxLength: 200, description: 'E-mail address; stored trimmed and lower-cased' })
   address!: string;
 }
+
+const LIFECYCLE_REASONS = ['ADDRESS_UNUSED', 'PERSON_LEFT', 'COUNTERPARTY_REQUEST', 'ENTERED_IN_ERROR', 'OTHER'];
+
+/** T-129 주소 사용 상태 변경 요청 */
+export class SetAddressStatusRequestDto {
+  @ApiProperty({ enum: ['ACTIVE', 'PAUSED', 'INACTIVE'], description: 'ACTIVE = use again · PAUSED = temporarily not used · INACTIVE = no longer used (address retired, person left). History (sent mail, audit) keeps pointing at this row' })
+  communication_status!: 'ACTIVE' | 'PAUSED' | 'INACTIVE';
+  @ApiProperty({ enum: LIFECYCLE_REASONS, description: 'Kept in the audit log as a code (no free text)' })
+  reason_code!: string;
+}
+
+/** T-129 주소 거절 요청 */
+export class RejectAddressRequestDto {
+  @ApiProperty({ enum: LIFECYCLE_REASONS, description: 'e.g. COUNTERPARTY_REQUEST — the counterparty asked not to be contacted at this address (a person confirmed it; CERA does not read mail to decide this)' })
+  reason_code!: string;
+}
+
+/** T-129 담당자 활성 · 비활성 요청 */
+export class SetContactActiveRequestDto {
+  @ApiProperty({ type: Boolean })
+  is_active!: boolean;
+  @ApiProperty({ enum: LIFECYCLE_REASONS })
+  reason_code!: string;
+}
+
+/** T-129 이번 한 건의 받는 주소 선택 요청 */
+export class SelectContactRequestDto {
+  @ApiProperty({ type: String, format: 'uuid', description: 'An address of the counterparty this message must go to; the backend re-checks counterparty, role, channel kind and the Contact Gate' })
+  address_id!: string;
+  @ApiProperty({ type: String, maxLength: 200, required: false, description: 'Why this person (kept with the selection)' })
+  note?: string;
+}
+
+/** T-129 후속 조치 하나의 받는 주소 선택 요청 */
+export class SelectFollowUpContactRequestDto extends SelectContactRequestDto {
+  @ApiProperty({ type: String, maxLength: 120, description: 'The follow-up action (action_key from GET follow-ups) that waits for a person to choose a contact' })
+  action_key!: string;
+}
+
+/** T-129 선택 기록 */
+export class ContactSelectionDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  selection_id!: string;
+  @ApiProperty({ enum: ['AGENT_RUN', 'PLAN_FOLLOW_UP'] })
+  scope_type!: 'AGENT_RUN' | 'PLAN_FOLLOW_UP';
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  agent_run_id!: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  plan_id!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  action_key!: string | null;
+  @ApiProperty({ enum: ['FACILITY', 'TRUCK_POOL'] })
+  subject_type!: 'FACILITY' | 'TRUCK_POOL';
+  @ApiProperty({ type: String, format: 'uuid' })
+  subject_id!: string;
+  @ApiProperty({ type: String, format: 'uuid' })
+  address_id!: string;
+  @ApiProperty({ type: String, format: 'uuid' })
+  selected_by_actor_id!: string;
+  @ApiProperty({ type: String, format: 'date-time' })
+  selected_at!: string;
+  @ApiProperty({ type: String, nullable: true })
+  note!: string | null;
+}

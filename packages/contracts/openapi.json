@@ -423,6 +423,262 @@
         ]
       }
     },
+    "/registry/addresses/{addressId}/status": {
+      "patch": {
+        "operationId": "RegistryController_setAddressStatus",
+        "parameters": [
+          {
+            "name": "addressId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAddressStatusRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactEligibilityDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADDRESS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ADDRESS_REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-129: pause, retire (INACTIVE) or re-activate an address. The row is never deleted — sent mail and audit keep pointing at it; only future selection, drafts, approvals and sends are blocked by the Contact Gate. A changed e-mail address = retire this one and register a new one",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
+    "/registry/addresses/{addressId}/reject": {
+      "post": {
+        "operationId": "RegistryController_rejectAddress",
+        "parameters": [
+          {
+            "name": "addressId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectAddressRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactEligibilityDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ADDRESS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-129: record that this address must not be contacted (relationship REJECTED — final; register a new address to use one again). A person decides; CERA does not read replies to block addresses",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
+    "/registry/contacts/{contactId}": {
+      "patch": {
+        "operationId": "RegistryController_setContactActive",
+        "parameters": [
+          {
+            "name": "contactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetContactActiveRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartySummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-129: deactivate (person left, no longer responsible) or re-activate a contact. Every address of an inactive contact fails the Contact Gate (CONTACT_INACTIVE)",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
     "/registry/addresses/{addressId}/eligibility": {
       "get": {
         "operationId": "RegistryController_getEligibility",
@@ -2414,6 +2670,108 @@
         ]
       }
     },
+    "/agent-runs/{agentRunId}/contact-selection": {
+      "post": {
+        "operationId": "AgentRunsController_selectContact",
+        "parameters": [
+          {
+            "name": "agentRunId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectContactRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactSelectionDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · INVALID_SELECTION_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED · RECIPIENT_NOT_ELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND · ADDRESS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "NOT_WAITING_FOR_CONTACT_SELECTION · GAP_ALREADY_RESOLVED · NO_OWNER_REGISTERED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "WRONG_COUNTERPARTY · ROLE_MISMATCH · SIMULATION_MISMATCH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-129: a person chooses the recipient address for a run waiting with CONTACT_SELECTION_REQUIRED (this run and this facility / truck pool only — not a global default). The backend re-checks counterparty, role, channel kind and the Contact Gate; the run then wakes and drafts to that address",
+        "tags": [
+          "agent-runs"
+        ]
+      }
+    },
     "/internal/agent-runtime/runs/{agentRunId}/checkpoints": {
       "put": {
         "operationId": "AgentRuntimeController_put",
@@ -3526,6 +3884,48 @@
         ]
       }
     },
+    "/planning/plans/{planId}/follow-ups/contact-selection": {
+      "post": {
+        "operationId": "PlanFollowUpController_selectContact",
+        "parameters": [
+          {
+            "name": "planId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectFollowUpContactRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactSelectionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-129: choose the recipient address for one follow-up action that is blocked with CONTACT_SELECTION_REQUIRED (this plan and this action only). The backend re-checks counterparty, role, channel kind and the Contact Gate; call POST follow-ups again to draft to it",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
     "/planning/runs/{runId}/inputs/containers": {
       "post": {
         "operationId": "PlanningInputController_importContainers",
@@ -4503,6 +4903,76 @@
           "reasons",
           "dev_safety_applied",
           "evaluated_at"
+        ]
+      },
+      "SetAddressStatusRequestDto": {
+        "type": "object",
+        "properties": {
+          "communication_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED",
+              "INACTIVE"
+            ],
+            "description": "ACTIVE = use again · PAUSED = temporarily not used · INACTIVE = no longer used (address retired, person left). History (sent mail, audit) keeps pointing at this row"
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "ADDRESS_UNUSED",
+              "PERSON_LEFT",
+              "COUNTERPARTY_REQUEST",
+              "ENTERED_IN_ERROR",
+              "OTHER"
+            ],
+            "description": "Kept in the audit log as a code (no free text)"
+          }
+        },
+        "required": [
+          "communication_status",
+          "reason_code"
+        ]
+      },
+      "RejectAddressRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "ADDRESS_UNUSED",
+              "PERSON_LEFT",
+              "COUNTERPARTY_REQUEST",
+              "ENTERED_IN_ERROR",
+              "OTHER"
+            ],
+            "description": "e.g. COUNTERPARTY_REQUEST — the counterparty asked not to be contacted at this address (a person confirmed it; CERA does not read mail to decide this)"
+          }
+        },
+        "required": [
+          "reason_code"
+        ]
+      },
+      "SetContactActiveRequestDto": {
+        "type": "object",
+        "properties": {
+          "is_active": {
+            "type": "boolean"
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "ADDRESS_UNUSED",
+              "PERSON_LEFT",
+              "COUNTERPARTY_REQUEST",
+              "ENTERED_IN_ERROR",
+              "OTHER"
+            ]
+          }
+        },
+        "required": [
+          "is_active",
+          "reason_code"
         ]
       },
       "StructuredValueInputDto": {
@@ -6788,6 +7258,94 @@
           "fetches"
         ]
       },
+      "SelectContactRequestDto": {
+        "type": "object",
+        "properties": {
+          "address_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "An address of the counterparty this message must go to; the backend re-checks counterparty, role, channel kind and the Contact Gate"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Why this person (kept with the selection)"
+          }
+        },
+        "required": [
+          "address_id"
+        ]
+      },
+      "ContactSelectionDto": {
+        "type": "object",
+        "properties": {
+          "selection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope_type": {
+            "type": "string",
+            "enum": [
+              "AGENT_RUN",
+              "PLAN_FOLLOW_UP"
+            ]
+          },
+          "agent_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "plan_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "action_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "subject_type": {
+            "type": "string",
+            "enum": [
+              "FACILITY",
+              "TRUCK_POOL"
+            ]
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "address_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "selected_by_actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "selected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "selection_id",
+          "scope_type",
+          "agent_run_id",
+          "plan_id",
+          "action_key",
+          "subject_type",
+          "subject_id",
+          "address_id",
+          "selected_by_actor_id",
+          "selected_at",
+          "note"
+        ]
+      },
       "ApplicabilityScopeDto": {
         "type": "object",
         "properties": {
@@ -7800,6 +8358,30 @@
         },
         "required": [
           "plan_hash"
+        ]
+      },
+      "SelectFollowUpContactRequestDto": {
+        "type": "object",
+        "properties": {
+          "address_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "An address of the counterparty this message must go to; the backend re-checks counterparty, role, channel kind and the Contact Gate"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Why this person (kept with the selection)"
+          },
+          "action_key": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "The follow-up action (action_key from GET follow-ups) that waits for a person to choose a contact"
+          }
+        },
+        "required": [
+          "address_id",
+          "action_key"
         ]
       },
       "CreateLiveRunRequestDto": {

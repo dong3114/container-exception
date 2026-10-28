@@ -18,6 +18,7 @@ import { AgentServiceAuth } from './service-auth.js';
 import { AgentToolsController } from './agent-tools.controller.js';
 import { AgentToolsService } from './agent-tools.service.js';
 import { RecoveryContextService } from './context.service.js';
+import { AgentContactSelectionService } from './contact-selection.service.js';
 
 /**
  * Agent Tool Layer(T-103 · ADR-036): Python Agent Runtime → 이 API → 기존 도메인 서비스.
@@ -36,6 +37,7 @@ import { RecoveryContextService } from './context.service.js';
     AgentRuntimeService,
     AgentCoordinator,
     AgentReconciler,
+    AgentContactSelectionService,
     // Backend → Python Agent Runtime(시작 · 재개). 시험은 이 토큰을 가짜로 바꿀 수 있다
     { provide: AGENT_RUNTIME_CLIENT, inject: [ENV], useFactory: (env: Env) => new HttpAgentRuntimeClient(env.CERA_AGENT_RUNTIME_URL, env.CERA_AGENT_TOOL_TOKEN, env.CERA_AGENT_RUNTIME_TIMEOUT_MS) },
   ],

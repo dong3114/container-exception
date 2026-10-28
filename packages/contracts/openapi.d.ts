@@ -122,6 +122,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/registry/addresses/{addressId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** T-129: pause, retire (INACTIVE) or re-activate an address. The row is never deleted — sent mail and audit keep pointing at it; only future selection, drafts, approvals and sends are blocked by the Contact Gate. A changed e-mail address = retire this one and register a new one */
+        patch: operations["RegistryController_setAddressStatus"];
+        trace?: never;
+    };
+    "/registry/addresses/{addressId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-129: record that this address must not be contacted (relationship REJECTED — final; register a new address to use one again). A person decides; CERA does not read replies to block addresses */
+        post: operations["RegistryController_rejectAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registry/contacts/{contactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** T-129: deactivate (person left, no longer responsible) or re-activate a contact. Every address of an inactive contact fails the Contact Gate (CONTACT_INACTIVE) */
+        patch: operations["RegistryController_setContactActive"];
+        trace?: never;
+    };
     "/registry/addresses/{addressId}/eligibility": {
         parameters: {
             query?: never;
@@ -567,6 +618,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-runs/{agentRunId}/contact-selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-129: a person chooses the recipient address for a run waiting with CONTACT_SELECTION_REQUIRED (this run and this facility / truck pool only — not a global default). The backend re-checks counterparty, role, channel kind and the Contact Gate; the run then wakes and drafts to that address */
+        post: operations["AgentRunsController_selectContact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/agent-runtime/runs/{agentRunId}/checkpoints": {
         parameters: {
             query?: never;
@@ -819,6 +887,23 @@ export interface paths {
         put?: never;
         /** Create inquiry drafts for the approved plan actions that have none yet (no approval, no send) */
         post: operations["PlanFollowUpController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/planning/plans/{planId}/follow-ups/contact-selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-129: choose the recipient address for one follow-up action that is blocked with CONTACT_SELECTION_REQUIRED (this plan and this action only). The backend re-checks counterparty, role, channel kind and the Contact Gate; call POST follow-ups again to draft to it */
+        post: operations["PlanFollowUpController_selectContact"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1127,6 +1212,30 @@ export interface components {
             dev_safety_applied: boolean;
             /** @example 2026-10-13T11:00:00.000+09:00 */
             evaluated_at: string;
+        };
+        SetAddressStatusRequestDto: {
+            /**
+             * @description ACTIVE = use again · PAUSED = temporarily not used · INACTIVE = no longer used (address retired, person left). History (sent mail, audit) keeps pointing at this row
+             * @enum {string}
+             */
+            communication_status: "ACTIVE" | "PAUSED" | "INACTIVE";
+            /**
+             * @description Kept in the audit log as a code (no free text)
+             * @enum {string}
+             */
+            reason_code: "ADDRESS_UNUSED" | "PERSON_LEFT" | "COUNTERPARTY_REQUEST" | "ENTERED_IN_ERROR" | "OTHER";
+        };
+        RejectAddressRequestDto: {
+            /**
+             * @description e.g. COUNTERPARTY_REQUEST — the counterparty asked not to be contacted at this address (a person confirmed it; CERA does not read mail to decide this)
+             * @enum {string}
+             */
+            reason_code: "ADDRESS_UNUSED" | "PERSON_LEFT" | "COUNTERPARTY_REQUEST" | "ENTERED_IN_ERROR" | "OTHER";
+        };
+        SetContactActiveRequestDto: {
+            is_active: boolean;
+            /** @enum {string} */
+            reason_code: "ADDRESS_UNUSED" | "PERSON_LEFT" | "COUNTERPARTY_REQUEST" | "ENTERED_IN_ERROR" | "OTHER";
         };
         StructuredValueInputDto: {
             /** @example quantity */
@@ -1833,6 +1942,37 @@ export interface components {
         FetchLedgerDto: {
             fetches: components["schemas"]["FetchLedgerEntryDto"][];
         };
+        SelectContactRequestDto: {
+            /**
+             * Format: uuid
+             * @description An address of the counterparty this message must go to; the backend re-checks counterparty, role, channel kind and the Contact Gate
+             */
+            address_id: string;
+            /** @description Why this person (kept with the selection) */
+            note?: string;
+        };
+        ContactSelectionDto: {
+            /** Format: uuid */
+            selection_id: string;
+            /** @enum {string} */
+            scope_type: "AGENT_RUN" | "PLAN_FOLLOW_UP";
+            /** Format: uuid */
+            agent_run_id: string | null;
+            /** Format: uuid */
+            plan_id: string | null;
+            action_key: string | null;
+            /** @enum {string} */
+            subject_type: "FACILITY" | "TRUCK_POOL";
+            /** Format: uuid */
+            subject_id: string;
+            /** Format: uuid */
+            address_id: string;
+            /** Format: uuid */
+            selected_by_actor_id: string;
+            /** Format: date-time */
+            selected_at: string;
+            note: string | null;
+        };
         ApplicabilityScopeDto: {
             type: string;
             ref: string;
@@ -2168,6 +2308,17 @@ export interface components {
             /** @description plan_hash of the plan you reviewed */
             plan_hash: string;
             note?: string;
+        };
+        SelectFollowUpContactRequestDto: {
+            /**
+             * Format: uuid
+             * @description An address of the counterparty this message must go to; the backend re-checks counterparty, role, channel kind and the Contact Gate
+             */
+            address_id: string;
+            /** @description Why this person (kept with the selection) */
+            note?: string;
+            /** @description The follow-up action (action_key from GET follow-ups) that waits for a person to choose a contact */
+            action_key: string;
         };
         CreateLiveRunRequestDto: {
             /**
@@ -2582,6 +2733,180 @@ export interface operations {
             };
             /** @description ADDRESS_REJECTED */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    RegistryController_setAddressStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                addressId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAddressStatusRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactEligibilityDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_REJECTED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    RegistryController_rejectAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                addressId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectAddressRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactEligibilityDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ADDRESS_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    RegistryController_setContactActive: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetContactActiveRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterpartySummaryDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_REGISTRY_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3875,6 +4200,79 @@ export interface operations {
             };
         };
     };
+    AgentRunsController_selectContact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator who starts or cancels the agent run (active HUMAN actor). Development stand-in until authentication exists. */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                agentRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectContactRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactSelectionDto"];
+                };
+            };
+            /** @description INVALID_ID · INVALID_SELECTION_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED · RECIPIENT_NOT_ELIGIBLE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND · ADDRESS_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_WAITING_FOR_CONTACT_SELECTION · GAP_ALREADY_RESOLVED · NO_OWNER_REGISTERED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description WRONG_COUNTERPARTY · ROLE_MISMATCH · SIMULATION_MISMATCH */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     AgentRuntimeController_list: {
         parameters: {
             query?: never;
@@ -4591,6 +4989,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    PlanFollowUpController_selectContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectFollowUpContactRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactSelectionDto"];
                 };
             };
         };

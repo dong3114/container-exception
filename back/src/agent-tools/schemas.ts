@@ -256,6 +256,9 @@ const gapSchema = z
     suggested_intent: z.enum(['TRUCK_SLOT', 'FACILITY_CAPACITY']),
     suggested_counterparty_role: z.enum(['TRUCKING', 'ODCY', 'WAREHOUSE']),
     owner_counterparty_id: uuid.nullable(),
+    selected_address_id: uuid
+      .nullable()
+      .describe('T-129: the address a person chose for this run and this subject, when it is still usable. Draft to this one only; null = nobody chose (several usable addresses = wait for a person)'),
     candidate_state: z
       .enum(['NONE', 'REPLY_RECEIVED', 'CANDIDATE_RECEIVED', 'CANDIDATE_ACCEPTED', 'NO_VALID_CANDIDATE'])
       .describe('Workflow only: whether an asked partner replied and what became of the validated extraction candidate (CANDIDATE_RECEIVED = validated but not promoted · CANDIDATE_ACCEPTED = became a provisional fact). NOT a fact itself — the business gap `state` says what is known'),

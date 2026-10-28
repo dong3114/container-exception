@@ -116,3 +116,7 @@ export const TARIFF_UNIT = ['KRW', 'DAY'] as const;
 
 // M33 계획 후속의 종류(T-128)
 export const FOLLOW_UP_KIND = ['REQUEST', 'CORRECTION', 'CANCELLATION'] as const;
+
+// M34 연락처 수동 선택(T-129) — 선택이 적용되는 범위: 기다리는 Agent 실행의 공백 하나 · 승인된 계획 판의 후속 조치 하나(전역 기본값 아님)
+export const CONTACT_SELECTION_SCOPE = ['AGENT_RUN', 'PLAN_FOLLOW_UP'] as const;
+export const CONTACT_SELECTION_SUBJECT = ['FACILITY', 'TRUCK_POOL'] as const;

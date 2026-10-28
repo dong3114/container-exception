@@ -231,6 +231,7 @@ export class RecoveryContextService {
         suggested_intent: n.kind === 'TRUCK_AVAILABILITY' ? 'TRUCK_SLOT' : 'FACILITY_CAPACITY',
         suggested_counterparty_role: n.role,
         owner_counterparty_id: n.owner,
+        selected_address_id: null, // T-129: 사람의 선택은 실행마다 다르다 — Tool handler 가 채운다
         candidate_state: 'NONE', // 회신 · 추출은 handler 가 메시지 상태로 채운다(candidateState)
         candidate_extraction_ids: [],
       });

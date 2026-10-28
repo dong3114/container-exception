@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApiApp } from '../../src/app/create-api.js';
 import { OutboxDispatcher } from '../../src/communication/outbox-dispatcher.js';
 import { RecoveryPlanService } from '../../src/planning/recovery-plan.service.js';
+import { RegistryService } from '../../src/registry/registry.service.js';
 import { actor, registry, type Registry } from './fixtures.js';
 import { appPool, expectSqlState, ownerPool, testEnv } from './support.js';
 
@@ -300,6 +301,81 @@ describe('T-114 recovery plan — deterministic engine on Truth facts, versioned
       await enter(x, { kind: 'FACILITY_CAPACITY', target_id: x.ids.WAREHOUSE_A, value: 3 });
       await plans.refreshOutdated(x.runId);
       expect((await http.post(`/communication/drafts/${cancelDrafts[0].message_id}/approve`).set(ACTOR, humanId).send({ content_hash: d0.message.content_hash }).expect(409)).body.code).toBe('PLAN_SUPERSEDED');
+    } finally {
+      plans.packIds = w.ids;
+    }
+  });
+
+  it('T-129 M · N: the original recipient of a sent follow-up was retired — the cancellation keeps that history, waits for a usable address of the same company (never another one), and a person chooses between two', async () => {
+    const x = await newWorld();
+    plans.packIds = x.ids;
+    const registry = api.get(RegistryService);
+    try {
+      await todayFacts(x);
+      const v1 = (await http.post(`/planning/runs/${x.runId}/plans`).set(ACTOR, humanId).expect(200)).body;
+      await http.post(`/planning/plans/${v1.plan_id}/approve`).set(ACTOR, humanId).send({ plan_hash: v1.plan_hash }).expect(200);
+      const made = (await http.post(`/planning/plans/${v1.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+      const trucks = made.actions.filter((a: { kind: string; message_id: string | null }) => a.kind === 'PARTNER_TRUCKS' && a.message_id);
+      expect(trucks.length).toBeGreaterThan(0);
+      const dispatcher = api.get(OutboxDispatcher);
+      for (const t of trucks) {
+        const d = (await http.get(`/communication/drafts/${t.message_id}`).expect(200)).body;
+        await http.post(`/communication/drafts/${t.message_id}/approve`).set(ACTOR, humanId).send({ content_hash: d.message.content_hash }).expect(200);
+        await http.post(`/communication/drafts/${t.message_id}/send`).set(ACTOR, humanId).send({ content_hash: d.message.content_hash }).expect(200);
+        await dispatcher.processMessage(t.message_id);
+      }
+      const sentIds = trucks.map((t: { message_id: string }) => t.message_id);
+      const sentBefore = (await db.query('SELECT message_id, to_address_id, current_status, content_hash, sent_at FROM cera.comm_message WHERE message_id = ANY($1::uuid[]) ORDER BY message_id', [sentIds])).rows;
+      expect(sentBefore.every((m) => m.current_status === 'SENT' && m.to_address_id === x.addressId)).toBe(true);
+      // 운송사 담당자가 퇴사했다 — 그 주소를 더는 쓰지 않는다(행 · 보낸 메일은 그대로)
+      await registry.setAddressStatus(x.addressId, humanId, { communication_status: 'INACTIVE', reason_code: 'PERSON_LEFT' });
+
+      await enter(x, { kind: 'TRUCK_SLOT', target_id: x.ids.K_TRUCKING, window_from: '15:00', window_to: '17:00', value: 0 });
+      await enter(x, { kind: 'TRUCK_SLOT', target_id: x.ids.K_TRUCKING, window_from: '17:00', window_to: '19:00', value: 0 });
+      await plans.refreshOutdated(x.runId);
+      const v2 = (await http.post(`/planning/runs/${x.runId}/plans`).set(ACTOR, humanId).expect(200)).body;
+      await http.post(`/planning/plans/${v2.plan_id}/approve`).set(ACTOR, humanId).send({ plan_hash: v2.plan_hash }).expect(200);
+
+      // N: 그 운송사에 쓸 수 있는 주소가 없다 → 취소 초안을 만들지 않고 이유를 남긴다(다른 회사로 보내지 않는다)
+      const messagesBefore = (await db.query('SELECT count(*)::int AS n FROM cera.comm_message')).rows[0].n;
+      const none = (await http.post(`/planning/plans/${v2.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+      const cancels = none.actions.filter((a: { follow_up_kind: string }) => a.follow_up_kind === 'CANCELLATION');
+      expect(cancels.length).toBe(trucks.length);
+      expect(cancels.every((c: { message_id: string | null; blocked_reason: string | null }) => c.message_id === null && c.blocked_reason === 'NO_ELIGIBLE_CONTACT')).toBe(true);
+      expect((await db.query('SELECT count(*)::int AS n FROM cera.comm_message')).rows[0].n).toBe(messagesBefore);
+
+      // 같은 운송사에 새 담당 둘을 등록 · 승인 → 고를 사람이 둘 → 고르지 않는다
+      const added: string[] = [];
+      for (const name of ['배차 담당 A', '배차 담당 B']) {
+        const s = await registry.createContact(x.counterpartyId, humanId, { person_name: name, channel_type: 'MOCK', address: `m-${name.slice(-1).toLowerCase()}-${x.counterpartyId.slice(-8)}@example.invalid` });
+        const a = s.contacts.find((c) => c.person_name === name)!.addresses[0]!.address_id;
+        await registry.approveAddress(a, humanId);
+        added.push(a);
+      }
+      const two = (await http.post(`/planning/plans/${v2.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+      expect(two.actions.filter((a: { follow_up_kind: string }) => a.follow_up_kind === 'CANCELLATION').every((c: { message_id: string | null; blocked_reason: string | null }) => c.message_id === null && c.blocked_reason === 'CONTACT_SELECTION_REQUIRED')).toBe(true);
+
+      // 사람이 조치마다 고른다 — 다른 회사의 주소 · 퇴사자 주소는 거부
+      const choose = (body: object) => http.post(`/planning/plans/${v2.plan_id}/follow-ups/contact-selection`).set(ACTOR, humanId).send(body);
+      const key = cancels[0].action_key as string;
+      expect((await choose({ action_key: key, address_id: w.addressId }).expect(422)).body.code).toBe('WRONG_COUNTERPARTY');
+      expect((await choose({ action_key: key, address_id: x.addressId }).expect(403)).body.code).toBe('RECIPIENT_NOT_ELIGIBLE');
+      expect((await choose({ action_key: 'CANCEL:nothing', address_id: added[1] }).expect(404)).body.code).toBe('NOT_FOUND');
+      for (const c of cancels) {
+        const sel = (await choose({ action_key: c.action_key, address_id: added[1], note: '새 배차 담당' }).expect(201)).body;
+        expect(sel).toMatchObject({ scope_type: 'PLAN_FOLLOW_UP', plan_id: v2.plan_id, action_key: c.action_key, agent_run_id: null, address_id: added[1] });
+      }
+      const drafted = (await http.post(`/planning/plans/${v2.plan_id}/follow-ups`).set(ACTOR, humanId).expect(200)).body;
+      const cancelDrafts = drafted.actions.filter((a: { follow_up_kind: string; message_id: string | null }) => a.follow_up_kind === 'CANCELLATION' && a.message_id);
+      expect(cancelDrafts).toHaveLength(trucks.length);
+      for (const c of cancelDrafts) {
+        const m = (await db.query('SELECT to_address_id, current_status FROM cera.comm_message WHERE message_id = $1', [c.message_id])).rows[0];
+        expect(m).toEqual({ to_address_id: added[1], current_status: 'PENDING_APPROVAL' }); // 사람 승인 대기 · 고른 주소
+      }
+      // 초안이 생긴 뒤에는 받는 주소를 바꾸지 않는다(그 초안을 반려하는 것이 길)
+      expect((await choose({ action_key: cancels[0].action_key, address_id: added[0] }).expect(409)).body.code).toBe('FOLLOW_UP_ALREADY_DRAFTED');
+      // 보낸 메일은 원래 받는 사람 그대로
+      expect((await db.query('SELECT message_id, to_address_id, current_status, content_hash, sent_at FROM cera.comm_message WHERE message_id = ANY($1::uuid[]) ORDER BY message_id', [sentIds])).rows).toEqual(sentBefore);
     } finally {
       plans.packIds = w.ids;
     }
