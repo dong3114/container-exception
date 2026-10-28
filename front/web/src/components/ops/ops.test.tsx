@@ -15,8 +15,9 @@ import { ContactResolver } from "./ContactResolver";
 import { ErrorNotice } from "./ErrorNotice";
 import { OperationalInput } from "./OperationalInput";
 import { ReadinessPanel } from "./ReadinessPanel";
+import { RunList } from "./RunList";
 import { HUMAN_REASON, can, errorText } from "./opsLabels";
-import { addressState, agentNarrative, buildTimeline, candidateCompanies, createPoller, deriveActions, outdatedText, ownerFromInquiries, planDiff, questionAnswered, runGroup, usable } from "./opsModel";
+import { type RunSummary, addressState, agentNarrative, exceptionText, buildTimeline, candidateCompanies, createPoller, deriveActions, outdatedText, ownerFromInquiries, planDiff, questionAnswered, runGroup, usable } from "./opsModel";
 
 /** 운영 콘솔(T-120) — 화면은 Backend 기록을 모아 쉬운 말로 보일 뿐이다. 계약 모양의 합성 값만 쓴다 */
 const RUN = "01a11040-0000-7000-8000-0000000000r1";
@@ -32,7 +33,7 @@ const ADMIN = me("ADMIN", [...OPERATOR.permissions, "registry.manage", "users.ma
 const FIELD = me("FIELD_OPERATOR", ["read", "truth.manual_entry"]);
 const withMe = (who: Me, node: React.ReactNode) => renderToStaticMarkup(<MeContext.Provider value={who}>{node}</MeContext.Provider>);
 
-const runSummary = (id: string, simulated = true) => ({ run_id: id, trigger_ref: "WH-A-CAPACITY", executed_at: "2026-10-13T10:30:00.000+09:00", contains_simulated: simulated, scenario_id: "s" });
+const runSummary = (id: string, simulated = true) => ({ run_id: id, trigger_ref: "WH-A-CAPACITY", executed_at: "2026-10-13T10:30:00.000+09:00", contains_simulated: simulated, scenario_id: "s", source: (simulated ? "SCENARIO" : "MANUAL") as "SCENARIO" | "MANUAL" | "AUTO_DETECTED", exception: null as RunSummary["exception"] });
 const agentItem = (over: Partial<AgentRunListItem> = {}): AgentRunListItem => ({ agent_run_id: AGENT, recovery_run_id: RUN, status: "WAITING_HUMAN", current_node: "wait_contact", waiting_reason: "CONTACT_SELECTION_REQUIRED", pending_ref: { type: "FACILITY", id: FAC }, started_at: "2026-10-13T10:31:00.000+09:00", finished_at: null, ...over });
 const agentRun = (over: Partial<AgentRun> = {}): AgentRun =>
   ({
@@ -316,5 +317,34 @@ describe("시연 전 다듬기 — 트럭 풀 상대 회사 · 이미 채워진 
     const done = withMe(OPERATOR, <CommsList drafts={[d]} tags={new Map()} openId={null} onOpen={() => undefined} onChanged={() => undefined} facts={[fact]} />);
     expect(done).toContain("처리 완료");
     expect(done).not.toContain("답장 검토 필요");
+  });
+});
+
+describe("T-132 automatic exception detection on the console", () => {
+  const ex: NonNullable<RunSummary["exception"]> = { exception_id: "e1", status: "ACTIVE", basis: "CONFIRMED", facility_id: "f", facility_name: "창고 A", window_day: "2026-10-13", scheduled_demand: 20, capacity: 8, shortage: 12 };
+  const autoRun = { ...runSummary(RUN, false), trigger_ref: "EXCEPTION:e1", source: "AUTO_DETECTED" as const, exception: ex };
+
+  it("states the detected problem in one line: facility · day · planned / capacity · affected", () => {
+    expect(exceptionText(ex)).toBe("창고 A 수용량 부족 · 10-13 예정 20 / 가능 8 · 영향 12대");
+    expect(exceptionText({ ...ex, status: "RESOLVED" })).toContain("해소됨");
+    expect(exceptionText({ ...ex, basis: "PROVISIONAL" })).toContain("임시 사실 기준");
+  });
+
+  it("an auto-detected run without an agent asks a person to start the agent (the quantity is a human decision)", () => {
+    const actions = deriveActions({ rows: [{ run: autoRun, agent: null, plan: null }], drafts: [], inbound: [] });
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ key: `auto:${RUN}`, tab: "agent", title: "자동 탐지된 예외 — Agent 시작이 필요합니다" });
+    expect(runGroup({ run: autoRun, agent: null, plan: null }, actions)).toBe("ACTION");
+    // 이미 시작했거나 해소된 예외 · 사람이 만든 실행은 이 할 일이 없다
+    expect(deriveActions({ rows: [{ run: autoRun, agent: agentItem({ status: "RUNNING", waiting_reason: null }), plan: null }], drafts: [], inbound: [] }).some((a) => a.key.startsWith("auto:"))).toBe(false);
+    expect(deriveActions({ rows: [{ run: { ...autoRun, exception: { ...ex, status: "RESOLVED" } }, agent: null, plan: null }], drafts: [], inbound: [] })).toEqual([]);
+    expect(deriveActions({ rows: [{ run: runSummary(RUN, false), agent: null, plan: null }], drafts: [], inbound: [] })).toEqual([]);
+  });
+
+  it("the run list marks the auto-detected run and shows the problem line", () => {
+    const html = renderToStaticMarkup(<RunList rows={[{ run: autoRun, agent: null, plan: null }]} actions={[]} selectedId={null} onSelect={() => undefined} />);
+    expect(html).toContain('data-testid="auto-detected"');
+    expect(html).toContain("자동 탐지");
+    expect(html).toContain("예정 20 / 가능 8 · 영향 12대");
   });
 });
