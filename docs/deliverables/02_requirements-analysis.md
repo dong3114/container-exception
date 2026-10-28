@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) — **구현된 요구사항만** 적는다. 구현되지 않은 것은 9절 |
-| 기준 | HEAD `5881529` + T-132. 근거 순서: 코드 → migration(M01~M36) → OpenAPI(`packages/contracts/openapi.json`) → 시험 → 최신 docs |
+| 기준 | HEAD `5881529` + T-132 · T-133. 근거 순서: 코드 → migration(M01~M36) → OpenAPI(`packages/contracts/openapi.json`) → 시험 → 최신 docs |
 | 관련 문서 | [01 기획서](01_service-plan.md) · [03 유스케이스](03_use-cases.md) · [07 API](07_interface-api.md) · [05 DB](05_data-model-and-tables.md) · [09 추적성](09_traceability-matrix.md) · [11 용어집](11_glossary.md) |
 
 ## 1. ID 체계와 우선순위
@@ -36,6 +36,7 @@
 | `contact.select` | ✓ | ✓ | | ✓ |
 | `registry.manage` | ✓ | | | |
 | `users.manage` | ✓ | | | |
+| `system.monitor`(운영 시스템 상태, T-133) | ✓ | ✓ | | |
 
 규칙(`back/src/auth/auth.guard.ts`): `@Public()` 은 통과 · 선언 없는 GET 은 `read` · **선언 없는 변경 요청은 거부**(`PERMISSION_NOT_DECLARED`).
 
@@ -56,10 +57,10 @@
 | FU 후속 · 정정 · 취소 | 4 | 1 | 3 | 0 |
 | PUB 공공데이터 | 3 | 0 | 0 | 3 |
 | AUDIT | 2 | 1 | 1 | 0 |
-| OPS 운영 | 3 | 0 | 2 | 1 |
+| OPS 운영 | 6 | 0 | 4 | 2 |
 | DEMO 시연 · 포트폴리오 | 2 | 0 | 0 | 2 |
-| **합계(기능)** | **83** | **34** | **41** | **8** |
-| 비기능(8절) | 28 | | | |
+| **합계(기능)** | **86** | **34** | **43** | **9** |
+| 비기능(8절) | 29 | | | |
 
 ## 4. 기능 요구사항 — 인증 · 권한 · 복구 실행
 
@@ -371,7 +372,7 @@
 
 ### FR-INPUT-005 운영 기준 계획 입력 (P1 · 구현 · T-132)
 - 설명: 어느 복구 실행에도 속하지 않은 예정 반입(원래 계획)을 CSV · 행으로 넣는다 — 예외 탐지기의 수요 원천. 검증만(dry-run) · 판 · 멱등 · 철회(`status = WITHDRAWN`) 규칙은 실행 입력과 같다. 저장되면 `OPERATIONAL_INPUT_CHANGED` 알림 → 탐지
-- 권한: `planning.input` · API: `POST · GET /planning/inputs/containers`
+- 권한: `planning.input` · API: `POST · GET /planning/inputs/containers` · 화면(T-133): 운영 콘솔 "운영 기준 계획 입력"(검증만 → 저장, 공개 데모에는 없음)
 - 테이블: `planning_input_batch`(`recovery_run_id` NULL) · `planning_container_record`(`recovery_run_id` NULL, M37) · 시험: `db/exception-detection.test.ts`
 
 ### FR-INPUT-004 입력 준비도 (P1 · 구현)
@@ -461,6 +462,20 @@
 - 설명: `npm run db:bootstrap` — SYSTEM · AI_AGENT 행위자 + 사람 계정(환경변수 비밀번호)만 만든다. 합성 데이터 없음 · 어느 APP_ENV 에서나 · 반복 안전. 이것이 없으면 시드가 없는 Staging · 운영의 Worker 가 `SYSTEM_ACTOR_MISSING` 으로 멈췄다
 - 위치: `back/src/seed/run-bootstrap.ts` · 검증: Staging E2E(10-28)
 
+### FR-OPS-004 운영 시스템 상태 (P1 · 구현 · T-133)
+- 설명: 운영자가 CERA 자체가 일하고 있는지 한 화면에서 본다 — API(가동 · 판 · commit) · PostgreSQL(연결 · 응답 ms) · Redis(빠른 경로 / PostgreSQL 폴링 대체) · Worker(heartbeat) · AI Server(Replay / 상용) · Agent Runtime · LLM(공급자 · 모델 · 최근 성공 · 실패) · Gmail(켜짐 · 연결 확인 결과 · 최근 발송 · 수신 — 토큰 만료 시각은 추측하지 않음) · 공공데이터(최근 조회 · 결과) · 대기 작업(발송 · 추출 · 추출 재시도 · Agent 재시도 — 건수 · 가장 오래 기다린 시간, **PostgreSQL 기준**)
+- 판정: 결정론 규칙(`back/src/ops/system-status.policy.ts`, LLM 없음) — 구성 요소 HEALTHY · DEGRADED · DOWN · DISABLED, 전체 HEALTHY · DEGRADED(대체 경로 · 지연 — Redis 장애 · AI 장애 · 오래 기다리는 작업) · ACTION_REQUIRED(Worker 멈춤 · Gmail 인증 거부) · DOWN(PostgreSQL)
+- 권한: `system.monitor`(ADMIN · OPERATOR) — 데모 방문자 · 현장 담당자 403 · API: `GET /ops/system-status` · 응답에 주소 · 호스트 · 경로 · 키 · 토큰 없음
+- 위치: `back/src/ops/*` · 화면 `front/web/src/components/ops/SystemHealth.tsx` · 시험: `unit/system-status-policy.test.ts` · `db/ops-status.test.ts` · `fe/components/ops/dashboard.test.tsx`
+
+### FR-OPS-005 Worker heartbeat (P1 · 구현 · T-133)
+- 설명: Worker 가 주기를 마칠 때마다 DB 에 마지막 확인 시각 · 주기 시간 · 실패한 단계 · 채널별 수신 확인 결과(코드만)를 남긴다 — 화면 판단이 프로세스 메모리가 아니라 DB 라 API 가 여러 개여도 같다. 30초 이하 정상 · 90초 이하 지연 · 그 이상 멈춤 [ASSUMPTION]
+- 테이블: `runtime_heartbeat`(M39 · M40) · 위치: `WorkerRunner.tick` · `back/src/ops/heartbeat.repository.ts` · 시험: `db/ops-status.test.ts`
+
+### FR-OPS-006 배포 모드 표시 (P2 · 구현 · T-133)
+- 설명: 모든 화면 위 배지 — PUBLIC PORTFOLIO DEMO · PRIVATE STAGING · PRODUCTION · LOCAL(설정에서만 정함, `/auth/me` 의 `deployment_mode`). 공개 데모 방문자에게는 내부 운영 상태 대신 데모 · Mock · Replay 안내만
+- 시험: `db/ops-status.test.ts` · `fe/components/ops/dashboard.test.tsx` · 포트폴리오 E2E
+
 ### FR-DEMO-001 시연 상태 · Mock 회신 도우미 (P2 · 구현)
 - 설명: 시연 콘솔이 쓰는 상태 확인(설정 · AI Server · 시드 id)과 Mock 회신 넣기. local · test · 포트폴리오 모드에서만 경로가 있다.
 - API: `GET /dev/demo/status`(T-132: `exception_detection` · `active_run_id` · `auto_exception`) · `POST /dev/demo/mock-reply` · 시험: `db/portfolio.test.ts`
@@ -494,6 +509,7 @@
 | NFR-PERF-001 | Solver 시간 | 30대 시나리오 0.3~0.6 s 실측 · 비상 상한 30 s | ADR-038 · LOG | P1 |
 | NFR-PERF-002 | 비상 상한 | AI 요청 330 s · 상용 LLM 120 s · Agent 구동 900 s · Gmail 30 s · 공공데이터 30 s [ASSUMPTION] | `env.ts` · `config.py` | P2 |
 | NFR-OBS-001 | 요청 추적 | `X-Request-Id` · trace id · JSON 로그(local 외) | `request-context.middleware.ts` | P1 |
+| NFR-OBS-003 | 운영 상태 가시성 | 시스템 상태를 프로세스 메모리가 아니라 DB(heartbeat · 업무 기록)와 결정론 규칙으로 판정 · 대기 작업은 PostgreSQL 기준(Redis 는 가속일 뿐) · 서버 정보 · 비밀 노출 없음 | `back/src/ops/*` · Staging E2E 46/46 | P1 |
 | NFR-OBS-002 | 실행 관측 | `npm run runtime:stats`(그래프 · Tool · 공공데이터 지연 분포) | `back/src/dev/runtime-stats.ts` | P2 |
 | NFR-DEP-001 | 재현 가능한 실행 | Docker Compose(로컬 · 포트폴리오) · migration 한 번짜리 컨테이너 | `infra/` | P1 |
 | NFR-DEP-002 | 새 설치 · 백업 · 복원 | 빈 볼륨 설치 · pg_dump/restore + ContentStore | `infra/README.md` · 10-27 검증 | P1 |

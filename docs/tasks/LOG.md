@@ -21,6 +21,19 @@
 
 ---
 
+## 2026-10-28 · T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 업무 로직 변경 없음(운영 가시성 최소 범위). Backend 다시 FROZEN
+- 한 일:
+  - ADR-040 세부 선택 3개 사용자 승인 반영 · ADR-041(Worker heartbeat · 결정론 시스템 상태 판정)
+  - Backend: `back/src/ops/*` · M39 `runtime_heartbeat` · M40 · `GET /ops/system-status`(`system.monitor` = ADMIN · OPERATOR) · `/auth/me` `deployment_mode` · Worker heartbeat · 수신 채널별 결과 · 내부 URL 노출 제거 · AI `/health` `agent_runtime`
+  - 화면: 운영 Dashboard(할 일 → 현재 예외 → 복구 실행 → 운영 기준 계획 입력 → 시스템 상태) · 모드 배지 · [Agent 시작] 할 일
+  - 문서: 산출물 01~11 · 부록 A · B 재생성(54표 · 662컬럼 · 85 경로) · `docs/24` 22.63 · 22.64 · `docs/16` 16절 · `infra/staging/README.md` 운영 절
+- 검증: Backend 63 파일 605 · Python 99 · Front 17 파일 116 · typecheck · lint 오류 0 · build. 로컬 Private Staging 브라우저 E2E 46/46(시스템 정상 9 구성 요소 · 화면 CSV 입력 → 자동 예외 10/4/6 → 할 일 → Agent 시작 · Redis 중단 DEGRADED · 업무 계속 · 복구 · AI 중단 DEGRADED · Worker 중단 → 지연 → DOWN · ACTION_REQUIRED → 복구 HEALTHY · 실제 Gmail 발송 0 · 페이지 오류 0). 공개 포트폴리오 회귀 30/30 + 보안 18/18
+- 발견: FINDINGS F-7(대안 · 요율 없는 새 환경의 Agent FAILED — 고치지 않음)
+- 남은 일 / 다음 한 걸음: 사용자 — Staging 서버 · 접근 통제 · F-7 판단
+- 큐 변경: T-133 DONE
+- 주의사항: 시험용 staging · portfolio 스택은 `down -v` · 시험용 `.env` 삭제. cera-demo 는 새 코드로 다시 빌드 · 시드
+
 ## 2026-10-28 · T-132 Private Staging 분리 + 결정론 예외 자동 탐지 · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 사용자가 신규 기능으로 명시 승인. 끝난 뒤 Backend 다시 FROZEN
 - 한 일:

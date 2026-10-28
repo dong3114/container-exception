@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` + T-132 · 코드값 `back/src/db/schema/codes.ts` · 내용 저장소 `back/src/content/*` · 공공데이터 `back/src/public-data/*` |
+| 기준 | HEAD `5881529` + T-132 · T-133 · 코드값 `back/src/db/schema/codes.ts` · 내용 저장소 `back/src/content/*` · 공공데이터 `back/src/public-data/*` |
 | 관련 문서 | [05 DB 설계](05_data-model-and-tables.md) · [06 아키텍처](06_system-architecture.md) · [08 운영](08_nfr-and-operations.md) · 출처 카탈로그(설계 시점) [`docs/11_data-sources.md`](../11_data-sources.md) |
 
 > 제목의 "빅데이터"에 대해: CERA 는 Hadoop · Spark · Data Lake 같은 대용량 처리 계층이 **없다**. 현재 다루는 것은 운영 데이터 · 공공 데이터 · 메시지 · AI 추출 · 사실 · 계획 · 감사 데이터이며 모두 PostgreSQL(+ 원문 파일 저장소)에 있다. 이 문서는 그 데이터의 출처 · 흐름 · 품질 · 활용을 분석한다.
@@ -30,6 +30,7 @@
 | 16 | 사용자 · 세션 | 관리자 · 시드 | API · 시드 | 구조화(비밀번호 해시 · 토큰 지문) | 로그인마다 | — | `user_account` · `user_session` | 인증 | 로그인 id · 표시 이름 | 세션은 만료 · 철회(행 유지) | 시드 계정은 합성 |
 | 17 | 운영 기준 계획(원래 반입 계획 — T-132) | 운영자 | CSV · 행, 검증 후 저장(`POST /planning/inputs/containers`) | 구조화 | 계획이 바뀔 때 새 판 | `FILE_IMPORT` · 사람 입력 | `planning_input_batch` · `planning_container_record`(`recovery_run_id` NULL) | 예외 탐지의 예정 수요 · 자동 실행의 입력 | 없음 | 무기한(append-only) | 시연은 **합성** · Staging 은 실제 입력 가능 |
 | 18 | 운영 예외 · 관측 기록(T-132) | 예외 탐지기(결정론) | 사실 · 운영 입력 변경 알림 · Worker 주기 | 구조화(예정 · 수용량 · 부족 · 근거 jsonb + 해시) | 근거가 바뀔 때만 | 근거 `CONFIRMED` · `PROVISIONAL` · 판단 불가 기록 | `operational_exception` · `operational_exception_observation` | 복구 실행 자동 생성 · 화면 개요 | 없음 | 무기한(관측 append-only · 예외 삭제 불가) | 범위 `SCENARIO` 는 **합성** · `LIVE` 는 실제 |
+| 19 | Worker heartbeat(T-133) | Worker 프로세스 | 주기마다 덮어씀 | 구조화(시각 · 주기 ms · 실패 단계 · 채널별 수신 확인 코드) | 수 초마다 | 실행 상태(업무 사실 아님) | `runtime_heartbeat` | 운영 시스템 상태 | 없음(코드만) | 한 행 · 삭제 불가 | 실제 프로세스 |
 
 ## 2. 실제 / 합성 구분 (2026-10-28)
 

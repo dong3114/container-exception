@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` + T-132 · `back/src/app/*` · `back/src/worker.ts` · `back/src/detection/*` · `ai/cera_ai/*` · `front/web/*` · `infra/local/compose*.yaml` · `infra/portfolio/compose.yaml` · `infra/staging/compose.yaml` |
+| 기준 | HEAD `5881529` + T-132 · T-133 · `back/src/app/*` · `back/src/worker.ts` · `back/src/detection/*` · `back/src/ops/*` · `ai/cera_ai/*` · `front/web/*` · `infra/local/compose*.yaml` · `infra/portfolio/compose.yaml` · `infra/staging/compose.yaml` |
 | 관련 결정 | ADR-026~029(책임 경계) · ADR-033(NestJS + 별도 Python) · ADR-034(PostgreSQL + Drizzle) · ADR-035(Vite SPA) · ADR-036(Agent Runtime) · ADR-037(LLM 선정 방식) · ADR-038(HiGHS) · ADR-039(포트폴리오 데모, Proposed) · ADR-040(Private Staging · 예외 자동 탐지) — [`docs/14_decisions.md`](../14_decisions.md) |
 | 관련 문서 | [07 API](07_interface-api.md) · [08 비기능 · 운영](08_nfr-and-operations.md) · [05 DB](05_data-model-and-tables.md) |
 
@@ -20,6 +20,7 @@
 │  · Truth(승격 · Reconciliation · 사람 판단)                  · 추출 요청 → AI Server              │
 │  · 운영 입력 · Cost/Risk Engine · HiGHS Solver(WASM)         · 사실 파생 표 재판정                  │
 │  · 예외 탐지기(결정론 — 사실 · 입력 변경 알림)                · 예외 탐지 주기(알림을 놓쳐도)        │
+│  · 운영 시스템 상태(GET /ops/system-status — 읽기만)          · 주기마다 heartbeat(runtime_heartbeat) │
 │  · 계획 판 · 후속 · 정정 · 취소                               · Agent 재조정(AgentReconciler)       │
 │  · Agent Coordinator · Agent Tool API(/internal)             · advisory lock 으로 작업별 하나만     │
 │  · Public Data Adapter(data.go.kr)                                                                │
@@ -80,6 +81,7 @@
 | `canonical_fact` 등 파생 표 | 사건에서 다시 계산 | 재판정으로 복구 |
 | LangGraph 체크포인트(`agent_checkpoint` + ContentStore) | **실행 상태** — 어디까지 진행했나. 업무 사실 아님 | 그 Agent 실행만 영향(업무 기록은 그대로) |
 | Redis | 큐 · 신호 — 정본 아님 | 영향 없음(폴링이 같은 일) |
+| `runtime_heartbeat`(T-133) | 실행 상태 — Worker 가 마지막으로 일한 시각 | 다음 주기에 다시 생김(업무 영향 없음) |
 | 프로세스 메모리 | 요청 한도 · 로그인 실패 수 · 도메인 신호 | 재시작 시 초기화(정확성은 DB + 재조정이 보장) |
 
 ## 5. 장애 복구 구조 (검증 기준 — `docs/tasks/LOG.md` 2026-10-27 · 10-28)
@@ -111,6 +113,21 @@ ExceptionDetectorService (back/src/detection — 순수 규칙 exception-rules.t
 
 스위치 `CERA_EXCEPTION_DETECTION`(`off` 기본 · `on` = 데모 · 포트폴리오 · Staging compose). 재시작 검증: Worker · Redis · API 를 재시작해도 예외 1 · 실행 1(Staging E2E, 10-28).
 
+## 5c. 운영 가시성 (T-133)
+
+```text
+운영 콘솔(5초 폴링 — WebSocket 없음) ── GET /ops/system-status (system.monitor = ADMIN · OPERATOR)
+   │                                       │
+   │                                       ├─ API 자신(가동 · 판 · CERA_BUILD_COMMIT) · PostgreSQL ping(ms) · 실행 큐 상태(Redis)
+   │                                       ├─ Worker: runtime_heartbeat(주기마다 Worker 가 덮어씀 — 프로세스 메모리 아님)
+   │                                       ├─ AI Server · Agent Runtime: /health(공급자 이름 · agent_runtime 만)
+   │                                       ├─ LLM · Gmail · 공공데이터: 기존 기록(감사 · system_error · send_attempt · 수신 · public_data_fetch) + heartbeat 의 채널 확인 코드
+   │                                       └─ 대기 작업: PostgreSQL(QUEUED 메시지 · 추출 대기/재시도 · WAITING_RUNTIME) — Redis 큐 길이는 보지 않는다
+   └─ 결정론 판정(system-status.policy.ts): DB DOWN → DOWN / Worker 멈춤 · Gmail 인증 거부 → ACTION_REQUIRED / 대체 경로 · 지연 → DEGRADED / 그 밖 HEALTHY
+```
+
+장기 지표 스택(Prometheus · Grafana · OpenTelemetry)은 넣지 않았다. 응답에 주소 · 호스트 · 경로 · 키 · 토큰이 없다(`GET /agent-runs/runtime` 의 내부 URL 도 T-133 에서 뺐다).
+
 ## 6. 배포 구성
 
 | 구성 | 파일 | 용도 |
@@ -133,6 +150,7 @@ ExceptionDetectorService (back/src/detection — 순수 규칙 exception-rules.t
 | `back/src/planning` | 운영 입력 · 준비도 · 계획 · 후속 · `engine/`(Cost · Baseline · Solver) |
 | `back/src/agent-tools` | Agent 실행 API · Coordinator · Tool · 재조정 · Runtime 저장소 |
 | `back/src/detection` | 예외 탐지 규칙(순수) · 탐지기 · `/exceptions` API |
+| `back/src/ops` | 시스템 상태 판정(순수) · 모으기 · heartbeat 저장 · `/ops/system-status` API |
 | `back/src/seed/run-bootstrap.ts` | 운영 환경 첫 준비(SYSTEM · AI_AGENT · 계정 — 합성 데이터 없음) |
 | `back/src/public-data` | 공공데이터 어댑터 · 정규화 |
 | `back/src/queue` | 실행 큐(BullMQ/Redis) |

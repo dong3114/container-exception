@@ -10,7 +10,14 @@
 
 ## Status
 
-**IDLE — **T-132 Private Staging 분리 + 결정론 예외 자동 탐지 DONE(2026-10-28, 사용자가 신규 기능으로 명시 승인 · ADR-040 Accepted — 세부 선택은 사용자 확인 대상)** — 창고 수용량 부족(`WAREHOUSE_CAPACITY_SHORTAGE`)을 운영 기준 계획(M37 — 실행 밖 컨테이너 기록) × 수용량 사실로 결정론 탐지 → 예외 · 관측 기록(M37 · M38) → 복구 실행 자동 생성(`AUTO_DETECTED`, Agent 자동 시작 안 함 — 할 일로 안내) · 중복 방지(부분 유일 · advisory lock · 한 번 채움) · 해소 · 재발 · `infra/staging`(실제 Gmail · 상용 LLM · 공공데이터 · Basic Auth 선택) · `npm run db:bootstrap`(SYSTEM 행위자 blocker) · 시설 · 트럭 풀 등록 API · 화면(배지 · 개요 숫자 · `/demo` 연동). 검증: Backend 590 · Python 98 · Front 108 · 공개 데모 E2E 24/24 · Private Staging E2E 27/27(실제 Gmail 발송 0). **Backend 다시 FROZEN.****
+**IDLE — **T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 DONE(2026-10-28, ADR-041 Accepted · ADR-040 세부 선택 사용자 승인)** — 운영 콘솔 = 할 일 → 현재 예외(이력 · 실행 연결) → 복구 실행 → 운영 기준 계획 입력 → 시스템 상태(API · PostgreSQL · Redis 대체 표시 · Worker heartbeat(M39 · M40) · AI · LLM · Gmail · 공공데이터 · 대기 작업(PostgreSQL 기준)) · 결정론 전체 상태(HEALTHY · DEGRADED · ACTION_REQUIRED · DOWN) · `system.monitor`(ADMIN · OPERATOR) · 모드 배지. 검증: Backend 605 · Python 99 · Front 116 · Private Staging 브라우저 E2E 46/46(Redis · AI · Worker 장애 · 복구) · 공개 포트폴리오 30/30 + 보안 18/18. 업무 로직 변경 없음 — **Backend 다시 FROZEN**.**
+
+### 2026-10-28 T-133 남은 일(사용자)
+- 실제 Staging 서버 · 접근 통제(Basic Auth · IP · VPN) · `CERA_BUILD_COMMIT` 설정
+- FINDINGS F-7: 복구 대안 · 요율이 없는 새 환경에서 Agent 시작 = `CAPABILITY_NOT_AVAILABLE` FAILED(업무 로직 FROZEN — 고치지 않음, Staging runbook 에 "대안 · 요율 먼저" 안내)
+- 이후 후보(사용자 결정): 상태 이력 · 알림 · 다른 예외 유형 · 공개 데모 세션 격리
+
+(이전 상태) **IDLE — **T-132 Private Staging 분리 + 결정론 예외 자동 탐지 DONE(2026-10-28, 사용자가 신규 기능으로 명시 승인 · ADR-040 Accepted — 세부 선택은 사용자 확인 대상)** — 창고 수용량 부족(`WAREHOUSE_CAPACITY_SHORTAGE`)을 운영 기준 계획(M37 — 실행 밖 컨테이너 기록) × 수용량 사실로 결정론 탐지 → 예외 · 관측 기록(M37 · M38) → 복구 실행 자동 생성(`AUTO_DETECTED`, Agent 자동 시작 안 함 — 할 일로 안내) · 중복 방지(부분 유일 · advisory lock · 한 번 채움) · 해소 · 재발 · `infra/staging`(실제 Gmail · 상용 LLM · 공공데이터 · Basic Auth 선택) · `npm run db:bootstrap`(SYSTEM 행위자 blocker) · 시설 · 트럭 풀 등록 API · 화면(배지 · 개요 숫자 · `/demo` 연동). 검증: Backend 590 · Python 98 · Front 108 · 공개 데모 E2E 24/24 · Private Staging E2E 27/27(실제 Gmail 발송 0). **Backend 다시 FROZEN.****
 
 ### 2026-10-28 T-132 결과 · 남은 사용자 결정
 - 사용자 확인: ADR-040 세부 선택(운영 기준 계획을 탐지 기준으로 · Agent 자동 시작 안 함 · 시연은 공유 상태) · 실제 Staging 서버 · 접근 통제(Basic Auth · IP · VPN)

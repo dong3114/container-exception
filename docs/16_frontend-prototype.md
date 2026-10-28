@@ -238,3 +238,16 @@ Backend 의 결정론 예외 탐지기(`back/src/detection`)가 만든 실행 ·
 - 지금 해야 할 일: Agent 가 없는 자동 탐지 실행 → "자동 탐지된 예외 — Agent 시작이 필요합니다"(Agent 는 자동 시작하지 않는다 — 문의 수량은 사람이 정한다)
 - `/demo`: 탐지가 켜져 있으면 2단계에 자동 탐지 안내(`data-testid="demo-auto-detection"`), 3단계부터 `GET /dev/demo/status` 의 `active_run_id`(자동 실행)를 따라간다
 - 시험: `components/ops/ops.test.tsx` 3건 추가(배지 · 예외 줄 · 할 일). 실측: 공개 포트폴리오 E2E 24/24 · 페이지 오류 0
+
+## 16. 운영 Dashboard · 시스템 상태 (T-133 · ADR-041 · 2026-10-28)
+
+운영 콘솔 첫 화면을 운영 Dashboard 로 정리했다. 순서 = 우선순위: **지금 해야 할 일 → 현재 예외 → 복구 실행 → 운영 기준 계획 입력 → 시스템 상태**. 화면은 판정하지 않는다 — 상태는 Backend 결정론 규칙 값 그대로.
+
+- 세션 줄 **모드 배지**(`components/ops/ModeBadge.tsx`): PUBLIC PORTFOLIO DEMO · PRIVATE STAGING · PRODUCTION · LOCAL(`me.deployment_mode`)
+- 업무 숫자 6: 진행 중 예외 · 오늘 자동 탐지 · 사람 조치 대기 · 진행 중 복구 실행 · 승인 대기 계획 · 검토 필요 회신
+- 할 일: 자동 탐지 실행 = "복구 조사를 시작해 주세요" + 버튼 [Agent 시작](`ActionItem.cta`) → Agent 탭의 기존 시작 양식(수량은 사람이 정함)
+- **현재 예외**(`ExceptionBoard.tsx`): 진행 중 / 해소됨(접힘 · 기록 보존) · 예정 · 가능 · 영향 · 탐지 시각 · [복구 실행 열기] · 출처 · [이력 보기] → 관측 Timeline
+- **운영 기준 계획 입력**: 기존 `OperationalInput` 을 `runId={null}` 로(→ `POST /planning/inputs/containers`) — `planning.input` · 공개 데모 아님
+- **시스템 상태**(`SystemHealth.tsx` · 문구 `systemStatusText.ts`): `system.monitor`(ADMIN · OPERATOR)만. 전체 상태 + 이유 · 핵심 6 · 외부 연동 3 · 대기 작업 4. 권한이 없으면 상단에 "✓ 서비스 연결됨" 한 줄만(데모 방문자에게 내부 상태를 늘어놓지 않는다)
+- 시험 `src/components/ops/dashboard.test.tsx`(8) · 실측: 로컬 Private Staging 브라우저 E2E 46/46(Redis · AI · Worker 장애와 복구 포함) · 공개 포트폴리오 회귀 30/30 + 보안 18/18
+

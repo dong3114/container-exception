@@ -90,6 +90,9 @@
 | FR-OPS-001 상태 확인 | — | `GET /health/live` · `GET /health` | `HealthController` · `DatabaseHealth` · `RedisExecutionQueue` | — | d/api.e2e.test.ts · d/queue.test.ts · d/portfolio.test.ts |
 | FR-OPS-002 API 계약 | — | `GET /openapi.json` | `http/openapi.ts` · `openapi/emit-openapi.ts` | — | d/api.e2e.test.ts · fe/api/contract.test.ts |
 | FR-OPS-003 운영 환경 첫 준비 | — | (`npm run db:bootstrap`) | `seed/run-bootstrap.ts` | `actor` · `user_account` | Staging E2E(10-28) |
+| FR-OPS-004 운영 시스템 상태 | UC-30 | `GET /ops/system-status` | `OpsController` · `SystemStatusService` · `ops/system-status.policy.ts` · fe/`components/ops/SystemHealth.tsx` | `runtime_heartbeat` + 기존 기록(읽기) | u/system-status-policy.test.ts · d/ops-status.test.ts · fe/components/ops/dashboard.test.tsx |
+| FR-OPS-005 Worker heartbeat | UC-30 | — | `WorkerRunner.tick` · `HeartbeatRepository` | `runtime_heartbeat` | d/ops-status.test.ts · d/permissions-migrations.test.ts |
+| FR-OPS-006 배포 모드 표시 | UC-30 | `GET /auth/me`(`deployment_mode`) | `AuthService.me` · `deploymentMode` · fe/`components/ops/ModeBadge.tsx` | — | u/system-status-policy.test.ts · d/ops-status.test.ts · fe/components/ops/dashboard.test.tsx |
 | FR-DEMO-001 시연 도우미 | UC-07 · 08 | `GET /dev/demo/status` · `POST /dev/demo/mock-reply` | `DemoController` | — | d/portfolio.test.ts |
 | FR-DEMO-002 포트폴리오 모드 | UC-01 | `/auth/demo-session` · 전체(요청 한도) | `config/env.ts` · `http/public-guards.ts` · `SendService` · `DemoController` · py/`config.py` · fe/`app/PortfolioDemo.tsx` · `app/LoginGate.tsx` | `user_account` · `user_session` | u/portfolio.test.ts · d/portfolio.test.ts · py/test_config.py · fe/app/portfolio.test.tsx |
 
@@ -119,6 +122,7 @@
 | NFR-PERF-002 | `config/env.ts` · `ai/cera_ai/config.py` | u/config.test.ts |
 | NFR-OBS-001 | `http/request-context.middleware.ts` · `app/logger.ts` | u/context-errors.test.ts |
 | NFR-OBS-002 | `dev/runtime-stats.ts` | (도구) |
+| NFR-OBS-003 | `back/src/ops/*` · `runtime_heartbeat` | d/ops-status.test.ts · Staging 브라우저 E2E 46/46 |
 | NFR-DEP-001 | `infra/local/*` · `infra/portfolio/*` · Dockerfile 3개 | 10-27 · 10-28 Docker E2E |
 | NFR-DEP-002 | `infra/README.md` · `infra/portfolio/README.md` | 10-27 새 설치 · 백업/복원 실측 |
 | NFR-DEP-003 | `infra/staging/*` · `infra/portfolio/*` · `config/env.ts` | 10-28 공개 데모 E2E 24/24 · Private Staging E2E 27/27 |
@@ -130,10 +134,10 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 기능 요구사항 | 83 / 83 — 모두 Service/Module 위치와 시험이 1개 이상 연결됨 |
-| 비기능 요구사항 | 28 / 28 — 구현 위치 연결. 시험 대신 실측 · 도구로 근거가 있는 항목: NFR-OBS-002 · NFR-DEP-001 · NFR-DEP-002 · NFR-DEP-003 |
-| Use Case | 29 / 29 — 각 UC 가 요구사항 1개 이상에 연결 |
-| 사람용 API(부록 B, Internal 제외 78) | 모두 1개 이상 요구사항에 연결(공공데이터 조회 GET 은 FR-PUB-001 로 묶음) |
-| Table | 53 / 53 — [05](05_data-model-and-tables.md) 3절 "관련 기능"에 연결(`verification_request_handling` 은 전용 API 없음 — [향후]) |
+| 기능 요구사항 | 86 / 86 — 모두 Service/Module 위치와 시험이 1개 이상 연결됨 |
+| 비기능 요구사항 | 29 / 29 — 구현 위치 연결. 시험 대신 실측 · 도구로 근거가 있는 항목: NFR-OBS-002 · NFR-DEP-001 · NFR-DEP-002 · NFR-DEP-003 |
+| Use Case | 30 / 30 — 각 UC 가 요구사항 1개 이상에 연결 |
+| 사람용 API(부록 B, Internal 제외 79) | 모두 1개 이상 요구사항에 연결(공공데이터 조회 GET 은 FR-PUB-001 로 묶음) |
+| Table | 54 / 54 — [05](05_data-model-and-tables.md) 3절 "관련 기능"에 연결(`verification_request_handling` 은 전용 API 없음 — [향후]) |
 
 시험 파일 위치는 2026-10-28 HEAD 기준이다. 시험 이름은 `describe` · `it` 문구로 찾는다(예: `grep -n "contact-selection" back/test/db/contact-lifecycle.test.ts`).

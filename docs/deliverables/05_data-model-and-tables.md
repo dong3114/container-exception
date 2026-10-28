@@ -3,8 +3,8 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 정본 | 스키마 `back/src/db/schema/*.ts` · migration `back/drizzle/migrations/0000~0037`(M01~M38) · 트리거 · 권한 = custom migration(M07~M38 중 guard · permissions). 이 문서의 숫자는 **migration 이 모두 적용된 PostgreSQL 카탈로그에서 직접 읽은 값**이다 |
-| 부록 | **[부록 A. 테이블 · 컬럼 전체 명세(자동 생성)](05a_appendix-table-columns.md)** — 53표 · 654컬럼의 타입 · NULL · Default · PK/FK · UNIQUE · CHECK · INDEX · TRIGGER 전부 |
+| 정본 | 스키마 `back/src/db/schema/*.ts` · migration `back/drizzle/migrations/0000~0039`(M01~M40) · 트리거 · 권한 = custom migration(M07~M40 중 guard · permissions). 이 문서의 숫자는 **migration 이 모두 적용된 PostgreSQL 카탈로그에서 직접 읽은 값**이다 |
+| 부록 | **[부록 A. 테이블 · 컬럼 전체 명세(자동 생성)](05a_appendix-table-columns.md)** — 54표 · 662컬럼의 타입 · NULL · Default · PK/FK · UNIQUE · CHECK · INDEX · TRIGGER 전부 |
 | 관련 문서 | [04 데이터 분석](04_data-analysis.md) · [06 아키텍처](06_system-architecture.md) · 설계 이력 [`docs/21`](../21_cera-conceptual-data-model.md)(개념) · [`docs/22`](../22_cera-logical-data-model.md)(논리) · [`docs/24`](../24_cera-physical-data-model.md)(물리 — 22절 표별 명세는 시험 `schema-catalog.test.ts` 가 실제 DB 와 대조) |
 
 ## 1. 개요
@@ -12,14 +12,14 @@
 | 항목 | 값 |
 | --- | --- |
 | DBMS | PostgreSQL 18.6(판 고정) · ORM Drizzle · 스키마 `cera` |
-| 테이블 | **53** |
-| 컬럼 | **654** |
+| 테이블 | **54** |
+| 컬럼 | **662** |
 | FK | **116** |
-| CHECK | **297**(코드값은 ENUM 타입이 아니라 `CHECK IN`) |
+| CHECK | **300**(코드값은 ENUM 타입이 아니라 `CHECK IN`) |
 | UNIQUE 제약 | 39 |
 | 별도 인덱스 | 73(부분 유일 인덱스 포함) |
-| 트리거 | **139**(TRUNCATE 거부 40 · UPDATE/DELETE 거부 28 · 컬럼 보호 18 · DELETE 거부 15 · 업무 불변식 가드 38) |
-| migration | 38개(M01~M38). 생성 SQL 검토 후 기록 · `push` 금지(ADR-034) |
+| 트리거 | **142**(TRUNCATE 거부 41 · UPDATE/DELETE 거부 28 · 컬럼 보호 19 · DELETE 거부 16 · 업무 불변식 가드 38) |
+| migration | 40개(M01~M40). 생성 SQL 검토 후 기록 · `push` 금지(ADR-034) |
 | 역할 | `cera_owner`(migration 소유) · `cera_app`(실행 앱 — 표마다 필요한 권한만, DDL · 트리거 해제 불가) |
 
 ## 2. 도메인 분류
@@ -35,6 +35,7 @@
 | G. 계획 · 복구 | `planning_snapshot` · `recovery_run` · `recovery_plan` · `recovery_plan_item` · `plan_follow_up` | 5 |
 | H. Agent 실행 | `agent_run` · `agent_step` · `agent_tool_call` · `agent_checkpoint` · `agent_checkpoint_write` | 5 |
 | I. 운영 예외(T-132) | `operational_exception` · `operational_exception_observation` | 2 |
+| J. 실행 상태(T-133) | `runtime_heartbeat` | 1 |
 
 ## 3. 테이블 상세
 
@@ -138,6 +139,12 @@
 | `operational_exception` | 운영 예외(탐지기가 찾은 문제 하나) | `exception_id` | `facility` · `scenario` · `recovery_run`(UNIQUE) | `exception_type`(`WAREHOUSE_CAPACITY_SHORTAGE`) · `scope`(`LIVE` · `SCENARIO`) · `window_day` · `status`(`ACTIVE` · `RESOLVED`) · `basis`(`CONFIRMED` · `PROVISIONAL`) · `scheduled_demand` · `capacity` · `shortage` · `detected_at` · `resolved_at` | 1/8/2(진행 중 정체 부분 유일 인덱스) | 예외 가드(RESOLVED 끝 · 시각 역행 거부) · 컬럼 보호 · 실행 한 번 채움 · DELETE · TRUNCATE 거부 | L | FR-DETECT-001~005 |
 | `operational_exception_observation` | 예외 관측 기록(근거가 바뀔 때마다 한 행) | `observation_id` | `operational_exception` · `event`(`capacity_event_id`) | `kind`(`DETECTED` · `CHANGED` · `RESOLVED` · `INDETERMINATE`) · 예정 · 수용량 · 부족 · `capacity_state` · `evidence`(jsonb — 넘치는 컨테이너 · 입력 묶음 · 기준 시각) · `evidence_hash` | 0/4/1 | UPDATE/DELETE 거부 | A | FR-DETECT-001 · 004 |
 
+### J. 실행 상태 (T-133 · M39 · M40)
+
+| 표 | 한글명 · 목적 | PK | FK → | 주요 컬럼 · 상태값 | U/CK/IX | 트리거 | 변경 | 관련 기능 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `runtime_heartbeat` | Worker heartbeat — 운영 화면이 DB 로 "Worker 가 일하나"를 판단 | `component`(`WORKER`) | — | `instance_id` · `started_at` · `last_seen_at` · `last_cycle_ms` · `last_cycle_errors` · `queue_consumer` · `cycle_detail`(실패 단계 · 채널별 수신 확인 코드) | 0/3/0 | 컬럼 보호(종류 고정) · DELETE · TRUNCATE 거부 | L | FR-OPS-004 · 005 |
+
 ## 4. ER 관계
 
 ### 4.1 전체 도메인 관계
@@ -235,7 +242,7 @@ erDiagram
 
 ## 6. Append-only 설계
 
-28표가 UPDATE · DELETE 를, 40표가 TRUNCATE 를 트리거로 거부한다(앱 역할 권한도 INSERT · SELECT 만). 정해진 컬럼만 바꿀 수 있는 표 18개는 컬럼 보호 · 한 번만 채움 트리거가 지킨다.
+28표가 UPDATE · DELETE 를, 41표가 TRUNCATE 를 트리거로 거부한다(앱 역할 권한도 INSERT · SELECT 만). 정해진 컬럼만 바꿀 수 있는 표 19개는 컬럼 보호 · 한 번만 채움 트리거가 지킨다.
 
 | 대상 | 왜 덮어쓰지 않나 |
 | --- | --- |
@@ -254,8 +261,8 @@ erDiagram
 
 | 항목 | 구현 |
 | --- | --- |
-| ID | UUID(`uuid` 173 컬럼). **DB 기본값 없음** — 앱이 UUIDv7 을 만든다(`back/src/shared/id/uuid.ts`, 시험 `unit/uuid.test.ts` 가 판 7 · variant 검사). 시드는 고정 UUIDv7 |
-| 시각 | `timestamp(3) with time zone`(62 컬럼, `*_at`). 화면 · 업무 날짜는 Asia/Seoul(+09:00) |
+| ID | UUID(`uuid` 174 컬럼). **DB 기본값 없음** — 앱이 UUIDv7 을 만든다(`back/src/shared/id/uuid.ts`, 시험 `unit/uuid.test.ts` 가 판 7 · variant 검사). 시드는 고정 UUIDv7 |
+| 시각 | `timestamp(3) with time zone`(64 컬럼, `*_at`). 화면 · 업무 날짜는 Asia/Seoul(+09:00) |
 | 기준 시각 | 핵심 로직은 현재 시각을 직접 읽지 않고 `as_of` 를 주입받는다(사실 조회 · 비용 계산 · 계획 스냅숏). 시계는 `CLOCK` 주입 |
 | 금액 | `bigint` 원 정수(`*_krw` 11 컬럼 + `tariff_rate.amount`) |
 | 내용 참조 | `cref:v1:<범주>:<uuidv7>` + 해시(범주: `RAW_INPUT_PAYLOAD` · `COMM_MESSAGE_CONTENT` · `MESSAGE_APPROVAL_CONTENT` · `EXTRACTION_SOURCE_QUOTE` · `AGENT_CHECKPOINT`) |

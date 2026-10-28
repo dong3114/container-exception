@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
 | 정본 | Controller 데코레이터(`back/src/**/*.controller.ts`) · 요청 스키마(zod, 각 service) · 생성 OpenAPI `packages/contracts/openapi.json` · Agent Tool 계약 `packages/contracts/agent-tools/agent-tools.v1.json` · AI 계약 `packages/contracts/ai/` |
-| 부록 | **[부록 B. API 엔드포인트 전체 목록(자동 생성)](07a_appendix-api-endpoints.md)** — 84 경로의 Method · Path · 권한 · Handler · 코드 위치 |
+| 부록 | **[부록 B. API 엔드포인트 전체 목록(자동 생성)](07a_appendix-api-endpoints.md)** — 85 경로의 Method · Path · 권한 · Handler · 코드 위치 |
 | 관련 문서 | [02 요구사항](02_requirements-analysis.md) · [03 유스케이스](03_use-cases.md) · [05 DB](05_data-model-and-tables.md) · [09 추적성](09_traceability-matrix.md) |
 
 ## 1. 공통 규약
@@ -35,10 +35,11 @@
 | Agent 실행 | `/agent-runs` | 8 | `agent_run.manage` · `contact.select` |
 | Planning(실행 · 입력 · 운영 기준 계획 · 비용 · 계획 · 후속) | `/planning` | 20 | read · `planning.input` · `plan.*` · `communication.draft` · `contact.select` |
 | Exceptions(T-132) | `/exceptions` | 3 | read · `plan.recalculate` |
+| Ops(T-133) | `/ops` | 1 | `system.monitor` |
 | Public Data | `/public-data` | 6 | read · `public_data.fetch` |
 | Demo 도우미 | `/dev/demo` | 2 | PUBLIC · `communication.draft` |
 | Internal(Agent Runtime) | `/internal` | 6 | 서비스 토큰 |
-| **합계** | | **84**(+ `GET /openapi.json`) | |
+| **합계** | | **85**(+ `GET /openapi.json`) | |
 
 ## 3. 주요 API 상세
 
@@ -50,7 +51,7 @@ Request 는 본문 필드(`?` = 선택). 관련 테이블은 쓰는 표 중심.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `POST /auth/login` | 로그인 | PUBLIC | `login_id` · `password` | 사용자 · `role` · `permissions[]` · `expires_at` + 쿠키 | 400 · 401 `INVALID_CREDENTIALS` · 429 | 아님 | `user_session` · `audit_log` |
 | `POST /auth/logout` | 로그아웃 | PUBLIC | `{}` | `logged_out` | — | 예 | `user_session` |
-| `GET /auth/me` | 내 정보 | read | — | 사용자 · 권한 · `auth_mode` · `portfolio_demo` | 401 | — | `user_session` |
+| `GET /auth/me` | 내 정보 | read | — | 사용자 · 권한 · `auth_mode` · `portfolio_demo` · `deployment_mode`(T-133) | 401 | — | `user_session` |
 | `GET · POST /auth/demo-session` | 공개 데모 입구(포트폴리오 모드만) | PUBLIC | `{}` | GET: `enabled` 등 / POST: 데모 방문자 세션 | 404(일반 배포) · 409 `DEMO_NOT_READY` · 429 | 아님 | `user_session` |
 | `GET · POST /admin/users` · `PATCH /admin/users/{userId}` | 사용자 관리 | `users.manage` | `login_id` · `display_name` · `role` · `password` / `role?` · `is_active?` · `password?` | 사용자 | 409 `LOGIN_ID_TAKEN` · `CANNOT_DEMOTE_SELF` | 아님 | `user_account` · `actor` |
 
@@ -137,6 +138,14 @@ Request 는 본문 필드(`?` = 선택). 관련 테이블은 쓰는 표 중심.
 | `GET /exceptions?status=` | 예외 목록(`ACTIVE` · `RESOLVED`) | read | — | 종류 · 범위 · 시설 · 날짜 · 예정 · 수용량 · 부족 · 근거 · 실행 id · 시각 | — | `operational_exception` · `facility` |
 | `GET /exceptions/{exceptionId}` | 예외 + 관측 기록(근거) | read | — | 위 + `observations[]`(종류 · 근거 jsonb · 수용량 사건 id) | 404 | 위 + `operational_exception_observation` |
 | `POST /exceptions/detect` | 지금 탐지(사람 요청 — 평소에는 알림 · Worker 주기가 부른다) | `plan.recalculate` | `{}` | `evaluated` · `detected` · `changed` · `resolved` · `indeterminate` · `runs_created` | 409 `EXCEPTION_DETECTION_OFF` | 위 + `recovery_run` · `audit_log` |
+
+### 3.6c 운영 시스템 상태 (T-133)
+
+| Method · Path | 목적 | 권한 | Response | Error | 테이블 |
+| --- | --- | --- | --- | --- | --- |
+| `GET /ops/system-status` | CERA 자체 상태(운영 Dashboard) | `system.monitor`(ADMIN · OPERATOR) | `mode` · `overall{status, reasons[]}` · `core{api, database, redis, worker, ai_server, agent_runtime}` · `integrations{llm, gmail, public_data}` · `queues{send, extraction, extraction_retry, agent_retry}`(건수 · 가장 오래 기다린 초) — 각 구성 요소 `level` = HEALTHY · DEGRADED · DOWN · DISABLED | 401 · 403(데모 방문자 · 현장 담당자) | `runtime_heartbeat` + 기존 기록 읽기만 |
+
+응답에는 주소 · 호스트 · 포트 · 경로 · 키 · 토큰을 넣지 않는다(시험이 검사). `GET /agent-runs/runtime` 은 T-133 부터 내부 URL(`runtime_url`)을 내주지 않는다. AI Server `/health` 는 `status` · `provider` · `agent_runtime`(ready · disabled)만.
 
 ### 3.7 공공데이터 · 상태 · 시연
 

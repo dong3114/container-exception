@@ -94,7 +94,7 @@ cd front/web && npm test
 
 공개 포트폴리오 배포: `infra/portfolio/README.md`(배포 · migration · 재시작 · 로그 · 상태 · 백업 · 복원 · 데모 초기화 · 키 교체).
 
-Private Staging(실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력 — 비공개): `infra/staging/README.md`. 같은 코드 · 다른 설정 · 다른 데이터(ADR-040). 공개 데모와 DB · Redis · ContentStore · 세션을 공유하지 않는다.
+Private Staging(실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력 — 비공개): `infra/staging/README.md`. 관리자 · 운영자는 운영 콘솔에서 화물 예외와 함께 CERA 자체 상태(Worker · Redis · AI · Gmail · 대기 작업)를 한 화면에서 본다(T-133). 같은 코드 · 다른 설정 · 다른 데이터(ADR-040). 공개 데모와 DB · Redis · ContentStore · 세션을 공유하지 않는다.
 
 ## Security Boundary
 

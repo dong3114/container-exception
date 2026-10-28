@@ -1,10 +1,10 @@
 # 부록 B. API 엔드포인트 전체 목록 (자동 생성)
 
-> 상태: **자동 생성 — 손으로 고치지 않는다.** 원천 = `back/src/**/*.controller.ts` 의 `@Controller` · `@Get/@Post/...` · `@RequirePermission` · `@Public` 데코레이터(2026-10-28, T-132 반영). 업무 설명은 [07 인터페이스 · API 연계 설계서](07_interface-api.md).
+> 상태: **자동 생성 — 손으로 고치지 않는다.** 원천 = `back/src/**/*.controller.ts` 의 `@Controller` · `@Get/@Post/...` · `@RequirePermission` · `@Public` 데코레이터(2026-10-28, T-132 · T-133 반영). 업무 설명은 [07 인터페이스 · API 연계 설계서](07_interface-api.md).
 > 권한 열: `PUBLIC` = 사람 로그인 Guard 를 건너뜀(상태 확인 · 로그인 · 데모 입구 · **서비스 토큰을 컨트롤러가 따로 검사하는 Internal 경로**). `read` = 선언 없는 GET 의 기본 권한. 역할별 권한은 `back/src/auth/permissions.ts`.
 > 화면은 이 경로를 `/backend` 접두사로 부른다(nginx · Vite 프록시). 브라우저가 부르는 쪽은 Internal 을 뺀 경로뿐이다(공개 배포는 `/backend/internal/*` 404).
 
-합계: 84 경로(사람 · 화면용 78 · Internal 6)
+합계: 85 경로(사람 · 화면용 79 · Internal 6)
 
 ## Health
 
@@ -120,6 +120,12 @@
 | GET | `/exceptions` | `read` | `ExceptionController.list` | `back/src/detection/exception.controller.ts:16` |
 | GET | `/exceptions/{exceptionId}` | `read` | `ExceptionController.get` | `back/src/detection/exception.controller.ts:22` |
 | POST | `/exceptions/detect` | `plan.recalculate` | `ExceptionController.detect` | `back/src/detection/exception.controller.ts:29` |
+
+## Ops(운영 시스템 상태 — T-133)
+
+| Method | Path | 권한 | Handler | 위치 |
+| --- | --- | --- | --- | --- |
+| GET | `/ops/system-status` | `system.monitor` | `OpsController.systemStatus` | `back/src/ops/ops.controller.ts:16` |
 
 ## Public Data(공공데이터)
 

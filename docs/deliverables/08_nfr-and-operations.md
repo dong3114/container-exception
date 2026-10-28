@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` + T-132 · 설정 정본 `back/src/config/env.ts` · `ai/cera_ai/config.py` · 운영 정본 [`infra/README.md`](../../infra/README.md)(로컬 · 새 설치 · 백업/복원 · 장애 복구) · [`infra/portfolio/README.md`](../../infra/portfolio/README.md)(공개 배포 runbook) · [`infra/staging/README.md`](../../infra/staging/README.md)(Private Staging runbook) |
+| 기준 | HEAD `5881529` + T-132 · T-133 · 설정 정본 `back/src/config/env.ts` · `ai/cera_ai/config.py` · 운영 정본 [`infra/README.md`](../../infra/README.md)(로컬 · 새 설치 · 백업/복원 · 장애 복구) · [`infra/portfolio/README.md`](../../infra/portfolio/README.md)(공개 배포 runbook) · [`infra/staging/README.md`](../../infra/staging/README.md)(Private Staging runbook) |
 | 원칙 | **실측 · 시험으로 확인한 숫자만** 적는다. SLA 는 정하지 않았다[미확정]. 비상 상한 값은 `[ASSUMPTION / DEVELOPMENT SAFETY CEILING]` |
 | 관련 문서 | [02 요구사항](02_requirements-analysis.md) 8절(NFR 목록) · [06 아키텍처](06_system-architecture.md) |
 
@@ -60,10 +60,12 @@
 | --- | --- |
 | 요청 추적 | `X-Request-Id` · trace id(Agent 실행 · Tool 호출 · 단계에 기록) |
 | 로그 | NestJS ConsoleLogger — local 외 JSON 한 줄 · 비밀값 없음 |
-| 상태 | `/health/live` · `/health`(db · queue) · AI `/health`(공급자) · `GET /agent-runs/runtime` |
+| 상태 | `/health/live` · `/health`(db · queue) · AI `/health`(공급자 · agent_runtime) · `GET /agent-runs/runtime` |
+| 운영 시스템 상태(T-133) | `GET /ops/system-status`(ADMIN · OPERATOR) + 운영 콘솔 "시스템 상태" — 전체 상태 + 이유 · 구성 요소 9 · 대기 작업 4(PostgreSQL 기준). 판정 규칙 `back/src/ops/system-status.policy.ts`(결정론) |
+| Worker heartbeat(T-133) | `runtime_heartbeat` — 주기마다 덮어씀. 30초 이하 정상 · 90초 이하 지연 · 그 이상 멈춤 [ASSUMPTION]. 대기 작업이 15분 넘게 기다리면 DEGRADED [ASSUMPTION] · DB 응답 1초 넘으면 DEGRADED [ASSUMPTION] |
 | 실행 통계 | `npm run runtime:stats` — 그래프 · 노드 · Tool · 공공데이터 지연(p50~p99 · max) · 재시도 분포 |
 | 오류 행 | `system_error`(경계 · 분류 · 코드 · 재시도 가능 · request/trace id) |
-| 없음 | Prometheus · Grafana 등 지표 스택 · Worker heartbeat 지표 · 알림 [향후] |
+| 없음 | Prometheus · Grafana · OpenTelemetry 지표 스택 · 상태 이력(시계열) · 알림 [향후] — 지금은 현재 상태만 |
 
 ### 1.6 유지보수성 (Maintainability)
 
@@ -82,7 +84,7 @@
 
 ### 1.8 데이터 무결성 (Data Integrity)
 
-- DB CHECK 297 · FK 116(시뮬레이션 플래그 포함 복합 FK) · 업무 불변식 트리거(승인 결정은 HUMAN 만 · 발송 결과 한 번 · 상태 전이 규칙 · 확정 사실 근거 · 사건 권위 · 링크 검사 · 예외는 RESOLVED 가 끝 · 진행 중 예외는 정체마다 하나)
+- DB CHECK 300 · FK 116(시뮬레이션 플래그 포함 복합 FK) · 업무 불변식 트리거(승인 결정은 HUMAN 만 · 발송 결과 한 번 · 상태 전이 규칙 · 확정 사실 근거 · 사건 권위 · 링크 검사 · 예외는 RESOLVED 가 끝 · 진행 중 예외는 정체마다 하나)
 - 금액 원 정수 · 시각 `timestamptz` · 기준시각 `as_of` 주입
 - 실제 DB ↔ 물리 명세 대조 시험(`db/schema-catalog.test.ts`)
 
@@ -90,10 +92,11 @@
 
 | 범위 | 결과 |
 | --- | --- |
-| Backend(`npm test` — unit + DB) | 61 파일 · 590 통과 |
-| Python(`python -m pytest -q`) | 98 통과(이 PC 는 pytest 기본 임시 폴더 권한 때문에 `--basetemp` 지정 필요 — 환경 문제) |
-| Front(`npm test`) | 16 파일 · 108 통과 · typecheck · lint 오류 0 · build(소스맵 0) |
+| Backend(`npm test` — unit + DB) | 63 파일 · 605 통과 |
+| Python(`python -m pytest -q`) | 99 통과(이 PC 는 pytest 기본 임시 폴더 권한 때문에 `--basetemp` 지정 필요 — 환경 문제) |
+| Front(`npm test`) | 17 파일 · 116 통과 · typecheck · lint 오류 0 · build(소스맵 0) |
 | 브라우저 E2E | 운영 콘솔 전 구간 · `/demo` 12단계 · LIVE · 공개 포트폴리오(로컬 HTTPS) 45항목 — 페이지 오류 0 · 5xx 0 |
+| 운영 Dashboard E2E(T-133) | 로컬 Private Staging 브라우저 46/46 — 관리자 로그인 · 모드 배지 · 시스템 정상(9 구성 요소, Gemini · Gmail · 공공데이터 live) · 화면에서 운영 기준 계획 CSV 검증 → 저장 · 수용량 10 → 4 → 자동 예외(10/4/6) · 복구 실행 · 할 일 [Agent 시작] → WAITING_HUMAN · Redis 중단 → DEGRADED(PostgreSQL 폴링) · 업무 계속(3 정정 → 영향 7) · 복구 → HEALTHY · AI 중단 → DEGRADED(사실 손실 없음) · Worker 중단 → 30초 지연 → DOWN · ACTION_REQUIRED → 복구 → HEALTHY · 실제 Gmail 발송 0 · 페이지 오류 0 / 공개 포트폴리오 회귀 30/30 + 보안 18/18(방문자 시스템 상태 403 · 화면에 없음) |
 | 예외 자동 탐지 E2E(T-132) | 공개 포트폴리오(새 볼륨) 24/24 — 자동 예외(예정 20 · 가능 8 · 부족 12) · 자동 실행에서 `/demo` 3~12단계 · 배지 · 개요 숫자 · 페이지 오류 0 · 5xx 0 / 로컬 Private Staging 27/27 — 시나리오 팩 없이 운영 기준 계획 + 수용량 정정 → 자동 예외 · 실행, Worker · Redis · API 재시작 뒤 예외 1 · 실행 1, 해소 · 재발 · 수요 감소 해소, 실제 Gmail 발송 0(발송 일시정지) |
 
 ## 3. 운영 절차 요약
@@ -123,4 +126,5 @@ Private Staging(`infra/staging`)은 기동 · 첫 준비(`--profile bootstrap ru
 | 체크포인트 보관 | 보관 주기 없음(T-108 잔여) [향후] |
 | Gmail 토큰 | Testing 모드 약 7일 만료 [외부 의존] |
 | 공개 데모 | 공유 상태(방문자별 격리 없음) · 초기화로 되돌림 — ADR-039 Proposed |
+| 운영 상태 판정 | 현재 상태만(이력 없음) · 임계값은 [ASSUMPTION] · Gmail 토큰 만료 시각은 알 수 없어 표시하지 않음(연결 확인 실패 · 인증 거부만) · AI 공급자 상태는 최근 추출 기록 기준(추출이 없으면 "최근 성공 —") |
 | 예외 탐지 범위 | 창고 수용량 부족 한 유형 · 수용량은 확정 사실만 단정(임시 · 오래됨은 실행을 만들지 않음) · 탐지 주기 30초 [ASSUMPTION] · Agent 는 자동 시작하지 않음 — ADR-040 |

@@ -1,9 +1,9 @@
 # 부록 A. 테이블 · 컬럼 전체 명세 (자동 생성)
 
-> 상태: **자동 생성 — 손으로 고치지 않는다.** 원천 = migration M01~M38 이 적용된 PostgreSQL 카탈로그(`pg_attribute` · `pg_constraint` · `pg_indexes` · `pg_trigger` · `cera_app` 권한), 2026-10-28.
+> 상태: **자동 생성 — 손으로 고치지 않는다.** 원천 = migration M01~M40 이 적용된 PostgreSQL 카탈로그(`pg_attribute` · `pg_constraint` · `pg_indexes` · `pg_trigger` · `cera_app` 권한), 2026-10-28.
 > 설명 · 업무 의미 · 관계는 [05 데이터 모델 및 테이블 설계서](05_data-model-and-tables.md)에 있다. 스키마 정본은 `back/src/db/schema/*.ts` + `back/drizzle/migrations/*.sql`.
 
-합계: 테이블 53 · 컬럼 654 · FK 116 · CHECK 297 · UNIQUE 39 · 별도 인덱스 73 · trigger 139
+합계: 테이블 54 · 컬럼 662 · FK 116 · CHECK 300 · UNIQUE 39 · 별도 인덱스 73 · trigger 142
 
 | 테이블 | 컬럼 | FK | CHECK | trigger | 변경 정책 | 앱 역할(`cera_app`) 권한 |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -50,6 +50,7 @@
 | [`recovery_plan`](#recovery_plan) | 31 | 7 | 17 | 4 | 제한적 갱신 (정해진 컬럼만 · 한 번만 채움) | INSERT,SELECT,UPDATE |
 | [`recovery_plan_item`](#recovery_plan_item) | 12 | 1 | 3 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
 | [`recovery_run`](#recovery_run) | 12 | 2 | 7 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
+| [`runtime_heartbeat`](#runtime_heartbeat) | 8 | 0 | 3 | 3 | 제한적 갱신 (정해진 컬럼만 · 한 번만 채움) | INSERT,SELECT,UPDATE |
 | [`scenario`](#scenario) | 7 | 0 | 0 | 1 | 갱신 가능 · 삭제 불가 | INSERT,SELECT,UPDATE |
 | [`send_attempt`](#send_attempt) | 14 | 2 | 10 | 5 | 제한적 갱신 (정해진 컬럼만 · 한 번만 채움) | INSERT,SELECT,UPDATE |
 | [`system_error`](#system_error) | 20 | 1 | 7 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
@@ -1999,6 +2000,33 @@
 
 - `tg_recovery_run__append_only` — BEFORE UPDATE/DELETE → `fn_cera_reject_mutation`
 - `tg_recovery_run__no_truncate` — BEFORE TRUNCATE → `fn_cera_reject_truncate`
+
+## runtime_heartbeat
+
+- 변경 정책: 제한적 갱신 (정해진 컬럼만 · 한 번만 채움) · 앱 역할 권한: INSERT,SELECT,UPDATE
+
+| # | 컬럼 | 타입 | NULL | Default | 키 |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `component` | text | N |  | PK |
+| 2 | `instance_id` | uuid | N |  |  |
+| 3 | `started_at` | timestamp(3) with time zone | N |  |  |
+| 4 | `last_seen_at` | timestamp(3) with time zone | N |  |  |
+| 5 | `last_cycle_ms` | integer | N |  |  |
+| 6 | `last_cycle_errors` | integer | N |  |  |
+| 7 | `queue_consumer` | boolean | N |  |  |
+| 8 | `cycle_detail` | jsonb | N |  |  |
+
+**CHECK**
+
+- `ck_runtime_heartbeat__component`: `CHECK ((component = 'WORKER'::text))`
+- `ck_runtime_heartbeat__numbers`: `CHECK (((last_cycle_ms >= 0) AND (last_cycle_errors >= 0)))`
+- `ck_runtime_heartbeat__time_order`: `CHECK ((last_seen_at >= started_at))`
+
+**TRIGGER**
+
+- `tg_runtime_heartbeat__columns` — BEFORE UPDATE → `fn_cera_guard_columns`
+- `tg_runtime_heartbeat__no_delete` — BEFORE DELETE → `fn_cera_reject_delete`
+- `tg_runtime_heartbeat__no_truncate` — BEFORE TRUNCATE → `fn_cera_reject_truncate`
 
 ## scenario
 

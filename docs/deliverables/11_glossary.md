@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | 확정(2026-10-28 구현 기준 · T-132 반영) — 코드값이 바뀌면 함께 고친다 |
+| 문서 상태 | 확정(2026-10-28 구현 기준 · T-132 · T-133 반영) — 코드값이 바뀌면 함께 고친다 |
 | 기준 | HEAD `5881529` · 코드값 정본 `back/src/db/schema/codes.ts` · 화면 문구 정본 `front/web/src/components/ops/opsLabels.ts` · `front/web/src/components/agent/agentLabels.ts` |
 | 관련 문서 | [문서 INDEX](CERA_DOCUMENT_INDEX.md) · 기존 기획 용어집 [`docs/13_glossary.md`](../13_glossary.md)(설계 시점 용어 — 구현과 다르면 이 문서가 우선) |
 
@@ -41,6 +41,9 @@
 | Operational Baseline | 운영 기준 계획 | 어느 복구 실행에도 속하지 않은 예정 반입(원래 계획, `planning_container_record.recovery_run_id IS NULL`). 예외 탐지기가 이것과 수용량 사실을 비교한다(T-132) |
 | Operational Exception (`operational_exception`) | 운영 예외 | 결정론 탐지기가 찾은 문제 하나(첫 유형 `WAREHOUSE_CAPACITY_SHORTAGE` — 창고 수용량 부족). 근거는 관측 기록(`operational_exception_observation`) |
 | Exception Detector | 예외 탐지기 | 운영 기준 계획 + Truth 로 예외를 찾아 복구 실행을 만드는 결정론 서비스(LLM 아님, Agent 를 시작하지 않음) |
+| Worker Heartbeat (`runtime_heartbeat`) | Worker 확인 기록 | Worker 가 주기마다 남기는 마지막 확인 시각 — 운영 화면이 Worker 가 일하는지 DB 로 판단한다(T-133) |
+| System Status | 시스템 상태 | 운영 Dashboard 의 CERA 자체 상태 — 구성 요소 HEALTHY · DEGRADED · DOWN · DISABLED, 전체 HEALTHY · DEGRADED · ACTION_REQUIRED · DOWN(`GET /ops/system-status`, 권한 `system.monitor`) |
+| Deployment Mode | 배포 모드 | PUBLIC_PORTFOLIO_DEMO · PRIVATE_STAGING · PRODUCTION · LOCAL — 화면 위 배지(설정에서만 정함) |
 | Private Staging | 개인 검증 환경 | 실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력을 쓰는 비공개 배포(`infra/staging`). 공개 데모와 코드는 같고 설정 · 데이터는 다르다 |
 | Planning Input | 운영 입력 | 실제 실행의 계획 재료: 컨테이너 · 요율 · 시설 계획 정보(CSV 또는 행) |
 | Input Readiness | 입력 준비도 | 실제 실행이 계산 가능한지, 빠진 값이 무엇인지(필드 단위) |
@@ -130,6 +133,15 @@
 | 근거(`EXCEPTION_BASIS`) | `CONFIRMED` · `PROVISIONAL` | 확정 · 관측 사실 / 임시 사실(실행을 자동으로 만들지 않음) |
 | 관측(`EXCEPTION_OBSERVATION_KIND`) | `DETECTED` · `CHANGED` · `RESOLVED` · `INDETERMINATE` | 처음 발견 · 근거 변화 · 해소 · 판단 불가 |
 | 실행 출처(`source`, API) | `AUTO_DETECTED` · `MANUAL` · `SCENARIO` | 탐지기 · 사람 · 시나리오 시드가 만든 실행 — 화면 "자동 탐지" 배지 |
+
+### 2.7c 시스템 상태 (T-133)
+
+| 구분 | 코드 | 뜻 |
+| --- | --- | --- |
+| 구성 요소 | `HEALTHY` · `DEGRADED` · `DOWN` · `DISABLED` | 정상 · 지연(대체 경로) · 장애 · 이 배포에서 쓰지 않음 |
+| 전체 | `HEALTHY` · `DEGRADED` · `ACTION_REQUIRED` · `DOWN` | 정상 · 일부 지연(업무 계속) · 사람 조치 필요(Worker 멈춤 · Gmail 인증 거부) · 중단(PostgreSQL) |
+| 이유 | `QUEUE_FALLBACK_POLLING` · `WORKER_DOWN` · `WORKER_DELAYED` · `AI_UNAVAILABLE` · `LLM_FAILING` · `GMAIL_AUTH_FAILED` · `PUBLIC_DATA_FAILING` · `QUEUE_STALLED` · `DATABASE_DOWN` | 화면이 쉬운 말로 바꾼다 |
+| 실행 프로세스(`RUNTIME_COMPONENT`) | `WORKER` | heartbeat 를 남기는 프로세스 |
 
 ### 2.8 후속 요청 (`FOLLOW_UP_KIND`) · 막힌 이유
 

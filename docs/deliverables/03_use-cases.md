@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` + T-132 · 감사 액션 정본 `back/src/persistence/catalog.ts` · Agent 그래프 `ai/cera_ai/agent/graph.py` |
+| 기준 | HEAD `5881529` + T-132 · T-133 · 감사 액션 정본 `back/src/persistence/catalog.ts` · Agent 그래프 `ai/cera_ai/agent/graph.py` |
 | 관련 문서 | [02 요구사항](02_requirements-analysis.md) · [07 API](07_interface-api.md) · [05 DB](05_data-model-and-tables.md) · [09 추적성](09_traceability-matrix.md) · [11 용어집](11_glossary.md) |
 
 ## 1. Actor
@@ -64,8 +64,9 @@
 | UC-27 | 운영 기준 계획 입력 | 운영자 | P1 | 구현(T-132) |
 | UC-28 | 예외 자동 탐지 → 복구 실행 | 예외 탐지기 | P0 | 구현(T-132) |
 | UC-29 | 시설 · 트럭 풀 등록 | 관리자 | P1 | 구현(T-132) |
+| UC-30 | 운영 Dashboard · 시스템 상태 확인 | 관리자 · 운영자 | P1 | 구현(T-133) |
 
-T-132 에서 UC-27 · 28 · 29 를 더했다. 원 지시의 후보 중 바꾼 것: "Truth 확정"은 실제 동작이 확인 · 거절 · 정정 · 철회 네 가지라 UC-12 로 묶었고, "Planning Input 검증"은 입력 자체(UC-24)와 계산 가능 여부 확인(UC-13)으로 나눴다. UC-25 · UC-26 은 실제 구현이 있어 추가했다.
+T-132 에서 UC-27 · 28 · 29, T-133 에서 UC-30 을 더했다. 원 지시의 후보 중 바꾼 것: "Truth 확정"은 실제 동작이 확인 · 거절 · 정정 · 철회 네 가지라 UC-12 로 묶었고, "Planning Input 검증"은 입력 자체(UC-24)와 계산 가능 여부 확인(UC-13)으로 나눴다. UC-25 · UC-26 은 실제 구현이 있어 추가했다.
 
 ## 3. 유스케이스 상세
 
@@ -251,6 +252,13 @@ T-132 에서 UC-27 · 28 · 29 를 더했다. 원 지시의 후보 중 바꾼 �
 ### UC-29 시설 · 트럭 풀 등록
 - Primary: 관리자 · Main: `POST /registry/facilities` · `POST /registry/truck-pools`(협력은 소유 운송사) → 운영 입력 · 수용량 사실이 가리킬 대상 · Exception: 같은 이름 409 · 권한 없음 403
 - 요구사항: FR-REG-010 · 권한: `registry.manage` · 감사: `FACILITY_CREATED` · `TRUCK_POOL_CREATED`
+
+### UC-30 운영 Dashboard · 시스템 상태 확인
+- Primary: 관리자 · 운영자(`system.monitor`) · 목적: 화물 예외와 함께 CERA 자체가 일하고 있는지 한 화면에서 확인
+- Main: ① 로그인 → 운영 콘솔(모드 배지) ② 지금 해야 할 일(자동 탐지 실행 = "복구 조사를 시작해 주세요" [Agent 시작]) ③ 현재 예외(진행 중 · 해소 · 이력) → 복구 실행 열기 ④ 시스템 상태(전체 상태 + 이유 · 핵심 · 외부 연동 · 대기 작업) — 5초마다 다시 읽음
+- Alternative: Redis 장애 → DEGRADED "PostgreSQL 폴링으로 운영 중 · 업무 데이터 손실 없음" · AI 장애 → DEGRADED(사람 검토 · 직접 입력) · Worker 멈춤 → ACTION_REQUIRED "Worker 를 다시 시작하세요" · Gmail 인증 거부 → ACTION_REQUIRED
+- Exception: 권한 없음(데모 방문자 · 현장 담당자) → 403, 화면은 "서비스 연결됨" 한 줄만
+- 요구사항: FR-OPS-004 · 005 · 006 · API: `GET /ops/system-status` · `GET /exceptions*` · `GET /planning/runs` · 데이터: `runtime_heartbeat` 외 기존 기록(읽기만)
 
 ## 4. 주요 시퀀스
 

@@ -554,7 +554,7 @@
 - 결과: `back/src/http/public-guards.ts` · `back/src/auth/*`(demo-session) · `back/src/config/env.ts` · M36 · `ai/cera_ai/config.py` · `front/web/src/app/PortfolioDemo.tsx` · `infra/portfolio/` · 시험 `back/test/{unit,db}/portfolio.test.ts` · `ai/tests/test_config.py` · `front/web/src/app/portfolio.test.tsx`
 
 ## ADR-040: Private Staging 분리 + 결정론 운영 예외 탐지(Exception Detection Layer) (T-132)
-- 상태: **Accepted (사용자 지시 2026-10-28 — 신규 기능 명시 승인, 완료 뒤 Backend 다시 FROZEN)**. 아래 세부 선택(운영 기준 계획 · Agent 자동 시작 안 함 · 공유 상태 시연)은 Orchestrator 판단 — 사용자 확인 대상
+- 상태: **Accepted (사용자 지시 2026-10-28 — 신규 기능 명시 승인, 완료 뒤 Backend 다시 FROZEN)**. 세부 선택도 사용자 승인(2026-10-28, T-133 지시): ① 운영 기준 계획을 탐지 기준으로 — APPROVE ② 탐지 후 Agent 자동 시작 안 함(실행만 만들고 사람에게 알림) — APPROVE ③ 공개 데모 공유 상태 — 현재 규모에서 APPROVE(동시 사용자가 늘면 세션 · 테넌트 격리는 별도 과제)
 - 맥락: CERA 는 운영 입력 + Truth 로 실제 계획을 계산할 수 있었지만, 복구 실행은 사람이 문제를 발견해 직접 만들었다. 또 공개 데모(ADR-039)와 별개로 실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력을 쓰는 개인 검증 환경이 필요하다
 - 결정:
   1. **환경 분리**: 같은 코드 · 다른 배포. 공개 데모 = `infra/portfolio`(`CERA_PORTFOLIO_DEMO_MODE=true`, 합성 · Mock · 녹화 재생 · 자동 초기화) / Private Staging = `infra/staging`(`APP_ENV=staging`, 데모 모드 false, 실제 채널 · LLM · 공공데이터를 `.env` 로). DB · Redis · ContentStore · 세션은 compose 프로젝트별 볼륨이라 섞이지 않는다. 데모에서 관리자만 실제 Gmail 을 쓰는 우회는 없다. Staging 의 실제 Gmail 은 비운영 환경 안전장치(수신 허용 목록)에 묶인다
@@ -570,3 +570,17 @@
   11. **시설 · 트럭 풀 등록 API**(`POST /registry/facilities` · `POST /registry/truck-pools`, `registry.manage`): 시드 없는 Staging 에서 운영 입력 · 수용량 사실이 가리킬 시설을 만들 길이 없었다(blocker)
 - 대안: LLM 판단(기각 — 숫자 · 상태 판단은 결정론) · 실행을 복제해 방문자 격리(ADR-039 와 같은 이유로 기각) · Agent 자동 시작 + 부족 대수를 문의 수량으로(보류 — 정책 충돌, 사람이 원하면 그래프 정책을 바꾸는 별도 결정) · 예외마다 매번 새 기록(기각 — 같은 문제의 변화는 한 예외의 이력)
 - 결과: `back/src/detection/*` · M37 · M38 · `back/src/seed/run-bootstrap.ts` · `infra/staging/*` · `back/src/registry/*`(시설 · 트럭 풀 등록) · 화면(실행 목록 배지 · 개요 숫자 · 할 일 · `/demo` 연동) · 시험 `back/test/unit/exception-rules.test.ts` · `back/test/db/exception-detection.test.ts`
+
+## ADR-041: 운영 가시성 — Worker heartbeat · 결정론 시스템 상태 판정 (T-133)
+- 상태: **Accepted (사용자 지시 2026-10-28 — 운영 Dashboard · Staging 운영 준비. 업무 로직 변경 없음, 완료 뒤 Backend 다시 FROZEN)**
+- 맥락: Private Staging 에서 운영자는 화물 예외뿐 아니라 CERA 자체가 일하고 있는지(Worker · Redis · AI · Gmail · 대기 작업)를 알아야 한다. Worker 는 HTTP 가 없어 healthcheck 가 "프로세스가 떠 있음" 이상을 말하지 못했고, 기존 `/health` 는 API · DB · 큐만 보였다
+- 결정:
+  1. **Worker heartbeat 는 DB 에**(`runtime_heartbeat`, M39 · M40): 주기를 마칠 때마다 종류별 한 행을 덮어쓴다(마지막 확인 · 주기 ms · 실패한 단계 · 채널별 수신 확인 코드). 프로세스 메모리에 두지 않으므로 API 가 여러 개여도 같은 답이다
+  2. **판정은 결정론 순수 함수**(`back/src/ops/system-status.policy.ts`, LLM 없음): 구성 요소 HEALTHY · DEGRADED · DOWN · DISABLED, 전체는 업무 영향 — PostgreSQL 장애만 DOWN, 사람이 손대야 풀리는 것(Worker 멈춤 · Gmail 인증 거부)은 ACTION_REQUIRED, 대체 경로 · 지연(Redis → PostgreSQL 폴링 · AI 장애 → 사람 검토 · 오래 기다리는 작업)은 DEGRADED. 임계값(30초 · 90초 · 15분 · 1초)은 [ASSUMPTION]
+  3. **대기 작업은 PostgreSQL 기준**: Redis 는 실행 가속일 뿐이라 큐 길이를 보지 않는다(업무 상태와 어긋나지 않게)
+  4. **새 업무 기록 없음**: LLM · Gmail · 공공데이터 상태는 기존 기록(감사 · system_error · send_attempt · 수신 메시지 · public_data_fetch)과 heartbeat 를 읽는다. Gmail 토큰 만료 시각은 CERA 가 알 수 없으므로 추측해 보이지 않는다
+  5. **권한 `system.monitor`** = ADMIN · OPERATOR. 데모 방문자 · 현장 담당자 403. 응답에 주소 · 호스트 · 경로 · 키 · 토큰 없음(`GET /agent-runs/runtime` 의 내부 URL 도 제거)
+  6. **배포 모드 표시**: `/auth/me` 의 `deployment_mode`(설정에서만) → 모든 화면 위 배지
+  7. **새 인프라 없음**: 5초 폴링 재사용 · WebSocket · Prometheus · Grafana · OpenTelemetry 를 넣지 않는다. 상태 이력은 없다(현재 상태만)
+- 대안: Worker 에 HTTP 상태 경로(기각 — 내부망 · 프로세스마다 따로 물어야 함, DB 한 행이면 충분) · Redis 키 기반 heartbeat(기각 — Redis 가 정본이 아니고 장애 시 같이 사라짐) · 지표 스택(범위 밖 [향후])
+- 결과: `back/src/ops/*` · M39 · M40 · `WorkerRunner` heartbeat · `InboundProcessor` 채널별 결과 · AI `/health` 의 `agent_runtime` · 화면 `SystemHealth` · `ExceptionBoard` · `ModeBadge` · 운영 기준 계획 입력 · 시험 `unit/system-status-policy.test.ts` · `db/ops-status.test.ts` · `fe/components/ops/dashboard.test.tsx`

@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | **DRAFT / NON-FINAL** — 현재 구현된 화면을 정보 구조 · 기능 중심으로 옮긴 1차 초안이다. 사용자가 UI 를 검토하고 추가 개발할 예정이므로 **최종 화면 사양이 아니다** |
 | 확정하지 않는 것 | 픽셀 · 색상 · 글꼴 · 최종 컴포넌트 위치 · 모바일 UX · 디자인 시스템 |
-| 기준 | HEAD `5881529` + T-132 · `front/web/src/App.tsx`(경로) · `app/LoginGate.tsx` · `app/PortfolioDemo.tsx` · `app/ops/OpsConsole.tsx` · `components/ops/*` · `app/demo/DemoPage.tsx` · 화면 문구 `components/ops/opsLabels.ts` |
+| 기준 | HEAD `5881529` + T-132 · T-133 · `front/web/src/App.tsx`(경로) · `app/LoginGate.tsx` · `app/PortfolioDemo.tsx` · `app/ops/OpsConsole.tsx` · `components/ops/*` · `app/demo/DemoPage.tsx` · 화면 문구 `components/ops/opsLabels.ts` |
 | 관련 문서 | [`docs/16_frontend-prototype.md`](../16_frontend-prototype.md) 13 · 14절 · [03 유스케이스](03_use-cases.md) · [07 API](07_interface-api.md) · [11 용어집](11_glossary.md) |
 
 ## 1. 경로와 공통 규칙
@@ -39,6 +39,9 @@
 | SCR-14 | Mock 재생(`/prototype`) | 구현(옛 화면) |
 | SCR-15 | Backend 응답 확인(`/dev/api`) | 구현(개발용) |
 | SCR-16 | 사용자 관리 | **없음** [향후] — API 만 있음 |
+| SCR-17 | 현재 예외(진행 중 · 해소 · 이력) | 구현(T-133) |
+| SCR-18 | 운영 기준 계획 입력 | 구현(T-133) |
+| SCR-19 | 시스템 상태 | 구현(T-133 · ADMIN · OPERATOR) |
 
 ## 3. 화면 상세
 
@@ -52,14 +55,15 @@
 - 비고: 데모 종료(로그아웃) 시 소개 화면으로 돌아감
 
 ### SCR-02 운영 콘솔 상단
-- 영역: (포트폴리오) PORTFOLIO DEMO 띠 — 합성 데이터 · 외부 메일 Mock · AI 녹화 재생 · [단계별 체험] · [운영 콘솔] / 세션 줄(이름 · 역할 · 로그아웃 또는 데모 종료) / 시스템 상태("✓ Backend · DB 정상" · "✓ 실행 큐" 또는 "! 실행 큐 없음(폴링으로 동작)" · "! Agent Runtime 응답 없음" · "✕ Backend 연결 안 됨")
+- T-133: 세션 줄에 **모드 배지**(PUBLIC PORTFOLIO DEMO · PRIVATE STAGING · PRODUCTION · LOCAL). 상단 상태는 `system.monitor` 가 있으면 전체 상태 한 개("시스템 정상" · "시스템 일부 지연 · 대체 경로로 운영 중" · "시스템 사람 조치 필요" · "시스템 중단" — 누르면 SCR-19), 없으면 "✓ 서비스 연결됨" 한 줄. 업무 숫자 6개: 진행 중 예외 · 오늘 자동 탐지 · 사람 조치 대기 · 진행 중 복구 실행 · 승인 대기 계획 · 검토 필요 회신
+- 영역(T-132 전): (포트폴리오) PORTFOLIO DEMO 띠 — 합성 데이터 · 외부 메일 Mock · AI 녹화 재생 · [단계별 체험] · [운영 콘솔] / 세션 줄(이름 · 역할 · 로그아웃 또는 데모 종료) / 시스템 상태("✓ Backend · DB 정상" · "✓ 실행 큐" 또는 "! 실행 큐 없음(폴링으로 동작)" · "! Agent Runtime 응답 없음" · "✕ Backend 연결 안 됨")
 - 조회: `GET /health` · `GET /agent-runs/runtime`
 - 개요 숫자 줄(T-132): 진행 중 예외 · 오늘 탐지 · 사람 대기 · 진행 중 복구 실행 — `GET /exceptions` · `GET /planning/runs` 에서 계산
 
 ### SCR-03 지금 해야 할 일
 - 목적: 사람이 할 일을 한곳에(같은 일은 한 번만)
 - 영역: 할 일 목록(아이콘 · 제목 · 설명 · [열기])
-- 항목 유형(코드 → 화면 문구): `HUMAN_APPROVAL_REQUIRED` "문의 초안 승인이 필요합니다" · `AWAITING_SEND_REQUEST` "승인된 문의의 발송 요청이 필요합니다" · `REPLY_REVIEW_REQUIRED` "답장이 왔지만 AI 가 내용을 확정하지 못했습니다" · `AWAITING_FACT_VERIFICATION` "임시 값의 확인이 필요합니다" · `AWAITING_PLAN_DECISION` "복구 계획 승인이 필요합니다" · `CONTACT_REGISTRATION_REQUIRED` "연락 가능한 담당자가 없습니다" · `CONTACT_SELECTION_REQUIRED` "연락할 담당자를 선택해야 합니다" · `HUMAN_ACTION_REQUIRED` "문의 초안을 고쳐야 합니다" · 후속 담당자 필요 · (T-132) Agent 가 아직 없는 자동 탐지 실행 "자동 탐지된 예외 — Agent 시작이 필요합니다"
+- 항목 유형(코드 → 화면 문구): `HUMAN_APPROVAL_REQUIRED` "문의 초안 승인이 필요합니다" · `AWAITING_SEND_REQUEST` "승인된 문의의 발송 요청이 필요합니다" · `REPLY_REVIEW_REQUIRED` "답장이 왔지만 AI 가 내용을 확정하지 못했습니다" · `AWAITING_FACT_VERIFICATION` "임시 값의 확인이 필요합니다" · `AWAITING_PLAN_DECISION` "복구 계획 승인이 필요합니다" · `CONTACT_REGISTRATION_REQUIRED` "연락 가능한 담당자가 없습니다" · `CONTACT_SELECTION_REQUIRED` "연락할 담당자를 선택해야 합니다" · `HUMAN_ACTION_REQUIRED` "문의 초안을 고쳐야 합니다" · 후속 담당자 필요 · (T-132 · T-133) Agent 가 아직 없는 자동 탐지 실행 "복구 조사를 시작해 주세요"(버튼 [Agent 시작] → Agent 탭의 기존 시작 양식)
 - 조회: `GET /agent-runs` · `GET /communication/drafts` · `GET /communication/inbound` · `GET /planning/runs/{runId}/plans`
 - Action: [열기] → 해당 실행 · 탭 · 항목으로
 - Empty: 할 일 없음 표시
@@ -126,6 +130,22 @@
 
 ### SCR-15 Backend 응답 확인(`/dev/api`)
 - 개발용 — 주요 GET 응답을 그대로 표시
+
+### SCR-17 현재 예외 (T-133)
+- 위치: 운영 콘솔, 지금 해야 할 일 바로 아래(우선순위: 할 일 → 예외 → 복구 실행 → 시스템 상태)
+- 카드: [⚡ 자동 탐지] · "창고 A 수용량 부족" · 진행 중(ACTIVE) / 해소됨(RESOLVED) · 날짜 · 예정 · 가능 · 영향 N대 · 탐지 시각 · [복구 실행 #… 열기] · 출처(자동 탐지 · 사람이 만듦 · 시나리오) · [이력 보기] → 관측 Timeline(탐지 · 변경 · 해소 · 판단 불가)
+- 해소된 예외는 접힌 목록("해소된 예외 N건(기록 보존)")
+- 조회: `GET /exceptions` · `GET /exceptions/{id}` · `GET /planning/runs`
+
+### SCR-18 운영 기준 계획 입력 (T-133)
+- 접힌 카드 "운영 기준 계획 입력 — 실제 화물 CSV · 검증 → 저장 → CERA 가 예외를 찾습니다". 기존 운영 입력 부품을 실행 없이 씀(첫 줄에 `status` 열 — ACTIVE · WITHDRAWN)
+- 권한: `planning.input` · 공개 데모에는 없음 · Action: `POST /planning/inputs/containers`(검증만 → 저장)
+
+### SCR-19 시스템 상태 (T-133)
+- 권한: `system.monitor`(ADMIN · OPERATOR) — 데모 방문자 · 현장 담당자에게는 없음
+- 영역: 전체 상태 배지 + 이유(쉬운 말) / 핵심: API · PostgreSQL · Redis · Worker · AI Server · Agent Runtime / 외부 연동: LLM · Gmail · 공공데이터 / 대기 작업(PostgreSQL 기준): 발송 · 회신 추출 · 추출 재시도 · Agent 재시도(건수 · 가장 오래)
+- 문구 예: Redis "장애 — PostgreSQL 폴링으로 운영 중 · 업무 데이터 손실 없음 · 응답 지연 가능" / Worker "정상 · 마지막 확인 5초 전" · "지연 · 마지막 확인 45초 전" · "멈춤 · 마지막 확인 2분 5초 전" / LLM "gemini · gemini-3.8-flash · 정상 · 최근 성공 10-28 14:31" / Gmail "인증 실패 — 다시 인증 필요"(만료 카운트다운 없음)
+- 조회: `GET /ops/system-status`(5초 폴링 — WebSocket 없음)
 
 ## 4. 다음 검토 때 정할 것 (사용자)
 
