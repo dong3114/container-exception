@@ -149,3 +149,10 @@ def test_failover_is_built_from_the_environment_only_when_both_fallback_keys_are
     monkeypatch.setenv("CERA_LLM_FALLBACK_MODEL", "g1")
     p = provider_from_env()
     assert isinstance(p, FailoverProvider) and p.name == "openai>gemini"
+
+
+def test_health_names_the_provider_and_agent_runtime_without_urls_or_keys():
+    body = client().get("/health").json()
+    assert body["status"] == "ok" and body["provider"] == "replay"
+    assert body["agent_runtime"] in {"ready", "disabled"}
+    assert set(body) == {"status", "provider", "agent_runtime"}  # T-133: nothing else (no URLs, keys, model config)

@@ -333,7 +333,8 @@ describe("T-132 automatic exception detection on the console", () => {
   it("an auto-detected run without an agent asks a person to start the agent (the quantity is a human decision)", () => {
     const actions = deriveActions({ rows: [{ run: autoRun, agent: null, plan: null }], drafts: [], inbound: [] });
     expect(actions).toHaveLength(1);
-    expect(actions[0]).toMatchObject({ key: `auto:${RUN}`, tab: "agent", title: "자동 탐지된 예외 — Agent 시작이 필요합니다" });
+    expect(actions[0]).toMatchObject({ key: `auto:${RUN}`, tab: "agent", title: "복구 조사를 시작해 주세요", cta: "Agent 시작" });
+    expect(actions[0]!.detail).toContain("[자동 탐지]");
     expect(runGroup({ run: autoRun, agent: null, plan: null }, actions)).toBe("ACTION");
     // 이미 시작했거나 해소된 예외 · 사람이 만든 실행은 이 할 일이 없다
     expect(deriveActions({ rows: [{ run: autoRun, agent: agentItem({ status: "RUNNING", waiting_reason: null }), plan: null }], drafts: [], inbound: [] }).some((a) => a.key.startsWith("auto:"))).toBe(false);
