@@ -536,3 +536,19 @@
 - 대안: (a) OR-Tools CP-SAT — 강하지만 Node 공식 바인딩이 없어 Python 프로세스(또는 AI Server)에 두어야 한다 → 결정론 엔진이 `ai/` 로 새거나 새 서비스가 생긴다(ADR-029 와 어긋남). 규모가 커지거나 스케줄링 제약이 늘면 다시 비교한다. (b) 직접 짠 열거 · 분기 한정 — 트럭 시간 배정까지 넣으면 검증 부담이 크다. (c) min-cost flow — 2시간 연속 점유 · 트럭별 시간창을 그대로 담기 어렵다.
 - 결과: `back/src/planning/engine/solver.ts` · `docs/08` 10절 · `docs/24` 18.17. **ADR-007 은 Superseded(2026-10-27)** — Q-35 · Q-65 는 MVP 범위에서 CLOSED.
 
+
+## ADR-039: 공개 포트폴리오 데모 모드 — 실제 기능은 코드에 두고, 공개 배포는 설정으로 닫는다 (T-131)
+- 상태: **Proposed** (2026-10-28, 사용자 지시 "CERA PORTFOLIO PRODUCTION DEPLOYMENT" 를 따라 구현 · 검증. 아래 선택(격리 · LLM · 입구)은 Orchestrator 가 고른 것이라 사용자 확인 대기)
+- 맥락: 포트폴리오 링크로 외부 방문자가 CERA 의 실제 동작을 직접 눌러 보게 하려 한다. 그러나 방문자가 실제 Gmail 발송 · 실제 주소 조회 · OAuth · 관리 기능 · 외부 비용(상용 LLM · 공공 API) · 다른 방문자 세션 · 서버 비밀값에 닿으면 안 된다. Backend Core 는 FROZEN 이라 업무 규칙은 바꾸지 않는다.
+- 결정:
+  1. **명시 플래그 `CERA_PORTFOLIO_DEMO_MODE`**(Backend · AI 각각). 개인 운영(Private Operation) 배포와 섞지 않는다 — `APP_ENV=production` 과 함께 쓰고, 켜지면 **설정 단계에서** Gmail · 실제 수신 허용 목록 · 공공데이터 · dev-header 인증 · 장애 주입 · (production 이면) Origin 목록 없음을 기동 거부한다. AI 는 상용 LLM 모드를 기동 거부한다(키를 넘기지도 않는다)
+  2. **LLM = 녹화 재생(선택지 A)**. 방문자 · 봇이 키 비용을 만들 수 없다. 실제 Gemini 추출은 별도 환경 smoke 로 검증된 상태로 둔다(T-099). 선택지 B(제한 호출 + quota)는 채택하지 않아 비용 제한 장치를 만들지 않았다 — 켜려면 이 ADR 을 고친다
+  3. **입구 = `POST /auth/demo-session`**: 포트폴리오 모드에서만 경로가 생긴다(아니면 404). 비밀번호 없이 **데모 방문자 계정 하나(DEMO_VISITOR)** 에만 세션을 연다 — 그 계정의 비밀번호는 시드가 만든 아무도 모르는 난수라 로그인 폼으로는 못 들어온다. 세션 토큰은 방문자마다 따로(HttpOnly · Secure · SameSite=Strict). 일반 auth bypass 가 아니다
+  4. **역할 `DEMO_VISITOR`(M36)** = OPERATOR − `planning.input` − `public_data.fetch`(등록부 · 사용자 관리 원래 없음). Backend Guard 가 강제
+  5. **실제 채널 차단 이중화**: 설정 거부 + `POST /communication/drafts/:id/send` 가 MOCK 이 아닌 메시지를 403 `PORTFOLIO_DEMO_REAL_CHANNEL_BLOCKED`. Mock 답장 도우미는 정해진 문장 · `.invalid` 발신자만(방문자가 쓴 글이 다른 방문자 화면에 섞이지 않게)
+  6. **격리 = 공유 상태 + 서버 초기화(선택지 B)**. 방문자별 실행 복제(A)는 사실이 개체(시설 · 트럭 풀) 단위라 실행을 나눠도 사실이 섞이고, 세션 이름공간(C)은 멀티테넌시 재설계라 범위 밖. 대신 `infra/portfolio/reset-demo.sh --if-idle N`(cron): 방문 흔적이 있고 N분 조작이 없으면 DB · 내용 볼륨을 새로 만들고 시드. 공개 초기화 API 는 없다. 이 초기화는 **포트폴리오 compose 프로젝트의 합성 데이터에만** 적용되고, 업무 기록 append-only 정책(개인 운영)과 별개다
+  7. **요청 한도**(포트폴리오 모드, 방문자 IP 별 · 프로세스 메모리 [ASSUMPTION]): 데모 세션 10/시간 · 로그인 20/15분 · Agent 실행 · 시작 20/시간 · 재계산 30/시간 · Mock 답장 30/시간 · 추출 재시도 30/시간 · 변경 120/10분 · 읽기 600/분 + 전체 하루 Agent 실행 200(`DEMO_QUOTA_EXCEEDED`). 바깥 울타리로 nginx 30 r/s(burst 120)
+  8. **브라우저 경계**: CORS 를 열지 않는다(같은 출처) · 변경 요청 Origin 검사(`CERA_ALLOWED_ORIGINS`, CSRF 2차 방어) · API nosniff · no-referrer · frame DENY · nginx CSP · HSTS(Caddy) · `/backend/internal/*` 404 · 소스맵 없음 · 화면 번들이 읽는 환경변수는 비밀이 아닌 2개
+  9. **배포 = `infra/portfolio/`**(Docker Compose · Caddy HTTPS · 클라우드 비종속). 인터넷 노출은 Caddy 80 · 443 뿐, DB · Redis · API · AI 는 외부 경로가 없는 `internal` 망
+- 대안: 화면만 숨기기(기각 — 권한은 Backend 가 강제해야 한다) · 공개 `POST /demo/reset`(기각 — 남용) · 방문자별 컨테이너(기각 — 포트폴리오 규모에 과함) · 상용 LLM 제한 호출(보류 — 비용 · 안정성)
+- 결과: `back/src/http/public-guards.ts` · `back/src/auth/*`(demo-session) · `back/src/config/env.ts` · M36 · `ai/cera_ai/config.py` · `front/web/src/app/PortfolioDemo.tsx` · `infra/portfolio/` · 시험 `back/test/{unit,db}/portfolio.test.ts` · `ai/tests/test_config.py` · `front/web/src/app/portfolio.test.tsx`

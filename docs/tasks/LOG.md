@@ -21,6 +21,14 @@
 
 ---
 
+## 2026-10-28 · T-131 공개 포트폴리오 배포 준비 · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 배포 산출물까지(실제 서버 배포는 사용자). Backend 업무 로직 FROZEN 유지(배포 경계 · 권한 역할 · 설정만), Frontend 는 안내 화면만
+- 한 일: 공개 포트폴리오 배포 준비(T-131 · ADR-039 Proposed): `CERA_PORTFOLIO_DEMO_MODE`(Backend · AI) — Gmail · 실제 수신자 · 공공데이터 · 상용 LLM · dev-header 설정이면 기동 거부 · [데모 시작] = `POST /auth/demo-session`(포트폴리오 모드에서만, DEMO_VISITOR 한 계정 · 비밀번호 없는 정식 세션) · 역할 DEMO_VISITOR(M36 — 등록부 · 사용자 관리 · 운영 입력 · 공공데이터 없음) · 실제 채널 발송 403 · Mock 답장은 정해진 문장만 · IP 별 요청 한도 + 하루 Agent 한도 · Origin 검사(CSRF 2차) · API 보안 헤더 · `infra/portfolio/`(Caddy HTTPS · nginx CSP · 내부망 · restart · 메모리 상한 · 초기화 스크립트 · runbook · env 템플릿) · 화면 PORTFOLIO DEMO 소개 · 띠 · README 재작성
+- 검증: Backend 570 · Python 98 · Front 105 · typecheck · lint 오류 0 · build(소스맵 0). 로컬 HTTPS(Caddy 내부 인증서) 포트폴리오 스택: 새 볼륨 → migration 36 → 시드 → E2E 45항목(페이지 오류 0 · 5xx 0) · 방문자 403 4종 · 임의 답장 400 · 내부 경로 404 · Origin 403 · CORS 없음 · Secure 쿠키 · 번들 · 응답 비밀값 0 · 등록부 주소 전부 `.invalid` · 세션 분리 · 기동 거부(Gmail · 수신 허용 목록 · 상용 LLM) · 데모 세션 11번째 429 · 초기화 32초 · 재시작 회복 · 메모리 실측 ≈ 0.5 GB
+- 찾아서 고친 것: nginx 10 r/s(burst 40)가 새로고침 한 번의 정상 요청을 429 로 막음 → 30 r/s · burst 120 · 데모 종료 뒤 일반 로그인 폼이 나옴 → 소개로 · Caddy 메모리 110 MB / 128 MB → 256 MB
+- 남은 일: 사용자 — 서버 · 도메인 · cron · ADR-039 확인 · GitHub 링크. 공개 데모는 공유 상태(격리 없음)
+- 주의: E2E 스크립트(`e2e-portfolio.mjs`)는 scratchpad(커밋 안 함)
+
 ## 2026-10-28 · T-099 COMMERCIAL LLM SMOKE(키 갱신 뒤 1회) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — **COMMERCIAL LLM SMOKE VERIFIED**(1건 · 최종 모델 선정 아님) · Backend FROZEN · Frontend Demo Freeze 유지 · 코드 변경 없음
 - 한 일: 인증 확인(값 출력 없음) OpenAI 401 `INVALID_CREDENTIALS` → 중단 · Gemini 정상 → ai 컨테이너만 임시로 live(`gemini-3.8-flash`, 대체 공급자 끔) → smoke 1회 → 초기화 · 녹화 재생 복귀

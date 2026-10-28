@@ -2,7 +2,9 @@
 
 **Docker 사용법의 정본은 이 파일이다.** 다른 문서(`AGENTS.md` 6절 · `docs/24` 18.13)는 여기를 가리킨다.
 
-Docker 만이 유일한 개발 방식은 아니다. 평소 화면·코드 개발은 호스트에서 `npm run dev:*` · `python -m cera_ai` · `npm run dev`(Vite HMR)로 하고, **전체 재현 · 시연 · 다른 PC 에서 똑같이 띄우기**에 Docker Compose 를 쓴다. 클라우드 배포 구성은 아직 없다.
+Docker 만이 유일한 개발 방식은 아니다. 평소 화면·코드 개발은 호스트에서 `npm run dev:*` · `python -m cera_ai` · `npm run dev`(Vite HMR)로 하고, **전체 재현 · 시연 · 다른 PC 에서 똑같이 띄우기**에 Docker Compose 를 쓴다.
+
+**공개 포트폴리오 배포**(인터넷 공개 체험 환경 — HTTPS · 내부망 · 데모 모드 · 초기화)는 별도 구성 `infra/portfolio/` 이고 운영 정본은 `infra/portfolio/README.md` 다(T-131 · ADR-039). 개인 운영(실제 Gmail · 상용 LLM) 배포 구성은 아직 없다.
 
 ## 구성 (`infra/local/compose.yaml`)
 

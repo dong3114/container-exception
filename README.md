@@ -1,74 +1,115 @@
 # CERA — Container Exception Recovery Agent
 
-부산항 수입 컨테이너 운영에서 여러 곳(공공 API, 메일, 계약서, 현장 담당자)에 흩어진 사실을 모아 **지금 무엇을 믿을 수 있는지** 정리하고, 예외(창고 수용량 급감, D&D 마감 임박 등)가 생기면 트럭·ODCY·창고 제약 안에서 **총비용이 가장 적은 복구 계획**과 연락 초안을 사람 승인 아래 돕는 시스템이다.
+> **CERA는 수입 컨테이너 물류의 예외 상황에서 정보 수집, 외부 커뮤니케이션, 사실 검증, 비용 · 제약 최적화, 승인과 후속 조치까지 연결하는 Human-in-the-loop 복구 의사결정 시스템입니다.**
 
-> 현재 상태 (2026-09-18): **웹 Control Tower Prototype만 실제로 동작한다.** 30대 가상 시나리오를 재생해 보여 주며, 화면의 위험·비용·계획·메일은 모두 시나리오에 적어 둔 값(SIMULATED)이다. Backend·DB·LLM·Solver·Gmail 연동은 아직 코드가 없다.
->
-> 다음 단계는 **외부 연락 루프**(문의 초안 → 사람 승인 → 실제 발송 → 회신 → 구조화 → 상태 반영)다. 설계와 책임 경계(`docs/18_external-communication.md`), 개념·논리 데이터 모델(`docs/21`·`docs/22`)은 확정했고, 주변 문서를 맞춘 뒤 **구현 계획(T-069)** 을 쓴다. Backend 언어·DB 제품은 아직 정하지 않았다(`docs/23`).
+CERA 는 System of Record(기록 시스템)가 아니라 **System of Decision / Action Layer** 다. 핵심 질문은 "컨테이너가 어디 있나?"가 아니라 **"지금 무엇을 믿을 수 있고, 무엇을 해야 총손실이 가장 작은가?"** 이다.
 
-## 저장소 구조
+## 무엇을 해결하나
 
-CERA는 **하나의 Private Monorepo**로 관리한다. Git 저장소는 하나이고, 안에서 코드 책임 영역만 나눈다. 배포할 때는 서비스별 Docker Image로 나눌 수 있으므로 Git 저장소를 나눌 필요는 없다(ADR-024).
+수입 컨테이너 운영의 사실은 공공 API · 메일 · 계약서 · 현장 담당자에게 흩어져 있다. 창고가 갑자기 받을 수 있는 물량을 줄이면(예: 20대 → 8대) 담당자는 운송사 · 보세창고(ODCY) · 창고에 일일이 묻고, 답을 모아 손으로 재배치를 계산하고, 상황이 또 바뀌면 처음부터 다시 한다.
 
-| 폴더 | 무엇을 담당하나 | 지금 실제 상태 |
-| --- | --- | --- |
-| `front/` | 사용자에게 보이는 화면 | `front/web/`에 Vite + React SPA Control Tower Prototype **있음**(CSR 만) |
-| `back/` | 중앙 API, DB, Event 저장, 외부 연동(메일 등), 승인·감사, 그리고 **모든 결정론 계산**(Reconciliation·Tariff·비용·위험·최적화·Solver) | 구현 전 (README만) |
-| `ai/` | **LLM·비정형 처리만**: 메일 회신·계약서 해석, 문의 문장 작성, 결과 설명. 위험·비용·최적화는 여기 있지 않다 | 구현 전 (README만) |
-| `packages/` | front·back·ai가 함께 쓰는 계약(API 스키마, 공유 타입) | 비어 있음 (README만) |
-| `data/` | 공통 시나리오·테스트 데이터 | `data/scenarios/busan-wh-capacity-01/` 30대 시나리오 **있음** |
-| `docs/` | 제품·기술 정본 문서, 설계 결정(ADR), 작업 큐·로그 | **있음** — 색인은 `docs/README.md` |
-| `infra/` | 배포 구성(Docker, 클라우드) | 구현 전 (README만) |
+CERA 의 흐름:
 
-- AI 개발 도구(Claude Code, Codex 등)는 루트의 `AGENTS.md`부터 읽는다. `CLAUDE.md`는 `AGENTS.md`를 가져온다.
-- **`ai/`와 `back/`의 경계 (ADR-029)**: AI를 쓰는 기준은 *"값이 자주 바뀌는가"*가 아니라 **"입력이 비정형이고 해석이 필요한가"**다. 메일 본문·계약서처럼 사람이 자유롭게 쓴 글만 AI가 읽고, 응답 폼·포털·TMS·CSV처럼 이미 구조화된 입력은 Backend가 검증만 한다. 위험·비용·최적화는 규칙과 계수로 답이 정해지므로 결정론 계산이며 AI가 아니다. 전체 책임 경계표는 `docs/18_external-communication.md` O절. **폴더 배치 적용은 Backend 뼈대를 만들 때(T-003)다.** `ai/README.md`·`back/README.md` 는 2026-09-18 T-070 에서 이 경계에 맞췄다.
-- 향후 방향(미확정): Frontend는 **Web 우선**. 현업 담당자용 Desktop 앱은 필요성이 검증되면 기존 React 화면을 재사용하는 **중앙 Backend 의 Client**로 검토한다 — 첫 후보 Electron, Tauri 는 나중 재평가(확정 기술 아님, `docs/23_runtime-platform-and-observability.md`).
+1. 예외가 생기면 계획에 **어떤 정보가 필요한지** 확인한다
+2. 정보가 부족하면 **담당 업체를 찾아 문의 초안**을 만들고, **사람 승인 뒤에** 연락한다
+3. 답장이 오면 AI 가 읽어 **후보**를 만들고, Backend 의 결정론 검증을 통과한 것만 **임시 사실**이 된다. 확실하지 않으면 사람이 확인한다
+4. 확정된 사실로 **비용과 운영 제약을 계산**하고, **Solver(HiGHS MIP)** 가 최소 손실 복구 계획을 제안한다
+5. 사람이 계획을 **승인**하면 후속 요청 초안을 만든다
+6. 상황이 바뀌면 기존 계획을 **무효화하고 다시 계산**한다. 이미 보낸 요청은 지우지 않고 **정정 · 취소 요청을 새로 만들어** 사람 승인 뒤 보낸다
 
-## 실행 (Frontend Prototype)
+## 핵심 원칙
 
-Node.js 22 기준.
+- **숫자는 결정론 엔진에서만** — LLM 은 비용 · 배정 · 상태를 정하지 않는다. LLM 출력은 언제나 후보다
+- **외부 행동은 사람 승인 뒤에만** — 문의 · 정정 · 취소 · 계획 승인 모두 사람이 한다. Agent 는 권한 주체가 아니다
+- **Mock · Simulated · Real 을 구분** — 시나리오 · 합성 값은 화면과 데이터에 그렇게 표시한다
+- **fail-closed** — AI 가 확신하지 못한 값은 반영하지 않고 사람 검토로 넘긴다
 
-```bash
-cd front/web
-npm install
+## Architecture
 
-npm run dev                 # 개발 서버 → http://localhost:3000
-
-npm run build               # 또는 프로덕션 빌드 후 실행
-npm run start               # → http://localhost:3000
+```text
+Browser ──HTTPS──> Caddy ──> nginx(정적 화면 + /backend 프록시)
+                                   │
+                                   ▼
+                     Main Backend (NestJS · TypeScript)  ← 권한 · 업무 사실 · 결정론 엔진(Cost · Risk · Solver) · 승인 · 감사 · Outbox
+                       │        │            │
+                       │        │            └── Worker(발송 · 수신 · 추출 · Agent 재조정)
+                       │        └── Redis(실행 큐 — 빠른 전달만, 멈춰도 PostgreSQL 폴링)
+                       └── PostgreSQL(업무 정본 · append-only 기록 · DB 트리거 방어)
+                     Python AI Server(FastAPI + LangGraph Agent Runtime) ← Backend 만 부른다. 부작용은 Backend typed Tool 로만
 ```
 
-검사:
+- 브라우저는 Backend 만 부른다. AI Server · DB · Redis 는 내부망에만 있다
+- 정본 문서: `docs/` (색인 `docs/README.md`, 결정 `docs/14_decisions.md`)
+
+## Tech Stack
+
+| 영역 | 기술 |
+| --- | --- |
+| Frontend | Vite · React · TypeScript (CSR SPA) |
+| Backend | Node.js 22 · NestJS · Drizzle ORM · PostgreSQL 18 · Redis 7 |
+| Optimization | HiGHS MIP Solver · 결정론 Cost / Risk Engine |
+| AI | Python 3.12 · FastAPI · LangGraph · 공급자 추상화(녹화 재생 · Gemini · OpenAI · 로컬 모델) |
+| 외부 통신 | Gmail API(OAuth 2.0) · Mock 채널 |
+| 배포 | Docker Compose · Caddy(HTTPS) · nginx |
+
+## 공개 데모(Portfolio Demo)
+
+공개 링크는 **안전한 체험 환경**이다(`infra/portfolio`, ADR-039). 방문자는 [데모 시작] 으로 데모 방문자 세션을 받아 핵심 흐름(예외 → Agent → 문의 초안 승인 → Mock 회신 → AI 추출 · 검증 → 사실 → Solver 계획 → 승인 → 사실 변경 → 재계획 → 정정 · 취소)을 직접 눌러 볼 수 있다.
+
+| 이 데모에서 | 상태 |
+| --- | --- |
+| 외부 메일 | **Mock** — 실제로 전송되지 않는다(실제 Gmail 채널은 설정 단계에서 꺼지고 API 도 거부) |
+| 기업 내부 운영 데이터 · 업체 · 담당자 | **합성 데이터**(`*.invalid` 주소) |
+| AI 추출 | **녹화 재생** — 상용 LLM 을 호출하지 않는다(방문자가 비용을 만들 수 없다) |
+| 관리자 기능 · 실제 운영 입력(CSV) · 등록부 변경 · 공공데이터 조회 | 데모 방문자 역할에는 없다(Backend 가 403) |
+| 공유 환경 | 여러 방문자가 같은 상태를 본다. 한동안 조작이 없으면 처음 상태로 초기화된다 |
+
+## 실제 검증 범위
+
+| 구분 | 내용 |
+| --- | --- |
+| **실제로 검증됨(별도 환경)** | Gmail API 실제 왕복(발송 · 실제 회신 · 원문 보존 · Agent 재개) · 상용 LLM(Gemini) 추출 smoke 1건(추출 → 결정론 검증 → 후보 → 임시 사실) · 로그인 · 역할 권한 · PostgreSQL 영속 · Redis 장애 대체 · 프로세스 재시작 뒤 Agent 재개 · 새 설치 · 백업/복원 · 운영 입력 기반 실제 계획 · Solver · 재계획 · 정정 / 취소 · 브라우저 E2E |
+| **실제 데이터** | 연결된 공공데이터(선박 입항 · 적하목록, data.go.kr) — 공개 데모에서는 꺼 둔다 |
+| **합성 데이터** | 기업 내부 컨테이너 운영 데이터 · 계약 요율 · 시설 / 트럭 운영 데이터 · 업체와 담당자 |
+| **아직 미확인** | 상용 LLM 의 실제 업무 회신 대량 처리 · 최종 모델 선정 · 실제 고객 TMS / WMS / FMS 연동 |
+
+"실제 부산항 기업 데이터를 최적화했다", "완전 자동으로 외부 지시를 보낸다"는 사실이 아니다.
+
+## Local Run
+
+Node 22 · Python 3.12 · Docker.
 
 ```bash
-cd front/web
-npm run validate:scenario   # 시나리오 데이터 합계·용량·KPI·금지 표현 검사
-npm run typecheck
-npm run lint
-npm run smoke               # 서버를 띄운 상태에서 브라우저(Edge/Chrome)로 9단계 재생 확인
+# 시연 스택(로컬, 합성 시나리오) — 정본: infra/README.md
+cp infra/local/.env.example infra/local/.env      # 값 채우기
+docker compose -p cera-demo -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env --profile app --profile web up -d --build --wait
+docker compose -p cera-demo -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env --profile app run --rm migrate npm run db:seed
+# → http://127.0.0.1:3000  (/ 운영 콘솔 · /demo 단계별 체험)
+
+# 시험
+cd back && npm test            # unit + DB(로컬 PostgreSQL)
+cd ai && python -m pytest -q
+cd front/web && npm test
 ```
 
-화면에서 **Play Scenario** 또는 **다음 이벤트**를 누르면 정상 운영 → 창고 장애(20 → 8) → 복구 계획 v1 → 운송사·ODCY 회신 → 재계획 v2 순서로 재생된다. 자세한 내용은 `docs/16_frontend-prototype.md`.
+공개 포트폴리오 배포: `infra/portfolio/README.md`(배포 · migration · 재시작 · 로그 · 상태 · 백업 · 복원 · 데모 초기화 · 키 교체).
+
+## Security Boundary
+
+- 인터넷에 열리는 것은 HTTPS 프록시 하나. PostgreSQL · Redis · AI Server 는 외부 경로가 없는 내부망
+- 세션 = HttpOnly · Secure · SameSite=Strict 쿠키(토큰은 DB 에 지문만). 변경 요청은 Origin 검사(CSRF 2차 방어). CORS 를 열지 않는다(같은 출처)
+- 권한은 Backend Guard 가 강제 — 화면이 버튼을 숨기는 것은 편의일 뿐이다. 선언 없는 변경 경로는 거부
+- 공개 데모: Gmail · 실제 수신자 · 공공데이터 · 상용 LLM 설정이면 기동 거부 · 실제 채널 발송 요청 403 · IP 별 요청 한도와 하루 Agent 실행 한도
+- 비밀값은 환경변수로만. 화면 번들이 읽는 환경변수는 비밀이 아닌 두 개뿐(시험이 검사). 오류 응답은 `code · message · request_id` 만(스택 · SQL · 경로 없음)
+
+## Known Limitations
+
+- 공개 데모는 **공유 상태**다 — 방문자별 격리(멀티테넌시)는 없다. 한가할 때 자동 초기화로 되돌린다
+- 공개 데모의 AI 추출은 녹화 재생이라 정해진 답장 문장만 값을 얻는다(그 밖의 문장은 사람 검토 경로)
+- 상용 LLM 공급자 · 모델의 최종 선정은 연속 평가 대상이다(ADR-037)
+- 고객 TMS / WMS / FMS · 배차 시스템 연동은 대상이 정해지면 붙인다
+- 화면은 데스크톱 우선(모바일 레이아웃은 범위 밖)
 
 ## Development Workflow
 
-여러 AI 도구(Claude, Codex, ChatGPT, Antigravity)를 역할별로 쓰되, 인수인계는 대화가 아니라 Git 안의 문서로 한다.
-
-| 문서 | 역할 |
-| --- | --- |
-| `AGENTS.md` | 전체 작업 규칙 (모든 AI 도구가 먼저 읽음) |
-| `docs/tasks/CURRENT.md` | **현재** 진행 중인 작업의 인수인계 |
-| `docs/tasks/QUEUE.md` | **예정** 작업 |
-| `docs/tasks/LOG.md` | **끝난** 작업 기록 |
-
-상세: `docs/17_ai-development-workflow.md`. 사용자 승인 없이 commit·push 하지 않는다.
-
-## 규칙 요약
-
-- 확인되지 않은 물류 현실을 추측해 사실처럼 쓰지 않는다. 값에는 검증 태그(`[VERIFIED]` `[ASSUMPTION]` `[TO VERIFY]`)를 붙인다.
-- 숫자(비용·배정)는 결정론 엔진에서만 나온다. LLM은 해석·초안·설명만 하고, 결과는 사람 확인 전 후보다.
-- 외부 연락·실행은 사람 승인 뒤에만 한다.
-- Mock·Simulated 값과 실제 값을 화면과 데이터에서 구분한다.
-- 비밀정보(API 키, OAuth 토큰), 실제 B/L·메일 원문은 커밋하지 않는다.
-
-전체 규칙: `AGENTS.md`, `docs/01_project-rules.md`.
+여러 AI 도구를 역할별로 쓰되 인수인계는 Git 안의 문서로 한다: `AGENTS.md`(규칙) · `docs/tasks/CURRENT.md`(현재) · `docs/tasks/QUEUE.md`(예정) · `docs/tasks/LOG.md`(기록). 상세 `docs/17_ai-development-workflow.md`. 전체 규칙 `docs/01_project-rules.md`.
