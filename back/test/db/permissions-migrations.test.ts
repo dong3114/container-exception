@@ -19,10 +19,10 @@ afterAll(async () => {
   await owner.end();
 });
 
-describe('migration history (fresh M01 → M35)', () => {
+describe('migration history (fresh M01 → M36)', () => {
   const files = readdirSync('drizzle/migrations').filter((f) => f.endsWith('.sql')).sort();
 
-  it('thirty-five reviewed migrations M01..M35 are committed in order', () => {
+  it('thirty-six reviewed migrations M01..M36 are committed in order', () => {
     expect(files).toEqual([
       '0000_m01_foundation.sql',
       '0001_m02_registry.sql',
@@ -59,6 +59,7 @@ describe('migration history (fresh M01 → M35)', () => {
       '0032_m33_plan_follow_up_kind.sql',
       '0033_m34_contact_selection.sql',
       '0034_m35_contact_selection_guards.sql',
+      '0035_m36_demo_visitor_role.sql',
     ]);
   });
 

@@ -79,3 +79,13 @@ def test_failover_needs_live_mode_a_model_a_different_target_and_that_vendors_ke
     assert "CERA_LLM_FALLBACK_PROVIDER" in issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="nope", CERA_LLM_FALLBACK_MODEL="x"))
     assert "live mode only" in issues(CERA_LLM_FALLBACK_PROVIDER="gemini", CERA_LLM_FALLBACK_MODEL="g1", GEMINI_API_KEY="k2")
     assert "CERA_LOCAL_LLM_BASE_URL" in issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="local", CERA_LLM_FALLBACK_MODEL="q", CERA_LOCAL_LLM_BASE_URL="llm:8080"))
+
+
+def test_portfolio_demo_is_replay_only_even_in_production():
+    # T-131 · ADR-039: a public demo never spends a commercial key; recorded answers are allowed because the site says it is synthetic
+    s = load_settings(dict(CERA_AI_ENV="production", CERA_PORTFOLIO_DEMO_MODE="true"))
+    assert (s.env, s.llm_mode) == ("production", "replay")
+    live = dict(CERA_LLM_MODE="live", CERA_LLM_PROVIDER="gemini", CERA_LLM_MODEL="m", GEMINI_API_KEY="k")
+    assert "the portfolio demo uses replay only" in issues(CERA_AI_ENV="production", CERA_PORTFOLIO_DEMO_MODE="true", **live)
+    assert "CERA_DECISION_MODE" in issues(CERA_PORTFOLIO_DEMO_MODE="true", CERA_DECISION_MODE="live", CERA_DECISION_PROVIDER="nli")
+    assert "CERA_PORTFOLIO_DEMO_MODE" in issues(CERA_PORTFOLIO_DEMO_MODE="yes")
