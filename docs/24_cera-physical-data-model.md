@@ -2746,7 +2746,7 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `record_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
 | 2 | `batch_id` | REF(planning_input_batch) | `uuid` | NOT NULL | — | `uuid()` | FK planning_input_batch |
-| 3 | `recovery_run_id` | REF(recovery_run) | `uuid` | NOT NULL | — | `uuid()` | FK recovery_run(실제 실행만 — 시뮬레이션 실행은 거부) |
+| 3 | `recovery_run_id` | REF(recovery_run) | `uuid` | NULL | — | `uuid()` | FK recovery_run(실제 실행만 — 시뮬레이션 실행은 거부). **NULL = 운영 기준 계획**(M37 · T-132 — 어느 실행에도 속하지 않은 예정 반입, 예외 탐지기가 본다) |
 | 4 | `container_no` | STRING(11) | `varchar(11)` | NOT NULL | — | `varchar({ length: 11 })` | CHECK `^[A-Z]{4}[0-9]{7}$` · 앱이 ISO 6346 검사 숫자를 검사 |
 | 5 | `container_id` | REF(container) | `uuid` | NULL | — | `uuid()` | FK container — 공공데이터 컨테이너와 연결(있을 때) |
 | 6 | `size_type` | CODE | `text` | NOT NULL | — | `text()` | IN (20DRY, 40DRY, 40HC, 20RF, 40RF, OTHER) |
@@ -2852,6 +2852,59 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 ### 22.59 M35 연락처 수동 선택 가드 · 권한 **(T-129)**
 
 - `contact_selection`: 갱신 · 삭제 · TRUNCATE 금지(append-only). 권한: cera_app = SELECT · INSERT
+
+### 22.60 `operational_exception` — 결정론 탐지기가 찾은 운영 예외 **(M37 · T-132 · ADR-040)**
+
+- 논리: `DERIVED_DECISION_RECORD`(규칙이 운영 기준 계획 + Truth 로 찾은 문제 하나) · 그룹 **P 계획** · Drizzle 분류 **DRIZZLE_PLUS_SQL**
+- 정체(종류 · 범위 · 시나리오 · 시설 · 날짜 · 처음 발견 시각)는 바뀌지 않는다. 진행 중(ACTIVE)은 정체마다 하나(부분 유일 인덱스) — 탐지를 다시 돌려도 · 프로세스가 둘이어도 중복 예외 · 중복 실행이 없다
+- 바뀌는 것: 지금 숫자 · 근거 · 상태(ACTIVE → RESOLVED 한 번, 해소는 끝) · 자동으로 만든 복구 실행(한 번 채움). 지우지 않는다(M38)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `exception_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `exception_type` | CODE(EXCEPTION_TYPE) | `text` | NOT NULL | — | `text()` | CHECK IN (WAREHOUSE_CAPACITY_SHORTAGE) |
+| 3 | `scope` | CODE(EXCEPTION_SCOPE) | `text` | NOT NULL | — | `text()` | CHECK IN (LIVE, SCENARIO) |
+| 4 | `scenario_id` | REF(scenario) | `uuid` | NULL | — | `uuid()` | FK scenario · RESTRICT — SCENARIO 범위만 |
+| 5 | `facility_id` | REF(facility) | `uuid` | NOT NULL | — | `uuid()` | FK facility · RESTRICT — 창고 |
+| 6 | `window_day` | DATE | `date` | NOT NULL | — | `date({ mode: 'string' })` | 수용량 날짜(서울) |
+| 7 | `status` | CODE(EXCEPTION_STATUS) | `text` | NOT NULL | — | `text()` | CHECK IN (ACTIVE, RESOLVED) |
+| 8 | `basis` | CODE(EXCEPTION_BASIS) | `text` | NOT NULL | — | `text()` | CHECK IN (CONFIRMED, PROVISIONAL) — PROVISIONAL 이면 실행을 자동으로 만들지 않는다 |
+| 9 | `scheduled_demand` | INTEGER | `integer` | NOT NULL | — | `integer()` | 예정 반입 수 |
+| 10 | `capacity` | INTEGER | `integer` | NULL | — | `integer()` | 수용량 사실 값 |
+| 11 | `shortage` | INTEGER | `integer` | NOT NULL | — | `integer()` | 예정 − 수용량(≥ 0) |
+| 12 | `recovery_run_id` | REF(recovery_run) | `uuid` | NULL | — | `uuid()` | FK recovery_run · RESTRICT · UNIQUE — 한 번 채움 |
+| 13 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | SCENARIO = true |
+| 14 | `detected_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 처음 발견 |
+| 15 | `updated_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 16 | `resolved_at` | TIMESTAMP_TZ | `timestamptz(3)` | NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | RESOLVED 일 때만 |
+
+- **CHECK**: 범위 ↔ 시나리오 ↔ 시뮬레이션 일치 · 숫자 ≥ 0 · RESOLVED ↔ resolved_at · 시각 순서
+- **인덱스**: 부분 유일 (종류, 범위, coalesce(시나리오), 시설, 날짜) WHERE status = ACTIVE · (status, detected_at)
+- 감사: `EXCEPTION_DETECTED` · `EXCEPTION_RESOLVED`(대상 `OPERATIONAL_EXCEPTION`) · `EXCEPTION_RUN_CREATED`(대상 `RECOVERY_RUN`) — 행위자 SYSTEM
+
+### 22.61 `operational_exception_observation` — 예외 판단 근거 기록 **(M37 · T-132)**
+
+- 논리: `EVIDENCE_RECORD` · append-only(M38). 근거 지문이 직전과 같으면 새 행을 만들지 않는다(반복 탐지 = 기록 없음)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `observation_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `exception_id` | REF(operational_exception) | `uuid` | NOT NULL | — | `uuid()` | FK operational_exception · RESTRICT |
+| 3 | `kind` | CODE(EXCEPTION_OBSERVATION_KIND) | `text` | NOT NULL | — | `text()` | CHECK IN (DETECTED, CHANGED, RESOLVED, INDETERMINATE) |
+| 4 | `as_of` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 판정 기준 시각(LIVE = 지금 · SCENARIO = 스냅숏) |
+| 5 | `observed_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+| 6 | `scheduled_demand` | INTEGER | `integer` | NOT NULL | — | `integer()` | — |
+| 7 | `capacity` | INTEGER | `integer` | NULL | — | `integer()` | — |
+| 8 | `capacity_state` | STRING | `text` | NOT NULL | — | `text()` | 사실 상태(CONFIRMED · PROVISIONAL · STALE · MISSING · WINDOW_PASSED 등) |
+| 9 | `capacity_event_id` | REF(event) | `uuid` | NULL | — | `uuid()` | FK event · RESTRICT — 이긴 사건 |
+| 10 | `shortage` | INTEGER | `integer` | NOT NULL | — | `integer()` | — |
+| 11 | `evidence` | JSON | `jsonb` | NOT NULL | — | `jsonb().$type<T>()` | 사실 키 · 예정 컨테이너 · 넘치는 컨테이너 · 운영 입력 묶음 id · 규칙 판 |
+| 12 | `evidence_hash` | HASH | `varchar(71)` | NOT NULL | — | `varchar({ length: 71 })` | 근거 지문 |
+
+### 22.62 M38 운영 예외 가드 · 권한 **(T-132)**
+
+- `operational_exception`: 정해진 컬럼만 갱신 · 해소된 예외는 고칠 수 없음 · `recovery_run_id` 한 번 채움 · 삭제 · TRUNCATE 금지. 권한: cera_app = SELECT · INSERT · UPDATE
+- `operational_exception_observation`: append-only. 권한: cera_app = SELECT · INSERT
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

@@ -19,6 +19,7 @@ import { TruthModule } from '../truth/truth.module.js';
 import { TruthService } from '../truth/truth.service.js';
 import { PlanningModule } from '../planning/planning.module.js';
 import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
+import { ExceptionDetectorService } from '../detection/exception-detector.service.js';
 import { EXECUTION_QUEUE, type ExecutionJob, type ExecutionQueue } from '../queue/execution-queue.js';
 import { QueueModule } from '../queue/queue.module.js';
 import { RedisExecutionQueue } from '../queue/redis-execution-queue.js';
@@ -54,6 +55,7 @@ export class WorkerRunner {
   private readonly logger = new Logger('WorkerRunner');
   private readonly locks = new Map<LockKey, pg.PoolClient>();
   private lastTruthRefresh = 0; // 주기 판단용 프로세스 시계(업무 판정에는 쓰지 않는다)
+  private lastDetection = 0; // 운영 예외 탐지 주기(T-132) — 같은 용도의 프로세스 시계
   /** 같은 프로세스 안에서 폴링 주기와 큐 작업이 같은 처리기를 동시에 돌리지 않게(잠금은 프로세스 사이, 이것은 프로세스 안) */
   private readonly chains = new Map<string, Promise<unknown>>();
 
@@ -66,6 +68,7 @@ export class WorkerRunner {
     @Inject(AgentReconciler) private readonly agents: AgentReconciler,
     @Inject(TruthService) private readonly truth: TruthService,
     @Inject(RecoveryPlanService) private readonly plans: RecoveryPlanService,
+    @Inject(ExceptionDetectorService) private readonly detector: ExceptionDetectorService,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(ENV) private readonly env: Env,
     @Inject(EXECUTION_QUEUE) private readonly queue: ExecutionQueue,
@@ -181,6 +184,15 @@ export class WorkerRunner {
           if (outdated > 0) this.logger.log({ msg: 'plans outdated', count: outdated, ms: Date.now() - t0 });
         } catch (error) {
           this.logger.error({ msg: 'plan outdated check failed', error: errorText(error) });
+        }
+      }
+      // 운영 예외 탐지(T-132) — 사실 · 운영 입력 변경 알림을 놓쳐도(재시작 · Redis 없음) 이 주기 안에 같은 결과. 중복은 DB(잠금 · 유일 인덱스)가 막는다
+      if (this.detector.enabled && Date.now() - this.lastDetection >= this.env.CERA_EXCEPTION_DETECT_INTERVAL_MS) {
+        this.lastDetection = Date.now();
+        try {
+          await this.detector.detect();
+        } catch (error) {
+          this.logger.error({ msg: 'exception detection failed', error: errorText(error) });
         }
       }
       // Agent 재조정 — 발송 · 수신 · 추출 결과를 본 뒤 기다리던 실행을 깨운다(같은 주기에 바로 이어진다). 시간 경과로 바뀐 사실도 DB 와 기준 시각으로 다시 판정한다

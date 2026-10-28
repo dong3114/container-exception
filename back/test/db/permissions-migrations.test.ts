@@ -19,10 +19,10 @@ afterAll(async () => {
   await owner.end();
 });
 
-describe('migration history (fresh M01 → M36)', () => {
+describe('migration history (fresh M01 → M38)', () => {
   const files = readdirSync('drizzle/migrations').filter((f) => f.endsWith('.sql')).sort();
 
-  it('thirty-six reviewed migrations M01..M36 are committed in order', () => {
+  it('thirty-eight reviewed migrations M01..M38 are committed in order', () => {
     expect(files).toEqual([
       '0000_m01_foundation.sql',
       '0001_m02_registry.sql',
@@ -60,6 +60,8 @@ describe('migration history (fresh M01 → M36)', () => {
       '0033_m34_contact_selection.sql',
       '0034_m35_contact_selection_guards.sql',
       '0035_m36_demo_visitor_role.sql',
+      '0036_m37_operational_exception.sql',
+      '0037_m38_operational_exception_guards.sql',
     ]);
   });
 
@@ -70,13 +72,13 @@ describe('migration history (fresh M01 → M36)', () => {
     expect(rows.map((r) => r.hash)).toEqual(expected);
   });
 
-  it('owner owns every product object; 32 functions (31 trigger + plan-run lock); no function calls now()', async () => {
+  it('owner owns every product object; 33 functions (32 trigger + plan-run lock); no function calls now()', async () => {
     const tables = await owner.query<{ owner: string }>("SELECT tableowner AS owner FROM pg_tables WHERE schemaname = 'cera'");
     expect(new Set(tables.rows.map((r) => r.owner))).toEqual(new Set(['cera_owner']));
     const fns = await owner.query<{ src: string }>(
       "SELECT prosrc AS src FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'cera'",
     );
-    expect(fns.rowCount).toBe(32);
+    expect(fns.rowCount).toBe(33);
     expect(fns.rows.filter((r) => /\bnow\s*\(|current_timestamp|clock_timestamp/i.test(r.src))).toEqual([]);
   });
 });
@@ -100,7 +102,10 @@ describe('runtime role cera_app (C layer)', () => {
        WHERE grantee = 'cera_app' AND table_schema = 'cera'
        GROUP BY table_name`);
     const privs = Object.fromEntries(rows.map((r) => [r.table, r.privs]));
-    expect(Object.keys(privs)).toHaveLength(51);
+    expect(Object.keys(privs)).toHaveLength(53);
+    // T-132: 예외는 정해진 컬럼만 갱신(가드), 근거 기록은 append-only
+    expect(privs.operational_exception).toBe('INSERT,SELECT,UPDATE');
+    expect(privs.operational_exception_observation).toBe('INSERT,SELECT');
     for (const t of ['planning_input_batch', 'planning_container_record', 'tariff_rate', 'facility_planning_profile']) expect(privs[t]).toBe('INSERT,SELECT');
     expect(privs.plan_follow_up).toBe('INSERT,SELECT');
     expect(privs.contact_selection).toBe('INSERT,SELECT');

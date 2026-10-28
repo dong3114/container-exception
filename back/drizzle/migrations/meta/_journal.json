@@ -253,6 +253,20 @@
       "when": 1793163078668,
       "tag": "0035_m36_demo_visitor_role",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793171211123,
+      "tag": "0036_m37_operational_exception",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793171218905,
+      "tag": "0037_m38_operational_exception_guards",
+      "breakpoints": true
     }
   ]
 }

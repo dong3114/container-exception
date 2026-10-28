@@ -144,6 +144,11 @@ export const envSchema = z.object({
   CERA_AGENT_RUNTIME_RETRY_BASE_MS: z.coerce.number().int().min(100).max(3_600_000).default(30_000),
   // Worker 의 Agent 재조정(기다리던 실행 · 재시도 시각이 된 실행 깨우기) on/off
   CERA_AGENT_RECONCILE_ENABLED: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  // ── 운영 예외 탐지(T-132 · ADR-040) — 결정론 규칙(LLM 아님)이 운영 기준 계획 + Truth 수용량으로 창고 수용량 부족을 찾아 복구 실행을 만든다 ──
+  // off(기본) = 탐지하지 않음(기존 동작). on = 사실 · 운영 입력이 바뀔 때(API · Worker 알림) + Worker 주기마다 탐지
+  CERA_EXCEPTION_DETECTION: z.enum(['off', 'on']).default('off'),
+  // Worker 의 탐지 주기(ms) — 알림을 놓쳐도(재시작 · Redis 없음) 이 주기 안에 같은 결과 [ASSUMPTION]
+  CERA_EXCEPTION_DETECT_INTERVAL_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(30_000),
 }).superRefine((e, ctx) => {
   const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
   if (e.APP_ENV === 'production' && e.CERA_MOCK_CHANNEL_FAULT !== 'none') fail('CERA_MOCK_CHANNEL_FAULT', 'fault injection is not allowed in production');

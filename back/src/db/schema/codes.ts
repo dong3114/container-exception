@@ -121,3 +121,14 @@ export const FOLLOW_UP_KIND = ['REQUEST', 'CORRECTION', 'CANCELLATION'] as const
 // M34 연락처 수동 선택(T-129) — 선택이 적용되는 범위: 기다리는 Agent 실행의 공백 하나 · 승인된 계획 판의 후속 조치 하나(전역 기본값 아님)
 export const CONTACT_SELECTION_SCOPE = ['AGENT_RUN', 'PLAN_FOLLOW_UP'] as const;
 export const CONTACT_SELECTION_SUBJECT = ['FACILITY', 'TRUCK_POOL'] as const;
+
+// M37 운영 예외 탐지(T-132 · ADR-040) — 결정론 규칙이 운영 기록 + Truth 로 찾은 예외. LLM 이 정하지 않는다
+export const EXCEPTION_TYPE = ['WAREHOUSE_CAPACITY_SHORTAGE'] as const;
+// 범위: 실제 운영 기준 계획(실행에 속하지 않은 컨테이너 기록) · 합성 시나리오(시연)
+export const EXCEPTION_SCOPE = ['LIVE', 'SCENARIO'] as const;
+// 지금 상태: 진행 중 → 해소(끝). 다시 부족해지면 새 예외다
+export const EXCEPTION_STATUS = ['ACTIVE', 'RESOLVED'] as const;
+// 부족을 단정한 근거: 확정 · 관측 사실(CONFIRMED) · 임시 사실(PROVISIONAL — 실행을 자동으로 만들지 않는다)
+export const EXCEPTION_BASIS = ['CONFIRMED', 'PROVISIONAL'] as const;
+// 관측 기록 종류: 처음 발견 · 근거 변화 · 해소 · 판단 불가(수용량 사실이 없거나 오래됨 · 철회 · 검토 필요)
+export const EXCEPTION_OBSERVATION_KIND = ['DETECTED', 'CHANGED', 'RESOLVED', 'INDETERMINATE'] as const;

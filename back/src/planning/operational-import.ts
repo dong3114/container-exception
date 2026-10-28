@@ -313,7 +313,7 @@ function finish<R extends ImportRow>(kind: ImportKind, scope: string | null, row
   return { rows: hashed, errors: errors.sort((a, b) => a.row - b.row), content_hash };
 }
 
-export function validateContainers(table: { row: number; cells: Record<string, string> }[], ctx: ImportContext, runId: string): ValidatedImport<ContainerRow> {
+export function validateContainers(table: { row: number; cells: Record<string, string> }[], ctx: ImportContext, runId: string | null): ValidatedImport<ContainerRow> {
   const out: (ContainerRow & { identity: string })[] = [];
   const errors: RowError[] = [];
   for (const t of table) {

@@ -163,6 +163,27 @@ export class PlanningInputController {
   }
 
   @RequirePermission('planning.input')
+  @Post('inputs/containers')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Operational baseline containers (T-132) — the planned inbound that belongs to no recovery run yet. Same columns and versioning as run containers. The exception detector compares it with warehouse capacity facts and opens recovery runs itself',
+  })
+  @ApiHeader(ACTOR)
+  @ApiBody({ type: PlanningInputImportRequestDto })
+  @ApiOkResponse({ type: PlanningInputImportReportDto })
+  @apply(...IMPORT_ERRORS)
+  importBaselineContainers(@Headers(PLAN_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown) {
+    return this.inputs.importBaselineContainers(actor, body);
+  }
+
+  @Get('inputs/containers')
+  @ApiOperation({ summary: 'Operational baseline containers — current versions (T-132)' })
+  baselineContainers() {
+    return this.inputs.baselineContainers();
+  }
+
+  @RequirePermission('planning.input')
   @Post('runs/:runId/inputs/containers')
   @HttpCode(200)
   @ApiOperation({

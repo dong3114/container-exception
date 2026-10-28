@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
 import { container, facility, facilityPlanningProfile, planningContainerRecord, planningInputBatch, planningSnapshot, recoveryRun, tariffRate } from '../db/schema/index.js';
@@ -119,6 +119,13 @@ export class PlanningInputService {
   importContainers(runId: string, actorHeader: string | undefined, body: unknown): Promise<ImportReport> {
     return this.importBatch('CONTAINERS', runId, actorHeader, body);
   }
+  /**
+   * 운영 기준 계획(T-132) — 어느 복구 실행에도 속하지 않은 예정 반입. 내부 시스템에서 내보낸 "원래 계획"을 그대로 넣고,
+   * 예외 탐지기가 이것과 Truth 수용량을 비교한다(사람이 복구 실행을 먼저 만들 필요가 없다). 검증 · 판 · 멱등 규칙은 실행 입력과 같다
+   */
+  importBaselineContainers(actorHeader: string | undefined, body: unknown): Promise<ImportReport> {
+    return this.importBatch('CONTAINERS', null, actorHeader, body);
+  }
   importRates(actorHeader: string | undefined, body: unknown): Promise<ImportReport> {
     return this.importBatch('RATES', null, actorHeader, body);
   }
@@ -213,7 +220,7 @@ export class PlanningInputService {
   }
 
   private validate(kind: ImportKind, rows: { row: number; cells: Record<string, string> }[], ctx: ImportContext, runId: string | null): ValidatedImport<ContainerRow | RateRow | ProfileRow> {
-    if (kind === 'CONTAINERS') return validateContainers(rows, ctx, runId!);
+    if (kind === 'CONTAINERS') return validateContainers(rows, ctx, runId);
     if (kind === 'RATES') return validateRates(rows, ctx);
     return validateProfiles(rows, ctx);
   }
@@ -224,7 +231,7 @@ export class PlanningInputService {
       await t.insert(planningContainerRecord).values(
         writes.map(({ row, supersedes }) => {
           const r = row as ContainerRow;
-          return { recordId: this.ids.newId(), batchId, recoveryRunId: runId!, containerNo: r.container_no, containerId: r.container_id, sizeType: r.size_type, carrierCode: r.carrier_code, priority: r.priority, lfd: r.lfd, pickupReady: r.pickup_ready, currentTerminal: r.current_terminal, destinationFacilityId: r.destination_facility_id, plannedDay: r.planned_day, plannedDepartHour: r.planned_depart_hour, alternateDestinationAllowed: r.alternate_destination_allowed, recordStatus: r.record_status, rowNo: r.row_no, contentHash: hashOf(row), supersedesRecordId: supersedes, recordedAt: now };
+          return { recordId: this.ids.newId(), batchId, recoveryRunId: runId, containerNo: r.container_no, containerId: r.container_id, sizeType: r.size_type, carrierCode: r.carrier_code, priority: r.priority, lfd: r.lfd, pickupReady: r.pickup_ready, currentTerminal: r.current_terminal, destinationFacilityId: r.destination_facility_id, plannedDay: r.planned_day, plannedDepartHour: r.planned_depart_hour, alternateDestinationAllowed: r.alternate_destination_allowed, recordStatus: r.record_status, rowNo: r.row_no, contentHash: hashOf(row), supersedesRecordId: supersedes, recordedAt: now };
         }),
       );
     } else if (kind === 'RATES') {
@@ -247,17 +254,18 @@ export class PlanningInputService {
   /** 지금 판(밀리지 않은 것) — 철회(WITHDRAWN) 판도 판이다(같은 내용이면 새 판 없음). */
   private async heads(kind: ImportKind, runId: string | null, q: Database | DbTransaction = this.db): Promise<Head[]> {
     if (kind === 'CONTAINERS') {
-      return (await this.containerHeads(runId!, q)).map((r) => ({ id: r.recordId, identity: r.containerNo, contentHash: r.contentHash }));
+      return (await this.containerHeads(runId, q)).map((r) => ({ id: r.recordId, identity: r.containerNo, contentHash: r.contentHash }));
     }
     if (kind === 'RATES') return (await this.rateHeads(q)).map((r) => ({ id: r.rateId, identity: [r.rateType, r.carrierCode ?? '', r.fromRef ?? '', r.toRef ?? '', r.sizeType ?? '', r.effectiveFrom].join('|'), contentHash: r.contentHash }));
     return (await this.profileHeads(q)).map((r) => ({ id: r.profileId, identity: r.facilityId, contentHash: r.contentHash }));
   }
 
-  private containerHeads(runId: string, q: Database | DbTransaction = this.db) {
+  /** runId = null → 운영 기준 계획(T-132) */
+  private containerHeads(runId: string | null, q: Database | DbTransaction = this.db) {
     return q
       .select()
       .from(planningContainerRecord)
-      .where(and(eq(planningContainerRecord.recoveryRunId, runId), sql`NOT EXISTS (SELECT 1 FROM cera.planning_container_record s WHERE s.supersedes_record_id = ${planningContainerRecord.recordId})`))
+      .where(and(runId === null ? isNull(planningContainerRecord.recoveryRunId) : eq(planningContainerRecord.recoveryRunId, runId), sql`NOT EXISTS (SELECT 1 FROM cera.planning_container_record s WHERE s.supersedes_record_id = ${planningContainerRecord.recordId})`))
       .orderBy(asc(planningContainerRecord.containerNo));
   }
   private rateHeads(q: Database | DbTransaction = this.db) {
@@ -273,6 +281,11 @@ export class PlanningInputService {
     await this.liveRun(runId);
     const rows = await this.containerHeads(runId);
     return { recovery_run_id: runId, records: rows.map((r) => this.containerView(r)) };
+  }
+  /** 운영 기준 계획의 지금 판(T-132) */
+  async baselineContainers() {
+    const rows = await this.containerHeads(null);
+    return { recovery_run_id: null, scope: 'OPERATIONAL_BASELINE' as const, records: rows.map((r) => this.containerView(r)) };
   }
   async rates() {
     return { records: (await this.rateHeads()).map((r) => ({ rate_id: r.rateId, rate_type: r.rateType, carrier_code: r.carrierCode, from_ref: r.fromRef, to_ref: r.toRef, size_type: r.sizeType, amount: Number(r.amount), unit: r.unit, effective_from: r.effectiveFrom, effective_until: r.effectiveUntil, source_note: r.sourceNote, record_status: r.recordStatus, batch_id: r.batchId, supersedes_rate_id: r.supersedesRateId, recorded_at: Instant.fromDb(r.recordedAt).toSeoulIso() })) };
@@ -318,7 +331,9 @@ export class PlanningInputService {
   private async context(kind: ImportKind, runId: string | null): Promise<ImportContext> {
     const facilities = (await this.db.select({ id: facility.facilityId, name: facility.facilityName, type: facility.facilityType, isActive: facility.isActive }).from(facility)).map((f) => ({ ...f }));
     if (kind !== 'CONTAINERS') return { planDay: null, facilities, publicContainers: new Map() };
-    const run = await this.liveRun(runId!);
+    // 운영 기준 계획: 기준 날짜 = 오늘(서울). 공공데이터 범위가 없으므로 컨테이너는 행에 적힌 그대로
+    if (runId === null) return { planDay: this.clock.now().toSeoulIso().slice(0, 10), facilities, publicContainers: new Map() };
+    const run = await this.liveRun(runId);
     return { planDay: run.planDay, facilities, publicContainers: await this.publicContainers(runId!) };
   }
 

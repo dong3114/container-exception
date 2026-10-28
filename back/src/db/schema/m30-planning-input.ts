@@ -44,7 +44,8 @@ export const planningInputBatch = cera.table(
     ckIn('planning_input_batch', t.inputKind, PLANNING_INPUT_KIND),
     ckHash('planning_input_batch', t.contentHash),
     ckIn('planning_input_batch', t.sourceType, PLANNING_INPUT_SOURCE),
-    check(n('ck_planning_input_batch__run_scope'), sql`(${t.inputKind} = 'CONTAINERS') = (${t.recoveryRunId} IS NOT NULL)`),
+    // M37(T-132): 컨테이너 묶음은 실행에 속하거나(실행 계획 입력) 운영 기준 계획(NULL)이다. 요율 · 시설 정보는 실행에 속하지 않는다
+    check(n('ck_planning_input_batch__run_scope'), sql`${t.inputKind} = 'CONTAINERS' OR ${t.recoveryRunId} IS NULL`),
     check(n('ck_planning_input_batch__counts'), sql`${t.rowCount} >= 0 AND ${t.acceptedCount} >= 0 AND ${t.unchangedCount} >= 0 AND ${t.acceptedCount} + ${t.unchangedCount} = ${t.rowCount}`),
   ],
 );
@@ -54,7 +55,8 @@ export const planningContainerRecord = cera.table(
   {
     recordId: uuid('record_id').notNull(),
     batchId: uuid('batch_id').notNull(),
-    recoveryRunId: uuid('recovery_run_id').notNull(),
+    // M37(T-132): NULL = 운영 기준 계획(어느 복구 실행에도 속하지 않은 예정 반입 — 예외 탐지기가 본다). 값 = 그 실행의 계획 입력
+    recoveryRunId: uuid('recovery_run_id'),
     containerNo: varchar('container_no', { length: 11 }).notNull(),
     containerId: uuid('container_id'),
     sizeType: text('size_type').notNull(),
