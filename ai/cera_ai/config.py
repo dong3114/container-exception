@@ -25,6 +25,7 @@ KEYS: dict[str, tuple[str | None, str]] = {
     "CERA_AI_HOST": ("127.0.0.1", "bind address; the Main Backend is the only caller"),
     "CERA_AI_PORT": ("8100", "HTTP port"),
     "CERA_AI_LOG_LEVEL": ("INFO", "Python log level"),
+    "CERA_PORTFOLIO_DEMO_MODE": ("false", "true = public portfolio demo (T-131 · ADR-039): recorded replay only — no commercial LLM call, no cost; production may then use replay"),
     # Generative LLM (extraction candidates, prose) — ADR-033: outputs are candidates only
     "CERA_LLM_MODE": ("replay", "replay = recorded responses, no LLM call · live = CERA_LLM_PROVIDER + CERA_LLM_MODEL"),
     "CERA_LLM_PROVIDER": (None, "live only: anthropic | openai | gemini | local (OpenAI-compatible server, no key)"),
@@ -100,7 +101,13 @@ def load_settings(source: Mapping[str, str]) -> Settings:
     env = _get(source, "CERA_AI_ENV") or "local"
     if env not in ENVS:
         issues.append(f"CERA_AI_ENV: must be one of {', '.join(ENVS)}")
-    prod = env == "production"
+    portfolio = (_get(source, "CERA_PORTFOLIO_DEMO_MODE") or "false").lower()
+    if portfolio not in ("true", "false"):
+        issues.append("CERA_PORTFOLIO_DEMO_MODE: must be true or false")
+    portfolio_demo = portfolio == "true"
+    # A public portfolio demo is labelled as synthetic everywhere, so recorded answers are allowed even in production —
+    # and commercial calls are not: anyone on the internet could otherwise spend the key (ADR-039 option A).
+    prod = env == "production" and not portfolio_demo
 
     llm_mode, vendor = _get(source, "CERA_LLM_MODE"), _get(source, "CERA_LLM_PROVIDER")
     if llm_mode not in ("replay", "live"):
@@ -143,6 +150,12 @@ def load_settings(source: Mapping[str, str]) -> Settings:
             issues.append("OPENROUTER_API_KEY: required for CERA_DECISION_PROVIDER=jev")
         elif decision == "llm_judge" and llm_mode != "live":
             issues.append("CERA_DECISION_PROVIDER: llm_judge reuses the live LLM settings (CERA_LLM_MODE=live)")
+
+    if portfolio_demo:
+        if llm_mode != "replay":
+            issues.append("CERA_LLM_MODE: the portfolio demo uses replay only (no commercial LLM calls)")
+        if decision_mode == "live":
+            issues.append("CERA_DECISION_MODE: the portfolio demo allows off or replay only")
 
     agent_mode = _get(source, "CERA_AGENT_MODE")
     if agent_mode not in ("off", "on"):

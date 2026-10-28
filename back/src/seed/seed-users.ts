@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { hashPassword } from '../auth/password.js';
 import type { UserRole } from '../auth/permissions.js';
@@ -43,6 +44,23 @@ export class SeedUsers {
       });
     }
     return created;
+  }
+
+  /**
+   * 공개 포트폴리오 데모 방문자(T-131) — `CERA_PORTFOLIO_DEMO_MODE` 의 시드만 부른다(run-seed.ts).
+   * 비밀번호는 매번 새로 만든 난수의 해시이고 어디에도 남기지 않는다 → 로그인 화면으로는 들어올 수 없고 데모 세션 경로로만 쓴다.
+   */
+  async applyDemoVisitor(at: Instant): Promise<boolean> {
+    const passwordHash = await hashPassword(randomBytes(32).toString('base64url'));
+    return this.db.transaction(async (tx) => {
+      await tx.insert(actor).values({ actorId: SEED_IDS.actorDemo, actorType: 'HUMAN', displayName: '데모 방문자 (가상)' }).onConflictDoNothing();
+      const rows = await tx
+        .insert(userAccount)
+        .values({ userId: SEED_IDS.userDemo, actorId: SEED_IDS.actorDemo, loginId: 'demo@cera.local', role: 'DEMO_VISITOR', passwordHash, isActive: true, createdAt: at.toDb(), updatedAt: at.toDb() })
+        .onConflictDoNothing()
+        .returning({ id: userAccount.userId });
+      return rows.length > 0;
+    });
   }
 }
 

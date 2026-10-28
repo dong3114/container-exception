@@ -1017,7 +1017,7 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 ### 18.18 T-119 Authentication / RBAC 구현 확인 결과 (2026-10-27)
 
 - **방식** — Backend 관리 세션. `POST /auth/login`(login_id · password) → 32바이트 난수 토큰을 HttpOnly · SameSite=Strict 쿠키로, DB(`user_session`)에는 sha256 지문만. 서명 비밀키 · JWT 없음. 비밀번호는 Node 내장 scrypt(`scrypt$N$r$p$salt$hash`). 로그인 실패 사유는 하나(`INVALID_CREDENTIALS`), 계정별 15분 5회 제한(프로세스 메모리 [ASSUMPTION]). 로그아웃 · 역할/활성/비밀번호 변경 → 그 사용자의 세션 전부 끊김
-- **역할 · 권한(정본 `back/src/auth/permissions.ts`)** — ADMIN = 모든 운영 + `users.manage` · `registry.manage` / OPERATOR = `agent_run.manage` · `communication.draft/approve/send` · `truth.review` · `truth.manual_entry` · `plan.recalculate/approve` · `public_data.fetch` · `read` / FIELD_OPERATOR = `read` · `truth.manual_entry` 만
+- **역할 · 권한(정본 `back/src/auth/permissions.ts`)** — ADMIN = 모든 운영 + `users.manage` · `registry.manage` / OPERATOR = `agent_run.manage` · `communication.draft/approve/send` · `truth.review` · `truth.manual_entry` · `plan.recalculate/approve` · `public_data.fetch` · `read` / FIELD_OPERATOR = `read` · `truth.manual_entry` 만 / DEMO_VISITOR(M36 · T-131 공개 포트폴리오 데모) = OPERATOR 에서 `planning.input` · `public_data.fetch` 를 뺀 것(등록부 · 사용자 관리 없음)
 - **강제** — 전역 Guard. 경로마다 `@RequirePermission` 선언, GET 기본 `read`, **선언 없는 변경 요청은 403 `PERMISSION_NOT_DECLARED`**(실수로 열린 경로 방지). 신원 없음 → 401 `AUTH_REQUIRED`, 역할 부족 → 403 `PERMISSION_DENIED`
 - **사칭 방지** — `CERA_AUTH_MODE=session`(기본): 미들웨어가 요청의 `X-CERA-Actor-Id` 를 지우고 세션 사용자의 actor id 로 다시 채운다 → 기존 서비스 · 감사 기록이 읽는 행위자는 언제나 서버가 정한 값. `dev-header`(옛 개발 방식)는 local · test 에서만(env 검사)
 - **분리** — Agent 는 서비스 토큰(Bearer)으로 `/internal/*` 만, 사람 세션으로는 Agent Tool 을 못 부르고 토큰으로 로그인할 수 없다. Worker 는 SYSTEM actor. 계정은 HUMAN actor 에만(M25 트리거 CE005)
@@ -1128,6 +1128,16 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **검증**: DB 시험(한 쪽 = 1건으로 돌려 이 시험의 실행 셋이 모두 깨어남 · 고치기 전 코드에서는 실패 확인)
 - T-108 의 나머지(Agent 실행 보기 OpenAPI DTO · checkpoint 보관 주기)는 화면 · 운영 규모 작업이라 P2 로 남긴다
 
+
+### 18.28 T-131 공개 포트폴리오 데모 모드 (2026-10-28 · ADR-039 Proposed)
+
+- **M36**(생성 migration): `user_account.role` CHECK 에 `DEMO_VISITOR` 추가. 권한 = OPERATOR − `planning.input` − `public_data.fetch`(`back/src/auth/permissions.ts`)
+- **설정**: `CERA_PORTFOLIO_DEMO_MODE` · `CERA_PORTFOLIO_MAX_AGENT_RUNS_PER_DAY` · `CERA_ALLOWED_ORIGINS` · `CERA_TRUST_PROXY_HOPS`. 포트폴리오 모드는 Gmail · 실제 수신 허용 목록 · 공공데이터 · dev-header · 장애 주입 · (production) Origin 없음이면 기동 거부. 업무 규칙 · 기존 표는 그대로(Backend Core FROZEN — 배포 경계만)
+- **입구**: `GET · POST /auth/demo-session`(포트폴리오 모드에서만 존재) — 데모 방문자 계정(시드 고정 id, 비밀번호 = 시드가 만든 아무도 모르는 난수) 세션만. 감사 `AUTH_LOGIN`(is_simulated = true)
+- **차단**: 발송 요청이 MOCK 아닌 채널이면 403 `PORTFOLIO_DEMO_REAL_CHANNEL_BLOCKED` · Mock 답장 = 정해진 문장 · `.invalid` 발신자만(400 `DEMO_REPLY_NOT_ALLOWED`) · Origin 불일치 403 `ORIGIN_NOT_ALLOWED` · IP 별 한도 429 `RATE_LIMITED` · 하루 Agent 실행 한도 429 `DEMO_QUOTA_EXCEEDED`(`back/src/http/public-guards.ts`)
+- **시드**: `db:seed` 는 local · test 또는 포트폴리오 모드에서만(개인 운영 production 에는 데모 데이터가 들어가지 않는다). 포트폴리오 모드면 데모 방문자를 더 만든다
+- **초기화**: 공유 상태 → `infra/portfolio/reset-demo.sh`(볼륨을 새로 만들고 시드). 포트폴리오 compose 프로젝트의 합성 데이터만 — 업무 기록 append-only 정책(개인 운영)과 별개
+- **검증**: Backend 시험(unit 13 · DB 18 — 실제 채널 403 · 관리 403 · 옛 헤더 사칭 401 · Origin · CORS 없음 · 비밀값 없음 · 한도 · 일반 배포에 입구 없음) · 로컬 HTTPS 포트폴리오 스택(새 볼륨) 브라우저 E2E 45항목
 
 ## 20. migration 전략
 
@@ -2620,7 +2630,7 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 | 1 | `user_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
 | 2 | `actor_id` | REF(actor) | `uuid` | NOT NULL | — | `uuid()` | FK actor · RESTRICT · UNIQUE · HUMAN 만(M25) |
 | 3 | `login_id` | STRING(60) | `varchar(60)` | NOT NULL | — | `varchar({ length: 60 })` | UNIQUE · 소문자 `^[a-z0-9][a-z0-9._@-]{2,59}$` |
-| 4 | `role` | CODE | `text` | NOT NULL | — | `text()` | IN (ADMIN, OPERATOR, FIELD_OPERATOR) — 권한 표 `back/src/auth/permissions.ts` |
+| 4 | `role` | CODE | `text` | NOT NULL | — | `text()` | IN (ADMIN, OPERATOR, FIELD_OPERATOR, DEMO_VISITOR) — 권한 표 `back/src/auth/permissions.ts`. DEMO_VISITOR = 공개 포트폴리오 데모 방문자(M36 · T-131) |
 | 5 | `password_hash` | STRING(200) | `varchar(200)` | NOT NULL | — | `varchar({ length: 200 })` | 형식 `scrypt$N$r$p$salt$hash` |
 | 6 | `is_active` | BOOLEAN | `boolean` | NOT NULL | `true` | `boolean().default(true)` | 끄면 로그인 · 세션 불가 |
 | 7 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |

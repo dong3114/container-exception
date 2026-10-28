@@ -104,7 +104,8 @@ export const SOLVER_STATUS = ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'TIME_LIMIT',
 export const PLAN_ACTION = ['KEEP_CURRENT_PLAN', 'MOVE_TO_WAREHOUSE', 'MOVE_TO_ODCY', 'WAIT_AT_TERMINAL'] as const;
 export const AGENT_STEP_KIND =['START', 'NODE', 'INTERRUPT', 'RESUME', 'TERMINAL'] as const;
 // M24 사용자 역할(T-119 · docs/03 1절 행위자). 권한 표는 back/src/auth/permissions.ts 한 곳
-export const USER_ROLE = ['ADMIN', 'OPERATOR', 'FIELD_OPERATOR'] as const;
+// M36 DEMO_VISITOR(T-131) — 공개 포트폴리오 데모 방문자. 체험에 필요한 권한만(등록부 · 사용자 관리 · 운영 입력 · 공공데이터 없음)
+export const USER_ROLE = ['ADMIN', 'OPERATOR', 'FIELD_OPERATOR', 'DEMO_VISITOR'] as const;
 
 // M30 실제 계획 입력(T-123) — docs/24 22.53 ~ 22.57
 export const PLANNING_INPUT_KIND = ['CONTAINERS', 'RATES', 'FACILITY_PROFILES'] as const;

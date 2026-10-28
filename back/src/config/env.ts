@@ -79,6 +79,20 @@ export const envSchema = z.object({
   CERA_SEED_ADMIN_PASSWORD: optionalSecret,
   CERA_SEED_OPERATOR_PASSWORD: optionalSecret,
   CERA_SEED_FIELD_PASSWORD: optionalSecret,
+  // ── 공개 포트폴리오 데모(T-131 · ADR-039) ──
+  // true = 인터넷에 공개하는 체험 환경. 실제 채널(Gmail) · 실제 수신 허용 목록 · 공공데이터 호출을 설정 단계에서 막고(아래 refine),
+  // 데모 세션 발급(POST /auth/demo-session) · Mock 답장 도우미 · IP 별 요청 한도를 켠다. 개인 운영(Private Operation) 배포는 false
+  CERA_PORTFOLIO_DEMO_MODE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // 포트폴리오 전체 하루 한도: Agent 실행 시작 수 [ASSUMPTION]. 넘으면 429 DEMO_QUOTA_EXCEEDED(프로세스 메모리 — API 재시작이면 다시 센다)
+  CERA_PORTFOLIO_MAX_AGENT_RUNS_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(200),
+  // 변경 요청(POST · PATCH · PUT · DELETE)이 올 수 있는 Origin 목록(쉼표, 예: https://cera.example.com). 비우면 검사하지 않는다.
+  // 세션 쿠키 SameSite=Strict 위에 더하는 CSRF 2차 방어 — 브라우저가 붙인 Origin 이 목록에 없으면 403 ORIGIN_NOT_ALLOWED
+  CERA_ALLOWED_ORIGINS: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((o) => o.trim().replace(/\/+$/, '').toLowerCase()).filter((o) => o.length > 0)),
+  // API 앞의 역방향 프록시 단계 수(HTTPS 종단 → 화면 nginx → api 면 2). 요청 한도가 프록시가 아니라 방문자 IP 를 세게 한다. 0 = 직접 연결
+  CERA_TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   // ── 실행 큐(T-121) — Redis 는 빠른 전달 · 지연 재시도 · 깨우기만. 정본 · 복구는 PostgreSQL(폴링 · 재조정)이다 ──
   // 비우면 큐 없이 폴링만으로 동작(기존과 같다). 예: redis://127.0.0.1:56379
   CERA_REDIS_URL: optionalSecret,
@@ -151,6 +165,18 @@ export const envSchema = z.object({
   // 실행 큐(T-121): 비우면 폴링만. 값이 있으면 redis:// · rediss:// 만 — 오타 난 주소가 조용히 "큐 꺼짐"처럼 보이지 않게 시작에서 막는다
   // (Redis 가 내려가 있는 것은 설정 오류가 아니다 — 그때는 PostgreSQL 폴링이 같은 일을 한다)
   if (e.CERA_REDIS_URL && !/^rediss?:\/\/[^\s/]+/.test(e.CERA_REDIS_URL)) fail('CERA_REDIS_URL', 'must be redis://host:port or rediss://host:port (or empty to run without the queue)');
+  for (const o of e.CERA_ALLOWED_ORIGINS) {
+    if (!/^https?:\/\/[^\s/]+$/.test(o)) fail('CERA_ALLOWED_ORIGINS', 'each origin must be scheme://host[:port] without a path');
+  }
+  // 공개 포트폴리오: 외부로 나가거나 비용이 드는 경로는 설정으로 닫는다(화면 숨김이 아니라 기동 거부)
+  if (e.CERA_PORTFOLIO_DEMO_MODE) {
+    if (e.CERA_GMAIL_ENABLED) fail('CERA_GMAIL_ENABLED', 'the portfolio demo never uses the real Gmail channel');
+    if (e.CERA_TEST_RECIPIENT_ALLOWLIST.length > 0) fail('CERA_TEST_RECIPIENT_ALLOWLIST', 'must be empty in the portfolio demo (no real recipients)');
+    if (e.CERA_PUBLIC_DATA_MODE !== 'off') fail('CERA_PUBLIC_DATA_MODE', 'must be off in the portfolio demo (no external API calls)');
+    if (e.CERA_AUTH_MODE !== 'session') fail('CERA_AUTH_MODE', 'the portfolio demo uses session login only');
+    if (e.CERA_MOCK_CHANNEL_FAULT !== 'none') fail('CERA_MOCK_CHANNEL_FAULT', 'fault injection is not allowed in the portfolio demo');
+    if (e.APP_ENV === 'production' && e.CERA_ALLOWED_ORIGINS.length === 0) fail('CERA_ALLOWED_ORIGINS', 'set the public site origin for the portfolio demo');
+  }
   if (e.CERA_AGENT_TOOLS_ENABLED && (e.CERA_AGENT_TOOL_TOKEN ?? '').length < 32) {
     fail('CERA_AGENT_TOOL_TOKEN', 'agent tools need a service token of at least 32 characters');
   }

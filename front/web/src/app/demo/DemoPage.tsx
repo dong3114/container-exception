@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMe } from "../MeContext";
 import { type AgentRun, type AgentRunListItem, createAgentRun, getAgentRun, listAgentRuns, resumeAgentRun, startAgentRun } from "@/api/agentRuns";
 import { type DemoStatus, type RuntimeStatus, getDemoStatus, getRuntimeStatus, injectMockReply } from "@/api/demo";
 import { type Draft, approveDraft, listDrafts, listRuns, sendDraft } from "@/api/drafts";
@@ -59,6 +60,7 @@ export default function DemoPage() {
   const [quantity, setQuantity] = useState("4");
   const [preset, setPreset] = useState<string>("ok");
   const [customBody, setCustomBody] = useState("");
+  const me = useMe();
 
   const runId = snap.status?.seed.scenario_run_id ?? null;
   const actor = snap.status?.seed.operator_actor_id ?? null;
@@ -279,7 +281,8 @@ export default function DemoPage() {
                 ))}
               </select>
               <div>보낼 문장: <code>{customBody || presetDef.body}</code>{"from" in presetDef && presetDef.from ? <> · 발신자 <code>{presetDef.from}</code></> : " · 발신자 = 문의 받은 주소"}</div>
-              <input placeholder="(선택) 직접 쓴 문장 — 녹화가 없으면 추출 실패가 정상" value={customBody} onChange={(e) => setCustomBody(e.target.value)} />
+              {/* 공개 포트폴리오 데모는 정해진 문장만 받는다(Backend 가 거부 — T-131) */}
+              {!me?.portfolio_demo && <input placeholder="(선택) 직접 쓴 문장 — 녹화가 없으면 추출 실패가 정상" value={customBody} onChange={(e) => setCustomBody(e.target.value)} />}
               <div>
                 <button type="button" className="act-btn" disabled={!snap.draft || busy !== null || !sent}
                   onClick={() => act("업체 회신 넣기", async () => {

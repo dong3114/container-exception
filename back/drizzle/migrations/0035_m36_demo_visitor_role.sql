@@ -1,0 +1,2 @@
+ALTER TABLE "cera"."user_account" DROP CONSTRAINT "ck_user_account__role";--> statement-breakpoint
+ALTER TABLE "cera"."user_account" ADD CONSTRAINT "ck_user_account__role" CHECK ("cera"."user_account"."role" IN ('ADMIN', 'OPERATOR', 'FIELD_OPERATOR', 'DEMO_VISITOR'));

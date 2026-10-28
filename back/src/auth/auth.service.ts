@@ -14,6 +14,7 @@ import { BusinessRuleError, CeraError, ValidationError } from '../shared/errors/
 import { sha256Bytes } from '../shared/hash/hash.js';
 import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
+import { SEED_IDS } from '../seed/slice1-fixture.js';
 import { DUMMY_HASH, hashPassword, verifyPassword } from './password.js';
 import { ROLE_PERMISSIONS, type Permission, type UserRole } from './permissions.js';
 
@@ -37,6 +38,8 @@ export class AuthError extends CeraError {
 }
 
 export const SESSION_COOKIE = 'cera_session';
+/** 포트폴리오 데모 방문자 계정(포트폴리오 시드가 만든다, T-131) */
+export const DEMO_USER_ID = SEED_IDS.userDemo;
 const LOGIN_RE = /^[a-z0-9][a-z0-9._@-]{2,59}$/;
 
 const loginBody = z.object({ login_id: z.string().min(1).max(60), password: z.string().min(1).max(200) }).strict();
@@ -101,15 +104,38 @@ export class AuthService {
       throw new AuthError('INVALID_CREDENTIALS', 'Login failed', 401);
     }
     this.failures.delete(loginId);
+    return this.openSession({ userId: row.u.userId, actorId: row.u.actorId, loginId, displayName: row.displayName, role: row.u.role as UserRole }, false);
+  }
 
+  /**
+   * 공개 포트폴리오 데모 세션(T-131 · ADR-039) — `CERA_PORTFOLIO_DEMO_MODE` 에서만 이 경로가 붙는다(api.module.ts).
+   * 비밀번호 없이 **데모 방문자 계정(DEMO_VISITOR) 하나에만** 세션을 연다. 그 계정은 포트폴리오 시드가 만들고 비밀번호는 아무도 모르는 난수다 —
+   * 그래서 이 경로가 있어도 관리자 · 운영자로 들어갈 수 없다. 세션 토큰은 방문자마다 따로다(다른 방문자의 세션을 쓸 수 없다)
+   */
+  async demoSession(): Promise<{ token: string; expiresAt: string; me: ReturnType<AuthService['me']> }> {
+    const rows = await this.db
+      .select({ u: userAccount, displayName: actor.displayName, actorActive: actor.isActive, actorType: actor.actorType })
+      .from(userAccount)
+      .innerJoin(actor, eq(actor.actorId, userAccount.actorId))
+      .where(eq(userAccount.userId, DEMO_USER_ID))
+      .limit(1);
+    const row = rows[0];
+    if (!row || !row.u.isActive || !row.actorActive || row.actorType !== 'HUMAN' || row.u.role !== 'DEMO_VISITOR') {
+      throw new BusinessRuleError('DEMO_NOT_READY', 'The demo account is not set up yet', 409);
+    }
+    return this.openSession({ userId: row.u.userId, actorId: row.u.actorId, loginId: row.u.loginId, displayName: row.displayName, role: 'DEMO_VISITOR' }, true);
+  }
+
+  private async openSession(user: { userId: string; actorId: string; loginId: string; displayName: string; role: UserRole }, isSimulated: boolean) {
+    const now = this.clock.now();
     const token = randomBytes(32).toString('base64url');
     const sessionId = this.ids.newId();
     const expiresAt = now.plusMs(this.env.CERA_SESSION_TTL_MINUTES * 60_000);
     await this.tx.run(async (tx) => {
-      await tx.insert(userSession).values({ sessionId, userId: row.u.userId, tokenHash: sha256Bytes(token), createdAt: now.toDb(), expiresAt: expiresAt.toDb() });
-      await this.audit.record(tx, { actorId: row.u.actorId, action: AUDIT_ACTION.AUTH_LOGIN, targetType: 'USER_SESSION', targetId: sessionId, result: 'SUCCESS', isSimulated: false });
+      await tx.insert(userSession).values({ sessionId, userId: user.userId, tokenHash: sha256Bytes(token), createdAt: now.toDb(), expiresAt: expiresAt.toDb() });
+      await this.audit.record(tx, { actorId: user.actorId, action: AUDIT_ACTION.AUTH_LOGIN, targetType: 'USER_SESSION', targetId: sessionId, result: 'SUCCESS', isSimulated });
     });
-    const identity: AuthIdentity = { userId: row.u.userId, actorId: row.u.actorId, loginId, displayName: row.displayName, role: row.u.role as UserRole, sessionId, via: 'SESSION' };
+    const identity: AuthIdentity = { ...user, sessionId, via: 'SESSION' };
     return { token, expiresAt: expiresAt.toSeoulIso(), me: this.me(identity) };
   }
 
@@ -161,6 +187,7 @@ export class AuthService {
       role: identity.role,
       permissions: [...ROLE_PERMISSIONS[identity.role]] as Permission[],
       via: identity.via,
+      portfolio_demo: this.env.CERA_PORTFOLIO_DEMO_MODE,
     };
   }
 

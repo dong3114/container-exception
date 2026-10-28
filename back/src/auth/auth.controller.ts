@@ -79,3 +79,44 @@ export class AdminUsersController {
     return this.auth.updateUser(userId, body, identityOf(req));
   }
 }
+
+/**
+ * 공개 포트폴리오 데모 입구(T-131 · ADR-039) — `CERA_PORTFOLIO_DEMO_MODE=true` 일 때만 API 에 붙는다(api.module.ts). 아니면 경로 자체가 없다(404).
+ * - `GET /auth/demo-session`: 이 배포가 공개 데모인지 · 무엇이 가짜인지(로그인 화면이 "데모 시작" 버튼을 띄울지 정한다)
+ * - `POST /auth/demo-session`: 데모 방문자(DEMO_VISITOR) 세션 쿠키를 연다 — 비밀번호 없음, 관리자 · 운영자 계정에는 쓸 수 없다. IP 별 한도(public-guards.ts)
+ */
+@ApiTags('auth')
+@Controller('auth/demo-session')
+export class DemoSessionController {
+  constructor(
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+
+  @Public()
+  @Get()
+  info() {
+    return {
+      enabled: true,
+      role: 'DEMO_VISITOR',
+      session_minutes: this.env.CERA_SESSION_TTL_MINUTES,
+      external_mail: 'MOCK_ONLY',
+      data: 'SYNTHETIC',
+    };
+  }
+
+  @Public()
+  @Post()
+  @HttpCode(200)
+  async start(@Res({ passthrough: true }) res: Response) {
+    const r = await this.auth.demoSession();
+    res.cookie(SESSION_COOKIE, r.token, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: this.env.CERA_SESSION_COOKIE_SECURE,
+      path: '/',
+      maxAge: this.env.CERA_SESSION_TTL_MINUTES * 60_000,
+    });
+    return { ...r.me, expires_at: r.expiresAt };
+  }
+}

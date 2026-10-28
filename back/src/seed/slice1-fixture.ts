@@ -15,6 +15,9 @@ export const SEED_IDS = {
   userAdmin: '01a1b200-1190-7a19-8119-1a0000000119',
   userOperator: '01a1b200-1190-7a19-8119-1b0000000119',
   userField: '01a1b200-1190-7a19-8119-1f0000000119',
+  // T-131: 공개 포트폴리오 데모 방문자(DEMO_VISITOR). 포트폴리오 모드의 시드만 만든다 — 비밀번호는 아무도 모르는 난수(데모 세션 경로로만 들어온다)
+  actorDemo: '01a1b300-1310-7a31-8131-0d0000000131',
+  userDemo: '01a1b300-1310-7a31-8131-1d0000000131',
   counterpartyTrucking: '01a0fb92-9b65-7540-b184-67031c74f472',
   counterpartyOdcy: '01a0fb92-9b65-7540-b184-681786542a58',
   contactTrucking: '01a0fb92-9b65-7540-b184-6e6d97931077',

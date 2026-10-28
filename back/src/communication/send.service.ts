@@ -14,6 +14,8 @@ import type { DraftDto } from './dto.js';
 import { SendRepository } from './send.repository.js';
 import { type SendBlockReason, sendBlocks } from './send-rules.js';
 import { liveApproval } from './approval-rules.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 
 const sendSchema = z.object({ content_hash: z.string().regex(/^sha256:[0-9a-f]{64}$/) }).strict();
 
@@ -37,6 +39,7 @@ export class SendService {
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async requestSend(messageId: string, actorHeader: string | undefined, body: unknown): Promise<DraftDto> {
@@ -45,6 +48,10 @@ export class SendService {
     const operator = await this.approvalsService.resolveApprover(actorHeader);
     const i = await this.drafts.inspect(messageId);
     const { message } = i.loaded;
+    // 공개 포트폴리오 데모(T-131): 실제 채널로는 발송 요청 자체를 받지 않는다. 설정(env.ts)이 Gmail 을 이미 끄지만 API 에서도 한 번 더 막는다
+    if (this.env.CERA_PORTFOLIO_DEMO_MODE && message.channelType !== 'MOCK') {
+      throw new BusinessRuleError('PORTFOLIO_DEMO_REAL_CHANNEL_BLOCKED', 'The portfolio demo sends only through the mock channel', 403);
+    }
     const status = message.currentStatus ?? '';
     // 멱등: 이미 요청됐거나 끝난 발송은 다시 넣지 않는다
     if (status === 'QUEUED' || status === 'SENT' || status === 'REPLIED' || status === 'DELIVERY_FAILED') return this.drafts.get(messageId);
