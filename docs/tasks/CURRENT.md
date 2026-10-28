@@ -10,7 +10,7 @@
 
 ## Status
 
-**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인). 2026-10-28 최종 시연 준비 끝 — **Frontend 도 Demo Freeze**(이후 blocker · security · demo-breaking 만). 시연 준비 완료.**
+**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인) → 키 갱신 뒤 **COMMERCIAL LLM SMOKE VERIFIED**(Gemini `gemini-3.8-flash` · 1건 · 모델 선정 아님). 2026-10-28 최종 시연 준비 끝 — **Frontend 도 Demo Freeze**(이후 blocker · security · demo-breaking 만). 시연 준비 완료.**
 
 ### 2026-10-28 최종 시연 준비 (커밋 · push 승인)
 | 커밋 | 내용 |
@@ -20,6 +20,7 @@
 
 - 최종 리허설(새 볼륨 · web 재빌드): 운영 콘솔 브라우저 전 구간 통과(페이지 오류 0 · 5xx 0 · 4xx = 로그인 전 `/auth/me` 401 1종) · LIVE(v1 1,140,000 → 요율 → v2 1,200,000 → 승인) · `/demo` 12단계(v1 5,735,000 · v3 5,835,000, 오류 0) · smoke OK. 바탕화면 `CERA_시연_테스트_시나리오.md` 를 10-28 흐름으로 갱신(2b절 운영 콘솔 대본 · 화면 3개 · 실제/합성 구분 · T-099 결과)
 - **T-099**: OpenAI `INVALID_CREDENTIALS`(401) · Gemini 키 정상 · ADR 후보 `gemini-3.8-flash` 503(리허설 전후 각 1회). 상용 사슬 미확인 — EXTERNAL_DEPENDENCY 유지. fail-closed(값 없음 → 사람 검토 → 직접 입력) 확인
+- **T-099 재시도(사용자 키 갱신 뒤)**: COMMERCIAL LLM SMOKE VERIFIED — ODCY A 10-28 수용량 회신 → Gemini `gemini-3.8-flash` 추출(첫 시도 503 → 자동 재시도 200) → 검증 PASSED(원문 근거) → 후보 → `capacity.day(2026-10-28)` = 4 PROVISIONAL. OpenAI 는 여전히 401. 최종 모델 선정 아님. 이후 cera-demo 초기화 · AI 녹화 재생 복귀
 - 시연 스택 `cera-demo` = 깨끗한 시드 상태(리허설 뒤 초기화). `cera-local` 은 건드리지 않음(멈춤)
 - 발표 전 사용자: 실제 Gmail 을 보여 줄 거라면 `cd back && npm run gmail:auth`(Testing 모드 토큰 약 7일 — 10-27 인증) · 상용 LLM 을 보여 줄 거라면 OpenAI 키 재발급 후 smoke 1회 확정 뒤 Post-Freeze Hardening 으로 T-129 · T-108(재조정 결함)만 처리하고 다시 FROZEN. **새 기능 확장 금지.** 고치는 범위 = blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end. 진행 중인 Task 없음.
 
@@ -78,10 +79,10 @@ OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · �
 3. 시연 전에는 그대로 써도 된다(깨끗한 시드 상태). 한 번 돌린 뒤 다시 하려면 초기화(`down -v` → `up` → `db:seed`, `infra/README.md`)
 
 ### 알려진 제한 (2026-10-27 분류 — blocker 아님)
-- 외부 의존: 고객 TMS · WMS · 배차 · 요율 시스템 미연동(T-126 — 지금은 CSV · 행 · API · 사람 입력) · 상용 LLM 공급자 미검증(T-099 — 녹화 재생 · 로컬 Qwen3-4B 는 실제 회신을 못 읽는다 → 사람 검토 · 재시도 · 직접 입력으로 복구) · Gmail Testing 모드 refresh token 약 7일
+- 외부 의존: 고객 TMS · WMS · 배차 · 요율 시스템 미연동(T-126 — 지금은 CSV · 행 · API · 사람 입력) · 상용 LLM 공급자 선정 전(T-099 — Gemini smoke 1건만 확인 · 시연 기본값은 녹화 재생 · 로컬 Qwen3-4B 는 실제 회신을 못 읽는다 → 사람 검토 · 재시도 · 직접 입력으로 복구) · Gmail Testing 모드 refresh token 약 7일
 - 운영 가정 `[ASSUMPTION]`: 비용 정책 벌점(잠정 · 오래됨) · 신선도 기간 · 재시도 간격 10초 · 30초 · 상한 120초 · 계획 기간 3일 · 일괄 입력 512 KB / 2000행 · 날짜 상식 범위 ± 365일
 - 제품 제한: UI/UX 미완성(사용자 — 연락처 수명주기 · 선택은 API 만, 화면 없음) · 메일 소유 확인 흐름(확인 메일 · 링크) 없음 [ASSUMPTION — 관리자가 CERA 밖에서 확인 뒤 승인] · 거래처 자체 비활성 API 없음(담당자 · 주소 단위로 막는다) · 후속 문안이 문의 템플릿("가능 여부") · Worker 전용 HTTP 상태 끝점 없음(컨테이너 · 로그로 본다) · 실제 실행 숫자는 기준 시각(지금)에 따라 달라진다(그날 출발 시간창) · 여러 날 · 여러 터미널 물류 제약 미지원(한 실행 = 한 터미널 · 3일) · Mock 수신함 폴더를 여러 스택이 함께 쓰면 다른 스택 회신은 보류된다
-3. 사람 대기: T-099(상용 LLM 키 — 실제 회신 추출) · T-120 P2 UI(사용자)
+3. 사람 대기: T-099(공급자 · 모델 선정 — smoke 1건은 확인 · OpenAI 키 무효) · T-120 P2 UI(사용자)
 4. 관측 한계(알고 있음): 회신 하나는 id 로 끝까지 이어진다(send_attempt.provider_message_id → comm_thread.external_thread_id → INBOUND comm_message → raw_input → system_error · extraction · event → agent_run.pending_ref). 다만 Worker 의 추출 시도와 Agent 실행은 **서로 다른 trace_id** 다 — 하나의 trace 로 묶지 않았다
 
 ### 진행: Agent Runtime · 모델 호출 제한 = "관측 후 줄이기"

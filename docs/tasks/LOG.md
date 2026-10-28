@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-28 · T-099 COMMERCIAL LLM SMOKE(키 갱신 뒤 1회) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — **COMMERCIAL LLM SMOKE VERIFIED**(1건 · 최종 모델 선정 아님) · Backend FROZEN · Frontend Demo Freeze 유지 · 코드 변경 없음
+- 한 일: 인증 확인(값 출력 없음) OpenAI 401 `INVALID_CREDENTIALS` → 중단 · Gemini 정상 → ai 컨테이너만 임시로 live(`gemini-3.8-flash`, 대체 공급자 끔) → smoke 1회 → 초기화 · 녹화 재생 복귀
+- 결과: **2026-10-28 COMMERCIAL LLM SMOKE VERIFIED(사용자가 키 갱신 뒤 지시 — 1회)**: 공급자 Gemini · 모델 `gemini-3.8-flash`(ADR 후보, 탐색 없음 · 대체 공급자 끔). 실제 스택(cera-demo)에서 사람 승인 · Mock 발송한 질문 "10월 28일 ODCY A 에서 받을 수 있는 컨테이너 수량"(`FACILITY_CAPACITY`)에 합성 회신 "네, 10월 28일에 컨테이너 4대 받을 수 있습니다." → 자동 시도 1 = 공급자 503(`EXTRACTION_PROVIDER_FAILED`, 정상 재시도 경로) · 자동 시도 2 = 200 → 구조화 추출 후보 2개(`quantity` = 4 `CONTAINER` 근거 "컨테이너 4대" · `answer_date` = 2026-10-28 근거 "10월 28일", `generated_by` = LLM, `model_version` = `gemini-3.8-flash`) → Backend 결정론 검증 PASSED(원문 근거 확인) → 후보 ACCEPTED → `capacity.day(2026-10-28)` = 4 CONTAINER **PROVISIONAL**(사람 확인 전). 약 25초. OpenAI 는 여전히 401 `INVALID_CREDENTIALS`(호출 중단). **이것은 smoke 1건이지 최종 모델 선정 · production 모델 확정이 아니다**(ADR-037 선정은 Deferred 그대로). CERA 로직 변경 없음 · 시연 기본값은 녹화 재생 그대로
+- 남은 일: 공급자 · 모델 선정(ADR-037 Deferred · 연속 평가) · OpenAI 키 재발급(선택)
+- 주의: smoke 스크립트 · 임시 compose 겹침은 scratchpad(커밋 안 함). 시연 스택은 깨끗한 시드 · 녹화 재생
+
 ## 2026-10-28 · 최종 시연 준비(T-099 smoke 재확인 · 시연 다듬기 · smoke 로그인 · 최종 리허설) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 시연 준비 완료 · Backend FROZEN · **Frontend Demo Freeze**
 - 한 일: T-099 = 인증 확인 각 1회(OpenAI 401 `INVALID_CREDENTIALS` → 중단 · Gemini 정상) · ADR 후보 `gemini-3.8-flash` 리허설 전후 각 1회 503 → 모델 탐색 · 반복 없이 기록만. `449ed20` 트럭 풀 담당 회사 식별(이미 나간 문의의 받는 회사) · 처리 완료 답장 표시. `ea85853` smoke 정식 로그인. 바탕화면 시연 문서 10-28 흐름으로 갱신
