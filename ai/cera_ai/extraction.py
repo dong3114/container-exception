@@ -52,5 +52,5 @@ def extract(request: ExtractionRequest, provider: LlmProvider) -> ExtractionResp
         answers=out.answers,
         unmapped_statements=out.unmapped_statements,
         ambiguity_flags=out.ambiguity_flags,
-        meta=Meta(provider=provider.name, model_version=result.model_version, prompt_version=PROMPT_VERSION, latency_ms=latency_ms, usage=result.usage),
+        meta=Meta(provider=result.provider or provider.name, model_version=result.model_version, prompt_version=PROMPT_VERSION, latency_ms=latency_ms, usage=result.usage),
     )

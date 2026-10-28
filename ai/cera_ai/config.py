@@ -30,6 +30,8 @@ KEYS: dict[str, tuple[str | None, str]] = {
     "CERA_LLM_PROVIDER": (None, "live only: anthropic | openai | gemini | local (OpenAI-compatible server, no key)"),
     "CERA_LLM_MODEL": (None, "live only: model id (choice is an ADR decision, T-099)"),
     "CERA_LLM_EFFORT": (None, "optional reasoning effort hint for the adapter"),
+    "CERA_LLM_FALLBACK_PROVIDER": (None, "live only, optional: failover vendor tried once when the primary fails for a technical reason (key · 429 · 5xx · timeout)"),
+    "CERA_LLM_FALLBACK_MODEL": (None, "live only: model id of the failover vendor (required with CERA_LLM_FALLBACK_PROVIDER)"),
     "CERA_AI_REPLAY_DIR": (None, "replay fixtures directory (default ai/fixtures/replay)"),
     "ANTHROPIC_API_KEY": (None, "secret — needed when the anthropic vendor is used"),
     "OPENAI_API_KEY": (None, "secret — needed when the openai vendor is used"),
@@ -66,6 +68,7 @@ class Settings:
     port: int
     llm_mode: str
     llm_provider: str | None
+    llm_fallback_provider: str | None
     decision_mode: str
     decision_provider: str | None
     agent_mode: str
@@ -112,7 +115,20 @@ def load_settings(source: Mapping[str, str]) -> Settings:
         if not _get(source, "CERA_LLM_MODEL"):
             issues.append("CERA_LLM_MODEL: required in live mode")
 
-    if vendor == "local" and not re.match(r"^https?://", _get(source, "CERA_LOCAL_LLM_BASE_URL") or ""):
+    fallback, fallback_model = _get(source, "CERA_LLM_FALLBACK_PROVIDER"), _get(source, "CERA_LLM_FALLBACK_MODEL")
+    if fallback or fallback_model:
+        if llm_mode != "live":
+            issues.append("CERA_LLM_FALLBACK_PROVIDER: failover applies to live mode only (CERA_LLM_MODE=live)")
+        elif fallback not in LLM_VENDORS:
+            issues.append(f"CERA_LLM_FALLBACK_PROVIDER: must be one of {', '.join(LLM_VENDORS)}")
+        elif not fallback_model:
+            issues.append("CERA_LLM_FALLBACK_MODEL: required with CERA_LLM_FALLBACK_PROVIDER")
+        elif (fallback, fallback_model) == (vendor, _get(source, "CERA_LLM_MODEL")):
+            issues.append("CERA_LLM_FALLBACK_PROVIDER: must differ from the primary provider / model")
+        elif LLM_VENDORS[fallback] and not _get(source, LLM_VENDORS[fallback]):
+            issues.append(f"{LLM_VENDORS[fallback]}: required for CERA_LLM_FALLBACK_PROVIDER={fallback}")
+
+    if "local" in (vendor, fallback) and not re.match(r"^https?://", _get(source, "CERA_LOCAL_LLM_BASE_URL") or ""):
         issues.append("CERA_LOCAL_LLM_BASE_URL: must be an http(s) URL")
 
     decision_mode, decision = _get(source, "CERA_DECISION_MODE"), _get(source, "CERA_DECISION_PROVIDER")
@@ -145,7 +161,7 @@ def load_settings(source: Mapping[str, str]) -> Settings:
         raise SettingsError(issues)
     return Settings(
         env=env, host=_get(source, "CERA_AI_HOST") or "127.0.0.1", port=port,
-        llm_mode=llm_mode or "replay", llm_provider=vendor, decision_mode=decision_mode or "off",
+        llm_mode=llm_mode or "replay", llm_provider=vendor, llm_fallback_provider=fallback if llm_mode == "live" else None, decision_mode=decision_mode or "off",
         decision_provider=decision, agent_mode=agent_mode or "off", backend_tool_url=tool_url,
         agent_max_steps=steps, agent_max_tool_calls=calls, agent_max_retries=retries,
     )

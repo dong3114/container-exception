@@ -70,7 +70,7 @@ OAuth 준비 완료(사용자) · `back/.env` 에 `CERA_GMAIL_ENABLED=true` · �
 
 - **현재 임시 모델**: Qwen3-4B-Instruct-2507 Q4_K_M(llama.cpp, OpenAI 호환, 로컬 Docker `llm` 프로필). 이유: API 비용 0 · 현재 하드웨어에서 동작 · 교체 가능 · 결정론 검증이 보호. **최종 Production 선정: Deferred.** 설정 위치 `ai/.env.example`(provider · model) · `infra/local/.env.example`(`CERA_LLM_HF`).
 - 모델의 역할은 후보 제시뿐이다(값 후보 · 정규화 값 · 정확한 인용 · 모호성). 사실 확정 · 승인 · 발송 · 권한 판정 · 계획 확정은 못 한다. 틀린 값(예: `"Yeah"`)은 장애가 아니라 후보 거절이다.
-- 상용 fallback(Local → 검증 실패 / 모호 → 상용 → 사람)은 구현하지 않는다. 공급자 추상화는 유지한다.
+- 상용 fallback(Local → 검증 실패 / 모호 → 상용 → 사람)은 구현하지 않는다. (2026-10-28 갱신: 이와 별개로 **기술 실패 failover** — 기본 공급자가 키 · 429 · 5xx · 시간 초과로 실패할 때만 예비 공급자로 한 번 — 는 사용자 결정으로 넣었다. ADR-037 6 · `ai/.env.example`) 공급자 추상화는 유지한다.
 - 파인튜닝 안 함(141건 중 Human Gold 없음). 나중 학습 데이터로 재구성할 수 있는 고리만 남겼다(`docs/24` 18.14 F-13).
 
 ### T-099 추가 작업 (2026-10-26 · 사용자 승인 · 체크포인트 커밋 2개)

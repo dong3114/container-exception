@@ -9,7 +9,7 @@ from cera_ai.app import create_app
 from cera_ai.contracts import ExtractionRequest, ExtractionResponse
 from cera_ai.emit_schema import OUT, render
 from cera_ai.extraction import build_prompt
-from cera_ai.providers import LiveProviderSlot, ReplayProvider
+from cera_ai.providers import FailoverProvider, LiveProviderSlot, ProviderError, ProviderResult, ReplayProvider, provider_from_env
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT.parent / "packages" / "contracts" / "ai"
@@ -95,3 +95,57 @@ def test_ai_server_has_no_database_or_channel_clients():
     for forbidden in ("psycopg", "sqlalchemy", "asyncpg", "sqlite3", "smtplib", "imaplib", "googleapiclient", "requests."):
         assert forbidden not in src, forbidden
     assert os.environ.get("DATABASE_URL") is None or "DATABASE_URL" not in src
+
+
+class _Scripted:
+    """A vendor that either answers like the recording or fails with a given ProviderError code."""
+
+    def __init__(self, name: str, fail: str | None = None, retryable: bool = False) -> None:
+        self.name, self.fail, self.retryable, self.calls = name, fail, retryable, 0
+
+    def extract(self, request, prompt):
+        self.calls += 1
+        if self.fail:
+            raise ProviderError(self.fail, f"{self.name} {self.fail}", retryable=self.retryable)
+        r = ReplayProvider(ROOT / "fixtures" / "replay").extract(request, prompt)
+        return ProviderResult(r.output, f"{self.name}-model", r.usage)
+
+
+def test_failover_tries_the_fallback_once_only_on_technical_failures_and_records_who_answered():
+    for code in ("PROVIDER_CALL_FAILED", "PROVIDER_KEY_MISSING", "MODEL_TIMEOUT"):
+        primary, fallback = _Scripted("openai", fail=code), _Scripted("gemini")
+        res = client(FailoverProvider(primary, fallback)).post("/v1/extractions/reply", json=SAMPLE_REQUEST)
+        assert res.status_code == 200, code
+        assert (res.json()["meta"]["provider"], res.json()["meta"]["model_version"]) == ("gemini", "gemini-model")
+        assert (primary.calls, fallback.calls) == (1, 1)
+    # the primary works: the fallback is never called, the answer is the primary's
+    primary, fallback = _Scripted("openai"), _Scripted("gemini")
+    res = client(FailoverProvider(primary, fallback)).post("/v1/extractions/reply", json=SAMPLE_REQUEST)
+    assert res.json()["meta"]["provider"] == "openai" and fallback.calls == 0
+
+
+def test_failover_does_not_shop_for_a_better_answer_and_reports_both_failures():
+    # a bad answer (malformed / refused / truncated) is not a technical failure: no second vendor — validators and a person decide
+    for code in ("PROVIDER_OUTPUT_NOT_JSON", "PROVIDER_OUTPUT_INVALID", "PROVIDER_REFUSED", "PROVIDER_OUTPUT_TRUNCATED"):
+        primary, fallback = _Scripted("openai", fail=code), _Scripted("gemini")
+        res = client(FailoverProvider(primary, fallback)).post("/v1/extractions/reply", json=SAMPLE_REQUEST)
+        assert res.status_code == 502 and res.json()["code"] == code and fallback.calls == 0
+    # both down: the fallback's code, retryable when either failure was transient, no reply text in the message
+    primary, fallback = _Scripted("openai", fail="PROVIDER_CALL_FAILED", retryable=True), _Scripted("gemini", fail="PROVIDER_KEY_MISSING")
+    res = client(FailoverProvider(primary, fallback)).post("/v1/extractions/reply", json=SAMPLE_REQUEST)
+    body = res.json()
+    assert res.status_code == 502 and body["code"] == "PROVIDER_KEY_MISSING" and body["retryable"] is True
+    assert "PROVIDER_CALL_FAILED" in body["message"] and "차량" not in res.text
+
+
+def test_failover_is_built_from_the_environment_only_when_both_fallback_keys_are_set(monkeypatch):
+    monkeypatch.setenv("CERA_LLM_MODE", "live")
+    monkeypatch.setenv("CERA_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("CERA_LLM_MODEL", "m1")
+    monkeypatch.delenv("CERA_LLM_FALLBACK_PROVIDER", raising=False)
+    monkeypatch.delenv("CERA_LLM_FALLBACK_MODEL", raising=False)
+    assert provider_from_env().name == "openai"
+    monkeypatch.setenv("CERA_LLM_FALLBACK_PROVIDER", "gemini")
+    monkeypatch.setenv("CERA_LLM_FALLBACK_MODEL", "g1")
+    p = provider_from_env()
+    assert isinstance(p, FailoverProvider) and p.name == "openai>gemini"

@@ -54,6 +54,7 @@ DB 접근(커넥션 · ORM 없음) · 채널 · 메일 · 발송 · 발신자 �
 시험:      python -m pytest -q
 계약:      python -m cera_ai.emit_schema      # → packages/contracts/ai/reply-extract.v1.schema.json (시험이 최신인지 검사)
 환경변수:  CERA_LLM_MODE=replay|live (기본 replay) · CERA_AI_REPLAY_DIR(기본 fixtures/replay)
+           장애 대비 예비 공급자(선택, live 만): CERA_LLM_FALLBACK_PROVIDER · CERA_LLM_FALLBACK_MODEL — 기본 공급자가 기술 실패(키 없음 · 401/403 · 429 · 5xx · 시간 초과)일 때만 같은 요청을 한 번 넘긴다. 답의 문제(JSON 아님 · 스키마 · 거부 · 잘림)는 넘기지 않는다. 누가 답했는지 meta.provider · model_version 에 남는다
 Agent:     CERA_AGENT_MODE=on · CERA_AGENT_TOOL_TOKEN(back/.env 와 같은 값) · CERA_BACKEND_TOOL_URL — 켜면 /v1/agent-runs/* 가 열린다
 ```
 

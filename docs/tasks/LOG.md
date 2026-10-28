@@ -21,6 +21,13 @@
 
 ---
 
+## 2026-10-28 · AI Server 장애 대비 예비 공급자(failover) · .env 정리 · Claude Code (claude-opus-5-5)
+- 상태: 완료(커밋 전 — 사용자 확인 대기)
+- 한 일: 사용자 지시로 `ai/` 에 failover 추가(Backend 변경 없음 — Backend freeze 유지). 설정 `CERA_LLM_FALLBACK_PROVIDER` · `CERA_LLM_FALLBACK_MODEL`(선택, live 만, 기본과 달라야 함, 그 공급자 키 필요 — `config.py` 가 검사). `FailoverProvider`: 기본 공급자의 기술 실패(`PROVIDER_KEY_MISSING` · `PROVIDER_CALL_FAILED` — 401/403/429/5xx 포함 · `MODEL_TIMEOUT`)에서만 같은 요청을 예비로 한 번. 답의 문제(JSON 아님 · 스키마 · 거부 · 잘림)는 넘기지 않음. 답한 공급자 · 모델 = `meta.provider` · `model_version`. 둘 다 실패면 예비의 코드 · retryable = 둘 중 하나라도 일시 실패. 가격 순 자동 선택은 하지 않음(순서 = 설정). 앞서 `back/.env` 빠진 키 10개 · `ai/.env` 3개를 `.env.example` 값으로 채움 · `CERA_REDIS_URL=redis://127.0.0.1:56379`(로컬 값, 커밋 대상 아님)
+- 변경 파일: `ai/cera_ai/{config,providers,extraction}.py` · `ai/.env.example` · `ai/tests/{test_config,test_ai_server}.py` · `ai/README.md` · `docs/14_decisions.md`(ADR-037 6) · CURRENT
+- 검증: Python 97(설정 1 · failover 3 신규) · `python -m cera_ai.config` 키 일치 · `npm run env:check` 키 일치. 실제 공급자 호출은 하지 않았다(키 없음)
+- 다음: 사용자가 `ai/.env` 에 OPENAI · GEMINI 키 → 소량 평가로 기본 공급자 결정 → `CERA_LLM_MODE=live` + 예비 설정
+
 ## 2026-10-28 · Backend Core Logic Freeze 확정 · Post-Freeze Hardening(T-129 · T-108 일부 · T-108~T-110 재평가) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — Backend 다시 FROZEN
 - 한 일:

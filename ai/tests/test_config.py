@@ -64,3 +64,18 @@ def test_local_vendor_needs_no_key_but_a_url():
     live = dict(CERA_LLM_MODE="live", CERA_LLM_PROVIDER="local", CERA_LLM_MODEL="qwen2.5-1.5b-instruct-q4_k_m")
     assert load_settings(live).llm_provider == "local"
     assert "CERA_LOCAL_LLM_BASE_URL" in issues(**live, CERA_LOCAL_LLM_BASE_URL="llm:8080")
+
+
+def test_failover_needs_live_mode_a_model_a_different_target_and_that_vendors_key():
+    live = dict(CERA_LLM_MODE="live", CERA_LLM_PROVIDER="openai", CERA_LLM_MODEL="m1", OPENAI_API_KEY="k1")
+    assert load_settings(live).llm_fallback_provider is None  # optional
+    both = dict(live, CERA_LLM_FALLBACK_PROVIDER="gemini", CERA_LLM_FALLBACK_MODEL="g1", GEMINI_API_KEY="k2")
+    assert load_settings(both).llm_fallback_provider == "gemini"
+    text = issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="gemini", CERA_LLM_FALLBACK_MODEL="g1"))
+    assert "GEMINI_API_KEY" in text and "k1" not in text
+    assert "CERA_LLM_FALLBACK_MODEL" in issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="gemini", GEMINI_API_KEY="k2"))
+    assert "differ" in issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="openai", CERA_LLM_FALLBACK_MODEL="m1"))
+    assert load_settings(dict(live, CERA_LLM_FALLBACK_PROVIDER="openai", CERA_LLM_FALLBACK_MODEL="m2")).llm_fallback_provider == "openai"
+    assert "CERA_LLM_FALLBACK_PROVIDER" in issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="nope", CERA_LLM_FALLBACK_MODEL="x"))
+    assert "live mode only" in issues(CERA_LLM_FALLBACK_PROVIDER="gemini", CERA_LLM_FALLBACK_MODEL="g1", GEMINI_API_KEY="k2")
+    assert "CERA_LOCAL_LLM_BASE_URL" in issues(**dict(live, CERA_LLM_FALLBACK_PROVIDER="local", CERA_LLM_FALLBACK_MODEL="q", CERA_LOCAL_LLM_BASE_URL="llm:8080"))

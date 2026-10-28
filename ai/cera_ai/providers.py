@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +36,8 @@ class ProviderResult:
     output: ProviderOutput
     model_version: str
     usage: Usage | None
+    # which vendor actually answered (failover) — None = the provider the caller selected
+    provider: str | None = None
 
 
 class LlmProvider(Protocol):
@@ -91,6 +94,41 @@ class LiveProviderSlot:
         raise ProviderError("PROVIDER_NOT_CONFIGURED", "no live LLM provider adapter is selected (ADR-033 open item)", retryable=False)
 
 
+# Technical failures only: the vendor could not be reached or would not serve this key. A bad *answer*
+# (not JSON, schema mismatch, refusal, truncated) is not failed over — the backend validators and a person handle it.
+FAILOVER_CODES = frozenset({"PROVIDER_KEY_MISSING", "PROVIDER_CALL_FAILED", "MODEL_TIMEOUT"})
+
+log = logging.getLogger("cera_ai.providers")
+
+
+class FailoverProvider:
+    """Primary vendor first; on a technical failure (``FAILOVER_CODES``) the same request goes once to the fallback.
+
+    No ranking by price and no answer comparison — the order is configuration. The result records which vendor and
+    model answered (``meta.provider`` · ``model_version``), so a candidate stays traceable to its model (T-093).
+    If the fallback fails too, its error is raised; ``retryable`` is true when either failure was transient.
+    """
+
+    def __init__(self, primary: LlmProvider, fallback: LlmProvider) -> None:
+        self.primary, self.fallback = primary, fallback
+        self.name = f"{primary.name}>{fallback.name}"
+
+    def extract(self, request: ExtractionRequest, prompt: str) -> ProviderResult:
+        try:
+            result = self.primary.extract(request, prompt)
+            return ProviderResult(result.output, result.model_version, result.usage, result.provider or self.primary.name)
+        except ProviderError as error:
+            if error.code not in FAILOVER_CODES:
+                raise
+            first = error  # Python unbinds the except name when the block ends
+            log.warning("primary LLM provider failed — trying the fallback once", extra={"code": first.code, "provider": self.primary.name, "fallback": self.fallback.name})
+        try:
+            result = self.fallback.extract(request, prompt)
+        except ProviderError as second:
+            raise ProviderError(second.code, f"primary {first.code}; fallback {second.code}: {second}", retryable=first.retryable or second.retryable) from None
+        return ProviderResult(result.output, result.model_version, result.usage, result.provider or self.fallback.name)
+
+
 def provider_from_env() -> LlmProvider:
     mode = os.environ.get("CERA_LLM_MODE", "replay")
     if mode == "replay":
@@ -102,6 +140,10 @@ def provider_from_env() -> LlmProvider:
         if vendor and model:
             from .llm_adapters import make_provider
 
-            return make_provider(vendor, model)
+            primary = make_provider(vendor, model)
+            fallback, fallback_model = os.environ.get("CERA_LLM_FALLBACK_PROVIDER"), os.environ.get("CERA_LLM_FALLBACK_MODEL")
+            if fallback and fallback_model:
+                return FailoverProvider(primary, make_provider(fallback, fallback_model))
+            return primary
         return LiveProviderSlot()
     raise ValueError(f"CERA_LLM_MODE must be replay or live, got {mode!r}")
