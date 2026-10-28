@@ -145,6 +145,47 @@
         "tags": [
           "registry"
         ]
+      },
+      "post": {
+        "operationId": "RegistryController_createFacility",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FACILITY_ALREADY_REGISTERED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-132: register a facility (warehouse · ODCY · terminal) — staging / production have no scenario seed. Same type + same name → 409",
+        "tags": [
+          "registry"
+        ]
       }
     },
     "/registry/facilities/{facilityId}/operator": {
@@ -244,6 +285,49 @@
           }
         },
         "summary": "Set (or clear) the counterparty that operates a facility. Capacity inquiries and receiving requests go only to that counterparty — never to \"the first counterparty with this role\"",
+        "tags": [
+          "registry"
+        ]
+      }
+    },
+    "/registry/truck-pools": {
+      "post": {
+        "operationId": "RegistryController_createTruckPool",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Administrator (active HUMAN). In session mode the backend sets it",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TRUCK_POOL_ALREADY_REGISTERED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-132: register a truck pool — OWN, or PARTNER with its owner counterparty. Same name → 409",
         "tags": [
           "registry"
         ]
@@ -3926,6 +4010,102 @@
         ]
       }
     },
+    "/planning/inputs/containers": {
+      "post": {
+        "operationId": "PlanningInputController_importBaselineContainers",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanningInputImportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningInputImportReportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "COMMAND_ID_REUSED · NOT_A_LIVE_RUN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Operational baseline containers (T-132) — the planned inbound that belongs to no recovery run yet. Same columns and versioning as run containers. The exception detector compares it with warehouse capacity facts and opens recovery runs itself",
+        "tags": [
+          "planning"
+        ]
+      },
+      "get": {
+        "operationId": "PlanningInputController_baselineContainers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Operational baseline containers — current versions (T-132)",
+        "tags": [
+          "planning"
+        ]
+      }
+    },
     "/planning/runs/{runId}/inputs/containers": {
       "post": {
         "operationId": "PlanningInputController_importContainers",
@@ -4307,6 +4487,71 @@
         "summary": "One input batch: who, when, source, row / accepted / unchanged counts",
         "tags": [
           "planning"
+        ]
+      }
+    },
+    "/exceptions": {
+      "get": {
+        "operationId": "ExceptionController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "RESOLVED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "exceptions"
+        ]
+      }
+    },
+    "/exceptions/{exceptionId}": {
+      "get": {
+        "operationId": "ExceptionController_get",
+        "parameters": [
+          {
+            "name": "exceptionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "exceptions"
+        ]
+      }
+    },
+    "/exceptions/detect": {
+      "post": {
+        "operationId": "ExceptionController_detect",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "exceptions"
         ]
       }
     },
@@ -6525,6 +6770,61 @@
           "reply"
         ]
       },
+      "RunExceptionDto": {
+        "type": "object",
+        "properties": {
+          "exception_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "RESOLVED"
+            ]
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "PROVISIONAL"
+            ]
+          },
+          "facility_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "facility_name": {
+            "type": "string"
+          },
+          "window_day": {
+            "type": "string",
+            "format": "date"
+          },
+          "scheduled_demand": {
+            "type": "number"
+          },
+          "capacity": {
+            "type": "number",
+            "nullable": true
+          },
+          "shortage": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "exception_id",
+          "status",
+          "basis",
+          "facility_id",
+          "facility_name",
+          "window_day",
+          "scheduled_demand",
+          "capacity",
+          "shortage"
+        ]
+      },
       "RunSummaryDto": {
         "type": "object",
         "properties": {
@@ -6546,6 +6846,25 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "AUTO_DETECTED",
+              "SCENARIO"
+            ],
+            "description": "T-132: who started the run — the deterministic exception detector, a person, or the synthetic scenario seed"
+          },
+          "exception": {
+            "nullable": true,
+            "description": "T-132: the operational exception that opened this run",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RunExceptionDto"
+              }
+            ]
           }
         },
         "required": [
@@ -6553,7 +6872,9 @@
           "trigger_ref",
           "executed_at",
           "contains_simulated",
-          "scenario_id"
+          "scenario_id",
+          "source",
+          "exception"
         ]
       },
       "RunListDto": {

@@ -539,6 +539,11 @@ export class DraftService {
         executed_at: Instant.fromDb(r.executedAt).toSeoulIso(),
         contains_simulated: r.containsSimulated,
         scenario_id: r.scenarioId,
+        // T-132: 누가 이 실행을 시작했나 — 탐지기(AUTO_DETECTED) · 사람(MANUAL) · 합성 시나리오 시드(SCENARIO)
+        source: r.exception || r.triggerRef?.startsWith('EXCEPTION:') ? ('AUTO_DETECTED' as const) : r.containsSimulated ? ('SCENARIO' as const) : ('MANUAL' as const),
+        exception: r.exception
+          ? { exception_id: r.exception.exceptionId, status: r.exception.status, basis: r.exception.basis, facility_id: r.exception.facilityId, facility_name: r.exception.facilityName, window_day: r.exception.windowDay, scheduled_demand: r.exception.scheduledDemand, capacity: r.exception.capacity, shortage: r.exception.shortage }
+          : null,
       })),
     };
   }

@@ -20,6 +20,13 @@ export interface RunRow {
   plan: PlanSummary | null;
 }
 
+/** 자동 탐지 예외 한 줄(T-132): "창고 A 수용량 부족 · 10-13 예정 20 / 가능 8 · 영향 12대" */
+export function exceptionText(ex: NonNullable<RunSummary["exception"]>): string {
+  const cap = ex.capacity === null ? "?" : String(ex.capacity);
+  const tail = ex.status === "RESOLVED" ? " · 해소됨" : ex.basis === "PROVISIONAL" ? " · 임시 사실 기준" : "";
+  return `${ex.facility_name} 수용량 부족 · ${ex.window_day.slice(5)} 예정 ${ex.scheduled_demand} / 가능 ${cap} · 영향 ${ex.shortage}대${tail}`;
+}
+
 /** 실행마다 가장 최근 Agent 실행 */
 export function latestAgentByRun(agents: AgentRunListItem[]): Map<string, AgentRunListItem> {
   const out = new Map<string, AgentRunListItem>();
@@ -113,6 +120,12 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
     const agentOfRun = runId ? rows.find((r) => r.run.run_id === runId)?.agent : null;
     if (agentOfRun && agentOfRun.waiting_reason !== "REPLY_REVIEW_REQUIRED") continue;
     add({ key: `in:${i.message_id ?? i.raw_input_id}`, runId, icon: "✉", title: HUMAN_REASON.REPLY_REVIEW_REQUIRED!.title, detail: i.subject ?? "", target: i.sender_label?.counterparty_name ?? i.thread_counterparty_name ?? i.from_address, tab: "comms", ref: { type: "INBOUND", id: i.message_id ?? i.raw_input_id } });
+  }
+
+  // T-132: 탐지기가 만든 실행은 Agent 를 자동으로 시작하지 않는다 — 문의 수량 · 시간대는 사람이 정한다
+  for (const { run, agent } of rows) {
+    if (run.source !== "AUTO_DETECTED" || agent || run.exception?.status !== "ACTIVE") continue;
+    add({ key: `auto:${run.run_id}`, runId: run.run_id, icon: "⚡", title: "자동 탐지된 예외 — Agent 시작이 필요합니다", detail: exceptionText(run.exception), target: null, tab: "agent", ref: null });
   }
 
   for (const { run, plan } of rows) {

@@ -16,6 +16,7 @@ import {
   questionItem,
   recoveryRun,
   truckPool,
+  operationalException,
 } from '../db/schema/index.js';
 
 export type ThreadInsert = typeof commThread.$inferInsert;
@@ -25,10 +26,13 @@ export type FieldInsert = typeof commMessageStructuredField.$inferInsert;
 
 export interface RunRow {
   runId: string;
+  triggerType: string;
   triggerRef: string | null;
   executedAt: string;
   containsSimulated: boolean;
   scenarioId: string | null;
+  /** T-132: 이 실행을 만든 운영 예외(자동 탐지) — 없으면 null */
+  exception: { exceptionId: string; status: string; basis: string; facilityId: string; facilityName: string; windowDay: string; scheduledDemand: number; capacity: number | null; shortage: number } | null;
 }
 
 export interface TargetRow {
@@ -47,7 +51,7 @@ export interface TargetRow {
 export class DraftRepository {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async findRun(runId: string): Promise<RunRow | null> {
+  async findRun(runId: string): Promise<Omit<RunRow, 'triggerType' | 'exception'> | null> {
     const rows = await this.db
       .select({
         runId: recoveryRun.runId,
@@ -64,18 +68,27 @@ export class DraftRepository {
   }
 
   async listRuns(limit: number): Promise<RunRow[]> {
-    return this.db
+    const rows = await this.db
       .select({
         runId: recoveryRun.runId,
+        triggerType: recoveryRun.triggerType,
         triggerRef: recoveryRun.triggerRef,
         executedAt: recoveryRun.executedAt,
         containsSimulated: recoveryRun.containsSimulated,
         scenarioId: planningSnapshot.scenarioId,
+        e: operationalException,
+        facilityName: facility.facilityName,
       })
       .from(recoveryRun)
       .innerJoin(planningSnapshot, eq(planningSnapshot.snapshotId, recoveryRun.snapshotId))
+      .leftJoin(operationalException, eq(operationalException.recoveryRunId, recoveryRun.runId))
+      .leftJoin(facility, eq(facility.facilityId, operationalException.facilityId))
       .orderBy(desc(recoveryRun.executedAt), desc(recoveryRun.runId))
       .limit(limit);
+    return rows.map(({ e, facilityName, ...r }) => ({
+      ...r,
+      exception: e ? { exceptionId: e.exceptionId, status: e.status, basis: e.basis, facilityId: e.facilityId, facilityName: facilityName ?? '', windowDay: e.windowDay, scheduledDemand: e.scheduledDemand, capacity: e.capacity, shortage: e.shortage } : null,
+    }));
   }
 
   async findFacility(facilityId: string): Promise<TargetRow | null> {

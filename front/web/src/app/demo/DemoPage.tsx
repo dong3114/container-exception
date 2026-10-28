@@ -62,7 +62,8 @@ export default function DemoPage() {
   const [customBody, setCustomBody] = useState("");
   const me = useMe();
 
-  const runId = snap.status?.seed.scenario_run_id ?? null;
+  // T-132: 탐지기가 예외를 찾아 실행을 만들면 그 실행을 따라간다(없으면 시드 실행)
+  const runId = snap.status?.active_run_id ?? snap.status?.seed.scenario_run_id ?? null;
   const actor = snap.status?.seed.operator_actor_id ?? null;
   const D = snap.status?.seed.plan_date ?? null;
   const fac = snap.status?.seed.facilities;
@@ -70,7 +71,7 @@ export default function DemoPage() {
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       const status = (await getDemoStatus(signal)).data;
-      const run = status.seed.scenario_run_id;
+      const run = status.active_run_id ?? status.seed.scenario_run_id;
       const [runtime, facts, plans, runs, drafts] = await Promise.all([
         getRuntimeStatus(signal).then((r) => r.data).catch(() => null),
         listFacts(run, signal).then((r) => r.data).catch(() => null),
@@ -221,6 +222,13 @@ export default function DemoPage() {
               })}>
               5건 한 번에 입력
             </button>
+            {snap.status?.exception_detection === "on" && (
+              <div style={{ fontSize: 12 }} data-testid="demo-auto-detection">
+                {snap.status.auto_exception
+                  ? <>⚡ <b>자동 탐지</b>: CERA 가 창고 A 수용량 부족을 스스로 찾아 복구 실행 <code>#{snap.status.auto_exception.recovery_run_id.slice(-6)}</code> 을 만들었습니다{snap.status.auto_exception.status === "RESOLVED" ? "(지금은 해소됨)" : ""}. 아래 단계는 이 실행으로 이어집니다.</>
+                  : <span className="muted">자동 탐지 켜짐 — 값을 넣으면 CERA 가 예정 반입과 수용량을 비교해 부족을 스스로 찾습니다.</span>}
+              </div>
+            )}
           </Step>
 
           <Step n={3} title="Agent 시작(정보 공백 → 문의 → 계획까지)" active={now === 2} done={steps[2]!.done}

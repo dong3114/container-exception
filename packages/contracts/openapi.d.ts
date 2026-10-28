@@ -64,7 +64,8 @@ export interface paths {
         /** Active facilities (warehouse · ODCY · terminal) an inquiry can be about */
         get: operations["RegistryController_listFacilities"];
         put?: never;
-        post?: never;
+        /** T-132: register a facility (warehouse · ODCY · terminal) — staging / production have no scenario seed. Same type + same name → 409 */
+        post: operations["RegistryController_createFacility"];
         delete?: never;
         options?: never;
         head?: never;
@@ -86,6 +87,23 @@ export interface paths {
         head?: never;
         /** Set (or clear) the counterparty that operates a facility. Capacity inquiries and receiving requests go only to that counterparty — never to "the first counterparty with this role" */
         patch: operations["RegistryController_setFacilityOperator"];
+        trace?: never;
+    };
+    "/registry/truck-pools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-132: register a truck pool — OWN, or PARTNER with its owner counterparty. Same name → 409 */
+        post: operations["RegistryController_createTruckPool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/registry/counterparties/{counterpartyId}/contacts": {
@@ -910,6 +928,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/planning/inputs/containers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Operational baseline containers — current versions (T-132) */
+        get: operations["PlanningInputController_baselineContainers"];
+        put?: never;
+        /** Operational baseline containers (T-132) — the planned inbound that belongs to no recovery run yet. Same columns and versioning as run containers. The exception detector compares it with warehouse capacity facts and opens recovery runs itself */
+        post: operations["PlanningInputController_importBaselineContainers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planning/runs/{runId}/inputs/containers": {
         parameters: {
             query?: never;
@@ -975,6 +1011,54 @@ export interface paths {
         get: operations["PlanningInputController_batch"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExceptionController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exceptions/{exceptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExceptionController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exceptions/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ExceptionController_detect"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1724,6 +1808,22 @@ export interface components {
             /** @description The reply with its attempts — the new attempt shows as RUNNING until the worker records it */
             reply: components["schemas"]["InboundItemDto"];
         };
+        RunExceptionDto: {
+            /** Format: uuid */
+            exception_id: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "RESOLVED";
+            /** @enum {string} */
+            basis: "CONFIRMED" | "PROVISIONAL";
+            /** Format: uuid */
+            facility_id: string;
+            facility_name: string;
+            /** Format: date */
+            window_day: string;
+            scheduled_demand: number;
+            capacity: number | null;
+            shortage: number;
+        };
         RunSummaryDto: {
             /** Format: uuid */
             run_id: string;
@@ -1732,6 +1832,13 @@ export interface components {
             contains_simulated: boolean;
             /** Format: uuid */
             scenario_id: string | null;
+            /**
+             * @description T-132: who started the run — the deterministic exception detector, a person, or the synthetic scenario seed
+             * @enum {string}
+             */
+            source: "MANUAL" | "AUTO_DETECTED" | "SCENARIO";
+            /** @description T-132: the operational exception that opened this run */
+            exception: components["schemas"]["RunExceptionDto"] | null;
         };
         RunListDto: {
             runs: components["schemas"]["RunSummaryDto"][];
@@ -2545,6 +2652,38 @@ export interface operations {
             };
         };
     };
+    RegistryController_createFacility: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FACILITY_ALREADY_REGISTERED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     RegistryController_setFacilityOperator: {
         parameters: {
             query?: never;
@@ -2609,6 +2748,38 @@ export interface operations {
             };
             /** @description ROLE_MISMATCH */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    RegistryController_createTruckPool: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Administrator (active HUMAN). In session mode the backend sets it */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TRUCK_POOL_ALREADY_REGISTERED */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5018,6 +5189,85 @@ export interface operations {
             };
         };
     };
+    PlanningInputController_baselineContainers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningInputController_importBaselineContainers: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanningInputImportRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningInputImportReportDto"];
+                };
+            };
+            /** @description INVALID_IMPORT_REQUEST · ACTOR_REQUIRED · INVALID_ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description COMMAND_ID_REUSED · NOT_A_LIVE_RUN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_PLANNING_INPUT — details = the report with row errors; nothing stored */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     PlanningInputController_containers: {
         parameters: {
             query?: never;
@@ -5309,6 +5559,61 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
+            };
+        };
+    };
+    ExceptionController_list: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "RESOLVED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExceptionController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exceptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExceptionController_detect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -7,9 +7,9 @@ import type { ChannelAdapters } from '../channel/channel.module.js';
 import type { MockChannelAdapter } from '../channel/mock-channel-adapter.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { DATABASE, type Database } from '../db/database.js';
-import { planningSnapshot, recoveryRun } from '../db/schema/index.js';
+import { operationalException, planningSnapshot, recoveryRun } from '../db/schema/index.js';
 import { SEED_IDS } from '../seed/slice1-fixture.js';
 import { Instant } from '../shared/time/instant.js';
 import { EXECUTION_QUEUE, type ExecutionQueue } from '../queue/execution-queue.js';
@@ -71,6 +71,13 @@ export class DemoController {
       .where(eq(recoveryRun.runId, SEED_IDS.recoveryRunRoot))
       .limit(1);
     const asOf = seed[0] ? Instant.fromDb(seed[0].asOf) : null;
+    // T-132: 탐지기가 시나리오에서 예외를 찾아 만든 복구 실행(가장 최근) — 시연 화면은 이 실행을 따라간다. 없으면 시드 실행
+    const auto = await this.db
+      .select({ runId: operationalException.recoveryRunId, exceptionId: operationalException.exceptionId, status: operationalException.status })
+      .from(operationalException)
+      .where(and(eq(operationalException.scope, 'SCENARIO'), isNotNull(operationalException.recoveryRunId)))
+      .orderBy(desc(operationalException.detectedAt))
+      .limit(1);
     return {
       app_env: this.env.APP_ENV,
       agent_tools_enabled: this.env.CERA_AGENT_TOOLS_ENABLED,
@@ -79,6 +86,9 @@ export class DemoController {
       gmail_enabled: this.env.CERA_GMAIL_ENABLED,
       sending_paused: this.env.CERA_SENDING_PAUSED,
       auth_mode: this.env.CERA_AUTH_MODE,
+      exception_detection: this.env.CERA_EXCEPTION_DETECTION,
+      active_run_id: auto[0]?.runId ?? SEED_IDS.recoveryRunRoot,
+      auto_exception: auto[0] ? { exception_id: auto[0].exceptionId, status: auto[0].status, recovery_run_id: auto[0].runId } : null,
       portfolio_demo: this.env.CERA_PORTFOLIO_DEMO_MODE,
       execution_queue: await this.queue.status(),
       seed: {

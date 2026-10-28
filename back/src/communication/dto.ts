@@ -714,6 +714,41 @@ export class RunSummaryDto {
 
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   scenario_id!: string | null;
+
+  @ApiProperty({ enum: ['MANUAL', 'AUTO_DETECTED', 'SCENARIO'], description: 'T-132: who started the run — the deterministic exception detector, a person, or the synthetic scenario seed' })
+  source!: 'MANUAL' | 'AUTO_DETECTED' | 'SCENARIO';
+
+  @ApiProperty({ type: () => RunExceptionDto, nullable: true, description: 'T-132: the operational exception that opened this run' })
+  exception!: RunExceptionDto | null;
+}
+
+export class RunExceptionDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  exception_id!: string;
+
+  @ApiProperty({ enum: ['ACTIVE', 'RESOLVED'] })
+  status!: string;
+
+  @ApiProperty({ enum: ['CONFIRMED', 'PROVISIONAL'] })
+  basis!: string;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  facility_id!: string;
+
+  @ApiProperty({ type: String })
+  facility_name!: string;
+
+  @ApiProperty({ type: String, format: 'date' })
+  window_day!: string;
+
+  @ApiProperty({ type: Number })
+  scheduled_demand!: number;
+
+  @ApiProperty({ type: Number, nullable: true })
+  capacity!: number | null;
+
+  @ApiProperty({ type: Number })
+  shortage!: number;
 }
 
 export class RunListDto {

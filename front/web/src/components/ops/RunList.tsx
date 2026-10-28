@@ -1,7 +1,7 @@
 import { STATUS_LABEL } from "@/components/agent/agentLabels";
 import { PLAN_STATUS_LABEL } from "@/components/plan/planLabels";
 import { RUN_GROUP_BADGE, RUN_GROUP_LABEL, type RunGroup, reasonTitle, shortId, shortTime } from "./opsLabels";
-import { type ActionItem, type RunRow, runGroup } from "./opsModel";
+import { type ActionItem, type RunRow, exceptionText, runGroup } from "./opsModel";
 
 const ORDER: RunGroup[] = ["ACTION", "ACTIVE", "DONE", "STOPPED"];
 
@@ -38,8 +38,14 @@ export function RunList({ rows, actions, selectedId, onSelect }: { rows: RunRow[
                     <span style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       <b className="mono">#{shortId(run.run_id)}</b>
                       <span className={`badge ${run.contains_simulated ? "b-sim" : "b-blue"}`}>{run.contains_simulated ? "시뮬레이션" : "실제"}</span>
+                      {run.source === "AUTO_DETECTED" && <span className="badge b-violet" data-testid="auto-detected">자동 탐지</span>}
                       {need > 0 && <span className="badge b-amber">⚠ 조치 {need}</span>}
                     </span>
+                    {run.exception && (
+                      <span style={{ fontSize: 11.5 }} data-testid="run-exception">
+                        {exceptionText(run.exception)}
+                      </span>
+                    )}
                     <span className="muted" style={{ fontSize: 11.5 }}>
                       {run.trigger_ref} · 시작 {shortTime(run.executed_at)}
                     </span>

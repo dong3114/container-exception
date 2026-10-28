@@ -13,6 +13,12 @@ export interface DemoStatus {
   sending_paused: boolean;
   auth_mode?: string;
   execution_queue?: "up" | "down" | "disabled";
+  portfolio_demo?: boolean;
+  /** T-132: on 이면 결정론 탐지기가 수용량 부족을 찾아 복구 실행을 만든다 */
+  exception_detection?: "off" | "on";
+  /** T-132: 시연 화면이 따라갈 실행 — 탐지기가 만든 실행(있으면) · 아니면 시드 실행 */
+  active_run_id?: string;
+  auto_exception?: { exception_id: string; status: "ACTIVE" | "RESOLVED"; recovery_run_id: string } | null;
   seed: {
     present: boolean;
     scenario_run_id: string;

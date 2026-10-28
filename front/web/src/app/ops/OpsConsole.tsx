@@ -4,6 +4,7 @@ import { type Draft, type InboundItem, listDrafts, listInbound, listRuns } from 
 import { ApiError } from "@/api/errors";
 import { getRuntimeStatus } from "@/api/demo";
 import { getHealth } from "@/api/health";
+import { type ExceptionList, listExceptions } from "@/api/exceptions";
 import { type FollowUpList, type Readiness, createLiveRun, getReadiness } from "@/api/ops";
 import { type PlanSummary, listPlans } from "@/api/plans";
 import { type FactCoordinate, listFacts } from "@/api/truth";
@@ -24,7 +25,7 @@ import { ReadinessPanel } from "@/components/ops/ReadinessPanel";
 import { RunList } from "@/components/ops/RunList";
 import { Timeline } from "@/components/ops/Timeline";
 import { can, shortId } from "@/components/ops/opsLabels";
-import { type ActionItem, type OpsTab, type RunRow, buildTimeline, createPoller, deriveActions, draftRunId, gapRows, latestAgentByRun, ownerFromInquiries } from "@/components/ops/opsModel";
+import { type ActionItem, type OpsTab, type RunRow, buildTimeline, createPoller, deriveActions, draftRunId, gapRows, latestAgentByRun, ownerFromInquiries, runGroup } from "@/components/ops/opsModel";
 import { toApiError, useAsyncAction } from "@/state/async";
 
 const POLL_MS = 5_000;
@@ -46,6 +47,8 @@ interface Board {
   drafts: Draft[];
   inbound: InboundItem[];
   health: { db?: string; queue?: string } | null;
+  /** T-132 운영 예외 요약(진행 중 · 오늘 탐지) — 탐지가 없거나 실패하면 null */
+  exceptions: ExceptionList["summary"] | null;
   error: ApiError | null;
   at: string;
 }
@@ -77,7 +80,7 @@ function usePoll(fn: (signal: AbortSignal) => Promise<void>, deps: unknown[]) {
  */
 export function OpsConsole() {
   const me = useMe();
-  const [board, setBoard] = useState<Board>({ rows: [], drafts: [], inbound: [], health: null, error: null, at: "" });
+  const [board, setBoard] = useState<Board>({ rows: [], drafts: [], inbound: [], health: null, exceptions: null, error: null, at: "" });
   const [detail, setDetail] = useState<Detail | null>(null);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("run"));
   const [tab, setTab] = useState<OpsTab>("overview");
@@ -90,12 +93,12 @@ export function OpsConsole() {
   usePoll(
     async (signal) => {
       try {
-        const [runs, agents, drafts, inbound, health] = await Promise.all([listRuns(signal), listAgentRuns(signal), listDrafts(signal), listInbound("NORMAL", signal), getHealth(signal).catch(() => null)]);
+        const [runs, agents, drafts, inbound, health, exceptions] = await Promise.all([listRuns(signal), listAgentRuns(signal), listDrafts(signal), listInbound("NORMAL", signal), getHealth(signal).catch(() => null), listExceptions(signal).catch(() => null)]);
         const byRun = latestAgentByRun(agents.data.runs as AgentRunListItem[]);
         const recent = runs.data.runs.slice(0, PLAN_ROWS);
         const plans = await Promise.all(recent.map((r) => listPlans(r.run_id, signal).then((p) => p.data.plans.find((x) => x.plan_id === p.data.current_plan_id) ?? p.data.plans[0] ?? null, () => null)));
         const rows: RunRow[] = runs.data.runs.map((run, i) => ({ run, agent: byRun.get(run.run_id) ?? null, plan: i < PLAN_ROWS ? (plans[i] ?? null) : null }));
-        setBoard({ rows, drafts: drafts.data.drafts, inbound: inbound.data.items, health: health ? { db: health.data.db, queue: (health.data as { queue?: string }).queue } : null, error: null, at: new Date().toISOString() });
+        setBoard({ rows, drafts: drafts.data.drafts, inbound: inbound.data.items, health: health ? { db: health.data.db, queue: (health.data as { queue?: string }).queue } : null, exceptions: exceptions?.data.summary ?? null, error: null, at: new Date().toISOString() });
       } catch (e) {
         const err = toApiError(e);
         if (err.kind !== "ABORTED") setBoard((b) => ({ ...b, error: err }));
@@ -176,6 +179,7 @@ export function OpsConsole() {
         <a className="act-btn" href="/demo">시연 콘솔(별도) →</a>
       </header>
       <ErrorNotice error={board.error} />
+      <OpsCounters board={board} actions={actions} />
 
       <ActionRequired actions={actions} runLabel={runLabel} onOpen={open} />
 
@@ -249,6 +253,27 @@ export function OpsConsole() {
         상태는 {POLL_MS / 1000}초마다 다시 읽습니다. 버튼을 숨기거나 끄는 것은 편의일 뿐이고, 권한은 Backend 가 판정합니다. 계획 승인은 배차 · 발송 지시가 아닙니다.
       </footer>
     </main>
+  );
+}
+
+/** 개요 숫자(T-132) — 진행 중 예외 · 오늘 탐지 · 사람 대기 · 진행 중 복구 실행. 분석 대시보드가 아니라 지금 상태 한 줄 */
+function OpsCounters({ board, actions }: { board: Board; actions: ActionItem[] }) {
+  const waitingHuman = board.rows.filter((r) => r.agent?.status === "WAITING_HUMAN").length;
+  const activeRuns = board.rows.filter((r) => ["ACTION", "ACTIVE"].includes(runGroup(r, actions))).length;
+  const items: [string, string, number | string][] = [
+    ["kpi-active-exceptions", "진행 중 예외", board.exceptions?.active ?? "—"],
+    ["kpi-detected-today", "오늘 탐지", board.exceptions?.detected_today ?? "—"],
+    ["kpi-waiting-human", "사람 대기", waitingHuman],
+    ["kpi-active-runs", "진행 중 복구 실행", activeRuns],
+  ];
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 0 8px" }} data-testid="ops-kpis">
+      {items.map(([id, label, value]) => (
+        <span key={id} className="badge b-outline" data-testid={id}>
+          {label} <b>{value}</b>
+        </span>
+      ))}
+    </div>
   );
 }
 
