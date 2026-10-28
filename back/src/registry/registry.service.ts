@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { DATABASE, type Database } from '../db/database.js';
-import { actor, contactChannelAddress, counterparty, counterpartyContact, facility } from '../db/schema/index.js';
+import { actor, contactChannelAddress, counterparty, counterpartyContact, facility, truckPool } from '../db/schema/index.js';
 import { TransactionRunner } from '../db/transaction.js';
 import { AuditRecorder } from '../persistence/audit-recorder.js';
 import { AUDIT_ACTION } from '../persistence/catalog.js';
@@ -168,6 +168,56 @@ export class RegistryService {
     });
     this.signals.emit({ type: 'REGISTRY_CHANGED', counterpartyId });
     return this.summary(counterpartyId);
+  }
+
+  /**
+   * T-132 시설 등록(관리자) — 시드가 없는 Private Staging · 운영에서 실제 창고 · ODCY 를 등록한다. 운영 입력(목적지) · 수용량 사실 · 예외 탐지가 이 시설을 가리킨다.
+   * 같은 종류 · 같은 이름(대소문자 무시)은 한 번만(409). 운영 거래처는 선택(문의 · 후속의 받는 회사).
+   */
+  async createFacility(actorHeader: string | undefined, body: unknown): Promise<{ facility_id: string; facility_type: string; facility_name: string; operator_counterparty_id: string | null }> {
+    const parsed = z
+      .object({ facility_type: z.enum(['WAREHOUSE', 'ODCY', 'TERMINAL']), facility_name: z.string().trim().min(1).max(100), area: z.string().trim().min(1).max(100).optional(), operator_counterparty_id: z.string().regex(UUID).optional() })
+      .strict()
+      .safeParse(body ?? {});
+    if (!parsed.success) throw new ValidationError('INVALID_REGISTRY_REQUEST', 'facility_type (WAREHOUSE · ODCY · TERMINAL) and facility_name (1-100) are required', parsed.error.issues.map((i) => i.path.join('.')));
+    const actorId = await this.human(actorHeader);
+    const b = parsed.data;
+    const facilityId = this.ids.newId();
+    await this.tx.run(async (t) => {
+      const same = await t.select({ name: facility.facilityName }).from(facility).where(eq(facility.facilityType, b.facility_type));
+      if (same.some((f) => f.name.trim().toLowerCase() === b.facility_name.toLowerCase())) throw new BusinessRuleError('FACILITY_ALREADY_REGISTERED', 'A facility with this type and name already exists', 409);
+      if (b.operator_counterparty_id) {
+        const [cp] = await t.select({ id: counterparty.counterpartyId }).from(counterparty).where(eq(counterparty.counterpartyId, b.operator_counterparty_id)).limit(1);
+        if (!cp) throw new BusinessRuleError('COUNTERPARTY_NOT_FOUND', 'No counterparty with this id', 404);
+      }
+      await t.insert(facility).values({ facilityId, facilityType: b.facility_type, facilityName: b.facility_name, area: b.area ?? null, isActive: true, operatorCounterpartyId: b.operator_counterparty_id ?? null });
+      await this.audit.record(t, { actorId, action: AUDIT_ACTION.FACILITY_CREATED, targetType: 'FACILITY', targetId: facilityId, result: 'SUCCESS', isSimulated: false });
+    });
+    return { facility_id: facilityId, facility_type: b.facility_type, facility_name: b.facility_name, operator_counterparty_id: b.operator_counterparty_id ?? null };
+  }
+
+  /** T-132 트럭 풀 등록(관리자) — 자사(OWN) · 협력(PARTNER, 소유 운송사 필수). 같은 이름은 한 번만(409) */
+  async createTruckPool(actorHeader: string | undefined, body: unknown): Promise<{ truck_pool_id: string; pool_name: string; ownership: string; owner_counterparty_id: string | null }> {
+    const parsed = z
+      .object({ pool_name: z.string().trim().min(1).max(100), ownership: z.enum(['OWN', 'PARTNER']), owner_counterparty_id: z.string().regex(UUID).optional() })
+      .strict()
+      .refine((b) => b.ownership === 'OWN' || Boolean(b.owner_counterparty_id), { message: 'a PARTNER pool needs owner_counterparty_id' })
+      .safeParse(body ?? {});
+    if (!parsed.success) throw new ValidationError('INVALID_REGISTRY_REQUEST', 'pool_name (1-100) and ownership (OWN · PARTNER — PARTNER needs owner_counterparty_id) are required', parsed.error.issues.map((i) => i.path.join('.') || 'owner_counterparty_id'));
+    const actorId = await this.human(actorHeader);
+    const b = parsed.data;
+    const truckPoolId = this.ids.newId();
+    await this.tx.run(async (t) => {
+      const same = await t.select({ name: truckPool.poolName }).from(truckPool);
+      if (same.some((p) => p.name.trim().toLowerCase() === b.pool_name.toLowerCase())) throw new BusinessRuleError('TRUCK_POOL_ALREADY_REGISTERED', 'A truck pool with this name already exists', 409);
+      if (b.owner_counterparty_id) {
+        const [cp] = await t.select({ id: counterparty.counterpartyId }).from(counterparty).where(eq(counterparty.counterpartyId, b.owner_counterparty_id)).limit(1);
+        if (!cp) throw new BusinessRuleError('COUNTERPARTY_NOT_FOUND', 'No counterparty with this id', 404);
+      }
+      await t.insert(truckPool).values({ truckPoolId, poolName: b.pool_name, ownership: b.ownership, ownerCounterpartyId: b.owner_counterparty_id ?? null, isActive: true });
+      await this.audit.record(t, { actorId, action: AUDIT_ACTION.TRUCK_POOL_CREATED, targetType: 'TRUCK_POOL', targetId: truckPoolId, result: 'SUCCESS', isSimulated: false });
+    });
+    return { truck_pool_id: truckPoolId, pool_name: b.pool_name, ownership: b.ownership, owner_counterparty_id: b.owner_counterparty_id ?? null };
   }
 
   /**

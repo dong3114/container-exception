@@ -28,6 +28,8 @@ x-back: &back
     MIGRATION_DATABASE_URL: postgres://cera_owner:${CERA_OWNER_PASSWORD:?}@postgres:5432/cera
     CERA_PORTFOLIO_DEMO_MODE: "true"
     CERA_PORTFOLIO_MAX_AGENT_RUNS_PER_DAY: ${CERA_PORTFOLIO_MAX_AGENT_RUNS_PER_DAY:-200}
+    # T-132: 예외 자동 탐지 — 방문자가 합성 수용량을 넣으면 CERA 가 부족을 스스로 찾아 복구 실행을 만든다
+    CERA_EXCEPTION_DETECTION: "on"
     CERA_ALLOWED_ORIGINS: ${CERA_PUBLIC_ORIGIN:?set CERA_PUBLIC_ORIGIN (e.g. https://cera.example.com)}
     # caddy(HTTPS) → web(nginx) → api: nginx 가 넘기는 방문자 IP(X-Forwarded-For 한 값)로 요청 한도를 센다
     CERA_TRUST_PROXY_HOPS: "1"

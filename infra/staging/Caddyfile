@@ -1,0 +1,19 @@
+# CERA Private Staging HTTPS 종단(T-132) — profile edge 로만 켠다. 정식 로그인 앞에 Basic Auth 한 겹을 더한다(일반 방문자는 화면에도 닿지 못한다).
+# 해시 만들기: docker run --rm caddy:2.8.4 caddy hash-password --plaintext '<비밀번호>'  → .env 에 작은따옴표로 감싸 넣는다($ 문자 보호)
+# IP 제한 · VPN · Cloudflare Access 같은 바깥 보호를 더 쓰려면 이 앞단에 둔다(필수 아님 — infra/staging/README.md)
+{
+	email {$CERA_ACME_EMAIL}
+}
+
+{$CERA_DOMAIN} {
+	encode zstd gzip
+	basic_auth {
+		{$CERA_STAGING_BASIC_AUTH_USER} {$CERA_STAGING_BASIC_AUTH_HASH}
+	}
+	header {
+		Strict-Transport-Security "max-age={$CERA_HSTS_MAX_AGE:31536000}"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	reverse_proxy web:80
+}

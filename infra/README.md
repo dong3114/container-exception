@@ -4,7 +4,7 @@
 
 Docker 만이 유일한 개발 방식은 아니다. 평소 화면·코드 개발은 호스트에서 `npm run dev:*` · `python -m cera_ai` · `npm run dev`(Vite HMR)로 하고, **전체 재현 · 시연 · 다른 PC 에서 똑같이 띄우기**에 Docker Compose 를 쓴다.
 
-**공개 포트폴리오 배포**(인터넷 공개 체험 환경 — HTTPS · 내부망 · 데모 모드 · 초기화)는 별도 구성 `infra/portfolio/` 이고 운영 정본은 `infra/portfolio/README.md` 다(T-131 · ADR-039). 개인 운영(실제 Gmail · 상용 LLM) 배포 구성은 아직 없다.
+**공개 포트폴리오 배포**(인터넷 공개 체험 환경 — HTTPS · 내부망 · 데모 모드 · 초기화)는 별도 구성 `infra/portfolio/` 이고 운영 정본은 `infra/portfolio/README.md` 다(T-131 · ADR-039). **Private Staging**(실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력 — 비공개, 데이터 유지)은 `infra/staging/` 이고 운영 정본은 `infra/staging/README.md` 다(T-132 · ADR-040). 시드가 없는 환경의 첫 준비는 `npm run db:bootstrap`(SYSTEM · AI_AGENT 행위자 + 계정만). 예외 자동 탐지 스위치 `CERA_EXCEPTION_DETECTION` 은 시연 겹침(`compose.demo.yaml`) · 포트폴리오 · Staging 에서 `on`, 개발 기본은 `off`.
 
 ## 구성 (`infra/local/compose.yaml`)
 

@@ -1,0 +1,231 @@
+# CERA Private Staging / Live Test 배포(T-132 · ADR-040) — 개발자 · 운영자 전용. 공개 포트폴리오 데모(infra/portfolio)와 **같은 코드 · 다른 설정 · 다른 데이터**.
+# 사용법 정본 = infra/staging/README.md
+#
+#   cp infra/staging/.env.example infra/staging/.env      # 값 채우기(비밀값 — 커밋 금지)
+#   S="docker compose -f infra/staging/compose.yaml --env-file infra/staging/.env"
+#   $S up -d --build --wait                    # DB → migration → API · Worker · AI · 화면(127.0.0.1:${CERA_STAGING_WEB_PORT})
+#   $S run --rm bootstrap                      # 시스템 행위자 + 관리자 · 운영자 계정(합성 데이터 없음). 반복 안전
+#   $S --profile edge up -d                    # (선택) 인터넷 공개 주소 — HTTPS + Basic Auth(Caddy)
+#
+# 포트폴리오 데모와 다른 점:
+# - APP_ENV=staging · CERA_PORTFOLIO_DEMO_MODE=false: 실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력을 쓴다(.env 로 켠다)
+# - 실제 Gmail 은 비운영 환경 안전장치(CERA_TEST_RECIPIENT_ALLOWLIST)에 적힌 주소로만 나간다 — 비어 있으면 실채널 발송 전부 차단(fail-closed)
+# - 데모 방문자 · 데모 세션 · 시나리오 시드 없음(db:seed 는 거부된다). 사람은 정식 로그인(ADMIN · OPERATOR · FIELD_OPERATOR)
+# - 데이터는 이 프로젝트(cera-staging)의 볼륨에만 — 포트폴리오 · 로컬 DB · Redis · ContentStore 와 섞이지 않는다
+# - 외부(Gmail · LLM · 공공 API)로 나가야 하므로 내부망을 외부 차단(internal)으로 두지 않는다. 그래도 DB · Redis · API · AI 는 포트를 열지 않는다
+name: cera-staging
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-back: &back
+  build: ../../back
+  image: cera-back:staging
+  <<: *restart
+  networks: [app]
+  environment: &back-env
+    APP_ENV: staging
+    LOG_LEVEL: log
+    NODE_ENV: production
+    DATABASE_URL: postgres://cera_app:${CERA_APP_PASSWORD:?}@postgres:5432/cera
+    MIGRATION_DATABASE_URL: postgres://cera_owner:${CERA_OWNER_PASSWORD:?}@postgres:5432/cera
+    CERA_PORTFOLIO_DEMO_MODE: "false"
+    CERA_ALLOWED_ORIGINS: ${CERA_ALLOWED_ORIGINS:?set the staging origin(s), e.g. https://staging.example.com,http://127.0.0.1:3400}
+    CERA_TRUST_PROXY_HOPS: "1"
+    CERA_AUTH_MODE: session
+    CERA_SESSION_COOKIE_SECURE: ${CERA_SESSION_COOKIE_SECURE:-true}
+    CERA_SESSION_TTL_MINUTES: ${CERA_SESSION_TTL_MINUTES:-720}
+    CERA_SEED_ADMIN_PASSWORD: ${CERA_SEED_ADMIN_PASSWORD:-}
+    CERA_SEED_OPERATOR_PASSWORD: ${CERA_SEED_OPERATOR_PASSWORD:-}
+    CERA_SEED_FIELD_PASSWORD: ${CERA_SEED_FIELD_PASSWORD:-}
+    # 실제 Gmail(CERA 전용 계정 하나 — npm run gmail:auth 로 받은 refresh token). 비운영 환경이라 허용 목록 주소로만 나간다
+    CERA_GMAIL_ENABLED: ${CERA_GMAIL_ENABLED:-false}
+    GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+    GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
+    GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
+    GMAIL_ACCOUNT_EMAIL: ${GMAIL_ACCOUNT_EMAIL:-}
+    CERA_TEST_RECIPIENT_ALLOWLIST: ${CERA_TEST_RECIPIENT_ALLOWLIST:-}
+    CERA_SENDING_PAUSED: ${CERA_SENDING_PAUSED:-false}
+    # 공공데이터(data.go.kr) — live 는 키 필요
+    CERA_PUBLIC_DATA_MODE: ${CERA_PUBLIC_DATA_MODE:-off}
+    DATA_GO_KR_SERVICE_KEY: ${DATA_GO_KR_SERVICE_KEY:-}
+    CERA_REDIS_URL: redis://:${CERA_REDIS_PASSWORD:?}@redis:6379
+    CERA_AI_SERVER_URL: http://ai:8100
+    CERA_AGENT_RUNTIME_URL: http://ai:8100
+    CERA_AGENT_TOOLS_ENABLED: "true"
+    CERA_AGENT_TOOL_TOKEN: ${CERA_AGENT_TOOL_TOKEN:?set a random 32+ character token}
+    # 예외 자동 탐지(결정론) — 운영 기준 계획(실행 없이 넣은 컨테이너) + 수용량 사실로 창고 수용량 부족을 찾아 복구 실행을 만든다
+    CERA_EXCEPTION_DETECTION: ${CERA_EXCEPTION_DETECTION:-on}
+    CERA_CONTENT_DIR: /srv/content/content
+    CERA_MOCK_CHANNEL_DIR: /srv/content/mock-channel
+    CERA_PUBLIC_DATA_RAW_DIR: /srv/content/public-data
+    UV_THREADPOOL_SIZE: "16"
+  volumes:
+    - content:/srv/content
+    - ../../data/scenarios:/srv/data/scenarios:ro
+
+services:
+  postgres:
+    image: postgres:18.6
+    <<: *restart
+    networks: [app]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CERA_PG_SUPERUSER_PASSWORD:?}
+      POSTGRES_DB: postgres
+      CERA_DB_NAME: cera
+      CERA_TEST_DB_NAME: cera_unused
+      CERA_OWNER_PASSWORD: ${CERA_OWNER_PASSWORD:?}
+      CERA_APP_PASSWORD: ${CERA_APP_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../local/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 768m
+
+  redis:
+    image: redis:7.4.2
+    <<: *restart
+    networks: [app]
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--requirepass", "${CERA_REDIS_PASSWORD:?}", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+    environment:
+      REDIS_PASSWORD: ${CERA_REDIS_PASSWORD:?}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 128m
+
+  migrate:
+    <<: *back
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "db:migrate"]
+
+  # 첫 준비(시스템 행위자 + 사람 계정) — `run --rm bootstrap` 으로만. 합성 데이터는 넣지 않는다
+  bootstrap:
+    <<: *back
+    restart: "no"
+    profiles: [bootstrap]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["npm", "run", "db:bootstrap"]
+
+  api:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *back-env
+      API_PORT: "3100"
+    command: ["node", "dist/main.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 768m
+
+  worker:
+    <<: *back
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command: ["node", "dist/worker.js"]
+    mem_limit: 768m
+
+  # AI Server + Agent Runtime — 상용 LLM(.env 의 CERA_LLM_MODE=live · 공급자 · 모델 · 키). 녹화 재생으로 둘 수도 있다
+  ai:
+    build:
+      context: ../..
+      dockerfile: ai/Dockerfile
+    image: cera-ai:staging
+    <<: *restart
+    networks: [app]
+    environment:
+      CERA_AI_ENV: staging
+      CERA_PORTFOLIO_DEMO_MODE: "false"
+      CERA_AI_HOST: 0.0.0.0
+      CERA_LLM_MODE: ${CERA_LLM_MODE:-replay}
+      CERA_LLM_PROVIDER: ${CERA_LLM_PROVIDER:-}
+      CERA_LLM_MODEL: ${CERA_LLM_MODEL:-}
+      CERA_LLM_FALLBACK_PROVIDER: ${CERA_LLM_FALLBACK_PROVIDER:-}
+      CERA_LLM_FALLBACK_MODEL: ${CERA_LLM_FALLBACK_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CERA_DECISION_MODE: "off"
+      CERA_AGENT_MODE: "on"
+      CERA_BACKEND_TOOL_URL: http://api:3100
+      CERA_AGENT_TOOL_TOKEN: ${CERA_AGENT_TOOL_TOKEN:?}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/health').status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 768m
+
+  # 화면 + /backend 프록시(포트폴리오와 같은 nginx 설정 — 보안 헤더 · 요청 속도 제한 · /backend/internal 404).
+  # 루프백에만 연다: 서버에서는 SSH 터널(ssh -L 3400:127.0.0.1:3400 …)로 쓰거나 edge(Caddy)를 켠다
+  web:
+    build:
+      context: ../..
+      dockerfile: front/web/Dockerfile
+    image: cera-web:staging
+    <<: *restart
+    networks: [app, edge]
+    ports:
+      - "127.0.0.1:${CERA_STAGING_WEB_PORT:-3400}:80"
+    volumes:
+      - ../portfolio/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../portfolio/security-headers.inc:/etc/nginx/conf.d/security-headers.inc:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 64m
+
+  # (선택) 인터넷 주소: HTTPS + Basic Auth. 정식 로그인 앞에 한 겹 더 — 일반 방문자는 화면에도 닿지 못한다
+  caddy:
+    image: caddy:2.8.4
+    <<: *restart
+    profiles: [edge]
+    networks: [edge]
+    ports:
+      - "${CERA_HTTP_PORT:-80}:80"
+      - "${CERA_HTTPS_PORT:-443}:443"
+    environment:
+      CERA_DOMAIN: ${CERA_DOMAIN:-localhost}
+      CERA_ACME_EMAIL: ${CERA_ACME_EMAIL:-}
+      CERA_HSTS_MAX_AGE: ${CERA_HSTS_MAX_AGE:-31536000}
+      CERA_STAGING_BASIC_AUTH_USER: ${CERA_STAGING_BASIC_AUTH_USER:-}
+      CERA_STAGING_BASIC_AUTH_HASH: ${CERA_STAGING_BASIC_AUTH_HASH:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    mem_limit: 256m
+
+networks:
+  app: {}
+  edge: {}
+
+volumes:
+  pgdata:
+  content:
+  caddy-data:
+  caddy-config:

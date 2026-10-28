@@ -46,6 +46,28 @@ export class RegistryController {
   }
 
   @RequirePermission('registry.manage')
+  @Post('facilities')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'T-132: register a facility (warehouse · ODCY · terminal) — staging / production have no scenario seed. Same type + same name → 409' })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'FACILITY_ALREADY_REGISTERED', schema: ERROR_SCHEMA })
+  createFacility(@Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.createFacility(actor, body);
+  }
+
+  @RequirePermission('registry.manage')
+  @Post('truck-pools')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'T-132: register a truck pool — OWN, or PARTNER with its owner counterparty. Same name → 409' })
+  @ApiHeader({ name: 'X-CERA-Actor-Id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Administrator (active HUMAN). In session mode the backend sets it' })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'TRUCK_POOL_ALREADY_REGISTERED', schema: ERROR_SCHEMA })
+  createTruckPool(@Headers('x-cera-actor-id') actor: string | undefined, @Body() body: unknown) {
+    return this.registry.createTruckPool(actor, body);
+  }
+
+  @RequirePermission('registry.manage')
   @Post('counterparties')
   @HttpCode(201)
   @ApiOperation({ summary: 'T-127: register a counterparty while runs are open. Same role + same name (case-insensitive) → 409' })

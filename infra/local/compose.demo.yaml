@@ -4,7 +4,7 @@
 #   docker compose -p cera-demo -f infra/local/compose.yaml -f infra/local/compose.demo.yaml --env-file infra/local/.env --profile app run --rm migrate npm run db:seed
 #   → http://127.0.0.1:3000/demo
 #
-# 바꾸는 것: Agent Runtime 켜기(서비스 토큰은 back/.env · ai/.env 의 CERA_AGENT_TOOL_TOKEN — 32자 이상 같은 값이어야 한다) ·
+# 바꾸는 것: 예외 자동 탐지 켜기(T-132) · Agent Runtime 켜기(서비스 토큰은 back/.env · ai/.env 의 CERA_AGENT_TOOL_TOKEN — 32자 이상 같은 값이어야 한다) ·
 # Mock 수신함을 시연 전용 폴더로(다른 실행의 Mock 메일이 보류함에 섞이지 않게). 처음부터 다시 하려면 같은 명령의 `down -v`.
 # 비밀값은 여기에 두지 않는다.
 services:
@@ -12,10 +12,13 @@ services:
     environment:
       CERA_AGENT_TOOLS_ENABLED: "true"
       CERA_MOCK_CHANNEL_DIR: /srv/data/raw/mock-channel-demo
+      # T-132: 예외 자동 탐지(결정론) — 창고 수용량 부족을 찾아 복구 실행을 만든다(Agent 는 사람이 시작)
+      CERA_EXCEPTION_DETECTION: "on"
   worker:
     environment:
       CERA_AGENT_TOOLS_ENABLED: "true"
       CERA_MOCK_CHANNEL_DIR: /srv/data/raw/mock-channel-demo
+      CERA_EXCEPTION_DETECTION: "on"
   ai:
     environment:
       CERA_AGENT_MODE: "on"
