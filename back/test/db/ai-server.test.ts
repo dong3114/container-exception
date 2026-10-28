@@ -47,7 +47,7 @@ afterAll(() => {
 
 describe('Python AI Server — the real process behind the same client the worker uses', () => {
   it('health says replay — no LLM provider is selected', async () => {
-    expect(await (await fetch(`${baseUrl}/health`)).json()).toEqual({ status: 'ok', provider: 'replay' });
+    expect(await (await fetch(`${baseUrl}/health`)).json()).toMatchObject({ status: 'ok', provider: 'replay' });
   });
 
   it('returns recorded candidates that the backend schema accepts', async () => {

@@ -23,6 +23,11 @@ import { ExceptionDetectorService } from '../detection/exception-detector.servic
 import { EXECUTION_QUEUE, type ExecutionJob, type ExecutionQueue } from '../queue/execution-queue.js';
 import { QueueModule } from '../queue/queue.module.js';
 import { RedisExecutionQueue } from '../queue/redis-execution-queue.js';
+import { HeartbeatRepository } from '../ops/heartbeat.repository.js';
+import { OpsModule } from '../ops/ops.module.js';
+import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
+import { CLOCK, type Clock } from '../shared/time/clock.js';
+import type { Instant } from '../shared/time/instant.js';
 
 /** 오류 문장 + 원인(드라이버 오류는 `cause` 에 있다 — 'Failed query' 만으로는 왜인지 모른다). 값 · 비밀은 담지 않는다. */
 export function errorText(error: unknown): string {
@@ -56,6 +61,11 @@ export class WorkerRunner {
   private readonly locks = new Map<LockKey, pg.PoolClient>();
   private lastTruthRefresh = 0; // 주기 판단용 프로세스 시계(업무 판정에는 쓰지 않는다)
   private lastDetection = 0; // 운영 예외 탐지 주기(T-132) — 같은 용도의 프로세스 시계
+  /** heartbeat(T-133): 이 프로세스의 정체 · 시작 시각 · 큐 소비 여부. 주기마다 실패한 단계를 모은다(코드만) */
+  private readonly instanceId: string;
+  private readonly startedAt: Instant;
+  private queueConsumer = false;
+  private failedSteps: string[] = [];
   /** 같은 프로세스 안에서 폴링 주기와 큐 작업이 같은 처리기를 동시에 돌리지 않게(잠금은 프로세스 사이, 이것은 프로세스 안) */
   private readonly chains = new Map<string, Promise<unknown>>();
 
@@ -72,7 +82,13 @@ export class WorkerRunner {
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(ENV) private readonly env: Env,
     @Inject(EXECUTION_QUEUE) private readonly queue: ExecutionQueue,
-  ) {}
+    @Inject(HeartbeatRepository) private readonly heartbeats: HeartbeatRepository,
+    @Inject(ID_GENERATOR) ids: IdGenerator,
+    @Inject(CLOCK) private readonly clock: Clock,
+  ) {
+    this.instanceId = ids.newId();
+    this.startedAt = clock.now();
+  }
 
   private exclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const next = (this.chains.get(key) ?? Promise.resolve()).catch(() => undefined).then(fn);
@@ -88,6 +104,7 @@ export class WorkerRunner {
     if (!(this.queue instanceof RedisExecutionQueue)) return false;
     this.queue.consume((job) => runWithContext({ ...newJobContext(), ...(job.trace_id ? { traceId: job.trace_id } : {}) }, () => this.handleJob(job)));
     this.logger.log({ msg: 'execution queue consumer started' });
+    this.queueConsumer = true;
     return true;
   }
 
@@ -137,8 +154,30 @@ export class WorkerRunner {
     return false;
   }
 
-  /** 한 주기: 발송 → 수신. 각자 잠금을 못 잡으면 그 작업만 쉰다. */
+  /** 한 주기: 발송 → 수신. 각자 잠금을 못 잡으면 그 작업만 쉰다. 끝나면 heartbeat 를 남긴다(T-133 — 단계가 실패해도) */
   async tick(): Promise<void> {
+    const t0 = Date.now();
+    this.failedSteps = [];
+    let inbound: Record<string, { ok: boolean; code?: string }> = {};
+    try {
+      inbound = await this.cycle();
+    } finally {
+      await this.beat(Date.now() - t0, inbound);
+    }
+  }
+
+  /** heartbeat 쓰기 — 실패해도 주기를 깨지 않는다(다음 주기에 다시) */
+  private async beat(cycleMs: number, inbound: Record<string, { ok: boolean; code?: string }>): Promise<void> {
+    try {
+      const now = this.clock.now();
+      await this.heartbeats.beat({ instanceId: this.instanceId, startedAt: this.startedAt.toDb(), lastSeenAt: now.toDb(), lastCycleMs: Math.max(0, cycleMs), lastCycleErrors: this.failedSteps.length, queueConsumer: this.queueConsumer, detail: { failed_steps: [...this.failedSteps], inbound } });
+    } catch (error) {
+      this.logger.error({ msg: 'worker heartbeat failed', error: errorText(error) });
+    }
+  }
+
+  private async cycle(): Promise<Record<string, { ok: boolean; code?: string }>> {
+    let channels: Record<string, { ok: boolean; code?: string }> = {};
     await runWithContext(newJobContext(), async () => {
       if (await this.holdLock(ADVISORY_LOCK_KEYS.OUTBOX_WORKER)) {
         try {
@@ -146,6 +185,7 @@ export class WorkerRunner {
           const busy = summary.reconciled > 0 || Object.entries(summary.processed).some(([k, v]) => k !== 'SKIPPED' && v > 0);
           if (busy) this.logger.log({ msg: 'outbox cycle', ...summary });
         } catch (error) {
+          this.failedSteps.push('OUTBOX');
           this.logger.error({ msg: 'outbox cycle failed', error: errorText(error) });
         }
       } else {
@@ -154,8 +194,11 @@ export class WorkerRunner {
       if (await this.holdLock(ADVISORY_LOCK_KEYS.INBOUND_POLLER)) {
         try {
           const summary = await this.inbound.runCycle();
+          channels = summary.channels;
+          if (Object.values(summary.channels).some((c) => !c.ok)) this.failedSteps.push('INBOUND_FETCH');
           if (summary.NORMAL + summary.HOLD > 0) this.logger.log({ msg: 'inbound cycle', ...summary });
         } catch (error) {
+          this.failedSteps.push('INBOUND');
           this.logger.error({ msg: 'inbound cycle failed', error: errorText(error) });
         }
       }
@@ -165,6 +208,7 @@ export class WorkerRunner {
           const summary = await this.exclusive(ADVISORY_LOCK_KEYS.EXTRACTION_WORKER, () => this.extraction.runCycle());
           if (Object.values(summary).some((v) => v > 0)) this.logger.log({ msg: 'extraction cycle', ...summary });
         } catch (error) {
+          this.failedSteps.push('EXTRACTION');
           this.logger.error({ msg: 'extraction cycle failed', error: errorText(error) });
         }
       }
@@ -175,6 +219,7 @@ export class WorkerRunner {
           const summary = await this.truth.refreshDerived((work) => this.tx.run(work));
           if (summary.changed > 0 || summary.ms > 1_000) this.logger.log({ msg: 'truth refresh', ...summary });
         } catch (error) {
+          this.failedSteps.push('TRUTH_REFRESH');
           this.logger.error({ msg: 'truth refresh failed', error: errorText(error) });
         }
         // 계획 판이 기댄 사실이 바뀌었으면 OUTDATED(T-114) — API 의 FACT_CHANGED 알림을 놓쳐도 여기서 잡는다
@@ -183,6 +228,7 @@ export class WorkerRunner {
           const outdated = await this.plans.refreshOutdated();
           if (outdated > 0) this.logger.log({ msg: 'plans outdated', count: outdated, ms: Date.now() - t0 });
         } catch (error) {
+          this.failedSteps.push('PLAN_OUTDATED');
           this.logger.error({ msg: 'plan outdated check failed', error: errorText(error) });
         }
       }
@@ -192,6 +238,7 @@ export class WorkerRunner {
         try {
           await this.detector.detect();
         } catch (error) {
+          this.failedSteps.push('EXCEPTION_DETECTION');
           this.logger.error({ msg: 'exception detection failed', error: errorText(error) });
         }
       }
@@ -201,10 +248,12 @@ export class WorkerRunner {
           const summary = await this.agents.runOnce();
           if (summary.retried + summary.woken > 0) this.logger.log({ msg: 'agent reconcile', ...summary });
         } catch (error) {
+          this.failedSteps.push('AGENT_RECONCILE');
           this.logger.error({ msg: 'agent reconcile failed', error: errorText(error) });
         }
       }
     });
+    return channels;
   }
 
   async releaseLock(): Promise<void> {
@@ -224,7 +273,7 @@ export class WorkerModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: WorkerModule,
-      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, QueueModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule, PlanningModule],
+      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-worker'), PersistenceModule, QueueModule, ChannelModule, CommunicationModule, AgentToolsModule, TruthModule, PlanningModule, OpsModule],
       providers: [WorkerRunner],
     };
   }

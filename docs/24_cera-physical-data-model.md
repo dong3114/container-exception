@@ -2906,6 +2906,28 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - `operational_exception`: 정해진 컬럼만 갱신 · 해소된 예외는 고칠 수 없음 · `recovery_run_id` 한 번 채움 · 삭제 · TRUNCATE 금지. 권한: cera_app = SELECT · INSERT · UPDATE
 - `operational_exception_observation`: append-only. 권한: cera_app = SELECT · INSERT
 
+### 22.63 `runtime_heartbeat` — 실행 프로세스 heartbeat **(M39 · T-133)**
+
+- 논리: `RUNTIME_STATE`(업무 사실 아님) · Worker 가 주기를 마칠 때마다 종류별 한 행을 덮어쓴다 — 운영 화면이 프로세스 메모리가 아니라 DB 로 "Worker 가 일하고 있나"를 판단한다(API 여러 개여도 같은 답)
+- 판정: 마지막 확인 30초 이하 정상 · 90초 이하 지연 · 그 이상 멈춤 [ASSUMPTION — `back/src/ops/system-status.policy.ts`]
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `component` | CODE(RUNTIME_COMPONENT) | `text` | NOT NULL | — | `text()` | PK · CHECK IN (WORKER) |
+| 2 | `instance_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | 마지막으로 쓴 프로세스 |
+| 3 | `started_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 그 프로세스 시작 |
+| 4 | `last_seen_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 마지막 주기 끝 · 뒤로 가지 않음(upsert 조건) |
+| 5 | `last_cycle_ms` | INTEGER | `integer` | NOT NULL | — | `integer()` | ≥ 0 |
+| 6 | `last_cycle_errors` | INTEGER | `integer` | NOT NULL | — | `integer()` | 실패한 단계 수(≥ 0) |
+| 7 | `queue_consumer` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | Redis 빠른 경로 소비 중 |
+| 8 | `cycle_detail` | JSON | `jsonb` | NOT NULL | — | `jsonb().$type<T>()` | 실패한 단계 · 채널별 수신 확인 결과(코드만 — 문장 · 비밀 없음) |
+
+- **CHECK**: 숫자 ≥ 0 · `last_seen_at ≥ started_at`
+
+### 22.64 M40 heartbeat 가드 · 권한 **(T-133)**
+
+- `runtime_heartbeat`: 종류(component)는 바뀌지 않음(컬럼 보호) · 삭제 · TRUNCATE 금지. 권한: cera_app = SELECT · INSERT · UPDATE
+
 ## 23. 논리 → 물리 대응 (누락 검사)
 
 **방법**: `docs/22_cera-logical-data-model.xlsx` 의 P0 29개 표 블록에서 영문 필드명 행을 그대로 읽어(생성기 입력) 22절의 표를 만들었다. 작업표 전체 컬럼 수 **587**(`docs/22` 머리말과 같음) 중 P0 29표가 **349**다.

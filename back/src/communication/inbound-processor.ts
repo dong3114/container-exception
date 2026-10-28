@@ -22,6 +22,14 @@ export interface InboundCycleSummary {
   NORMAL: number;
   HOLD: number;
   DUPLICATE: number;
+  /** 채널별 이번 주기의 수신 확인 결과(T-133 운영 화면 — 코드만, 오류 문장 · 비밀 없음) */
+  channels: Record<string, { ok: boolean; code?: string }>;
+}
+
+/** 어댑터 오류에서 운영 화면에 보일 코드만 꺼낸다(예: `GMAIL_TOKEN_REVOKED`). 형식이 아니면 일반 코드 */
+export function fetchErrorCode(error: unknown): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,59}$/.test(code) ? code : 'INBOUND_FETCH_FAILED';
 }
 
 /**
@@ -57,7 +65,7 @@ export class InboundProcessor {
   }
 
   async runCycle(): Promise<InboundCycleSummary> {
-    const summary: InboundCycleSummary = { fetched: 0, NORMAL: 0, HOLD: 0, DUPLICATE: 0 };
+    const summary: InboundCycleSummary = { fetched: 0, NORMAL: 0, HOLD: 0, DUPLICATE: 0, channels: {} };
     for (const adapter of this.adapters.values()) {
       // 워터마크는 최적화일 뿐 — 같은 메일이 다시 와도 UNIQUE 가 막는다. 저장할 곳이 없어 매 주기 처음부터 받는다(Mock).
       // 실채널(Gmail)은 CERA 가 보낸 스레드만 본다(docs/18 G.3 2) — 메일함 전체를 읽지 않는다
@@ -65,7 +73,9 @@ export class InboundProcessor {
       try {
         const scope = adapter.declaresSimulated ? undefined : await this.scopeFor(adapter);
         ({ messages } = await adapter.fetchInbound(null, scope));
+        summary.channels[adapter.channelType] = { ok: true };
       } catch (error) {
+        summary.channels[adapter.channelType] = { ok: false, code: fetchErrorCode(error) };
         // 한 채널의 장애(토큰 만료 · 네트워크)가 다른 채널 수신을 막지 않는다. 다음 주기에 다시
         this.logger.warn({ msg: 'inbound fetch failed — will retry next cycle', channel: adapter.channelType, error: String(error) });
         continue;

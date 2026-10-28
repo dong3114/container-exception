@@ -19,10 +19,10 @@ afterAll(async () => {
   await owner.end();
 });
 
-describe('migration history (fresh M01 → M38)', () => {
+describe('migration history (fresh M01 → M40)', () => {
   const files = readdirSync('drizzle/migrations').filter((f) => f.endsWith('.sql')).sort();
 
-  it('thirty-eight reviewed migrations M01..M38 are committed in order', () => {
+  it('forty reviewed migrations M01..M40 are committed in order', () => {
     expect(files).toEqual([
       '0000_m01_foundation.sql',
       '0001_m02_registry.sql',
@@ -62,6 +62,8 @@ describe('migration history (fresh M01 → M38)', () => {
       '0035_m36_demo_visitor_role.sql',
       '0036_m37_operational_exception.sql',
       '0037_m38_operational_exception_guards.sql',
+      '0038_m39_runtime_heartbeat.sql',
+      '0039_m40_runtime_heartbeat_guards.sql',
     ]);
   });
 
@@ -102,7 +104,9 @@ describe('runtime role cera_app (C layer)', () => {
        WHERE grantee = 'cera_app' AND table_schema = 'cera'
        GROUP BY table_name`);
     const privs = Object.fromEntries(rows.map((r) => [r.table, r.privs]));
-    expect(Object.keys(privs)).toHaveLength(53);
+    expect(Object.keys(privs)).toHaveLength(54);
+    // T-133: Worker heartbeat 는 종류마다 한 행을 갱신한다(지우지 않음)
+    expect(privs.runtime_heartbeat).toBe('INSERT,SELECT,UPDATE');
     // T-132: 예외는 정해진 컬럼만 갱신(가드), 근거 기록은 append-only
     expect(privs.operational_exception).toBe('INSERT,SELECT,UPDATE');
     expect(privs.operational_exception_observation).toBe('INSERT,SELECT');

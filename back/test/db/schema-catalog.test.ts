@@ -49,14 +49,14 @@ afterAll(async () => {
 });
 
 describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
-  it('the spec itself has 50 tables (P0 29 + M14 public data 6 + M16 agent records 2 + M18 agent runtime 3 + M22 recovery plan 2 + M24 login 2 + M26 plan follow-up 1 + M28 extraction retry 1 + M30 planning input 4 + M34 contact selection 1 + M37 operational exception 2 = 53) and 654 logical columns', () => {
-    expect(new Set(spec.map((c) => c.table)).size).toBe(53);
-    expect(spec.length).toBe(654);
+  it('the spec itself has 50 tables (P0 29 + M14 public data 6 + M16 agent records 2 + M18 agent runtime 3 + M22 recovery plan 2 + M24 login 2 + M26 plan follow-up 1 + M28 extraction retry 1 + M30 planning input 4 + M34 contact selection 1 + M37 operational exception 2 + M39 runtime heartbeat 1 = 54) and 662 logical columns', () => {
+    expect(new Set(spec.map((c) => c.table)).size).toBe(54);
+    expect(spec.length).toBe(662);
   });
 
-  it('the database has exactly the 53 tables and 654 columns in schema cera', () => {
+  it('the database has exactly the 54 tables and 662 columns in schema cera', () => {
     expect(new Set(dbColumns.map((c) => c.table))).toEqual(new Set(spec.map((c) => c.table)));
-    expect(dbColumns.length).toBe(654);
+    expect(dbColumns.length).toBe(662);
   });
 
   it('every column matches the spec: name, order, type, nullability, default', () => {
@@ -79,7 +79,7 @@ describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
 
   it('every CLOSED code column has a CHECK IN with exactly the spec values (no ENUM types)', () => {
     const closed = spec.filter((s) => closedValues(s.memo));
-    expect(closed.length).toBe(91);
+    expect(closed.length).toBe(92);
     const problems: string[] = [];
     for (const s of closed) {
       const def = checkDefs.get(`ck_${s.table}__${s.name}`);
@@ -122,12 +122,12 @@ describe('Phase A — P0 schema coverage against docs/24 section 22', () => {
 });
 
 describe('Phase A — keys, foreign keys and indexes', () => {
-  it('53 primary keys named pk_<table>', async () => {
+  it('54 primary keys named pk_<table>', async () => {
     const r = await owner.query<{ conname: string; table: string }>(`
       SELECT con.conname, c.relname AS table FROM pg_constraint con
         JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'cera' AND con.contype = 'p'`);
-    expect(r.rowCount).toBe(53);
+    expect(r.rowCount).toBe(54);
     for (const row of r.rows) expect(row.conname).toBe(`pk_${row.table}`);
   });
 

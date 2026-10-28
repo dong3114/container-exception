@@ -4646,6 +4646,28 @@
           "admin"
         ]
       }
+    },
+    "/ops/system-status": {
+      "get": {
+        "operationId": "OpsController_systemStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "System health for the operations dashboard — API · PostgreSQL · Redis · Worker heartbeat · AI · LLM · Gmail · public data · waiting work (PostgreSQL is the source; no hosts, paths, keys or tokens)",
+        "tags": [
+          "ops"
+        ]
+      }
     }
   },
   "info": {

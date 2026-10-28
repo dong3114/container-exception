@@ -19,3 +19,4 @@ export * from './m28-extraction-retry.js';
 export * from './m30-planning-input.js';
 export * from './m34-contact-selection.js';
 export * from './m37-operational-exception.js';
+export * from './m39-runtime-heartbeat.js';

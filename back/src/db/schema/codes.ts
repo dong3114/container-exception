@@ -132,3 +132,7 @@ export const EXCEPTION_STATUS = ['ACTIVE', 'RESOLVED'] as const;
 export const EXCEPTION_BASIS = ['CONFIRMED', 'PROVISIONAL'] as const;
 // 관측 기록 종류: 처음 발견 · 근거 변화 · 해소 · 판단 불가(수용량 사실이 없거나 오래됨 · 철회 · 검토 필요)
 export const EXCEPTION_OBSERVATION_KIND = ['DETECTED', 'CHANGED', 'RESOLVED', 'INDETERMINATE'] as const;
+
+// ── M39 실행 프로세스 heartbeat (T-133) ──
+// 살아 있음을 DB 에 남기는 프로세스 종류. API 는 요청 자체가 상태 확인이라 남기지 않는다
+export const RUNTIME_COMPONENT = ['WORKER'] as const;

@@ -267,6 +267,20 @@
       "when": 1793171218905,
       "tag": "0037_m38_operational_exception_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793174683194,
+      "tag": "0038_m39_runtime_heartbeat",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793174684476,
+      "tag": "0039_m40_runtime_heartbeat_guards",
+      "breakpoints": true
     }
   ]
 }

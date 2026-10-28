@@ -37,7 +37,8 @@ def create_app(provider: LlmProvider | None = None, agent_runtime: Any | None = 
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "provider": selected.name}
+        # provider name only (replay · gemini · gemini>openai) and whether the agent runtime is wired — no URLs, keys or models' config
+        return {"status": "ok", "provider": selected.name, "agent_runtime": "ready" if runtime is not None else "disabled"}
 
     @app.post("/v1/extractions/reply", response_model=ExtractionResponse, response_model_by_alias=True)
     def extract_reply(body: ExtractionRequest, x_request_id: Annotated[str | None, Header()] = None) -> ExtractionResponse | JSONResponse:

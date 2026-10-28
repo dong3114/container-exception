@@ -157,9 +157,9 @@ export class AgentToolsService {
     const url = `${this.env.CERA_AGENT_RUNTIME_URL.replace(/\/$/, '')}/health`;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2_000) });
-      return { runtime_url: this.env.CERA_AGENT_RUNTIME_URL, reachable: res.ok, http_status: res.status, tools_enabled: this.env.CERA_AGENT_TOOLS_ENABLED, tool_count: TOOLS.length };
+      return { reachable: res.ok, http_status: res.status, tools_enabled: this.env.CERA_AGENT_TOOLS_ENABLED, tool_count: TOOLS.length };
     } catch {
-      return { runtime_url: this.env.CERA_AGENT_RUNTIME_URL, reachable: false, http_status: null, tools_enabled: this.env.CERA_AGENT_TOOLS_ENABLED, tool_count: TOOLS.length };
+      return { reachable: false, http_status: null, tools_enabled: this.env.CERA_AGENT_TOOLS_ENABLED, tool_count: TOOLS.length };
     }
   }
 

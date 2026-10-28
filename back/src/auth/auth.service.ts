@@ -1,3 +1,4 @@
+import { deploymentMode } from '../ops/system-status.policy.js';
 import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gt, isNull } from 'drizzle-orm';
@@ -188,6 +189,8 @@ export class AuthService {
       permissions: [...ROLE_PERMISSIONS[identity.role]] as Permission[],
       via: identity.via,
       portfolio_demo: this.env.CERA_PORTFOLIO_DEMO_MODE,
+      // 배포 모드(T-133) — 운영자가 지금 어디에 있는지. 설정에서만 정하고 민감한 값이 아니다
+      deployment_mode: deploymentMode(this.env.APP_ENV, this.env.CERA_PORTFOLIO_DEMO_MODE),
     };
   }
 

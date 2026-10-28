@@ -18,6 +18,7 @@ import { DemoController } from '../dev/demo.controller.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { DemoSessionController } from '../auth/auth.controller.js';
 import { QueueModule } from '../queue/queue.module.js';
+import { OpsModule } from '../ops/ops.module.js';
 
 /** API 프로세스의 루트 모듈. 업무 모듈은 U 단위마다 여기에 더한다(U2: 등록부 · Contact Gate · U3: 문의 초안 · U4 승인 · U5 발송 요청 — 발송 자체는 Worker · T-102 공공데이터 · T-103 Agent Tool). */
 @Module({})
@@ -25,7 +26,7 @@ export class ApiModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: ApiModule,
-      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-api'), PersistenceModule, QueueModule, ChannelModule, RegistryModule, CommunicationModule, PublicDataModule, AgentToolsModule, TruthModule, PlanningModule, AuthModule],
+      imports: [ConfigModule.forRoot(env), SharedModule, DatabaseModule.forRoot('cera-api'), PersistenceModule, QueueModule, ChannelModule, RegistryModule, CommunicationModule, PublicDataModule, AgentToolsModule, TruthModule, PlanningModule, AuthModule, OpsModule],
       // 시연 · 테스트 도우미는 local · test 와 공개 포트폴리오 데모에서만(개인 운영 staging · production 에는 경로 자체가 없다).
       // 데모 세션 입구는 포트폴리오 데모에서만(T-131)
       controllers: [

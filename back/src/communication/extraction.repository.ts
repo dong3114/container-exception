@@ -29,7 +29,7 @@ export interface AttemptLog {
 }
 
 /** 사람이 연 재시도가 아직 결과 없이 열려 있다(요청 뒤에 완료 감사도 기술 실패도 없다). `r` = extraction_retry_request 별칭 */
-const OPEN_RETRY = sql`NOT EXISTS (SELECT 1 FROM cera.audit_log a WHERE a.target_type = 'COMM_MESSAGE' AND a.target_id = r.message_id::text AND a.action LIKE 'EXTRACTION\\_%' AND a.occurred_at >= r.requested_at)
+export const OPEN_RETRY = sql`NOT EXISTS (SELECT 1 FROM cera.audit_log a WHERE a.target_type = 'COMM_MESSAGE' AND a.target_id = r.message_id::text AND a.action LIKE 'EXTRACTION\\_%' AND a.occurred_at >= r.requested_at)
   AND NOT EXISTS (SELECT 1 FROM cera.system_error e WHERE e.related_entity_type = 'COMM_MESSAGE' AND e.related_entity_id = r.message_id::text AND e.component_name = ${EXTRACTION_COMPONENT} AND e.occurred_at >= r.requested_at)`;
 
 export interface ExtractionSubject {

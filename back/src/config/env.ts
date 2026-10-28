@@ -149,6 +149,11 @@ export const envSchema = z.object({
   CERA_EXCEPTION_DETECTION: z.enum(['off', 'on']).default('off'),
   // Worker 의 탐지 주기(ms) — 알림을 놓쳐도(재시작 · Redis 없음) 이 주기 안에 같은 결과 [ASSUMPTION]
   CERA_EXCEPTION_DETECT_INTERVAL_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(30_000),
+  // 운영 화면에 보일 빌드 commit(T-133, 선택). 짧은 · 긴 git 해시만 — 다른 값은 버린다(서버 정보 노출 방지)
+  CERA_BUILD_COMMIT: z
+    .string()
+    .optional()
+    .transform((v) => (v && /^[0-9a-f]{7,40}$/.test(v.trim()) ? v.trim() : undefined)),
 }).superRefine((e, ctx) => {
   const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
   if (e.APP_ENV === 'production' && e.CERA_MOCK_CHANNEL_FAULT !== 'none') fail('CERA_MOCK_CHANNEL_FAULT', 'fault injection is not allowed in production');
