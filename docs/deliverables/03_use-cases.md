@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` · 감사 액션 정본 `back/src/persistence/catalog.ts` · Agent 그래프 `ai/cera_ai/agent/graph.py` |
+| 기준 | HEAD `5881529` + T-132 · 감사 액션 정본 `back/src/persistence/catalog.ts` · Agent 그래프 `ai/cera_ai/agent/graph.py` |
 | 관련 문서 | [02 요구사항](02_requirements-analysis.md) · [07 API](07_interface-api.md) · [05 DB](05_data-model-and-tables.md) · [09 추적성](09_traceability-matrix.md) · [11 용어집](11_glossary.md) |
 
 ## 1. Actor
@@ -23,7 +23,8 @@
 | --- | --- | --- | --- |
 | AI Agent | Python LangGraph 그래프(`AI_AGENT` actor) | 공백 확인 · 다음 행동 선택 · Tool 호출로 초안 · 승인 대기 요청 · 계산 · 판 저장 | 승인 · 발송 · 사실 확정 · DB 직접 접근 |
 | AI 추출기 | AI Server `/v1/extractions/reply` | 답장에서 값 후보 + 인용 | 값 판정 · 저장 |
-| Worker | NestJS Worker 프로세스(`SYSTEM` actor) | 발송 · 수신 · 추출 요청 · 사실 재판정 · Agent 재조정 | 사람 결정 |
+| Worker | NestJS Worker 프로세스(`SYSTEM` actor) | 발송 · 수신 · 추출 요청 · 사실 재판정 · Agent 재조정 · 예외 탐지 주기 | 사람 결정 |
+| 예외 탐지기 | `ExceptionDetectorService`(API · Worker, `SYSTEM` actor) | 운영 기준 계획 vs 수용량 사실 비교 · 예외 기록 · 복구 실행 생성 · 해소 | LLM 사용 · Agent 시작 · 외부 연락 |
 | 외부 거래처 | 운송사 · ODCY · 창고 | 메일로 답장 | — |
 | Gmail | Google Gmail API | 실제 메일 송수신 채널 | — |
 | Mock 채널 | 파일 기반 보낸 편지함 · 수신함 | 시연 · 시험 송수신 | — |
@@ -60,8 +61,11 @@
 | UC-24 | 운영 데이터 일괄 입력 | 운영자 | P1 | 구현 |
 | UC-25 | 공공데이터 조회 | 운영자 | P2 | 구현(키 필요) |
 | UC-26 | 사용자 관리 | 관리자 | P1 | 구현(API 만, 화면 없음) |
+| UC-27 | 운영 기준 계획 입력 | 운영자 | P1 | 구현(T-132) |
+| UC-28 | 예외 자동 탐지 → 복구 실행 | 예외 탐지기 | P0 | 구현(T-132) |
+| UC-29 | 시설 · 트럭 풀 등록 | 관리자 | P1 | 구현(T-132) |
 
-원 지시의 후보 중 바꾼 것: "Truth 확정"은 실제 동작이 확인 · 거절 · 정정 · 철회 네 가지라 UC-12 로 묶었고, "Planning Input 검증"은 입력 자체(UC-24)와 계산 가능 여부 확인(UC-13)으로 나눴다. UC-25 · UC-26 은 실제 구현이 있어 추가했다.
+T-132 에서 UC-27 · 28 · 29 를 더했다. 원 지시의 후보 중 바꾼 것: "Truth 확정"은 실제 동작이 확인 · 거절 · 정정 · 철회 네 가지라 UC-12 로 묶었고, "Planning Input 검증"은 입력 자체(UC-24)와 계산 가능 여부 확인(UC-13)으로 나눴다. UC-25 · UC-26 은 실제 구현이 있어 추가했다.
 
 ## 3. 유스케이스 상세
 
@@ -80,7 +84,7 @@
 
 ### UC-02 복구 실행 생성
 - 목적: 예외 한 건을 판단할 실행 단위를 만든다
-- Primary: 운영자 · Trigger: 예외 인지(자동 탐지는 없음)
+- Primary: 운영자 · Trigger: 예외 인지(창고 수용량 부족은 UC-28 이 자동으로 만든다 — 그 밖의 경우)
 - Main(실제 실행): ① [+ 새 실제 실행] ② `POST /planning/runs` → 스냅숏 + 실행(`OPERATOR_REQUEST`, `contains_simulated=false`) ③ 운영 입력(UC-24)으로 이어 감
 - Alternative(시뮬레이션): 시드(`npm run db:seed`)가 시나리오 실행(`EXCEPTION_DETECTED`)을 만든다
 - Exception: 403(권한 없음 — 현장 담당자 · 데모 방문자)
@@ -230,6 +234,24 @@
 - Exception: 409 `LOGIN_ID_TAKEN` · `CANNOT_DEMOTE_SELF`
 - 요구사항: FR-AUTH-005 · API: `/admin/users*` · 권한: `users.manage` · 감사: `USER_CREATED` · `USER_UPDATED`
 
+### UC-27 운영 기준 계획 입력
+- Primary: 운영자 · 목적: 원래 반입 계획을 실행 없이 넣어 탐지기의 기준으로 삼는다
+- Main: ① CSV · 행 → `POST /planning/inputs/containers`(검증만 → 저장) ② 판 · 멱등 규칙 그대로 ③ `OPERATIONAL_INPUT_CHANGED` → UC-28
+- Alternative: 일부 컨테이너 철회(`status = WITHDRAWN` 새 판) → 예정 감소 → UC-28 해소
+- 요구사항: FR-INPUT-005 · 권한: `planning.input` · 감사: `PLANNING_INPUT_IMPORTED`
+
+### UC-28 예외 자동 탐지 → 복구 실행
+- Primary: 예외 탐지기 · Trigger: 사실 변경 알림(`FACT_CHANGED`) · 운영 입력 변경 알림 · Worker 주기
+- 사전조건: `CERA_EXCEPTION_DETECTION=on` · SYSTEM actor
+- Main: ① 범위별(LIVE · 시나리오) 창고 × 날짜 예정 수 · 수용량 사실 판정 ② 부족 + 근거 CONFIRMED → 예외 ACTIVE + 관측 DETECTED ③ 복구 실행 자동 생성(입력 옮겨 적기) ④ 운영 콘솔 할 일 "자동 탐지된 예외 — Agent 시작이 필요합니다" ⑤ 사람이 수량을 정해 Agent 시작(UC-03)
+- Alternative: 임시 사실 → 예외만(실행 없음) — 사람이 확인하면 실행 생성 · 수용량 변화 → CHANGED · 충분해짐 · 예정 0 · 날짜 경과 → RESOLVED(실행 · 계획 보존) · 다시 부족 → 새 예외
+- Exception: 수용량 사실 없음 · 오래됨 · 철회 · 검토 필요 → 판단 불가(새 예외 없음 · 해소 없음) · 탐지 꺼짐 → `POST /exceptions/detect` 409
+- 요구사항: FR-DETECT-001~005 · API: `GET /exceptions*` · `POST /exceptions/detect` · `GET /planning/runs` · 데이터: `operational_exception` · `operational_exception_observation` · `recovery_run` · 감사: `EXCEPTION_DETECTED` · `EXCEPTION_RUN_CREATED` · `EXCEPTION_RESOLVED`
+
+### UC-29 시설 · 트럭 풀 등록
+- Primary: 관리자 · Main: `POST /registry/facilities` · `POST /registry/truck-pools`(협력은 소유 운송사) → 운영 입력 · 수용량 사실이 가리킬 대상 · Exception: 같은 이름 409 · 권한 없음 403
+- 요구사항: FR-REG-010 · 권한: `registry.manage` · 감사: `FACILITY_CREATED` · `TRUCK_POOL_CREATED`
+
 ## 4. 주요 시퀀스
 
 ### A. 문의 → 발송 → 회신 → 사실
@@ -301,6 +323,24 @@ sequenceDiagram
   OP->>API: POST /planning/plans/{v2}/follow-ups
   API-->>OP: [취소]/[정정] 초안(원래 받은 회사, refers_to = 원래 메시지)
   OP->>API: 승인 · 발송 (원래 메일은 수정하지 않음)
+```
+
+### F. 운영 데이터 → 예외 자동 탐지 → 복구 실행 (T-132)
+
+```mermaid
+sequenceDiagram
+  actor OP as 운영자
+  participant API as NestJS API
+  participant DT as 예외 탐지기(결정론)
+  participant W as Worker
+  OP->>API: POST /planning/inputs/containers (운영 기준 계획)
+  OP->>API: 수용량 사실(직접 입력 · 정정)
+  API->>DT: FACT_CHANGED · OPERATIONAL_INPUT_CHANGED 알림
+  W->>DT: 주기(알림을 놓쳐도)
+  DT->>DT: 예정 > 확정 수용량? (advisory lock · 부분 유일 인덱스)
+  DT->>API: 예외 ACTIVE + 관측 DETECTED + 복구 실행(EXCEPTION_DETECTED)
+  OP->>API: Agent 시작(문의 수량은 사람이 정함) → 기존 흐름(승인 · 발송 · 회신 · 계획)
+  OP->>API: 수용량 정정(충분) → DT: RESOLVED (실행 · 계획 기록 보존)
 ```
 
 ### E. 연락처 없음 · 여럿 → 사람 해결

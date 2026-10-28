@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` · 코드값 `back/src/db/schema/codes.ts` · 내용 저장소 `back/src/content/*` · 공공데이터 `back/src/public-data/*` |
+| 기준 | HEAD `5881529` + T-132 · 코드값 `back/src/db/schema/codes.ts` · 내용 저장소 `back/src/content/*` · 공공데이터 `back/src/public-data/*` |
 | 관련 문서 | [05 DB 설계](05_data-model-and-tables.md) · [06 아키텍처](06_system-architecture.md) · [08 운영](08_nfr-and-operations.md) · 출처 카탈로그(설계 시점) [`docs/11_data-sources.md`](../11_data-sources.md) |
 
 > 제목의 "빅데이터"에 대해: CERA 는 Hadoop · Spark · Data Lake 같은 대용량 처리 계층이 **없다**. 현재 다루는 것은 운영 데이터 · 공공 데이터 · 메시지 · AI 추출 · 사실 · 계획 · 감사 데이터이며 모두 PostgreSQL(+ 원문 파일 저장소)에 있다. 이 문서는 그 데이터의 출처 · 흐름 · 품질 · 활용을 분석한다.
@@ -28,6 +28,8 @@
 | 14 | Agent 실행 기록 | LangGraph · Backend | Tool · Runtime API | 단계 · Tool 호출 · 체크포인트 | 실행 중 | 실행 상태(업무 사실 아님) | `agent_run` · `agent_step` · `agent_tool_call` · `agent_checkpoint(_write)` · `AGENT_CHECKPOINT` | 재개 · 관측 | 없음 | 무기한[미확정 — 보관 주기 T-108 잔여] | — |
 | 15 | 감사 · 시스템 오류 | Backend | 트랜잭션 안 기록 | 구조화(메시지 · 스택 없음) | 행동마다 | — | `audit_log` · `system_error` | 감사 · 장애 분석 | actor id | 무기한(append-only) | — |
 | 16 | 사용자 · 세션 | 관리자 · 시드 | API · 시드 | 구조화(비밀번호 해시 · 토큰 지문) | 로그인마다 | — | `user_account` · `user_session` | 인증 | 로그인 id · 표시 이름 | 세션은 만료 · 철회(행 유지) | 시드 계정은 합성 |
+| 17 | 운영 기준 계획(원래 반입 계획 — T-132) | 운영자 | CSV · 행, 검증 후 저장(`POST /planning/inputs/containers`) | 구조화 | 계획이 바뀔 때 새 판 | `FILE_IMPORT` · 사람 입력 | `planning_input_batch` · `planning_container_record`(`recovery_run_id` NULL) | 예외 탐지의 예정 수요 · 자동 실행의 입력 | 없음 | 무기한(append-only) | 시연은 **합성** · Staging 은 실제 입력 가능 |
+| 18 | 운영 예외 · 관측 기록(T-132) | 예외 탐지기(결정론) | 사실 · 운영 입력 변경 알림 · Worker 주기 | 구조화(예정 · 수용량 · 부족 · 근거 jsonb + 해시) | 근거가 바뀔 때만 | 근거 `CONFIRMED` · `PROVISIONAL` · 판단 불가 기록 | `operational_exception` · `operational_exception_observation` | 복구 실행 자동 생성 · 화면 개요 | 없음 | 무기한(관측 append-only · 예외 삭제 불가) | 범위 `SCENARIO` 는 **합성** · `LIVE` 는 실제 |
 
 ## 2. 실제 / 합성 구분 (2026-10-28)
 
@@ -56,6 +58,8 @@
                             │                   │
 [사실]                      │      Reconciliation → canonical_fact(값·신선도·충돌·쓸 수 있음) — 파생, 재계산 가능
                             ▼                   ▼
+[탐지]  운영 기준 계획(예정) × 수용량 사실 → 예외 탐지기(결정론, LLM 없음) → operational_exception + 관측 기록 → 복구 실행 자동 생성
+                            ▼
 [계획 입력]       입력 준비도 + 계획 스냅숏(as_of · 사실 지문)
                             ▼
 [계산]            Cost / Risk Engine(원 정수 · 위험 벌점) → Baseline → HiGHS Solver
@@ -72,13 +76,13 @@
 | 차원 | 구현 |
 | --- | --- |
 | 완전성(Completeness) | 정보 공백 판정(필요 사실 대비) · 입력 준비도(필드 단위 빠진 값) · 요율 · 사실이 없으면 비용을 지어내지 않고 선택지를 실행 불가로 |
-| 유효성(Validity) | 운영 입력 행 · 필드 검증(dry-run 먼저) · 285개 DB CHECK(코드값 · 형식 · 시간 순서) · 문의 숫자 검사 · 추출 결정론 검증(인용 · 값 · 단위 · 범위 · 형식) |
+| 유효성(Validity) | 운영 입력 행 · 필드 검증(dry-run 먼저) · 297개 DB CHECK(코드값 · 형식 · 시간 순서) · 문의 숫자 검사 · 추출 결정론 검증(인용 · 값 · 단위 · 범위 · 형식) |
 | 신선도(Freshness) | 명시 유효 시간 우선 + 계열별 시작값 [ASSUMPTION] → `FRESH` · `AGING`(경고) · `STALE`(다시 묻기) · `EXPIRED` · 근거 시각 품질(`EVENT_TIME` · `RECORDED_TIME` · `RECEIVED_ONLY`) |
 | 일관성(Consistency) | 구조화 값이 정본(문장은 파생) · 승인 사본 고정 · 계획 해시 · 스냅숏 사실 지문 · 시뮬레이션 플래그를 FK 에 포함 |
 | 출처(Provenance) | 모든 사건에 `raw_input`(출처 유형 · 수집자) · 추출 id · 원문 인용 · 입력한 사람 · 단언한 거래처 |
 | 권위(Authority) | 근거 강도(`EVIDENCE_STRENGTH` 0~3) · 사람 확인 · 권위 시스템 · 정책 근거(`VERIFICATION_BASIS`) — 사람 확인 · 사람 입력 → 확정 |
 | 충돌(Conflict) | 같은 사실의 다른 값 → `DISSENT` · `OPEN` → 쓸 수 있음 판정에 반영 |
-| 중복(Duplicate) | 외부 메시지 id UNIQUE(수신) · 등록부 주소 중복 409 · 운영 입력 같은 내용만 저장 |
+| 중복(Duplicate) | 외부 메시지 id UNIQUE(수신) · 등록부 주소 · 시설 · 트럭 풀 중복 409 · 운영 입력 같은 내용만 저장 · 진행 중 예외는 정체마다 하나(부분 유일 인덱스) |
 | 멱등(Idempotency) | 발송 요청 · Tool 호출(멱등 키) · 시드 · migration 반복 안전 · 결과 모르는 발송은 화해 |
 
 ## 5. 데이터 보안
@@ -96,7 +100,7 @@
 
 ## 6. 현재 데이터 활용 단계
 
-현재는 **운영 의사결정(Operational Decision)** 중심이다: 지금 무엇을 믿을지 정하고, 계획을 계산하고, 승인 · 후속을 연결한다. 분석 대시보드는 **없다**. 관측 도구는 `npm run runtime:stats`(그래프 · Tool · 공공데이터 지연 분포) 하나다.
+현재는 **운영 의사결정(Operational Decision)** 중심이다: 지금 무엇을 믿을지 정하고, 창고 수용량 부족을 스스로 찾고(T-132), 계획을 계산하고, 승인 · 후속을 연결한다. 분석 대시보드는 **없다**. 관측 도구는 `npm run runtime:stats`(그래프 · Tool · 공공데이터 지연 분포) 하나다.
 
 ## 7. 향후 분석 가능 데이터 [향후]
 
@@ -110,7 +114,8 @@
 | 계획 변경 횟수 · 이유 | `recovery_plan`(`version` · `plan_status` · `outdated_reasons` · `outdated_at`) |
 | 복구 비용 · 절감 | `recovery_plan.objective_krw` · `base_cost_krw` · `risk_penalty_krw` · `baseline_total_krw` · `saving_krw` · 계산 시간 `cost_ms` · `solve_ms` |
 | Solver 선택 패턴 | `recovery_plan_item.action` 분포 |
-| 시설별 수용 실패 · 변동 | 시설 수용량 사건(`event` + `event_entity_link`) 시계열 |
+| 시설별 수용 실패 · 변동 | 시설 수용량 사건(`event` + `event_entity_link`) 시계열 · 예외 관측 기록(`operational_exception_observation` — 예정 · 수용량 · 부족 · 근거 사건) |
+| 예외 빈도 · 해소 시간 | `operational_exception`(`detected_at` · `resolved_at` · 시설 · 날짜) — 지금은 한 유형(창고 수용량 부족)만 |
 | 거래처별 응답 · 정정 | 스레드 · 회신 · 정정 후속(`plan_follow_up`) |
 
-확장 단계 [향후]: 기술(Descriptive — 위 집계) → 진단(Diagnostic — 지연 원인) → 예측(Predictive — 수용 감소 · 응답 지연 예측) → 처방(Prescriptive — 현재 Solver 를 확장). 예외 유형 빈도 분석은 **현재 예외 유형 코드가 없어** 근거 데이터가 부족하다(실행 트리거 값만 있음).
+확장 단계 [향후]: 기술(Descriptive — 위 집계) → 진단(Diagnostic — 지연 원인) → 예측(Predictive — 수용 감소 · 응답 지연 예측) → 처방(Prescriptive — 현재 Solver 를 확장). 예외 유형 빈도 분석은 예외 유형 코드가 하나(`WAREHOUSE_CAPACITY_SHORTAGE`)뿐이라 유형 간 비교는 아직 할 수 없다.

@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | **DRAFT / NON-FINAL** — 현재 구현된 화면을 정보 구조 · 기능 중심으로 옮긴 1차 초안이다. 사용자가 UI 를 검토하고 추가 개발할 예정이므로 **최종 화면 사양이 아니다** |
 | 확정하지 않는 것 | 픽셀 · 색상 · 글꼴 · 최종 컴포넌트 위치 · 모바일 UX · 디자인 시스템 |
-| 기준 | HEAD `5881529` · `front/web/src/App.tsx`(경로) · `app/LoginGate.tsx` · `app/PortfolioDemo.tsx` · `app/ops/OpsConsole.tsx` · `components/ops/*` · `app/demo/DemoPage.tsx` · 화면 문구 `components/ops/opsLabels.ts` |
+| 기준 | HEAD `5881529` + T-132 · `front/web/src/App.tsx`(경로) · `app/LoginGate.tsx` · `app/PortfolioDemo.tsx` · `app/ops/OpsConsole.tsx` · `components/ops/*` · `app/demo/DemoPage.tsx` · 화면 문구 `components/ops/opsLabels.ts` |
 | 관련 문서 | [`docs/16_frontend-prototype.md`](../16_frontend-prototype.md) 13 · 14절 · [03 유스케이스](03_use-cases.md) · [07 API](07_interface-api.md) · [11 용어집](11_glossary.md) |
 
 ## 1. 경로와 공통 규칙
@@ -54,17 +54,18 @@
 ### SCR-02 운영 콘솔 상단
 - 영역: (포트폴리오) PORTFOLIO DEMO 띠 — 합성 데이터 · 외부 메일 Mock · AI 녹화 재생 · [단계별 체험] · [운영 콘솔] / 세션 줄(이름 · 역할 · 로그아웃 또는 데모 종료) / 시스템 상태("✓ Backend · DB 정상" · "✓ 실행 큐" 또는 "! 실행 큐 없음(폴링으로 동작)" · "! Agent Runtime 응답 없음" · "✕ Backend 연결 안 됨")
 - 조회: `GET /health` · `GET /agent-runs/runtime`
+- 개요 숫자 줄(T-132): 진행 중 예외 · 오늘 탐지 · 사람 대기 · 진행 중 복구 실행 — `GET /exceptions` · `GET /planning/runs` 에서 계산
 
 ### SCR-03 지금 해야 할 일
 - 목적: 사람이 할 일을 한곳에(같은 일은 한 번만)
 - 영역: 할 일 목록(아이콘 · 제목 · 설명 · [열기])
-- 항목 유형(코드 → 화면 문구): `HUMAN_APPROVAL_REQUIRED` "문의 초안 승인이 필요합니다" · `AWAITING_SEND_REQUEST` "승인된 문의의 발송 요청이 필요합니다" · `REPLY_REVIEW_REQUIRED` "답장이 왔지만 AI 가 내용을 확정하지 못했습니다" · `AWAITING_FACT_VERIFICATION` "임시 값의 확인이 필요합니다" · `AWAITING_PLAN_DECISION` "복구 계획 승인이 필요합니다" · `CONTACT_REGISTRATION_REQUIRED` "연락 가능한 담당자가 없습니다" · `CONTACT_SELECTION_REQUIRED` "연락할 담당자를 선택해야 합니다" · `HUMAN_ACTION_REQUIRED` "문의 초안을 고쳐야 합니다" · 후속 담당자 필요
+- 항목 유형(코드 → 화면 문구): `HUMAN_APPROVAL_REQUIRED` "문의 초안 승인이 필요합니다" · `AWAITING_SEND_REQUEST` "승인된 문의의 발송 요청이 필요합니다" · `REPLY_REVIEW_REQUIRED` "답장이 왔지만 AI 가 내용을 확정하지 못했습니다" · `AWAITING_FACT_VERIFICATION` "임시 값의 확인이 필요합니다" · `AWAITING_PLAN_DECISION` "복구 계획 승인이 필요합니다" · `CONTACT_REGISTRATION_REQUIRED` "연락 가능한 담당자가 없습니다" · `CONTACT_SELECTION_REQUIRED` "연락할 담당자를 선택해야 합니다" · `HUMAN_ACTION_REQUIRED` "문의 초안을 고쳐야 합니다" · 후속 담당자 필요 · (T-132) Agent 가 아직 없는 자동 탐지 실행 "자동 탐지된 예외 — Agent 시작이 필요합니다"
 - 조회: `GET /agent-runs` · `GET /communication/drafts` · `GET /communication/inbound` · `GET /planning/runs/{runId}/plans`
 - Action: [열기] → 해당 실행 · 탭 · 항목으로
 - Empty: 할 일 없음 표시
 
 ### SCR-04 복구 실행 목록 · 새 실제 실행
-- 영역: 묶음(사람 조치 필요 · 진행 중 · 완료 · 중단/오류) · 실행마다 시뮬레이션 배지 · Agent 상태 · 대기 사유 · 현재 판 / [+ 새 실제 실행] (`planning.input` 만)
+- 영역: 묶음(사람 조치 필요 · 진행 중 · 완료 · 중단/오류) · 실행마다 시뮬레이션 배지 · [자동 탐지] 배지(`source = AUTO_DETECTED`) + 예외 한 줄("창고 A 수용량 부족 · 10-13 예정 20 / 가능 8 · 영향 12대", 해소되면 "해소됨") · Agent 상태 · 대기 사유 · 현재 판 / [+ 새 실제 실행] (`planning.input` 만)
 - 조회: `GET /planning/runs` · Action: 새 실제 실행 → `POST /planning/runs`
 
 ### SCR-05 실행 상세 — 개요
@@ -116,6 +117,7 @@
 - 영역: 단계 목차 · 12단계 카드(각 카드 = 예상 결과 + 버튼 + 지금 상태): 1 환경 점검 · 2 예외 발생 · 현장 값 5건 입력 · 3 Agent 시작 · 4 문의 초안 승인 · 5 발송 요청 → Worker 발송 · 6 업체 회신(Mock — 정해진 문장 선택) · 7 AI 추출 → 임시 사실 · 8 복구 계획 v1 · 9 사람 확인 → v2 · 10 사실 변경(ODCY A 4 → 2) → v3 · 11 계획 승인 · 12 후속 문의 초안
 - 조회: `GET /dev/demo/status` · `GET /agent-runs/runtime` · 사실 · 계획 · 초안 API
 - Action: 위 단계의 API · `POST /dev/demo/mock-reply`
+- 자동 탐지(T-132): 탐지가 켜져 있으면 2단계에 "CERA 가 창고 수용량 부족을 스스로 찾아 복구 실행을 만들었습니다" 안내가 나오고, 3단계부터 그 자동 실행(`active_run_id`)을 따라간다
 - 비고: 포트폴리오 모드에서는 직접 쓴 회신 문장 칸을 숨김(Backend 도 거부) · 공유 상태라 앞 단계가 이미 "완료"일 수 있음
 
 ### SCR-14 Mock 재생(`/prototype`)

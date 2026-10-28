@@ -3,8 +3,8 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` · `back/src/app/*` · `back/src/worker.ts` · `ai/cera_ai/*` · `front/web/*` · `infra/local/compose*.yaml` · `infra/portfolio/compose.yaml` |
-| 관련 결정 | ADR-026~029(책임 경계) · ADR-033(NestJS + 별도 Python) · ADR-034(PostgreSQL + Drizzle) · ADR-035(Vite SPA) · ADR-036(Agent Runtime) · ADR-037(LLM 선정 방식) · ADR-038(HiGHS) · ADR-039(포트폴리오 데모, Proposed) — [`docs/14_decisions.md`](../14_decisions.md) |
+| 기준 | HEAD `5881529` + T-132 · `back/src/app/*` · `back/src/worker.ts` · `back/src/detection/*` · `ai/cera_ai/*` · `front/web/*` · `infra/local/compose*.yaml` · `infra/portfolio/compose.yaml` · `infra/staging/compose.yaml` |
+| 관련 결정 | ADR-026~029(책임 경계) · ADR-033(NestJS + 별도 Python) · ADR-034(PostgreSQL + Drizzle) · ADR-035(Vite SPA) · ADR-036(Agent Runtime) · ADR-037(LLM 선정 방식) · ADR-038(HiGHS) · ADR-039(포트폴리오 데모, Proposed) · ADR-040(Private Staging · 예외 자동 탐지) — [`docs/14_decisions.md`](../14_decisions.md) |
 | 관련 문서 | [07 API](07_interface-api.md) · [08 비기능 · 운영](08_nfr-and-operations.md) · [05 DB](05_data-model-and-tables.md) |
 
 ## 1. 전체 구조
@@ -19,6 +19,7 @@
 │  · 등록부 · Contact Gate · 문의 · 승인 · 발송 요청            · 수신(원문 보존 · 발신자 판정)        │
 │  · Truth(승격 · Reconciliation · 사람 판단)                  · 추출 요청 → AI Server              │
 │  · 운영 입력 · Cost/Risk Engine · HiGHS Solver(WASM)         · 사실 파생 표 재판정                  │
+│  · 예외 탐지기(결정론 — 사실 · 입력 변경 알림)                · 예외 탐지 주기(알림을 놓쳐도)        │
 │  · 계획 판 · 후속 · 정정 · 취소                               · Agent 재조정(AgentReconciler)       │
 │  · Agent Coordinator · Agent Tool API(/internal)             · advisory lock 으로 작업별 하나만     │
 │  · Public Data Adapter(data.go.kr)                                                                │
@@ -92,13 +93,31 @@
 | 메일 공급자 장애 | 일시 실패 재시도(최대 5) · 영구 실패 기록 · 토큰 철회 분류(`GMAIL_TOKEN_REVOKED`) | `db/gmail-channel.test.ts` |
 | LLM 공급자 장애 | 기술 오류면 대체 공급자 한 번(설정 시) · 아니면 실패 기록 → 사람 검토 | 10-28 Gemini 503 → 자동 재시도 성공 |
 
+## 5b. 예외 자동 탐지 (T-132 · ADR-040)
+
+```text
+운영 기준 계획(POST /planning/inputs/containers) ─┐
+수용량 사실(Truth 확정 · 정정 · 철회) ─────────────┤ DomainSignal(OPERATIONAL_INPUT_CHANGED · FACT_CHANGED) → API 의 탐지기
+Worker 주기(CERA_EXCEPTION_DETECT_INTERVAL_MS, 기본 30초) ┘ (알림을 놓쳐도 · Redis 없이도)
+        ▼
+ExceptionDetectorService (back/src/detection — 순수 규칙 exception-rules.ts + DB)
+  · 트랜잭션 advisory lock `cera.exception_detector` — 프로세스가 여럿이어도 한 번에 하나
+  · 범위 LIVE(운영 기준 계획 · 오늘~+2일) / SCENARIO(시드 시나리오의 원래 계획)
+  · 창고 × 날짜: 예정 > 확정 수용량 → 예외 ACTIVE(부분 유일 인덱스) + 관측 기록(근거 지문)
+  · 근거 CONFIRMED → 복구 실행 자동 생성(SYSTEM actor · EXCEPTION_DETECTED) — Agent 는 시작하지 않음
+        ▼
+운영 콘솔: [자동 탐지] 배지 · 개요 숫자 · 할 일 "Agent 시작이 필요합니다" → 기존 흐름(사람 승인)
+```
+
+스위치 `CERA_EXCEPTION_DETECTION`(`off` 기본 · `on` = 데모 · 포트폴리오 · Staging compose). 재시작 검증: Worker · Redis · API 를 재시작해도 예외 1 · 실행 1(Staging E2E, 10-28).
+
 ## 6. 배포 구성
 
 | 구성 | 파일 | 용도 |
 | --- | --- | --- |
 | 로컬 전체 실행 | `infra/local/compose.yaml`(+ `compose.demo.yaml` · `compose.gpu.yaml`) | profile `app`(DB · migrate · API · Worker · AI · Redis) · `web` · `llm`(로컬 모델) · `eval`. 포트는 루프백만 |
 | 공개 포트폴리오 | `infra/portfolio/compose.yaml` · `Caddyfile` · `nginx.conf` | Caddy HTTPS → nginx → API, 내부망(외부 경로 없음), 포트폴리오 모드, 초기화 스크립트 — [08](08_nfr-and-operations.md) 6절 |
-| 개인 운영(실제 Gmail · 상용 LLM) | 없음 | [향후][미확정] |
+| Private Staging(실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력) | `infra/staging/compose.yaml` · `Caddyfile` · `.env.example` · `README.md` | 프로젝트 `cera-staging` — 공개 데모와 DB · Redis · ContentStore · 세션이 다름, 포트폴리오 모드 끔(데모 경로 404), 공식 로그인 + 선택 Basic Auth(Caddy profile `edge`) · IP 제한 · VPN 권장, 첫 준비 `npm run db:bootstrap`. 실제 서버 배포는 [미확정] |
 
 이미지: `back/Dockerfile`(API · Worker · migrate 공용, 빌드본 실행) · `ai/Dockerfile` · `front/web/Dockerfile`(Vite 빌드 → nginx).
 
@@ -113,6 +132,8 @@
 | `back/src/truth` | 승격 · Reconciliation · 사람 판단 · 신선도 |
 | `back/src/planning` | 운영 입력 · 준비도 · 계획 · 후속 · `engine/`(Cost · Baseline · Solver) |
 | `back/src/agent-tools` | Agent 실행 API · Coordinator · Tool · 재조정 · Runtime 저장소 |
+| `back/src/detection` | 예외 탐지 규칙(순수) · 탐지기 · `/exceptions` API |
+| `back/src/seed/run-bootstrap.ts` | 운영 환경 첫 준비(SYSTEM · AI_AGENT · 계정 — 합성 데이터 없음) |
 | `back/src/public-data` | 공공데이터 어댑터 · 정규화 |
 | `back/src/queue` | 실행 큐(BullMQ/Redis) |
 | `back/src/content` | ContentStore |

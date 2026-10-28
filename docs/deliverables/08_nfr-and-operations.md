@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 기준 | HEAD `5881529` · 설정 정본 `back/src/config/env.ts` · `ai/cera_ai/config.py` · 운영 정본 [`infra/README.md`](../../infra/README.md)(로컬 · 새 설치 · 백업/복원 · 장애 복구) · [`infra/portfolio/README.md`](../../infra/portfolio/README.md)(공개 배포 runbook) |
+| 기준 | HEAD `5881529` + T-132 · 설정 정본 `back/src/config/env.ts` · `ai/cera_ai/config.py` · 운영 정본 [`infra/README.md`](../../infra/README.md)(로컬 · 새 설치 · 백업/복원 · 장애 복구) · [`infra/portfolio/README.md`](../../infra/portfolio/README.md)(공개 배포 runbook) · [`infra/staging/README.md`](../../infra/staging/README.md)(Private Staging runbook) |
 | 원칙 | **실측 · 시험으로 확인한 숫자만** 적는다. SLA 는 정하지 않았다[미확정]. 비상 상한 값은 `[ASSUMPTION / DEVELOPMENT SAFETY CEILING]` |
 | 관련 문서 | [02 요구사항](02_requirements-analysis.md) 8절(NFR 목록) · [06 아키텍처](06_system-architecture.md) |
 
@@ -78,11 +78,11 @@
 | --- | --- |
 | 로컬 | `infra/local/compose.yaml` profile `app` · `web` · `llm` · `eval`(포트 루프백) · 시연 겹침 `compose.demo.yaml` |
 | 공개 포트폴리오 | `infra/portfolio/`: Caddy(80 · 443 만 공개) → nginx → API · Worker · AI · PostgreSQL · Redis(내부망) · `restart: unless-stopped` · 메모리 상한 · migration 한 번 · 포트폴리오 시드 · `reset-demo.sh` |
-| 개인 운영 | 구성 없음 [향후] |
+| Private Staging | `infra/staging/`(T-132): 프로젝트 `cera-staging` · 웹 `127.0.0.1:${CERA_STAGING_WEB_PORT:-3400}` · 선택 Caddy(profile `edge`, HTTPS + Basic Auth) · 실제 Gmail · 상용 LLM · 공공데이터 live · 예외 탐지 켬 · 포트폴리오 모드 끔 · 데이터 유지(초기화 스크립트 없음) · 첫 준비 `bootstrap` profile(`npm run db:bootstrap`) |
 
 ### 1.8 데이터 무결성 (Data Integrity)
 
-- DB CHECK 285 · FK 111(시뮬레이션 플래그 포함 복합 FK) · 업무 불변식 트리거(승인 결정은 HUMAN 만 · 발송 결과 한 번 · 상태 전이 규칙 · 확정 사실 근거 · 사건 권위 · 링크 검사)
+- DB CHECK 297 · FK 116(시뮬레이션 플래그 포함 복합 FK) · 업무 불변식 트리거(승인 결정은 HUMAN 만 · 발송 결과 한 번 · 상태 전이 규칙 · 확정 사실 근거 · 사건 권위 · 링크 검사 · 예외는 RESOLVED 가 끝 · 진행 중 예외는 정체마다 하나)
 - 금액 원 정수 · 시각 `timestamptz` · 기준시각 `as_of` 주입
 - 실제 DB ↔ 물리 명세 대조 시험(`db/schema-catalog.test.ts`)
 
@@ -90,10 +90,11 @@
 
 | 범위 | 결과 |
 | --- | --- |
-| Backend(`npm test` — unit + DB) | 59 파일 · 570 통과 |
+| Backend(`npm test` — unit + DB) | 61 파일 · 590 통과 |
 | Python(`python -m pytest -q`) | 98 통과(이 PC 는 pytest 기본 임시 폴더 권한 때문에 `--basetemp` 지정 필요 — 환경 문제) |
-| Front(`npm test`) | 16 파일 · 105 통과 · typecheck · lint 오류 0 · build(소스맵 0) |
+| Front(`npm test`) | 16 파일 · 108 통과 · typecheck · lint 오류 0 · build(소스맵 0) |
 | 브라우저 E2E | 운영 콘솔 전 구간 · `/demo` 12단계 · LIVE · 공개 포트폴리오(로컬 HTTPS) 45항목 — 페이지 오류 0 · 5xx 0 |
+| 예외 자동 탐지 E2E(T-132) | 공개 포트폴리오(새 볼륨) 24/24 — 자동 예외(예정 20 · 가능 8 · 부족 12) · 자동 실행에서 `/demo` 3~12단계 · 배지 · 개요 숫자 · 페이지 오류 0 · 5xx 0 / 로컬 Private Staging 27/27 — 시나리오 팩 없이 운영 기준 계획 + 수용량 정정 → 자동 예외 · 실행, Worker · Redis · API 재시작 뒤 예외 1 · 실행 1, 해소 · 재발 · 수요 감소 해소, 실제 Gmail 발송 0(발송 일시정지) |
 
 ## 3. 운영 절차 요약
 
@@ -110,6 +111,8 @@
 | OAuth 갱신 | `cd back && npm run gmail:auth`(Testing 모드 약 7일) | 해당 없음(Gmail 꺼짐) |
 | 키 교체 | `.env` 수정 → 해당 컨테이너 재기동 | `infra/portfolio/README.md` 6절 |
 
+Private Staging(`infra/staging`)은 기동 · 첫 준비(`--profile bootstrap run --rm bootstrap`) · 시설 · 거래처 등록 · 운영 기준 계획 입력 · 백업 · 키 교체를 [`infra/staging/README.md`](../../infra/staging/README.md) 에 따로 적었다. 공개 데모와 볼륨 · 비밀값을 공유하지 않는다.
+
 ## 4. 운영 위험 · 한계
 
 | 항목 | 내용 |
@@ -120,3 +123,4 @@
 | 체크포인트 보관 | 보관 주기 없음(T-108 잔여) [향후] |
 | Gmail 토큰 | Testing 모드 약 7일 만료 [외부 의존] |
 | 공개 데모 | 공유 상태(방문자별 격리 없음) · 초기화로 되돌림 — ADR-039 Proposed |
+| 예외 탐지 범위 | 창고 수용량 부족 한 유형 · 수용량은 확정 사실만 단정(임시 · 오래됨은 실행을 만들지 않음) · 탐지 주기 30초 [ASSUMPTION] · Agent 는 자동 시작하지 않음 — ADR-040 |

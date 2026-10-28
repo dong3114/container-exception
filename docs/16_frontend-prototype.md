@@ -228,3 +228,13 @@ Current Exposure는 "조치하지 않을 때"의 값이라 계획이 바뀌어�
 - 권한 없는 버튼(새 실제 실행 · 등록 · 사용자 관리)은 기존 규칙대로 `permissions` 로 숨는다
 - 시험 `src/app/portfolio.test.tsx`: 소개 · 띠 문구가 검증 범위를 넘지 않는지(실제 기업 데이터 · 완전 자동 · TMS 없음), 화면 코드가 읽는 환경변수 = `VITE_CERA_API_BASE` · `VITE_CERA_PROVIDER` 뿐, 서버 비밀 키 이름 없음
 - 실측(2026-10-28, 로컬 HTTPS · 새 볼륨): 1366×768 · 1920×1080 가로 넘침 0. 모바일 레이아웃은 범위 밖
+
+## 15. 예외 자동 탐지 표시 (T-132 · ADR-040 · 2026-10-28)
+
+Backend 의 결정론 예외 탐지기(`back/src/detection`)가 만든 실행 · 예외를 운영 콘솔과 `/demo` 에 보인다. 화면은 계산하지 않고 API 값만 쓴다.
+
+- 실행 목록(`components/ops/RunList.tsx`): `source = AUTO_DETECTED` 이면 **[자동 탐지]** 배지(`data-testid="auto-detected"`) + 예외 한 줄 "창고 A 수용량 부족 · 10-13 예정 20 / 가능 8 · 영향 12대"(해소되면 "해소됨") — 문구 `opsModel.exceptionText`
+- 개요 숫자 줄(`app/ops/OpsConsole.tsx`, `data-testid="ops-kpis"`): 진행 중 예외 · 오늘 탐지 · 사람 대기 · 진행 중 복구 실행 — `GET /exceptions` · `GET /planning/runs`
+- 지금 해야 할 일: Agent 가 없는 자동 탐지 실행 → "자동 탐지된 예외 — Agent 시작이 필요합니다"(Agent 는 자동 시작하지 않는다 — 문의 수량은 사람이 정한다)
+- `/demo`: 탐지가 켜져 있으면 2단계에 자동 탐지 안내(`data-testid="demo-auto-detection"`), 3단계부터 `GET /dev/demo/status` 의 `active_run_id`(자동 실행)를 따라간다
+- 시험: `components/ops/ops.test.tsx` 3건 추가(배지 · 예외 줄 · 할 일). 실측: 공개 포트폴리오 E2E 24/24 · 페이지 오류 0

@@ -552,3 +552,21 @@
   9. **배포 = `infra/portfolio/`**(Docker Compose · Caddy HTTPS · 클라우드 비종속). 인터넷 노출은 Caddy 80 · 443 뿐, DB · Redis · API · AI 는 외부 경로가 없는 `internal` 망
 - 대안: 화면만 숨기기(기각 — 권한은 Backend 가 강제해야 한다) · 공개 `POST /demo/reset`(기각 — 남용) · 방문자별 컨테이너(기각 — 포트폴리오 규모에 과함) · 상용 LLM 제한 호출(보류 — 비용 · 안정성)
 - 결과: `back/src/http/public-guards.ts` · `back/src/auth/*`(demo-session) · `back/src/config/env.ts` · M36 · `ai/cera_ai/config.py` · `front/web/src/app/PortfolioDemo.tsx` · `infra/portfolio/` · 시험 `back/test/{unit,db}/portfolio.test.ts` · `ai/tests/test_config.py` · `front/web/src/app/portfolio.test.tsx`
+
+## ADR-040: Private Staging 분리 + 결정론 운영 예외 탐지(Exception Detection Layer) (T-132)
+- 상태: **Accepted (사용자 지시 2026-10-28 — 신규 기능 명시 승인, 완료 뒤 Backend 다시 FROZEN)**. 아래 세부 선택(운영 기준 계획 · Agent 자동 시작 안 함 · 공유 상태 시연)은 Orchestrator 판단 — 사용자 확인 대상
+- 맥락: CERA 는 운영 입력 + Truth 로 실제 계획을 계산할 수 있었지만, 복구 실행은 사람이 문제를 발견해 직접 만들었다. 또 공개 데모(ADR-039)와 별개로 실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력을 쓰는 개인 검증 환경이 필요하다
+- 결정:
+  1. **환경 분리**: 같은 코드 · 다른 배포. 공개 데모 = `infra/portfolio`(`CERA_PORTFOLIO_DEMO_MODE=true`, 합성 · Mock · 녹화 재생 · 자동 초기화) / Private Staging = `infra/staging`(`APP_ENV=staging`, 데모 모드 false, 실제 채널 · LLM · 공공데이터를 `.env` 로). DB · Redis · ContentStore · 세션은 compose 프로젝트별 볼륨이라 섞이지 않는다. 데모에서 관리자만 실제 Gmail 을 쓰는 우회는 없다. Staging 의 실제 Gmail 은 비운영 환경 안전장치(수신 허용 목록)에 묶인다
+  2. **운영 환경 첫 준비 `npm run db:bootstrap`**: SYSTEM · AI_AGENT 행위자 + 사람 계정(환경변수 비밀번호)만 — 합성 데이터 없음. 시드(`db:seed`)는 local · test · 포트폴리오에서만이라 그동안 staging · production 에는 Worker 의 SYSTEM 행위자가 없었다(`SYSTEM_ACTOR_MISSING`)
+  3. **운영 기준 계획(Operational Baseline)**: 어느 복구 실행에도 속하지 않은 예정 반입(`planning_container_record.recovery_run_id IS NULL`, M37) — `POST /planning/inputs/containers`. 검증 · 판 · 멱등 규칙은 실행 입력과 같다
+  4. **탐지는 결정론(LLM 아님)**: 첫 종류 `WAREHOUSE_CAPACITY_SHORTAGE` — 창고 × 날짜마다 예정 반입 수 vs 수용량 사실 `capacity.day(D)`(Truth 판정). 확정 · 관측 사실 → 단정, 임시 사실 → 예외는 기록하되 실행은 만들지 않음(사람이 확인하면 만듦), 오래됨 · 철회 · 검토 필요 · 없음 → 판단 불가(새 예외 없음 · 해소도 없음). 넘치는 컨테이너 = 계획 순서(출발 시각 → 번호)의 뒤쪽 — 무엇을 어디로 옮길지는 Solver. 기준 시각은 경계에서 한 번(LIVE = 지금, 시나리오 = 스냅숏 시각), 범위 = 계획 범위(LIVE 3일)
+  5. **예외 → 복구 실행 자동 생성, Agent 는 자동 시작하지 않는다**: 그래프의 안전 정책 "문의 수량 · 시간대는 실행을 시작한 사람이 정한다(지어내지 않는다)"(`INQUIRY_PARAMETERS_REQUIRED`)와 충돌하기 때문. 자동 실행은 운영 콘솔 "지금 해야 할 일"에 "자동 탐지된 예외 — Agent 시작이 필요합니다"로 올라온다. 외부 연락은 기존대로 사람 승인 뒤에만
+  6. **수명주기 최소**: 예외 `ACTIVE → RESOLVED`(해소는 끝 — 다시 부족하면 새 예외). 근거 변화(8 → 6)는 같은 예외의 관측 기록(append-only `operational_exception_observation`, 근거 지문이 같으면 기록 없음). 해소 = 확정 수용량 충분 · 예정 0 · (LIVE) 날짜 경과. 복구 실행 · 계획 기록은 지우지 않는다
+  7. **중복 방지 = DB**: 진행 중 예외는 정체(종류 · 범위 · 시나리오 · 시설 · 날짜)마다 하나(부분 유일 인덱스) · 탐지는 트랜잭션 advisory lock 으로 한 번에 하나 · 실행 연결은 한 번 채움(M38 가드). API · Worker · 재시작 · Redis 유무와 무관
+  8. **호출 시점**: 사실 · 운영 입력 변경 알림(`FACT_CHANGED` · `OPERATIONAL_INPUT_CHANGED`, API · Worker 프로세스) + Worker 주기(`CERA_EXCEPTION_DETECT_INTERVAL_MS`, 기본 30초). 스위치 `CERA_EXCEPTION_DETECTION`(기본 off — 기존 동작 보존, 배포 구성에서 on)
+  9. **출처 표시**: 실행 목록 `source` = `AUTO_DETECTED`(트리거 `EXCEPTION_DETECTED` · 참조 `EXCEPTION:<id>`) · `MANUAL` · `SCENARIO`. 사람이 만드는 실제 실행은 그대로
+  10. **시연**: 시나리오 범위도 같은 규칙 — 방문자가 창고 A 수용량 8 을 넣으면 예정 20 대비 부족 12 를 탐지해 새 시뮬레이션 실행을 만들고 `/demo` 가 그 실행을 따라간다
+  11. **시설 · 트럭 풀 등록 API**(`POST /registry/facilities` · `POST /registry/truck-pools`, `registry.manage`): 시드 없는 Staging 에서 운영 입력 · 수용량 사실이 가리킬 시설을 만들 길이 없었다(blocker)
+- 대안: LLM 판단(기각 — 숫자 · 상태 판단은 결정론) · 실행을 복제해 방문자 격리(ADR-039 와 같은 이유로 기각) · Agent 자동 시작 + 부족 대수를 문의 수량으로(보류 — 정책 충돌, 사람이 원하면 그래프 정책을 바꾸는 별도 결정) · 예외마다 매번 새 기록(기각 — 같은 문제의 변화는 한 예외의 이력)
+- 결과: `back/src/detection/*` · M37 · M38 · `back/src/seed/run-bootstrap.ts` · `infra/staging/*` · `back/src/registry/*`(시설 · 트럭 풀 등록) · 화면(실행 목록 배지 · 개요 숫자 · 할 일 · `/demo` 연동) · 시험 `back/test/unit/exception-rules.test.ts` · `back/test/db/exception-detection.test.ts`

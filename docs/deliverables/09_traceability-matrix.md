@@ -19,7 +19,12 @@
 | FR-AUTH-006 데모 방문자 세션 | UC-01 | `GET · POST /auth/demo-session` | `DemoSessionController` · `AuthService.demoSession` · `SeedUsers.applyDemoVisitor` | `user_account` · `user_session` | d/portfolio.test.ts |
 | FR-RUN-001 시나리오 실행 | UC-02 | (시드 명령) | `Slice1Seed` · `seed/run-seed.ts` | `scenario` · `planning_snapshot` · `recovery_run` · 등록부 · `raw_input` · `event` | d/persistence.test.ts · d/invariants.test.ts |
 | FR-RUN-002 실제 실행 생성 | UC-02 | `POST /planning/runs` | `PlanningInputController` · `PlanningInputService` | `planning_snapshot` · `recovery_run` | d/live-planning.test.ts |
-| FR-RUN-003 실행 목록 | UC-02 | `GET /planning/runs` | `PlanningRunController`(`communication/draft.controller.ts`) | `recovery_run` · `agent_run` · `recovery_plan` | d/drafts.test.ts · fe/components/ops/ops.test.tsx |
+| FR-RUN-003 실행 목록 | UC-02 | `GET /planning/runs` | `PlanningRunController`(`communication/draft.controller.ts`) | `recovery_run` · `agent_run` · `recovery_plan` · `operational_exception` | d/drafts.test.ts · d/exception-detection.test.ts · fe/components/ops/ops.test.tsx |
+| FR-DETECT-001 창고 수용량 부족 탐지 | UC-28 | (알림 · Worker 주기) · `POST /exceptions/detect` | `detection/exception-rules.ts` · `ExceptionDetectorService` · `TruthService.liveForSubjects` | `operational_exception` · `operational_exception_observation` · `canonical_fact` · `planning_container_record` | u/exception-rules.test.ts · d/exception-detection.test.ts |
+| FR-DETECT-002 복구 실행 자동 생성 | UC-28 | `GET /planning/runs`(`source`) | `ExceptionDetectorService.createRun` | `recovery_run` · `planning_snapshot` · `planning_input_batch` · `planning_container_record` | d/exception-detection.test.ts |
+| FR-DETECT-003 중복 방지 | UC-28 | — | `ExceptionDetectorService`(advisory lock) · migration M37 · M38 | `operational_exception`(부분 유일 · 한 번 채움) | d/exception-detection.test.ts · d/permissions-migrations.test.ts |
+| FR-DETECT-004 수명주기 | UC-28 | — | `decideLifecycle` · `ExceptionDetectorService.expirePast` · `WorkerModule` 주기 | `operational_exception` · `operational_exception_observation` | u/exception-rules.test.ts · d/exception-detection.test.ts |
+| FR-DETECT-005 예외 조회 · 표시 | UC-28 | `GET /exceptions` · `GET /exceptions/{exceptionId}` | `ExceptionController` · fe/`api/exceptions.ts` · `app/ops/OpsConsole.tsx` · `components/ops/RunList.tsx` | 위와 같음 | d/exception-detection.test.ts · fe/components/ops/ops.test.tsx |
 | FR-AGENT-001 실행 생성 · 시작 | UC-03 | `POST /agent-runs` · `POST /agent-runs/{agentRunId}/start` · `GET /agent-runs*` | `AgentRunsController` · `AgentToolsService` · `AgentCoordinator` · `HttpAgentRuntimeClient` · py/`agent/runtime.py` | `agent_run` · `agent_step` | d/agent-runtime.test.ts · d/processes.test.ts · py/test_agent_graph.py |
 | FR-AGENT-002 정보 공백 판정 | UC-04 | `POST /internal/agent-tools/get_information_gaps` | `RecoveryContextService`(`agent-tools/context.service.ts`) | `canonical_fact` · `facility` · `truck_pool` · `comm_message` | d/agent-tools.test.ts · u/agent-tools.test.ts |
 | FR-AGENT-003 다음 행동 선택 | UC-03 | — | py/`agent/graph.py` `DeterministicPolicy` | — | py/test_agent_graph.py |
@@ -36,6 +41,7 @@
 | FR-REG-006 시설 운영사 | UC-21 | `PATCH /registry/facilities/{facilityId}/operator` | `RegistryService` | `facility` | d/contact-routing.test.ts |
 | FR-REG-007 Contact Gate | UC-05 · 06 · 07 | `GET .../eligibility` · 초안 · 승인 · 발송 | `registry/contact-gate.ts` · `DraftService` · `SendService` | `contact_channel_address` · `counterparty_contact` · `counterparty` | u/contact-gate.test.ts · d/registry.test.ts · d/send.test.ts |
 | FR-REG-008 받는 주소 선택 | UC-22 | `POST /agent-runs/{agentRunId}/contact-selection` · `POST /planning/plans/{planId}/follow-ups/contact-selection` | `AgentContactSelectionService` · `PlanFollowUpService` · `ContactSelectionRepository` | `contact_selection` · `audit_log` | d/contact-lifecycle.test.ts |
+| FR-REG-010 시설 · 트럭 풀 등록 | UC-29 | `POST /registry/facilities` · `POST /registry/truck-pools` | `RegistryController` · `RegistryService` | `facility` · `truck_pool` | d/exception-detection.test.ts |
 | FR-REG-009 등록 · 선택 뒤 깨움 | UC-21 · 22 | (위 API) | `agent-tools/wake-rules.ts` · `AgentCoordinator` | `agent_run` | u/agent-wake-rules.test.ts · py/test_agent_graph.py |
 | FR-COMM-001 문의 초안 | UC-05 | `POST /communication/drafts` · `GET /communication/drafts*` | `DraftController` · `DraftService` · `communication/inquiry-intents.ts` · `TemplateDraftProse` | `comm_thread` · `comm_message` · `question_item` · `comm_message_question` · `comm_message_structured_field` | d/drafts.test.ts |
 | FR-COMM-002 숫자 검사 | UC-05 | (초안 · 수정) | `communication/number-check.ts` | — | u/draft-number-check.test.ts · d/drafts.test.ts |
@@ -63,6 +69,7 @@
 | FR-INPUT-001 컨테이너 입력 | UC-24 | `POST · GET /planning/runs/{runId}/inputs/containers` · `GET /planning/inputs/batches/{batchId}` | `PlanningInputController` · `PlanningInputService` · `planning/live-input.ts` · `planning/operational-import.ts` | `planning_input_batch` · `planning_container_record` · `container` | u/live-input.test.ts · d/live-planning.test.ts |
 | FR-INPUT-002 요율 입력 | UC-24 | `POST · GET /planning/inputs/rates` | 위와 같음 | `tariff_rate` · `planning_input_batch` | u/live-input.test.ts · d/live-planning.test.ts |
 | FR-INPUT-003 시설 계획 정보 | UC-24 | `POST · GET /planning/inputs/facility-profiles` | 위와 같음 | `facility_planning_profile` | d/live-planning.test.ts |
+| FR-INPUT-005 운영 기준 계획 | UC-27 | `POST · GET /planning/inputs/containers` | `PlanningInputController` · `PlanningInputService.importBaselineContainers` · `planning/operational-import.ts` | `planning_input_batch` · `planning_container_record` | d/exception-detection.test.ts |
 | FR-INPUT-004 준비도 | UC-13 | `GET /planning/runs/{runId}/input-readiness` | `PlanningController` · `RecoveryPlanService` · `planning/live-input.ts` | 입력 표 · `canonical_fact` | d/live-planning.test.ts |
 | FR-PLAN-001 비용 · 위험 | UC-14 | `GET /planning/runs/{runId}/costs` · Tool `calculate_recovery_costs` | `planning/engine/cost-engine.ts` · `cost-policy.ts` · `RecoveryPlanService` | 읽기(사실 · 요율 · 컨테이너) | u/cost-engine.test.ts |
 | FR-PLAN-002 기준안 | UC-14 | (계산 안) | `planning/engine/baseline.ts` | `recovery_plan`(`baseline_*`) | u/cost-engine.test.ts · u/solver.test.ts |
@@ -82,6 +89,7 @@
 | FR-AUDIT-002 시스템 오류 | 전체 | — | `SystemErrorRecorder` · `ApiErrorFilter` | `system_error` | d/persistence.test.ts · u/context-errors.test.ts |
 | FR-OPS-001 상태 확인 | — | `GET /health/live` · `GET /health` | `HealthController` · `DatabaseHealth` · `RedisExecutionQueue` | — | d/api.e2e.test.ts · d/queue.test.ts · d/portfolio.test.ts |
 | FR-OPS-002 API 계약 | — | `GET /openapi.json` | `http/openapi.ts` · `openapi/emit-openapi.ts` | — | d/api.e2e.test.ts · fe/api/contract.test.ts |
+| FR-OPS-003 운영 환경 첫 준비 | — | (`npm run db:bootstrap`) | `seed/run-bootstrap.ts` | `actor` · `user_account` | Staging E2E(10-28) |
 | FR-DEMO-001 시연 도우미 | UC-07 · 08 | `GET /dev/demo/status` · `POST /dev/demo/mock-reply` | `DemoController` | — | d/portfolio.test.ts |
 | FR-DEMO-002 포트폴리오 모드 | UC-01 | `/auth/demo-session` · 전체(요청 한도) | `config/env.ts` · `http/public-guards.ts` · `SendService` · `DemoController` · py/`config.py` · fe/`app/PortfolioDemo.tsx` · `app/LoginGate.tsx` | `user_account` · `user_session` | u/portfolio.test.ts · d/portfolio.test.ts · py/test_config.py · fe/app/portfolio.test.tsx |
 
@@ -113,6 +121,7 @@
 | NFR-OBS-002 | `dev/runtime-stats.ts` | (도구) |
 | NFR-DEP-001 | `infra/local/*` · `infra/portfolio/*` · Dockerfile 3개 | 10-27 · 10-28 Docker E2E |
 | NFR-DEP-002 | `infra/README.md` · `infra/portfolio/README.md` | 10-27 새 설치 · 백업/복원 실측 |
+| NFR-DEP-003 | `infra/staging/*` · `infra/portfolio/*` · `config/env.ts` | 10-28 공개 데모 E2E 24/24 · Private Staging E2E 27/27 |
 | NFR-MNT-001 | `openapi/emit-openapi.ts` · `agent-tools/emit-tool-contracts.ts` · `dev/validator-conformance.ts` · py/`emit_schema.py` | d/api.e2e.test.ts · u/validator-conformance.test.ts · fe/api/contract.test.ts |
 | NFR-MNT-002 | `dev/env-check.ts` · py/`config.py` | u/env-example.test.ts · py/test_config.py |
 | NFR-MNT-003 | `db/migrate.ts` · `drizzle.config.ts` | d/permissions-migrations.test.ts · d/drizzle-kit.test.ts |
@@ -121,10 +130,10 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 기능 요구사항 | 73 / 73 — 모두 Service/Module 위치와 시험이 1개 이상 연결됨 |
-| 비기능 요구사항 | 27 / 27 — 구현 위치 연결. 시험 대신 실측 · 도구로 근거가 있는 항목: NFR-OBS-002 · NFR-DEP-001 · NFR-DEP-002 |
-| Use Case | 26 / 26 — 각 UC 가 요구사항 1개 이상에 연결 |
-| 사람용 API(부록 B, Internal 제외 71) | 모두 1개 이상 요구사항에 연결(공공데이터 조회 GET 은 FR-PUB-001 로 묶음) |
-| Table | 51 / 51 — [05](05_data-model-and-tables.md) 3절 "관련 기능"에 연결(`verification_request_handling` 은 전용 API 없음 — [향후]) |
+| 기능 요구사항 | 83 / 83 — 모두 Service/Module 위치와 시험이 1개 이상 연결됨 |
+| 비기능 요구사항 | 28 / 28 — 구현 위치 연결. 시험 대신 실측 · 도구로 근거가 있는 항목: NFR-OBS-002 · NFR-DEP-001 · NFR-DEP-002 · NFR-DEP-003 |
+| Use Case | 29 / 29 — 각 UC 가 요구사항 1개 이상에 연결 |
+| 사람용 API(부록 B, Internal 제외 78) | 모두 1개 이상 요구사항에 연결(공공데이터 조회 GET 은 FR-PUB-001 로 묶음) |
+| Table | 53 / 53 — [05](05_data-model-and-tables.md) 3절 "관련 기능"에 연결(`verification_request_handling` 은 전용 API 없음 — [향후]) |
 
 시험 파일 위치는 2026-10-28 HEAD 기준이다. 시험 이름은 `describe` · `it` 문구로 찾는다(예: `grep -n "contact-selection" back/test/db/contact-lifecycle.test.ts`).

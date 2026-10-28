@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | 확정(2026-10-28 구현 기준) — 코드값이 바뀌면 함께 고친다 |
+| 문서 상태 | 확정(2026-10-28 구현 기준 · T-132 반영) — 코드값이 바뀌면 함께 고친다 |
 | 기준 | HEAD `5881529` · 코드값 정본 `back/src/db/schema/codes.ts` · 화면 문구 정본 `front/web/src/components/ops/opsLabels.ts` · `front/web/src/components/agent/agentLabels.ts` |
 | 관련 문서 | [문서 INDEX](CERA_DOCUMENT_INDEX.md) · 기존 기획 용어집 [`docs/13_glossary.md`](../13_glossary.md)(설계 시점 용어 — 구현과 다르면 이 문서가 우선) |
 
@@ -38,6 +38,10 @@
 | Manual Fact | 직접 입력 | 운영자 · 현장 담당자가 확인한 값을 직접 넣는 것(`OPERATOR_DIRECT_ENTRY`). 바로 확정 |
 | Freshness | 신선도 | 값이 얼마나 최근인가(`FRESH` · `AGING` · `STALE` · `EXPIRED` · `UNKNOWN` · `N_A`) |
 | Conflict (`conflict`) | 충돌 | 같은 사실에 서로 다른 값이 있는 상태(`NONE` · `DISSENT` · `OPEN`) |
+| Operational Baseline | 운영 기준 계획 | 어느 복구 실행에도 속하지 않은 예정 반입(원래 계획, `planning_container_record.recovery_run_id IS NULL`). 예외 탐지기가 이것과 수용량 사실을 비교한다(T-132) |
+| Operational Exception (`operational_exception`) | 운영 예외 | 결정론 탐지기가 찾은 문제 하나(첫 유형 `WAREHOUSE_CAPACITY_SHORTAGE` — 창고 수용량 부족). 근거는 관측 기록(`operational_exception_observation`) |
+| Exception Detector | 예외 탐지기 | 운영 기준 계획 + Truth 로 예외를 찾아 복구 실행을 만드는 결정론 서비스(LLM 아님, Agent 를 시작하지 않음) |
+| Private Staging | 개인 검증 환경 | 실제 Gmail · 상용 LLM · 공공데이터 · 실제 운영 입력을 쓰는 비공개 배포(`infra/staging`). 공개 데모와 코드는 같고 설정 · 데이터는 다르다 |
 | Planning Input | 운영 입력 | 실제 실행의 계획 재료: 컨테이너 · 요율 · 시설 계획 정보(CSV 또는 행) |
 | Input Readiness | 입력 준비도 | 실제 실행이 계산 가능한지, 빠진 값이 무엇인지(필드 단위) |
 | Cost / Risk Engine | 비용 · 위험 계산 | 컨테이너 × 선택지마다 비용(원)과 위험 벌점을 결정론으로 계산(`back/src/planning/engine/cost-engine.ts`) |
@@ -116,6 +120,17 @@
 - 계획: `PROPOSED`(제안) · `APPROVED`(승인) · `SUPERSEDED`(새 판에 밀림) · `OUTDATED`(다시 계산 필요) · `INFEASIBLE`(해 없음)
 - Solver: `OPTIMAL` · `FEASIBLE` · `INFEASIBLE` · `TIME_LIMIT` · `ERROR`
 
+### 2.7b 운영 예외 (T-132)
+
+| 구분 | 코드 | 뜻 |
+| --- | --- | --- |
+| 종류(`EXCEPTION_TYPE`) | `WAREHOUSE_CAPACITY_SHORTAGE` | 창고 수용량 부족(예정 반입 > 확정 수용량) |
+| 범위(`EXCEPTION_SCOPE`) | `LIVE` · `SCENARIO` | 실제 운영 기준 계획 · 합성 시나리오(시연) |
+| 상태(`EXCEPTION_STATUS`) | `ACTIVE` · `RESOLVED` | 진행 중 · 해소(끝 — 다시 부족하면 새 예외) |
+| 근거(`EXCEPTION_BASIS`) | `CONFIRMED` · `PROVISIONAL` | 확정 · 관측 사실 / 임시 사실(실행을 자동으로 만들지 않음) |
+| 관측(`EXCEPTION_OBSERVATION_KIND`) | `DETECTED` · `CHANGED` · `RESOLVED` · `INDETERMINATE` | 처음 발견 · 근거 변화 · 해소 · 판단 불가 |
+| 실행 출처(`source`, API) | `AUTO_DETECTED` · `MANUAL` · `SCENARIO` | 탐지기 · 사람 · 시나리오 시드가 만든 실행 — 화면 "자동 탐지" 배지 |
+
 ### 2.8 후속 요청 (`FOLLOW_UP_KIND`) · 막힌 이유
 
 - 종류: `REQUEST`([요청]) · `CORRECTION`([정정]) · `CANCELLATION`([취소])
@@ -157,6 +172,9 @@
 | `DEMO_REPLY_NOT_ALLOWED` (400) | 공개 데모의 Mock 답장은 정해진 문장만 |
 | `ORIGIN_NOT_ALLOWED` (403) | 다른 사이트에서 온 변경 요청 |
 | `RATE_LIMITED` · `DEMO_QUOTA_EXCEEDED` (429) | 요청이 많음 · 하루 데모 한도 |
+| `EXCEPTION_DETECTION_OFF` (409) | 이 배포에서는 예외 자동 탐지가 꺼져 있습니다 |
+| `FACILITY_ALREADY_REGISTERED` · `TRUCK_POOL_ALREADY_REGISTERED` (409) | 같은 이름의 시설 · 트럭 풀이 이미 있습니다 |
+| `SYSTEM_ACTOR_MISSING` | 시스템 행위자가 없습니다 — `npm run db:bootstrap` |
 
 ## 5. 표기 규칙
 

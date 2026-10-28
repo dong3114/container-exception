@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
 | 정본 | Controller 데코레이터(`back/src/**/*.controller.ts`) · 요청 스키마(zod, 각 service) · 생성 OpenAPI `packages/contracts/openapi.json` · Agent Tool 계약 `packages/contracts/agent-tools/agent-tools.v1.json` · AI 계약 `packages/contracts/ai/` |
-| 부록 | **[부록 B. API 엔드포인트 전체 목록(자동 생성)](07a_appendix-api-endpoints.md)** — 77 경로의 Method · Path · 권한 · Handler · 코드 위치 |
+| 부록 | **[부록 B. API 엔드포인트 전체 목록(자동 생성)](07a_appendix-api-endpoints.md)** — 84 경로의 Method · Path · 권한 · Handler · 코드 위치 |
 | 관련 문서 | [02 요구사항](02_requirements-analysis.md) · [03 유스케이스](03_use-cases.md) · [05 DB](05_data-model-and-tables.md) · [09 추적성](09_traceability-matrix.md) |
 
 ## 1. 공통 규약
@@ -29,15 +29,16 @@
 | Health | `/health` | 2 | PUBLIC |
 | Auth · Demo session | `/auth` | 5 | PUBLIC · read |
 | 사용자 관리 | `/admin/users` | 3 | `users.manage` |
-| Registry | `/registry` | 10 | read · `registry.manage` |
+| Registry | `/registry` | 12 | read · `registry.manage` |
 | Communication | `/communication` | 11 | `communication.*` · `extraction.retry` |
 | Truth | `/truth` | 6 | read · `truth.review` · `truth.manual_entry` |
 | Agent 실행 | `/agent-runs` | 8 | `agent_run.manage` · `contact.select` |
-| Planning(실행 · 입력 · 비용 · 계획 · 후속) | `/planning` | 18 | read · `planning.input` · `plan.*` · `communication.draft` · `contact.select` |
+| Planning(실행 · 입력 · 운영 기준 계획 · 비용 · 계획 · 후속) | `/planning` | 20 | read · `planning.input` · `plan.*` · `communication.draft` · `contact.select` |
+| Exceptions(T-132) | `/exceptions` | 3 | read · `plan.recalculate` |
 | Public Data | `/public-data` | 6 | read · `public_data.fetch` |
 | Demo 도우미 | `/dev/demo` | 2 | PUBLIC · `communication.draft` |
 | Internal(Agent Runtime) | `/internal` | 6 | 서비스 토큰 |
-| **합계** | | **77**(+ `GET /openapi.json`) | |
+| **합계** | | **84**(+ `GET /openapi.json`) | |
 
 ## 3. 주요 API 상세
 
@@ -66,6 +67,8 @@ Request 는 본문 필드(`?` = 선택). 관련 테이블은 쓰는 표 중심.
 | `PATCH /registry/addresses/{addressId}/status` | 통신 상태 | `registry.manage` | `communication_status`(`ACTIVE` · `PAUSED` · `INACTIVE`) · `reason_code` | 409 | 위와 같음 |
 | `PATCH /registry/contacts/{contactId}` | 담당자 활성 | `registry.manage` | `is_active` · `reason_code` | 409 | `counterparty_contact` |
 | `PATCH /registry/facilities/{facilityId}/operator` | 시설 운영사 | `registry.manage` | `counterparty_id`(null 가능) | 404 | `facility` |
+| `POST /registry/facilities` | 시설 등록(T-132) | `registry.manage` | `facility_type`(`WAREHOUSE` · `ODCY` · `TERMINAL`) · `facility_name` · `area?` · `operator_counterparty_id?` | 409 `FACILITY_ALREADY_REGISTERED` | `facility` |
+| `POST /registry/truck-pools` | 트럭 풀 등록(T-132) | `registry.manage` | `pool_name` · `ownership`(`OWN` · `PARTNER`) · `owner_counterparty_id?`(협력은 필수) | 409 `TRUCK_POOL_ALREADY_REGISTERED` · 400 | `truck_pool` |
 
 등록 · 승인 · 선택이 대기를 풀 수 있으면 Agent 를 깨운다(`REGISTRY_CHANGED` · `CONTACT_SELECTED`).
 
@@ -111,9 +114,10 @@ Request 는 본문 필드(`?` = 선택). 관련 테이블은 쓰는 표 중심.
 
 | Method · Path | 목적 | 권한 | Request | Error | 멱등 | 테이블 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `GET /planning/runs` | 실행 목록 | read | — | — | — | `recovery_run` · `agent_run` · `recovery_plan` |
+| `GET /planning/runs` | 실행 목록(`source`: `AUTO_DETECTED` · `MANUAL` · `SCENARIO` · `exception` 요약 — T-132) | read | — | — | — | `recovery_run` · `agent_run` · `recovery_plan` · `operational_exception` |
 | `POST /planning/runs` | 실제 실행 만들기 | `planning.input` | `command_id` · `note?` | 403 | `command_id` | `planning_snapshot` · `recovery_run` |
 | `POST /planning/runs/{runId}/inputs/containers` | 컨테이너 입력 | `planning.input` | `command_id` · `dry_run?` · `csv?` 또는 `rows?` · `source_label?` | 400(행 · 필드 · 이유) | `command_id` · 같은 내용 | `planning_input_batch` · `planning_container_record` |
+| `POST · GET /planning/inputs/containers` | 운영 기준 계획(실행 밖 · T-132) — 저장되면 예외 탐지 | `planning.input` · read | 실행 입력과 같음 | 400 | `command_id` · 같은 내용 | `planning_input_batch` · `planning_container_record`(`recovery_run_id` NULL) |
 | `POST /planning/inputs/rates` · `/facility-profiles` | 요율 · 시설 정보 | `planning.input` | 위와 같음 | 400 | 위와 같음 | `tariff_rate` · `facility_planning_profile` |
 | `GET /planning/runs/{runId}/inputs/containers` · `/planning/inputs/rates` · `/facility-profiles` · `/planning/inputs/batches/{batchId}` | 입력 조회 | read | — | — | — | 위와 같음 |
 | `GET /planning/runs/{runId}/input-readiness` | 준비도 | read | — | — | — | 위 + `canonical_fact` |
@@ -126,6 +130,14 @@ Request 는 본문 필드(`?` = 선택). 관련 테이블은 쓰는 표 중심.
 
 후속 응답의 각 조치: `kind`(`ODCY_RECEIVE` · `PARTNER_TRUCKS`) · `follow_up_kind` · `delta`(`ADDED` · `MODIFIED` · `REMOVED` · `CONTACT_CHANGED`) · `refers_to_message_id` · `previous_quantity` · `blocked_reason`.
 
+### 3.6b 운영 예외 (T-132)
+
+| Method · Path | 목적 | 권한 | Request | Response | Error | 테이블 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /exceptions?status=` | 예외 목록(`ACTIVE` · `RESOLVED`) | read | — | 종류 · 범위 · 시설 · 날짜 · 예정 · 수용량 · 부족 · 근거 · 실행 id · 시각 | — | `operational_exception` · `facility` |
+| `GET /exceptions/{exceptionId}` | 예외 + 관측 기록(근거) | read | — | 위 + `observations[]`(종류 · 근거 jsonb · 수용량 사건 id) | 404 | 위 + `operational_exception_observation` |
+| `POST /exceptions/detect` | 지금 탐지(사람 요청 — 평소에는 알림 · Worker 주기가 부른다) | `plan.recalculate` | `{}` | `evaluated` · `detected` · `changed` · `resolved` · `indeterminate` · `runs_created` | 409 `EXCEPTION_DETECTION_OFF` | 위 + `recovery_run` · `audit_log` |
+
 ### 3.7 공공데이터 · 상태 · 시연
 
 | Method · Path | 목적 | 권한 |
@@ -134,7 +146,7 @@ Request 는 본문 필드(`?` = 선택). 관련 테이블은 쓰는 표 중심.
 | `POST /public-data/vessel-calls/{vesselCallId}/manifest/fetch` | 적하목록 | `public_data.fetch` |
 | `GET /public-data/status` · `/vessel-calls` · `/vessel-calls/{id}` · `/fetches` | 조회 | read |
 | `GET /health/live` · `GET /health` | 상태(`status` · `app` · `db` · `queue` · `checked_at`) | PUBLIC |
-| `GET /dev/demo/status` · `POST /dev/demo/mock-reply` | 시연 상태 · Mock 회신(local · test · 포트폴리오만) | PUBLIC · `communication.draft` |
+| `GET /dev/demo/status` · `POST /dev/demo/mock-reply` | 시연 상태(T-132: `exception_detection` · `active_run_id` · `auto_exception`) · Mock 회신(local · test · 포트폴리오만) | PUBLIC · `communication.draft` |
 
 ## 4. Internal — Agent Runtime 전용
 

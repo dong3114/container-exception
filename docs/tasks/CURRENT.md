@@ -10,7 +10,15 @@
 
 ## Status
 
-**IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인) → 키 갱신 뒤 **COMMERCIAL LLM SMOKE VERIFIED**(Gemini `gemini-3.8-flash` · 1건 · 모델 선정 아님). 2026-10-28 최종 시연 준비 끝 — **Frontend 도 Demo Freeze**. 이어서 **T-131 공개 포트폴리오 배포 준비 DONE**(배포 경계만 — 업무 로직 FROZEN 그대로, ADR-039 Proposed · 실제 서버 배포는 사용자)(이후 blocker · security · demo-breaking 만). 시연 준비 완료.**
+**IDLE — **T-132 Private Staging 분리 + 결정론 예외 자동 탐지 DONE(2026-10-28, 사용자가 신규 기능으로 명시 승인 · ADR-040 Accepted — 세부 선택은 사용자 확인 대상)** — 창고 수용량 부족(`WAREHOUSE_CAPACITY_SHORTAGE`)을 운영 기준 계획(M37 — 실행 밖 컨테이너 기록) × 수용량 사실로 결정론 탐지 → 예외 · 관측 기록(M37 · M38) → 복구 실행 자동 생성(`AUTO_DETECTED`, Agent 자동 시작 안 함 — 할 일로 안내) · 중복 방지(부분 유일 · advisory lock · 한 번 채움) · 해소 · 재발 · `infra/staging`(실제 Gmail · 상용 LLM · 공공데이터 · Basic Auth 선택) · `npm run db:bootstrap`(SYSTEM 행위자 blocker) · 시설 · 트럭 풀 등록 API · 화면(배지 · 개요 숫자 · `/demo` 연동). 검증: Backend 590 · Python 98 · Front 108 · 공개 데모 E2E 24/24 · Private Staging E2E 27/27(실제 Gmail 발송 0). **Backend 다시 FROZEN.****
+
+### 2026-10-28 T-132 결과 · 남은 사용자 결정
+- 사용자 확인: ADR-040 세부 선택(운영 기준 계획을 탐지 기준으로 · Agent 자동 시작 안 함 · 시연은 공유 상태) · 실제 Staging 서버 · 접근 통제(Basic Auth · IP · VPN)
+- 운영 정본: `infra/staging/README.md` · 설계 `docs/14_decisions.md` ADR-040 · 물리 `docs/24` 22.60~22.62 · 산출물 `docs/deliverables/*`(T-132 반영)
+- 로컬 정리: 시험용 `cera-portfolio` · `cera-staging` 스택은 `down -v`, 시험용 `.env`(실제 비밀값 사본 포함)는 삭제. `cera-demo` 는 다시 빌드 · 깨끗한 시드(탐지 켬). `cera-local` 은 건드리지 않음
+- 다음 후보(새 기능 아님 — 사용자 결정): 다른 예외 유형 · Agent 자동 시작 정책 · 예외 확인(acknowledge)
+
+(이전 상태) **IDLE — Backend Core Logic FROZEN(2026-10-28 사용자 승인으로 확정, Orchestrator: Claude Code). 그 뒤 T-120 운영 콘솔(구조 · Frontend 만) DONE · T-099 smoke 1회 시도(공급자 장애로 미확인) → 키 갱신 뒤 **COMMERCIAL LLM SMOKE VERIFIED**(Gemini `gemini-3.8-flash` · 1건 · 모델 선정 아님). 2026-10-28 최종 시연 준비 끝 — **Frontend 도 Demo Freeze**. 이어서 **T-131 공개 포트폴리오 배포 준비 DONE**(배포 경계만 — 업무 로직 FROZEN 그대로, ADR-039 Proposed · 실제 서버 배포는 사용자)(이후 blocker · security · demo-breaking 만). 시연 준비 완료.**
 
 ### 2026-10-28 산출물 문서 패키지
 - `docs/deliverables/` — 구현 기준 산출물 11종 + 부록 2(자동 생성) + 검토 발견사항. 입구 `docs/deliverables/CERA_DOCUMENT_INDEX.md`. 코드 변경 없음. 사용자 검토 대기

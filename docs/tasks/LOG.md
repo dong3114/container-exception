@@ -21,6 +21,19 @@
 
 ---
 
+## 2026-10-28 · T-132 Private Staging 분리 + 결정론 예외 자동 탐지 · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 사용자가 신규 기능으로 명시 승인. 끝난 뒤 Backend 다시 FROZEN
+- 한 일:
+  - 예외 탐지(ADR-040): 운영 기준 계획(실행 밖 컨테이너 기록) × 수용량 사실 → 창고 수용량 부족 결정론 탐지 · 예외 + 관측 기록(근거 지문) · 근거 CONFIRMED 면 복구 실행 자동 생성(Agent 는 자동 시작하지 않음 — 할 일 안내) · 변화 · 해소 · 재발 · 판단 불가 · 중복 방지(부분 유일 · advisory lock · 한 번 채움)
+  - Staging: `infra/staging/`(실제 Gmail · 상용 LLM · 공공데이터 · 선택 Basic Auth) · `npm run db:bootstrap`(시드 없는 환경의 SYSTEM 행위자 blocker 해소) · 시설 · 트럭 풀 등록 API(같은 이유의 blocker)
+  - 화면: 실행 목록 배지 · 예외 줄 · 개요 숫자 · 할 일 · `/demo` 가 자동 실행을 따라감
+  - 문서: ADR-040 · `docs/24` 22.60~22.62 · 산출물 01~11 · 부록 A · B 재생성(53표 · 654컬럼 · 84 경로) · README · `infra/README.md` · `docs/16` 15절
+- 변경 파일: `back/src/detection/*` · `back/src/db/schema/m37-operational-exception.ts` · migration 0036 · 0037 · `back/src/planning/*` · `back/src/registry/*` · `back/src/communication/draft.*` · `back/src/dev/demo.controller.ts` · `back/src/seed/run-bootstrap.ts` · `back/src/app/worker.module.ts` · `back/src/config/env.ts` · `front/web/src/{api,app,components}/*` · `infra/{local,portfolio,staging}/*` · `packages/contracts/openapi.*` · 문서
+- 검증: Backend 61 파일 590 · Python 98 · Front 108 · typecheck · lint 오류 0 · build. 공개 포트폴리오 새 볼륨 E2E 24/24(자동 예외 20/8/12 → `/demo` 3~12단계 · 페이지 오류 0 · 5xx 0). 로컬 Private Staging E2E 27/27(시나리오 팩 없음 · 수용량 10 → 예외 없음 → 4 정정 → 자동 예외 · 실행 · Worker · Redis · API 재시작 뒤 예외 1 · 실행 1 · 3 정정 = CHANGED · Agent 시작 → 연락처 등록 대기 · 수동 실행 MANUAL · 15 → 해소 · 2 → 새 예외 · 8대 철회 → 해소). Gemini live 추출 · 공공데이터 live · 실제 Gmail 발송 0
+- 남은 일 / 다음 한 걸음: 사용자 — ADR-040 세부 선택 확인 · Staging 서버 · 접근 통제
+- 큐 변경: T-132 DONE
+- 주의사항: `CERA_EXCEPTION_DETECTION` 개발 기본 off(기존 시험 · 동작 보존). cera-demo 초기화가 cera_test DB 도 지움 — 다음 `npm test` 가 다시 migration. 시험용 staging `.env` 는 삭제함(실제 비밀값 사본)
+
 ## 2026-10-28 · CERA 산출물 문서 패키지(docs/deliverables) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 문서만(제품 코드 변경 없음). Backend FROZEN · Frontend Demo Freeze 유지
 - 한 일: 현재 구현 기준 산출물 11종 + 자동 생성 부록 2 + 검토 발견사항 — 기획서 · 요구사항(기능 73 · 비기능 27) · 유스케이스 26 + 시퀀스 5 · 데이터 분석(소스 16) · 테이블 설계(51표 · FK 111 · CHECK 285 · 트리거 132, 부록 A 626 컬럼 = 카탈로그 자동 생성) · 아키텍처 · API(77 경로, 부록 B = Controller 자동 생성 · Agent Tool 14) · 비기능 · 운영 · 추적성 매트릭스 · 화면 정의서 초안(DRAFT / NON-FINAL) · 용어집 · INDEX

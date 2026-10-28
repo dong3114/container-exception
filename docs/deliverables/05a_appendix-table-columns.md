@@ -1,9 +1,9 @@
 # 부록 A. 테이블 · 컬럼 전체 명세 (자동 생성)
 
-> 상태: **자동 생성 — 손으로 고치지 않는다.** 원천 = migration M01~M36 이 적용된 PostgreSQL 카탈로그(`pg_attribute` · `pg_constraint` · `pg_indexes` · `pg_trigger` · `cera_app` 권한), 2026-10-28.
+> 상태: **자동 생성 — 손으로 고치지 않는다.** 원천 = migration M01~M38 이 적용된 PostgreSQL 카탈로그(`pg_attribute` · `pg_constraint` · `pg_indexes` · `pg_trigger` · `cera_app` 권한), 2026-10-28.
 > 설명 · 업무 의미 · 관계는 [05 데이터 모델 및 테이블 설계서](05_data-model-and-tables.md)에 있다. 스키마 정본은 `back/src/db/schema/*.ts` + `back/drizzle/migrations/*.sql`.
 
-합계: 테이블 51 · 컬럼 626 · FK 111 · CHECK 285 · UNIQUE 38 · 별도 인덱스 70 · trigger 132
+합계: 테이블 53 · 컬럼 654 · FK 116 · CHECK 297 · UNIQUE 39 · 별도 인덱스 73 · trigger 139
 
 | 테이블 | 컬럼 | FK | CHECK | trigger | 변경 정책 | 앱 역할(`cera_app`) 권한 |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -38,6 +38,8 @@
 | [`message_approval`](#message_approval) | 13 | 5 | 10 | 5 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
 | [`message_approval_structured_field`](#message_approval_structured_field) | 8 | 3 | 3 | 4 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
 | [`message_status_transition`](#message_status_transition) | 8 | 3 | 1 | 4 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
+| [`operational_exception`](#operational_exception) | 16 | 3 | 8 | 5 | 제한적 갱신 (정해진 컬럼만 · 한 번만 채움) | INSERT,SELECT,UPDATE |
+| [`operational_exception_observation`](#operational_exception_observation) | 12 | 2 | 4 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
 | [`plan_follow_up`](#plan_follow_up) | 8 | 4 | 1 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
 | [`planning_container_record`](#planning_container_record) | 20 | 5 | 6 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
 | [`planning_input_batch`](#planning_input_batch) | 12 | 2 | 5 | 2 | append-only (UPDATE · DELETE 거부) | INSERT,SELECT |
@@ -1412,6 +1414,103 @@
 - `tg_message_status_transition__guard_insert` — BEFORE INSERT → `fn_cera_guard_status_transition`
 - `tg_message_status_transition__no_truncate` — BEFORE TRUNCATE → `fn_cera_reject_truncate`
 
+## operational_exception
+
+- 변경 정책: 제한적 갱신 (정해진 컬럼만 · 한 번만 채움) · 앱 역할 권한: INSERT,SELECT,UPDATE
+
+| # | 컬럼 | 타입 | NULL | Default | 키 |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `exception_id` | uuid | N |  | PK |
+| 2 | `exception_type` | text | N |  |  |
+| 3 | `scope` | text | N |  |  |
+| 4 | `scenario_id` | uuid | Y |  | FK→`scenario` |
+| 5 | `facility_id` | uuid | N |  | FK→`facility` |
+| 6 | `window_day` | date | N |  |  |
+| 7 | `status` | text | N |  |  |
+| 8 | `basis` | text | N |  |  |
+| 9 | `scheduled_demand` | integer | N |  |  |
+| 10 | `capacity` | integer | Y |  |  |
+| 11 | `shortage` | integer | N |  |  |
+| 12 | `recovery_run_id` | uuid | Y |  | FK→`recovery_run` |
+| 13 | `is_simulated` | boolean | N |  |  |
+| 14 | `detected_at` | timestamp(3) with time zone | N |  |  |
+| 15 | `updated_at` | timestamp(3) with time zone | N |  |  |
+| 16 | `resolved_at` | timestamp(3) with time zone | Y |  |  |
+
+**UNIQUE**
+
+- `uq_operational_exception__recovery_run_id`: `UNIQUE (recovery_run_id)`
+
+**FK**
+
+- `fk_operational_exception__facility_id`: `FOREIGN KEY (facility_id) REFERENCES cera.facility(facility_id) ON UPDATE RESTRICT ON DELETE RESTRICT`
+- `fk_operational_exception__recovery_run_id`: `FOREIGN KEY (recovery_run_id) REFERENCES cera.recovery_run(run_id) ON UPDATE RESTRICT ON DELETE RESTRICT`
+- `fk_operational_exception__scenario_id`: `FOREIGN KEY (scenario_id) REFERENCES cera.scenario(scenario_id) ON UPDATE RESTRICT ON DELETE RESTRICT`
+
+**CHECK**
+
+- `ck_operational_exception__basis`: `CHECK ((basis = ANY (ARRAY['CONFIRMED'::text, 'PROVISIONAL'::text])))`
+- `ck_operational_exception__exception_type`: `CHECK ((exception_type = 'WAREHOUSE_CAPACITY_SHORTAGE'::text))`
+- `ck_operational_exception__numbers`: `CHECK (((scheduled_demand >= 0) AND ((capacity IS NULL) OR (capacity >= 0)) AND (shortage >= 0)))`
+- `ck_operational_exception__resolved`: `CHECK (((status = 'RESOLVED'::text) = (resolved_at IS NOT NULL)))`
+- `ck_operational_exception__scope`: `CHECK ((scope = ANY (ARRAY['LIVE'::text, 'SCENARIO'::text])))`
+- `ck_operational_exception__scope_scenario`: `CHECK ((((scope = 'SCENARIO'::text) = (scenario_id IS NOT NULL)) AND ((scope = 'SCENARIO'::text) = is_simulated)))`
+- `ck_operational_exception__status`: `CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'RESOLVED'::text])))`
+- `ck_operational_exception__time_order`: `CHECK (((updated_at >= detected_at) AND ((resolved_at IS NULL) OR (resolved_at >= detected_at))))`
+
+**INDEX**
+
+- `ix_operational_exception__status`: `btree (status, detected_at)`
+- `uq_operational_exception__active_identity`: `btree (exception_type, scope, COALESCE(scenario_id, '00000000-0000-0000-0000-000000000000'::uuid), facility_id, window_day) WHERE (status = 'ACTIVE'::text)` (UNIQUE)
+
+**TRIGGER**
+
+- `tg_operational_exception__columns` — BEFORE UPDATE → `fn_cera_guard_columns`
+- `tg_operational_exception__lifecycle` — BEFORE UPDATE → `fn_cera_guard_operational_exception`
+- `tg_operational_exception__no_delete` — BEFORE DELETE → `fn_cera_reject_delete`
+- `tg_operational_exception__no_truncate` — BEFORE TRUNCATE → `fn_cera_reject_truncate`
+- `tg_operational_exception__run_once` — BEFORE UPDATE → `fn_cera_guard_one_time_fill`
+
+## operational_exception_observation
+
+- 변경 정책: append-only (UPDATE · DELETE 거부) · 앱 역할 권한: INSERT,SELECT
+
+| # | 컬럼 | 타입 | NULL | Default | 키 |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `observation_id` | uuid | N |  | PK |
+| 2 | `exception_id` | uuid | N |  | FK→`operational_exception` |
+| 3 | `kind` | text | N |  |  |
+| 4 | `as_of` | timestamp(3) with time zone | N |  |  |
+| 5 | `observed_at` | timestamp(3) with time zone | N |  |  |
+| 6 | `scheduled_demand` | integer | N |  |  |
+| 7 | `capacity` | integer | Y |  |  |
+| 8 | `capacity_state` | text | N |  |  |
+| 9 | `capacity_event_id` | uuid | Y |  | FK→`event` |
+| 10 | `shortage` | integer | N |  |  |
+| 11 | `evidence` | jsonb | N |  |  |
+| 12 | `evidence_hash` | character varying(71) | N |  |  |
+
+**FK**
+
+- `fk_operational_exception_observation__capacity_event_id`: `FOREIGN KEY (capacity_event_id) REFERENCES cera.event(event_id) ON UPDATE RESTRICT ON DELETE RESTRICT`
+- `fk_operational_exception_observation__exception_id`: `FOREIGN KEY (exception_id) REFERENCES cera.operational_exception(exception_id) ON UPDATE RESTRICT ON DELETE RESTRICT`
+
+**CHECK**
+
+- `ck_operational_exception_observation__capacity_state`: `CHECK ((capacity_state ~ '^[A-Z][A-Z_]*$'::text))`
+- `ck_operational_exception_observation__evidence_hash`: `CHECK (((evidence_hash)::text ~ '^sha256:[0-9a-f]{64}$'::text))`
+- `ck_operational_exception_observation__kind`: `CHECK ((kind = ANY (ARRAY['DETECTED'::text, 'CHANGED'::text, 'RESOLVED'::text, 'INDETERMINATE'::text])))`
+- `ck_operational_exception_observation__numbers`: `CHECK (((scheduled_demand >= 0) AND ((capacity IS NULL) OR (capacity >= 0)) AND (shortage >= 0)))`
+
+**INDEX**
+
+- `ix_operational_exception_observation__exception_id`: `btree (exception_id, observed_at)`
+
+**TRIGGER**
+
+- `tg_operational_exception_observation__append_only` — BEFORE UPDATE/DELETE → `fn_cera_reject_mutation`
+- `tg_operational_exception_observation__no_truncate` — BEFORE TRUNCATE → `fn_cera_reject_truncate`
+
 ## plan_follow_up
 
 - 변경 정책: append-only (UPDATE · DELETE 거부) · 앱 역할 권한: INSERT,SELECT
@@ -1460,7 +1559,7 @@
 | ---: | --- | --- | --- | --- | --- |
 | 1 | `record_id` | uuid | N |  | PK |
 | 2 | `batch_id` | uuid | N |  | FK→`planning_input_batch` |
-| 3 | `recovery_run_id` | uuid | N |  | FK→`recovery_run` |
+| 3 | `recovery_run_id` | uuid | Y |  | FK→`recovery_run` |
 | 4 | `container_no` | character varying(11) | N |  |  |
 | 5 | `container_id` | uuid | Y |  | FK→`container` |
 | 6 | `size_type` | text | N |  |  |
@@ -1542,7 +1641,7 @@
 - `ck_planning_input_batch__content_hash`: `CHECK (((content_hash)::text ~ '^sha256:[0-9a-f]{64}$'::text))`
 - `ck_planning_input_batch__counts`: `CHECK (((row_count >= 0) AND (accepted_count >= 0) AND (unchanged_count >= 0) AND ((accepted_count + unchanged_count) = row_count)))`
 - `ck_planning_input_batch__input_kind`: `CHECK ((input_kind = ANY (ARRAY['CONTAINERS'::text, 'RATES'::text, 'FACILITY_PROFILES'::text])))`
-- `ck_planning_input_batch__run_scope`: `CHECK (((input_kind = 'CONTAINERS'::text) = (recovery_run_id IS NOT NULL)))`
+- `ck_planning_input_batch__run_scope`: `CHECK (((input_kind = 'CONTAINERS'::text) OR (recovery_run_id IS NULL)))`
 - `ck_planning_input_batch__source_type`: `CHECK ((source_type = ANY (ARRAY['CSV'::text, 'ROWS'::text])))`
 
 **TRIGGER**

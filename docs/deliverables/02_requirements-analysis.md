@@ -3,12 +3,12 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) — **구현된 요구사항만** 적는다. 구현되지 않은 것은 9절 |
-| 기준 | HEAD `5881529`. 근거 순서: 코드 → migration(M01~M36) → OpenAPI(`packages/contracts/openapi.json`) → 시험 → 최신 docs |
+| 기준 | HEAD `5881529` + T-132. 근거 순서: 코드 → migration(M01~M36) → OpenAPI(`packages/contracts/openapi.json`) → 시험 → 최신 docs |
 | 관련 문서 | [01 기획서](01_service-plan.md) · [03 유스케이스](03_use-cases.md) · [07 API](07_interface-api.md) · [05 DB](05_data-model-and-tables.md) · [09 추적성](09_traceability-matrix.md) · [11 용어집](11_glossary.md) |
 
 ## 1. ID 체계와 우선순위
 
-- 기능: `FR-<영역>-<번호3자리>` — AUTH(인증 · 권한) · RUN(복구 실행) · AGENT · REG(등록부) · COMM(연락) · EXT(추출) · TRUTH(사실) · INPUT(운영 입력) · PLAN(비용 · 계획) · SOLVER · FU(후속) · PUB(공공데이터) · AUDIT · OPS(운영) · DEMO
+- 기능: `FR-<영역>-<번호3자리>` — AUTH(인증 · 권한) · RUN(복구 실행) · DETECT(예외 탐지) · AGENT · REG(등록부) · COMM(연락) · EXT(추출) · TRUTH(사실) · INPUT(운영 입력) · PLAN(비용 · 계획) · SOLVER · FU(후속) · PUB(공공데이터) · AUDIT · OPS(운영) · DEMO
 - 비기능: `NFR-<영역>-<번호3자리>` — SEC · REL · INT(데이터 무결성) · AUDIT · PERF · OBS · DEP · MNT
 - 기존 설계 문서의 ID(`docs/03` 의 FR-OPR · FR-OPT, `docs/19` 의 FR-ELG · FR-APV · FR-SND 등)는 **설계 시점 요구사항**이라 구현되지 않은 항목도 섞여 있다. 이 문서는 구현 기준으로 새 ID 를 붙이고, 대응되는 옛 ID 는 "비고"에 적는다.
 - 우선순위: **P0** = 핵심 흐름(이것이 없으면 CERA 가 아니다) · **P1** = 안전 · 복구 · 운영에 중요 · **P2** = 보조 · 시연 · 선택
@@ -45,20 +45,21 @@
 | --- | ---: | ---: | ---: | ---: |
 | AUTH 인증 · 권한 · 사용자 | 6 | 2 | 3 | 1 |
 | RUN 복구 실행 | 3 | 1 | 1 | 1 |
+| DETECT 예외 탐지(T-132) | 5 | 3 | 2 | 0 |
 | AGENT | 8 | 5 | 3 | 0 |
-| REG 등록부 · Contact Gate | 9 | 3 | 6 | 0 |
+| REG 등록부 · Contact Gate | 10 | 3 | 7 | 0 |
 | COMM 연락 · 채널 | 11 | 6 | 5 | 0 |
 | EXT 추출 | 5 | 2 | 3 | 0 |
 | TRUTH 사실 | 7 | 4 | 3 | 0 |
-| INPUT 운영 입력 | 4 | 0 | 4 | 0 |
+| INPUT 운영 입력 | 5 | 0 | 5 | 0 |
 | PLAN · SOLVER | 7 | 6 | 1 | 0 |
 | FU 후속 · 정정 · 취소 | 4 | 1 | 3 | 0 |
 | PUB 공공데이터 | 3 | 0 | 0 | 3 |
 | AUDIT | 2 | 1 | 1 | 0 |
-| OPS 운영 | 2 | 0 | 1 | 1 |
+| OPS 운영 | 3 | 0 | 2 | 1 |
 | DEMO 시연 · 포트폴리오 | 2 | 0 | 0 | 2 |
-| **합계(기능)** | **73** | **31** | **34** | **8** |
-| 비기능(8절) | 27 | | | |
+| **합계(기능)** | **83** | **34** | **41** | **8** |
+| 비기능(8절) | 28 | | | |
 
 ## 4. 기능 요구사항 — 인증 · 권한 · 복구 실행
 
@@ -113,13 +114,39 @@
 - 처리: `npm run db:seed` — 시설 · 거래처 · 주소(`*.invalid`, MOCK) · 트럭 풀 · 스냅숏 · 실행 · 창고 A 수용량 초기 사건(사람 입력 경로). 반복 실행 안전
 - 예외: local · test · 포트폴리오 모드가 아니면 시드 거부
 - 테이블: `scenario` · `planning_snapshot` · `recovery_run` · `facility` · `counterparty*` · `truck_pool` · `raw_input` · `event` · 시험: `db/persistence.test.ts` · `db/invariants.test.ts`
-- 비고: 트리거 값 `EXCEPTION_DETECTED` 는 시드가 붙이는 값이며 자동 예외 탐지 기능은 없다
+- 비고: 시드 실행의 트리거 값은 `EXCEPTION_DETECTED`. 운영 데이터에서 예외를 찾아 실행을 만드는 것은 FR-DETECT(T-132)
 
 ### FR-RUN-002 실제 복구 실행 생성 (P1 · 구현)
 - 설명: 운영자가 시나리오 없이 실제 실행(`contains_simulated = false`)을 만들고 운영 입력(FR-INPUT)으로 계산한다.
 - Actor · 권한: OPERATOR · ADMIN · `planning.input`
 - API: `POST /planning/runs` · 테이블: `planning_snapshot` · `recovery_run` · 시험: `db/live-planning.test.ts`
 - 비고: 트리거 값 `OPERATOR_REQUEST`
+
+### FR-DETECT-001 창고 수용량 부족 결정론 탐지 (P0 · 구현 · T-132)
+- 설명 · 목적: 사람이 문제를 먼저 찾지 않아도, 창고 × 날짜마다 예정 반입 수(운영 기준 계획 · 시나리오 원래 계획)와 수용량 사실 `capacity.day(D)` 를 비교해 부족을 찾는다. **LLM 을 쓰지 않는다**
+- Actor: 시스템(탐지기 — API · Worker 프로세스) · 사전조건: `CERA_EXCEPTION_DETECTION=on`
+- 처리: shortage = 예정 − 수용량 > 0 이면 예외. 사실 품질: 확정 · 관측 → 단정 / 임시 → 기록만(근거 PROVISIONAL) / 오래됨 · 철회 · 검토 필요 · 없음 → 판단 불가(새 예외 없음 · 해소 없음). 넘치는 컨테이너 = 계획 순서(출발 시각 → 번호)의 뒤쪽. 기준 시각은 경계에서 한 번(LIVE = 지금 · 시나리오 = 스냅숏), 범위 = 계획 범위 3일
+- 출력: 예외(`ACTIVE`) + 관측 기록(DETECTED, 근거: 수용량 사건 id · 운영 입력 묶음 id · 넘치는 컨테이너 · 기준 시각) · 감사 `EXCEPTION_DETECTED`
+- 위치: `back/src/detection/exception-rules.ts`(순수) · `exception-detector.service.ts`
+- 테이블: `operational_exception` · `operational_exception_observation` · 시험: `unit/exception-rules.test.ts` · `db/exception-detection.test.ts`
+
+### FR-DETECT-002 예외 → 복구 실행 자동 생성 (P0 · 구현)
+- 설명: 근거가 CONFIRMED 인 진행 중 예외에 복구 실행을 하나 만든다(트리거 `EXCEPTION_DETECTED` · 참조 `EXCEPTION:<id>`). LIVE 는 새 스냅숏 + 운영 기준 계획의 지금 판을 그 실행의 계획 입력으로 옮겨 적고, 시나리오는 시드 스냅숏 위의 새 시뮬레이션 실행. **Agent 는 자동 시작하지 않는다** — 문의 수량 · 시간대는 사람이 정한다(그래프 안전 정책). 외부 연락은 사람 승인 뒤에만
+- 출력: 실행 목록 `source = AUTO_DETECTED` + 예외 요약 · 운영 콘솔 할 일 "자동 탐지된 예외 — Agent 시작이 필요합니다" · 감사 `EXCEPTION_RUN_CREATED`
+- 테이블: `recovery_run` · `planning_snapshot` · `planning_input_batch` · `planning_container_record` · 시험: `db/exception-detection.test.ts`
+
+### FR-DETECT-003 중복 방지 (P0 · 구현)
+- 설명: 진행 중 예외는 정체(종류 · 범위 · 시나리오 · 시설 · 날짜)마다 하나(부분 유일 인덱스) · 탐지는 트랜잭션 advisory lock 으로 한 번에 하나 · 실행 연결은 한 번 채움 · 근거 지문이 같으면 관측 기록 없음. API · Worker · 재시작 · Redis 유무와 무관
+- 시험: `db/exception-detection.test.ts`(반복 · 동시 · 새 프로세스) · Staging E2E(Worker · Redis · API 재시작)
+
+### FR-DETECT-004 예외 수명주기 (P1 · 구현)
+- 설명: `ACTIVE → RESOLVED`(끝 — 다시 부족하면 새 예외). 근거 변화(수용량 8 → 6)는 같은 예외의 CHANGED 관측. 해소 = 확정 수용량 충분 · 예정 0 · (LIVE) 날짜 경과. 실행 · 계획 기록은 지우지 않는다. 호출 시점 = 사실 · 운영 입력 변경 알림 + Worker 주기(기본 30초 [ASSUMPTION])
+- 테이블: `operational_exception`(M38 가드) · 시험: `unit/exception-rules.test.ts` · `db/exception-detection.test.ts`
+
+### FR-DETECT-005 예외 조회 · 화면 표시 (P1 · 구현)
+- API: `GET /exceptions?status=` · `GET /exceptions/{exceptionId}`(관측 기록) · `POST /exceptions/detect`(사람 요청, `plan.recalculate`, 꺼져 있으면 409 `EXCEPTION_DETECTION_OFF`) · `GET /planning/runs`(source · exception)
+- 화면: 실행 목록 [자동 탐지] 배지 + "창고 A 수용량 부족 · 10-13 예정 20 / 가능 8 · 영향 12대" · 개요 숫자(진행 중 예외 · 오늘 탐지 · 사람 대기 · 진행 중 복구 실행) · `/demo` 가 자동 실행을 따라감
+- 시험: `db/exception-detection.test.ts` · `front/web/src/components/ops/ops.test.tsx`
 
 ### FR-RUN-003 복구 실행 목록 (P0 · 구현)
 - 설명: 실행마다 시뮬레이션 여부 · Agent 상태 · 대기 사유 · 현재 판을 보여 준다.
@@ -206,6 +233,11 @@
 - API: `POST /agent-runs/{agentRunId}/contact-selection` · `POST /planning/plans/{planId}/follow-ups/contact-selection`
 - 예외: 422 `WRONG_COUNTERPARTY` · 422 `ROLE_MISMATCH` · 422 `SIMULATION_MISMATCH` · 403 `RECIPIENT_NOT_ELIGIBLE` · 409 `NOT_WAITING_FOR_CONTACT_SELECTION` · 409 `GAP_ALREADY_RESOLVED` · 409 `FOLLOW_UP_ALREADY_DRAFTED`
 - 테이블: `contact_selection`(append-only — 다시 고르면 새 행) · `audit_log` · 시험: `db/contact-lifecycle.test.ts` · 비고: T-129 · M34 · M35
+
+### FR-REG-010 시설 · 트럭 풀 등록 (P1 · 구현 · T-132)
+- 설명: 시드가 없는 Private Staging · 운영에서 관리자가 창고 · ODCY · 터미널과 트럭 풀(자사 · 협력 — 협력은 소유 운송사 필수)을 등록한다. 같은 이름 409. 운영 입력의 목적지 · 수용량 사실 · 예외 탐지가 이 시설을 가리킨다
+- 권한: `registry.manage` · API: `POST /registry/facilities` · `POST /registry/truck-pools` · 감사 `FACILITY_CREATED` · `TRUCK_POOL_CREATED`
+- 테이블: `facility` · `truck_pool` · 시험: `db/exception-detection.test.ts`
 
 ### FR-REG-009 등록 · 선택 뒤 Agent 깨우기 (P1 · 구현)
 - 설명: 연락처 등록 · 승인(`REGISTRY_CHANGED`)이나 선택(`CONTACT_SELECTED`)이 그 대기를 풀 수 있으면 Agent 를 깨운다. 미승인 주소 · Real 실행의 Mock 주소로는 깨우지 않는다.
@@ -337,6 +369,11 @@
 ### FR-INPUT-003 시설 계획 정보 입력 (P1 · 구현)
 - API: `POST · GET /planning/inputs/facility-profiles` · 테이블: `facility_planning_profile` · 시험: `db/live-planning.test.ts`
 
+### FR-INPUT-005 운영 기준 계획 입력 (P1 · 구현 · T-132)
+- 설명: 어느 복구 실행에도 속하지 않은 예정 반입(원래 계획)을 CSV · 행으로 넣는다 — 예외 탐지기의 수요 원천. 검증만(dry-run) · 판 · 멱등 · 철회(`status = WITHDRAWN`) 규칙은 실행 입력과 같다. 저장되면 `OPERATIONAL_INPUT_CHANGED` 알림 → 탐지
+- 권한: `planning.input` · API: `POST · GET /planning/inputs/containers`
+- 테이블: `planning_input_batch`(`recovery_run_id` NULL) · `planning_container_record`(`recovery_run_id` NULL, M37) · 시험: `db/exception-detection.test.ts`
+
 ### FR-INPUT-004 입력 준비도 (P1 · 구현)
 - 설명: 실제 실행이 계산 가능한지, 빠진 값(LFD · 창고 수용량 · 트럭 등)을 필드 단위로 알려 준다. 준비가 안 되면 계산 요청은 409.
 - API: `GET /planning/runs/{runId}/input-readiness` · 시험: `db/live-planning.test.ts`
@@ -420,9 +457,13 @@
 - 설명: 실행 중인 API 가 OpenAPI 를 내준다(`GET /openapi.json`). 생성본은 `packages/contracts/openapi.json` 이고 화면 타입은 이것에서 만든다(시험이 최신인지 검사).
 - 시험: `db/api.e2e.test.ts` · `front/web/src/api/contract.test.ts`
 
+### FR-OPS-003 운영 환경 첫 준비 (P1 · 구현 · T-132)
+- 설명: `npm run db:bootstrap` — SYSTEM · AI_AGENT 행위자 + 사람 계정(환경변수 비밀번호)만 만든다. 합성 데이터 없음 · 어느 APP_ENV 에서나 · 반복 안전. 이것이 없으면 시드가 없는 Staging · 운영의 Worker 가 `SYSTEM_ACTOR_MISSING` 으로 멈췄다
+- 위치: `back/src/seed/run-bootstrap.ts` · 검증: Staging E2E(10-28)
+
 ### FR-DEMO-001 시연 상태 · Mock 회신 도우미 (P2 · 구현)
 - 설명: 시연 콘솔이 쓰는 상태 확인(설정 · AI Server · 시드 id)과 Mock 회신 넣기. local · test · 포트폴리오 모드에서만 경로가 있다.
-- API: `GET /dev/demo/status` · `POST /dev/demo/mock-reply` · 시험: `db/portfolio.test.ts`
+- API: `GET /dev/demo/status`(T-132: `exception_detection` · `active_run_id` · `auto_exception`) · `POST /dev/demo/mock-reply` · 시험: `db/portfolio.test.ts`
 
 ### FR-DEMO-002 공개 포트폴리오 데모 모드 (P2 · 구현)
 - 설명: `CERA_PORTFOLIO_DEMO_MODE=true` 면 Gmail · 실제 수신 허용 목록 · 공공데이터 · dev-header · 장애 주입(production 이면 Origin 목록 없음)을 기동 거부하고, 데모 세션 · Mock 답장 제한 · IP 별 요청 한도 · 하루 Agent 실행 한도(기본 200)를 켠다. AI Server 는 replay 만 허용.
@@ -456,6 +497,7 @@
 | NFR-OBS-002 | 실행 관측 | `npm run runtime:stats`(그래프 · Tool · 공공데이터 지연 분포) | `back/src/dev/runtime-stats.ts` | P2 |
 | NFR-DEP-001 | 재현 가능한 실행 | Docker Compose(로컬 · 포트폴리오) · migration 한 번짜리 컨테이너 | `infra/` | P1 |
 | NFR-DEP-002 | 새 설치 · 백업 · 복원 | 빈 볼륨 설치 · pg_dump/restore + ContentStore | `infra/README.md` · 10-27 검증 | P1 |
+| NFR-DEP-003 | 환경 분리 | 공개 데모(`infra/portfolio`)와 Private Staging(`infra/staging`) — 같은 코드 · 다른 설정 · 다른 DB · Redis · ContentStore · 세션. 데모에서 실제 채널 우회 없음 | `infra/staging/README.md` · ADR-040 · Staging E2E | P1 |
 | NFR-MNT-001 | 계약 일치 | OpenAPI · Agent Tool 계약 · 검증기 conformance 를 생성본과 시험으로 강제 | `db/api.e2e.test.ts` · `unit/validator-conformance.test.ts` | P1 |
 | NFR-MNT-002 | 설정 키 일치 | `.env.example` ↔ 설정 스키마 | `unit/env-example.test.ts` · `ai/tests/test_config.py` | P2 |
 | NFR-MNT-003 | migration 규칙 | 생성 SQL 검토 · push 금지 · 이력 해시 고정 | `db/permissions-migrations.test.ts` · `db/drizzle-kit.test.ts` | P1 |
@@ -464,7 +506,7 @@
 
 | 항목 | 상태 |
 | --- | --- |
-| 예외 자동 탐지 · 자동 실행 생성 | [향후] |
+| 창고 수용량 부족 외 예외 유형 탐지 · Agent 자동 시작 · 예외 확인(acknowledge) | [향후] |
 | 고객 TMS · WMS · FMS 연동 | [향후][외부 의존] T-126 |
 | UNI-PASS 통관 조회 | [향후] T-106 |
 | PORTAL 채널 | [향후] |

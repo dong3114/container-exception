@@ -3,8 +3,8 @@
 | 항목 | 내용 |
 | --- | --- |
 | 문서 상태 | 확정(2026-10-28 구현 기준) |
-| 정본 | 스키마 `back/src/db/schema/*.ts` · migration `back/drizzle/migrations/0000~0035`(M01~M36) · 트리거 · 권한 = custom migration(M07~M35 중 guard · permissions). 이 문서의 숫자는 **migration 이 모두 적용된 PostgreSQL 카탈로그에서 직접 읽은 값**이다 |
-| 부록 | **[부록 A. 테이블 · 컬럼 전체 명세(자동 생성)](05a_appendix-table-columns.md)** — 51표 · 626컬럼의 타입 · NULL · Default · PK/FK · UNIQUE · CHECK · INDEX · TRIGGER 전부 |
+| 정본 | 스키마 `back/src/db/schema/*.ts` · migration `back/drizzle/migrations/0000~0037`(M01~M38) · 트리거 · 권한 = custom migration(M07~M38 중 guard · permissions). 이 문서의 숫자는 **migration 이 모두 적용된 PostgreSQL 카탈로그에서 직접 읽은 값**이다 |
+| 부록 | **[부록 A. 테이블 · 컬럼 전체 명세(자동 생성)](05a_appendix-table-columns.md)** — 53표 · 654컬럼의 타입 · NULL · Default · PK/FK · UNIQUE · CHECK · INDEX · TRIGGER 전부 |
 | 관련 문서 | [04 데이터 분석](04_data-analysis.md) · [06 아키텍처](06_system-architecture.md) · 설계 이력 [`docs/21`](../21_cera-conceptual-data-model.md)(개념) · [`docs/22`](../22_cera-logical-data-model.md)(논리) · [`docs/24`](../24_cera-physical-data-model.md)(물리 — 22절 표별 명세는 시험 `schema-catalog.test.ts` 가 실제 DB 와 대조) |
 
 ## 1. 개요
@@ -12,14 +12,14 @@
 | 항목 | 값 |
 | --- | --- |
 | DBMS | PostgreSQL 18.6(판 고정) · ORM Drizzle · 스키마 `cera` |
-| 테이블 | **51** |
-| 컬럼 | **626** |
-| FK | **111** |
-| CHECK | **285**(코드값은 ENUM 타입이 아니라 `CHECK IN`) |
-| UNIQUE 제약 | 38 |
-| 별도 인덱스 | 70(부분 유일 인덱스 포함) |
-| 트리거 | **132**(TRUNCATE 거부 38 · UPDATE/DELETE 거부 27 · 컬럼 보호 17 · DELETE 거부 14 · 업무 불변식 가드 36) |
-| migration | 36개(M01~M36). 생성 SQL 검토 후 기록 · `push` 금지(ADR-034) |
+| 테이블 | **53** |
+| 컬럼 | **654** |
+| FK | **116** |
+| CHECK | **297**(코드값은 ENUM 타입이 아니라 `CHECK IN`) |
+| UNIQUE 제약 | 39 |
+| 별도 인덱스 | 73(부분 유일 인덱스 포함) |
+| 트리거 | **139**(TRUNCATE 거부 40 · UPDATE/DELETE 거부 28 · 컬럼 보호 18 · DELETE 거부 15 · 업무 불변식 가드 38) |
+| migration | 38개(M01~M38). 생성 SQL 검토 후 기록 · `push` 금지(ADR-034) |
 | 역할 | `cera_owner`(migration 소유) · `cera_app`(실행 앱 — 표마다 필요한 권한만, DDL · 트리거 해제 불가) |
 
 ## 2. 도메인 분류
@@ -34,6 +34,7 @@
 | F. 운영 입력(Planning Input) | `planning_input_batch` · `planning_container_record` · `tariff_rate` · `facility_planning_profile` | 4 |
 | G. 계획 · 복구 | `planning_snapshot` · `recovery_run` · `recovery_plan` · `recovery_plan_item` · `plan_follow_up` | 5 |
 | H. Agent 실행 | `agent_run` · `agent_step` · `agent_tool_call` · `agent_checkpoint` · `agent_checkpoint_write` | 5 |
+| I. 운영 예외(T-132) | `operational_exception` · `operational_exception_observation` | 2 |
 
 ## 3. 테이블 상세
 
@@ -105,8 +106,8 @@
 
 | 표 | 한글명 · 목적 | PK | FK → | 주요 컬럼 | U/CK/IX | 트리거 | 변경 | 관련 기능 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `planning_input_batch` | 입력 묶음(한 번의 저장) | `batch_id` | `recovery_run` · `actor` | `input_kind`(`CONTAINERS` · `RATES` · `FACILITY_PROFILES`) · `source_type`(`CSV` · `ROWS`) · `content_hash` · `row_count` · `accepted_count` | 1/5/0 | UPDATE/DELETE 거부 | A | FR-INPUT-001~003 |
-| `planning_container_record` | 실제 실행의 컨테이너 기록 | `record_id` | `planning_input_batch` · `recovery_run` · `container` · `facility`(목적지) · 자기(대체) | `container_no` · `size_type` · `priority`(`CRITICAL` · `HIGH` · `NORMAL`) · `lfd` · `destination_facility_id` · `planned_day` · `record_status`(`ACTIVE` · `WITHDRAWN`) | 1/6/1 | UPDATE/DELETE 거부 | A | FR-INPUT-001 |
+| `planning_input_batch` | 입력 묶음(한 번의 저장) | `batch_id` | `recovery_run`(NULL = 실행 밖) · `actor` | `input_kind`(`CONTAINERS` · `RATES` · `FACILITY_PROFILES`) · `source_type`(`CSV` · `ROWS`) · `content_hash` · `row_count` · `accepted_count` | 1/5/0 | UPDATE/DELETE 거부 | A | FR-INPUT-001~003 |
+| `planning_container_record` | 실제 실행의 컨테이너 기록 · `recovery_run_id` NULL = 운영 기준 계획(T-132, M37) | `record_id` | `planning_input_batch` · `recovery_run`(NULL 가능) · `container` · `facility`(목적지) · 자기(대체) | `container_no` · `size_type` · `priority`(`CRITICAL` · `HIGH` · `NORMAL`) · `lfd` · `destination_facility_id` · `planned_day` · `record_status`(`ACTIVE` · `WITHDRAWN`) | 1/6/1 | UPDATE/DELETE 거부 | A | FR-INPUT-001 · FR-INPUT-005 |
 | `tariff_rate` | 계약 요율 | `rate_id` | `planning_input_batch` · 자기(대체) | `rate_type`(`TARIFF_RATE_TYPE`) · `from_ref` · `to_ref` · `size_type` · `amount` · `unit`(`KRW` · `DAY`) · `effective_from/until` · `record_status` | 1/7/1 | UPDATE/DELETE 거부 | A | FR-INPUT-002 · FR-PLAN-001 |
 | `facility_planning_profile` | 시설 계획 정보 | `profile_id` | `facility` · `planning_input_batch` · 자기(대체) | `accepts` · `open_from_hour` · `last_departure_hour` · `trip_hours` · `max_storage_days` · `record_status` | 1/5/1 | UPDATE/DELETE 거부 | A | FR-INPUT-003 |
 
@@ -130,6 +131,13 @@
 | `agent_checkpoint` | LangGraph 체크포인트(실행 상태) | `checkpoint_row_id` | `agent_run` | 체크포인트 id · 부모 · 내용 참조(`AGENT_CHECKPOINT`) | 1/4/0 | 런타임 삽입 가드 · UPDATE/DELETE 거부 | A | FR-AGENT-004 · 005 |
 | `agent_checkpoint_write` | 체크포인트 중간 쓰기 | (`agent_run_id`, ns, checkpoint, task, idx) | `agent_run` | 채널 · 값 참조 | 0/3/1 | 삽입 · 갱신 가드 · DELETE 거부 | L | 위와 같음 |
 
+### I. 운영 예외 (T-132 · M37 · M38)
+
+| 표 | 한글명 · 목적 | PK | FK → | 주요 컬럼 · 상태값 | U/CK/IX | 트리거 | 변경 | 관련 기능 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `operational_exception` | 운영 예외(탐지기가 찾은 문제 하나) | `exception_id` | `facility` · `scenario` · `recovery_run`(UNIQUE) | `exception_type`(`WAREHOUSE_CAPACITY_SHORTAGE`) · `scope`(`LIVE` · `SCENARIO`) · `window_day` · `status`(`ACTIVE` · `RESOLVED`) · `basis`(`CONFIRMED` · `PROVISIONAL`) · `scheduled_demand` · `capacity` · `shortage` · `detected_at` · `resolved_at` | 1/8/2(진행 중 정체 부분 유일 인덱스) | 예외 가드(RESOLVED 끝 · 시각 역행 거부) · 컬럼 보호 · 실행 한 번 채움 · DELETE · TRUNCATE 거부 | L | FR-DETECT-001~005 |
+| `operational_exception_observation` | 예외 관측 기록(근거가 바뀔 때마다 한 행) | `observation_id` | `operational_exception` · `event`(`capacity_event_id`) | `kind`(`DETECTED` · `CHANGED` · `RESOLVED` · `INDETERMINATE`) · 예정 · 수용량 · 부족 · `capacity_state` · `evidence`(jsonb — 넘치는 컨테이너 · 입력 묶음 · 기준 시각) · `evidence_hash` | 0/4/1 | UPDATE/DELETE 거부 | A | FR-DETECT-001 · 004 |
+
 ## 4. ER 관계
 
 ### 4.1 전체 도메인 관계
@@ -146,6 +154,9 @@ flowchart LR
   H[H Agent] --> G
   H --> B
   G --> H
+  F --> I[I 운영 예외]
+  D --> I
+  I --> G
 ```
 
 ### 4.2 연락 · 추출 · 사실
@@ -199,6 +210,10 @@ erDiagram
   agent_run ||--o{ contact_selection : selection
   recovery_plan ||--o{ contact_selection : selection
   contact_channel_address ||--o{ contact_selection : chosen
+  facility ||--o{ operational_exception : shortage_at
+  operational_exception |o--o| recovery_run : auto_run
+  operational_exception ||--o{ operational_exception_observation : observations
+  event ||--o{ operational_exception_observation : capacity_evidence
 ```
 
 ## 5. 핵심 관계 설명
@@ -214,12 +229,13 @@ erDiagram
 | Facility ↔ Counterparty | `facility.operator_counterparty_id`. 문의 · 후속은 이 운영사 주소로만 |
 | Counterparty ↔ Contact | `counterparty_contact.counterparty_id` → `contact_channel_address.contact_id`. 상태 3축(확인 · 관계 · 통신) |
 | Plan ↔ Follow-up | `plan_follow_up.plan_id` · `message_id`(초안) · `refers_to_message_id`(정정 · 취소의 원래 메시지) |
+| Exception ↔ Run(T-132) | `operational_exception.recovery_run_id → recovery_run`(UNIQUE · 한 번만 채움) — 예외 하나에 자동 실행 하나. 실행은 `trigger_type = EXCEPTION_DETECTED` · `trigger_ref = EXCEPTION:<id>` 로 되가리킨다. 근거는 관측 기록의 `capacity_event_id → event` |
 | Audit / Event | 감사(`audit_log`)는 "누가 무엇을 했나", 사건(`event`)은 "무엇이 관측됐나". 둘 다 append-only 이고 따로 둔다 |
 | 시뮬레이션 분리 | 여러 FK 가 `is_simulated` / `contains_simulated` 를 함께 건다(예: `comm_message (thread_id, channel_type, is_simulated) → comm_thread`). 시뮬레이션 기록과 실제 기록이 섞여 연결될 수 없다 |
 
 ## 6. Append-only 설계
 
-27표가 UPDATE · DELETE 를, 38표가 TRUNCATE 를 트리거로 거부한다(앱 역할 권한도 INSERT · SELECT 만). 정해진 컬럼만 바꿀 수 있는 표 17개는 컬럼 보호 · 한 번만 채움 트리거가 지킨다.
+28표가 UPDATE · DELETE 를, 40표가 TRUNCATE 를 트리거로 거부한다(앱 역할 권한도 INSERT · SELECT 만). 정해진 컬럼만 바꿀 수 있는 표 18개는 컬럼 보호 · 한 번만 채움 트리거가 지킨다.
 
 | 대상 | 왜 덮어쓰지 않나 |
 | --- | --- |
@@ -230,6 +246,7 @@ erDiagram
 | 후속 · 받는 주소 선택 | 다시 고르면 새 행(가장 최근이 선택) — 선택 이력이 남는다 |
 | 운영 입력 | 요율 · 컨테이너 변경은 새 행(`supersedes_*`) — 판이 어떤 입력을 썼는지 남는다 |
 | 감사 | 감사 기록은 고칠 수 없어야 한다 |
+| 운영 예외 | 예외는 지우지 않고 `RESOLVED` 로 끝낸다(다시 부족하면 새 예외). 왜 그렇게 판단했는지는 관측 기록이 남긴다 — 해소돼도 실행 · 계획 기록은 그대로 |
 
 예외: `canonical_fact` · `conflict` · `verification_request` 는 **파생 표**라 다시 계산할 때 갱신 · 삭제한다(정본은 사건).
 
@@ -237,8 +254,8 @@ erDiagram
 
 | 항목 | 구현 |
 | --- | --- |
-| ID | UUID(`uuid` 166 컬럼). **DB 기본값 없음** — 앱이 UUIDv7 을 만든다(`back/src/shared/id/uuid.ts`, 시험 `unit/uuid.test.ts` 가 판 7 · variant 검사). 시드는 고정 UUIDv7 |
-| 시각 | `timestamp(3) with time zone`(58 컬럼, `*_at`). 화면 · 업무 날짜는 Asia/Seoul(+09:00) |
+| ID | UUID(`uuid` 173 컬럼). **DB 기본값 없음** — 앱이 UUIDv7 을 만든다(`back/src/shared/id/uuid.ts`, 시험 `unit/uuid.test.ts` 가 판 7 · variant 검사). 시드는 고정 UUIDv7 |
+| 시각 | `timestamp(3) with time zone`(62 컬럼, `*_at`). 화면 · 업무 날짜는 Asia/Seoul(+09:00) |
 | 기준 시각 | 핵심 로직은 현재 시각을 직접 읽지 않고 `as_of` 를 주입받는다(사실 조회 · 비용 계산 · 계획 스냅숏). 시계는 `CLOCK` 주입 |
 | 금액 | `bigint` 원 정수(`*_krw` 11 컬럼 + `tariff_rate.amount`) |
 | 내용 참조 | `cref:v1:<범주>:<uuidv7>` + 해시(범주: `RAW_INPUT_PAYLOAD` · `COMM_MESSAGE_CONTENT` · `MESSAGE_APPROVAL_CONTENT` · `EXTRACTION_SOURCE_QUOTE` · `AGENT_CHECKPOINT`) |
