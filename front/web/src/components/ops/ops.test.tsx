@@ -353,3 +353,29 @@ describe("T-132 automatic exception detection on the console", () => {
     expect(html).toContain("예정 20 / 가능 8 · 영향 12대");
   });
 });
+
+describe("T-137 public-evidence conflicts are operator to-dos (Backend decides — the screen only shows)", () => {
+  const conflict = {
+    corroboration_id: "c1",
+    entity_type: "VESSEL_CALL",
+    entity_id: "v1",
+    entity_name: "HMM TEST (D7AB)",
+    fact_key: "declared_arrival",
+    recovery_run_id: "r1",
+    claim_value: "2026-10-21T14:00:00+09:00",
+    public_value: "2026-10-20T14:00:00+09:00",
+    difference_minutes: 1440,
+    tolerance_minutes: 60,
+    detected_at: "2026-10-20T09:00:00+09:00",
+    is_simulated: true,
+  };
+  it("shows one review item per open conflict with both values and what confirm / reject mean", () => {
+    const [a] = deriveActions({ rows: [], drafts: [], inbound: [], conflicts: [conflict, conflict] });
+    expect(a).toMatchObject({ title: "업체 회신과 공공 기록이 서로 다릅니다", kind: "REVIEW", tab: "facts", runId: "r1", cta: "검토", target: "HMM TEST (D7AB)" });
+    expect(a!.detail).toContain("선박 HMM TEST (D7AB) / 입항 정보 — 업체 10-21 14:00 · 공공 10-20 14:00 · 차이 1440분");
+    expect(deriveActions({ rows: [], drafts: [], inbound: [], conflicts: [conflict, conflict] })).toHaveLength(1);
+  });
+  it("no open conflict → no item", () => {
+    expect(deriveActions({ rows: [], drafts: [], inbound: [], conflicts: [] })).toEqual([]);
+  });
+});

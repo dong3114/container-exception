@@ -12,6 +12,8 @@ export type FactCoordinate = components["schemas"]["FactCoordinateDto"];
 export type FactCandidate = components["schemas"]["FactCandidateDto"];
 export type Corroboration = components["schemas"]["CorroborationDto"];
 export type CorroborationList = components["schemas"]["CorroborationListDto"];
+export type OpenConflict = components["schemas"]["OpenConflictDto"];
+export type OpenConflictList = components["schemas"]["OpenConflictListDto"];
 export type RejectFactRequest = components["schemas"]["RejectFactRequestDto"];
 export type FactReasonCode = RejectFactRequest["reason_code"];
 export type RevokeFactRequest = components["schemas"]["RevokeFactRequestDto"];
@@ -101,4 +103,9 @@ export function enterFact(actorId: string, body: Omit<ManualFactRequest, "comman
 /** T-136 — 공공 근거 교차 확인(업체 주장 ↔ 공공 관측, 결정론 판정) — 한 주체의 최신순 */
 export function listCorroborations(entityId: string, signal?: AbortSignal, fetchImpl?: typeof fetch) {
   return apiRequest<CorroborationList>(`/truth/corroborations?entity_id=${encodeURIComponent(entityId)}`, { signal }, fetchImpl);
+}
+
+/** T-137 — 사람이 아직 판단하지 않은 공공 근거 충돌(업체 회신 ↔ 공공 기록). 할 일 목록이 읽는다 */
+export function listOpenConflicts(signal?: AbortSignal, fetchImpl?: typeof fetch) {
+  return apiRequest<OpenConflictList>("/truth/corroborations/open-conflicts", { signal }, fetchImpl);
 }

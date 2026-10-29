@@ -2,7 +2,7 @@ import type { AgentRun, AgentRunListItem } from "@/api/agentRuns";
 import type { Draft, InboundItem, RunList } from "@/api/drafts";
 import type { ContactAddress, Counterparty, FollowUpView } from "@/api/ops";
 import type { Plan, PlanItem, PlanSummary } from "@/api/plans";
-import type { FactCoordinate } from "@/api/truth";
+import type { FactCoordinate, OpenConflict } from "@/api/truth";
 import { nodeLabel } from "@/components/agent/agentLabels";
 import { ACTION_LABEL, outdatedLabel } from "@/components/plan/planLabels";
 import { HUMAN_REASON, RECORD_KIND_LABEL, type RunGroup, reasonTitle } from "./opsLabels";
@@ -84,6 +84,8 @@ export interface ActionInputs {
   rows: RunRow[];
   drafts: Draft[];
   inbound: InboundItem[];
+  /** T-137 사람이 아직 판단하지 않은 공공 근거 충돌(Backend 판정 — 화면은 판단하지 않는다) */
+  conflicts?: OpenConflict[];
   /** 선택한 실행의 승인된 판 후속(있을 때만) */
   followUps?: { planId: string; runId: string; actions: FollowUpView[] } | null;
   names?: Map<string, string>;
@@ -93,7 +95,7 @@ export interface ActionInputs {
  * 사람이 할 일 — Agent 의 사람 대기 · 승인 대기 초안 · 발송 요청 대기 · 검토할 답장 · 승인 대기 계획 · 담당자가 필요한 후속.
  * 같은 일을 두 번 세지 않는다(Agent 가 기다리는 초안 = 그 초안 한 건).
  */
-export function deriveActions({ rows, drafts, inbound, followUps, names }: ActionInputs): ActionItem[] {
+export function deriveActions({ rows, drafts, inbound, conflicts, followUps, names }: ActionInputs): ActionItem[] {
   const out = new Map<string, ActionItem>();
   const add = (a: ActionItem) => {
     if (!out.has(a.key)) out.set(a.key, a);
@@ -152,6 +154,23 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
 
   for (const { run, plan } of rows) {
     if (plan?.plan_status === "PROPOSED") add({ key: `plan:${plan.plan_id}`, runId: run.run_id, icon: "▣", title: `복구 계획 v${plan.version} 승인이 필요합니다`, detail: "제안된 계획을 검토하고 승인하세요. 승인은 배차 · 발송 지시가 아닙니다.", target: run.trigger_ref, tab: "plan", ref: { type: "PLAN", id: plan.plan_id }, kind: "APPROVE", at: plan.created_at });
+  }
+
+  // T-137: 업체 회신 · 진술과 공공 기록(입항 신고)이 어긋난 사실 — 사람이 업체 주장을 확인(업체가 맞음)하거나 거절(공공 기록이 맞음)할 때까지 계획 승인에 쓰이지 않는다
+  for (const c of conflicts ?? []) {
+    add({
+      key: `conflict:${c.entity_id}:${c.fact_key}`,
+      runId: c.recovery_run_id,
+      icon: "⚖",
+      title: "업체 회신과 공공 기록이 서로 다릅니다",
+      detail: `대상: ${c.entity_type === "VESSEL_CALL" ? "선박" : c.entity_type} ${c.entity_name ?? ""} / 입항 정보 — 업체 ${shortTime(c.claim_value)} · 공공 ${shortTime(c.public_value)}${c.difference_minutes !== null ? ` · 차이 ${c.difference_minutes}분` : ""}. 업체 값이 맞으면 확인, 공공 기록이 맞으면 거절하세요.`,
+      target: c.entity_name,
+      tab: "facts",
+      ref: null,
+      cta: "검토",
+      kind: "REVIEW",
+      at: c.detected_at,
+    });
   }
 
   for (const f of followUps?.actions ?? []) {
@@ -397,4 +416,10 @@ export function questionAnswered(d: Draft, facts: FactCoordinate[]): boolean {
   const q = d.question;
   if (!q) return false;
   return facts.some((f) => f.entity_id === q.target_entity_id && f.fact_key === q.target_fact_key && f.current !== null && ["CONFIRMED", "OBSERVED", "PROVISIONAL"].includes(f.fact_state));
+}
+
+/** 근거 값(Seoul ISO) → "10-20 14:20" — 값이 시각이 아니면 그대로 */
+function shortTime(v: string | null): string {
+  if (!v) return "-";
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) ? `${v.slice(5, 10)} ${v.slice(11, 16)}` : v;
 }

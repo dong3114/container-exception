@@ -9,7 +9,7 @@ import { type SystemStatus as SystemStatusData, getSystemStatus } from "@/api/sy
 import { describeApiError } from "@/api/errors";
 import { type FollowUpList, type Readiness, createLiveRun, getReadiness } from "@/api/ops";
 import { type PlanSummary, listPlans } from "@/api/plans";
-import { type FactCoordinate, listFacts } from "@/api/truth";
+import { type FactCoordinate, type OpenConflict, listFacts, listOpenConflicts } from "@/api/truth";
 import { useMe } from "@/app/MeContext";
 import { isActive } from "@/components/agent/agentLabels";
 import { FactsPanel } from "@/components/facts/FactsPanel";
@@ -63,6 +63,8 @@ interface Board {
   /** T-133 시스템 상태 — `system.monitor` 권한이 있을 때만 읽는다 */
   system: SystemStatusData | null;
   systemError: string | null;
+  /** T-137 사람이 아직 판단하지 않은 공공 근거 충돌 — 읽지 못하면 빈 목록(할 일이 사라질 뿐 화면은 그대로) */
+  conflicts: OpenConflict[];
   error: ApiError | null;
   at: string;
 }
@@ -94,7 +96,7 @@ function usePoll(fn: (signal: AbortSignal) => Promise<void>, deps: unknown[]) {
  */
 export function OpsConsole() {
   const me = useMe();
-  const [board, setBoard] = useState<Board>({ rows: [], drafts: [], inbound: [], health: null, exceptions: null, system: null, systemError: null, error: null, at: "" });
+  const [board, setBoard] = useState<Board>({ rows: [], drafts: [], inbound: [], health: null, exceptions: null, system: null, systemError: null, conflicts: [], error: null, at: "" });
   const monitor = can(me, "system.monitor");
   const [detail, setDetail] = useState<Detail | null>(null);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("run"));
@@ -115,7 +117,7 @@ export function OpsConsole() {
     async (signal) => {
       setRefreshing(true);
       try {
-        const [runs, agents, drafts, inbound, health, exceptions, system] = await Promise.all([
+        const [runs, agents, drafts, inbound, health, exceptions, system, conflicts] = await Promise.all([
           listRuns(signal),
           listAgentRuns(signal),
           listDrafts(signal),
@@ -123,12 +125,13 @@ export function OpsConsole() {
           getHealth(signal).catch(() => null),
           listExceptions(signal).catch(() => null),
           monitor ? getSystemStatus(signal).then((r) => ({ data: r.data, error: null }), (e) => ({ data: null, error: describeApiError(toApiError(e)) })) : Promise.resolve({ data: null, error: null }),
+          listOpenConflicts(signal).then((r) => r.data.conflicts, () => [] as OpenConflict[]),
         ]);
         const byRun = latestAgentByRun(agents.data.runs as AgentRunListItem[]);
         const recent = runs.data.runs.slice(0, PLAN_ROWS);
         const plans = await Promise.all(recent.map((r) => listPlans(r.run_id, signal).then((p) => p.data.plans.find((x) => x.plan_id === p.data.current_plan_id) ?? p.data.plans[0] ?? null, () => null)));
         const rows: RunRow[] = runs.data.runs.map((run, i) => ({ run, agent: byRun.get(run.run_id) ?? null, plan: i < PLAN_ROWS ? (plans[i] ?? null) : null }));
-        setBoard({ rows, drafts: drafts.data.drafts, inbound: inbound.data.items, health: health ? { db: health.data.db, queue: (health.data as { queue?: string }).queue } : null, exceptions: exceptions?.data ?? null, system: system.data, systemError: system.error, error: null, at: new Date().toISOString() });
+        setBoard({ rows, drafts: drafts.data.drafts, inbound: inbound.data.items, health: health ? { db: health.data.db, queue: (health.data as { queue?: string }).queue } : null, exceptions: exceptions?.data ?? null, system: system.data, systemError: system.error, conflicts, error: null, at: new Date().toISOString() });
       } catch (e) {
         const err = toApiError(e);
         if (err.kind !== "ABORTED") setBoard((b) => ({ ...b, error: err }));
@@ -173,7 +176,7 @@ export function OpsConsole() {
     return m;
   }, [detail?.facts, board.drafts]);
   const actions = useMemo(
-    () => deriveActions({ rows: board.rows, drafts: board.drafts, inbound: board.inbound, followUps: followUps && approvedPlan && selected ? { planId: followUps.plan_id, runId: selected, actions: followUps.actions } : null, names }),
+    () => deriveActions({ rows: board.rows, drafts: board.drafts, inbound: board.inbound, conflicts: board.conflicts, followUps: followUps && approvedPlan && selected ? { planId: followUps.plan_id, runId: selected, actions: followUps.actions } : null, names }),
     [board, followUps, approvedPlan, selected, names],
   );
   const tags = useMemo(() => {
