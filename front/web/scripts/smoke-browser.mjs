@@ -151,8 +151,11 @@ for (const path of ["/health", "/auth/me", "/agent-runs?limit=5", "/planning/run
 await page.goto(`${origin}/`, { waitUntil: "networkidle" });
 await page.getByTestId("ops-console").waitFor();
 await page.getByTestId("action-required").waitFor();
+await page.getByTestId("ops-kpis").waitFor();
+await page.screenshot({ path: join(out, "ops-overview.png"), fullPage: true });
+await page.getByTestId("nav-recovery").click();
 await page.getByTestId("run-list").waitFor();
-check(true, "operations console (/) renders: action list · run list");
+check(true, "operations console (/) renders: overview (KPI · action list) → recovery runs via sidebar");
 await page.screenshot({ path: join(out, "ops-console.png"), fullPage: true });
 await page.goto(`${origin}/demo`, { waitUntil: "networkidle" });
 await page.getByTestId("demo-page").waitFor();
