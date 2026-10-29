@@ -639,3 +639,24 @@ def test_the_run_waits_on_the_gap_whose_reason_it_reports():
     tools = FakeTools({"find_counterparty": both}, gaps=[first, gap()])
     out = runtime(tools).start(RUN, RR, "goal", PARAMS)
     assert (out["status"], out["waiting_reason"], out["pending"]) == ("WAITING_HUMAN", "CONTACT_SELECTION_REQUIRED", {"type": "TRUCK_POOL", "id": POOL})
+
+
+def test_t136_public_verifiable_gap_is_looked_up_once_before_anything_else():
+    """A vessel-arrival gap (public_data_can_resolve) → the agent looks it up in public data first; never asks a partner about it;
+    a lookup that does not close it is not repeated and is left to a person (not a failure)."""
+    vessel = {**gap("MISSING"), "gap_id": "gap:vessel", "gap_kind": "VESSEL_ARRIVAL", "subject_type": "VESSEL_CALL", "public_data_can_resolve": True, "suggested_source": "PUBLIC_DATA", "suggested_intent": None, "suggested_counterparty_role": None, "owner_counterparty_id": None}
+    tools = FakeTools(gaps=[vessel])
+    out = runtime(tools).start(RUN, RR, "goal", PARAMS)
+    calls = [c[0] for c in tools.calls]
+    assert calls.count("get_vessel_calls") == 1
+    assert "create_inquiry_draft" not in calls and "find_counterparty" not in calls
+    # the lookup window brackets the plan date (declared arrivals before the plan day are still relevant)
+    args = next(c[1] for c in tools.calls if c[0] == "get_vessel_calls")
+    assert (args["from_date"], args["to_date"]) == ("2026-09-28", "2026-10-02")
+    assert out["status"] == "COMPLETED" and out["result_code"] == "OPEN_GAPS_AWAIT_HUMAN"
+
+
+def test_t136_internal_facts_are_never_looked_up_in_public_data():
+    tools = FakeTools()  # a truck-availability gap: internal partner fact
+    runtime(tools).start(RUN, RR, "goal", PARAMS)
+    assert "get_vessel_calls" not in [c[0] for c in tools.calls]

@@ -33,6 +33,8 @@ export interface ContainerInput {
   /** 이 컨테이너 사실의 근거(LFD · 반출 가능 · 계획). */
   evidence_refs: string[];
   is_simulated: boolean;
+  /** T-136: 컨테이너가 실린 입항 건(공공 컨테이너에 연결된 LIVE 기록만). 그 입항 신고 일시(사실 `declared_arrival`)를 반출 제약 · 검증 위험에 쓴다 */
+  vessel_call_id?: string | null;
 }
 
 export interface FacilityInput {
@@ -106,6 +108,11 @@ export interface PlanningInput {
   partner_pools: { pool_id: string; name: string }[];
   rates: RateTable;
   facts: PlanningFact[];
+  /**
+   * T-136 Phase 5 — 예외가 영향을 준 컨테이너(예외 · 관측의 관계 `operational_exception_container`). 있으면 이 컨테이너들만 재배치 후보이고,
+   * 나머지 오늘 계획은 **고정된 기존 계획**(원래 계획대로 — 창고 용량 · 트럭 시간은 쓰지만 바꾸지 않는다)이다. 없으면(예외 없이 연 실행) 전부 후보.
+   */
+  affected_container_ids?: string[] | null;
 }
 
 // ---------------------------------------------------------------- 출력
@@ -146,6 +153,8 @@ export interface CostBreakdown {
 
 export type InfeasibleReason =
   | 'CONTAINER_NOT_READY'
+  // T-136: 공공 관측(입항 신고 일시)상 그날에는 아직 입항 전이다
+  | 'VESSEL_NOT_ARRIVED'
   | 'SIZE_NOT_ACCEPTED'
   | 'ALTERNATE_DESTINATION_NOT_APPROVED'
   | 'NO_DEPARTURE_WINDOW'
@@ -178,6 +187,8 @@ export interface CapacityUse {
 }
 
 export interface ActionOption {
+  /** T-136: AFFECTED = 예외 때문에 재배치 후보 · FIXED = 영향 없는 기존 계획(원래 계획만) · ALL = 범위 제한 없음(예외 없는 실행) */
+  scope?: 'AFFECTED' | 'FIXED' | 'ALL';
   option_id: string;
   container_id: string;
   action: ActionType;
@@ -195,7 +206,7 @@ export interface ActionOption {
   assumptions: string[];
   evidence_refs: string[];
   /** 이 선택지가 기대는 잠정(PROVISIONAL) · 오래되는 중(AGING) 사실 — 화면 경고와 승인 확인에 쓴다. */
-  warning_refs: { fact_ref: string; reason: 'PROVISIONAL' | 'AGING' }[];
+  warning_refs: { fact_ref: string; reason: 'PROVISIONAL' | 'AGING' | 'CONFLICTED' }[];
 }
 
 export interface CapacityResource {
@@ -244,5 +255,7 @@ export interface CostTable {
   /** 계획 대상이 아닌 컨테이너가 이미 약속한 창고 용량. */
   commitments: { facility_id: string; day: string; count: number; container_ids: string[] }[];
   candidates: string[];
+  /** T-136: 예외 영향 컨테이너(재배치 후보). null = 범위 제한 없음(예외 없이 연 실행) */
+  affected: string[] | null;
   warnings: string[];
 }

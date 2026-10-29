@@ -4,6 +4,7 @@ import request from 'supertest';
 import { v7 } from 'uuid';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApiApp } from '../../src/app/create-api.js';
+import { RecoveryPlanService } from '../../src/planning/recovery-plan.service.js';
 import { ExceptionDetectorService } from '../../src/detection/exception-detector.service.js';
 import { validContainerNo } from '../../src/planning/operational-import.js';
 import { actor } from './fixtures.js';
@@ -90,6 +91,11 @@ describe('T-132 deterministic warehouse capacity exception → automatic recover
     expect(obs).toMatchObject({ kind: 'DETECTED', scheduled_demand: 10, capacity: 4, capacity_state: 'CONFIRMED', shortage: 6 });
     expect(obs.capacity_event_id).toBeTruthy();
     expect(obs.evidence.affected).toEqual(nos.slice(4, 10)); // 계획 순서의 뒤쪽 6대
+    // T-136 Phase 5: 넘친 6대가 관계로 남고(evidence JSON 은 그대로), 이 예외로 연 실행의 계획은 그 6대만 재배치 후보로 본다
+    const rel = (await db.query('SELECT container_ref, plan_order FROM cera.operational_exception_container WHERE exception_id = $1 ORDER BY plan_order', [ex.exception_id])).rows;
+    expect(rel.map((r) => r.container_ref)).toEqual(nos.slice(4, 10));
+    expect(rel.map((r) => r.plan_order)).toEqual([4, 5, 6, 7, 8, 9]);
+    expect(await api.get(RecoveryPlanService).affectedContainers(ex.recovery_run_id)).toEqual(nos.slice(4, 10));
     expect(obs.evidence.input_batch_ids).toEqual([stored.batch_id]);
     expect(obs.evidence.fact_key).toBe(`capacity.day(${today})`);
 

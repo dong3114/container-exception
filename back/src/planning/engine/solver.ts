@@ -180,6 +180,7 @@ export function solverInputHash(input: PlanningInput, table: CostTable): string 
     // as_of 가 결정을 바꾸는 효과는 아래에 이미 들어 있다: 사실의 신선도 · 옵션의 실행 가능 여부 · 오늘 출발 가능 시간창(earliest/latest) · 트럭 시간창
     plan_day: input.plan_day,
     candidates: [...table.candidates].sort(),
+    affected: table.affected ? [...table.affected].sort() : null,
     facts: input.facts.map((f) => ({ ref: f.fact_ref, key: f.fact_key, subject: f.subject_id, value: f.value, state: f.fact_state, freshness: f.freshness })),
     options: table.options.map((o) => ({ id: o.option_id, feasible: o.feasible, total: o.cost.total, window: o.truck_job ? [o.truck_job.earliest_hour, o.truck_job.latest_hour, o.truck_job.trip_hours] : null })),
     resources: table.resources.map((r) => ({ key: r.resource_key, available: r.available })),

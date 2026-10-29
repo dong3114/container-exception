@@ -240,8 +240,9 @@ export const recoveryContextOutput = z
 const gapSchema = z
   .object({
     gap_id: z.string(),
-    gap_kind: z.enum(['FACILITY_CAPACITY', 'TRUCK_AVAILABILITY']),
-    subject_type: z.enum(['FACILITY', 'TRUCK_POOL']),
+    // T-136: VESSEL_ARRIVAL = 이 실행의 컨테이너가 실린 입항 건의 입항 신고 일시 — 공공데이터(Port-MIS)로 확인할 수 있는 사실
+    gap_kind: z.enum(['FACILITY_CAPACITY', 'TRUCK_AVAILABILITY', 'VESSEL_ARRIVAL']),
+    subject_type: z.enum(['FACILITY', 'TRUCK_POOL', 'VESSEL_CALL']),
     subject_id: uuid,
     subject_name: z.string(),
     required_fact: z.string().describe('Fact key pattern that would close the gap'),
@@ -251,10 +252,10 @@ const gapSchema = z
     fact: factViewSchema.nullable().describe('The provisional / disputed / stale value behind the state, when there is one'),
     refresh_basis_event_id: uuid.nullable().describe('NEEDS_REFRESH: the stale value or the withdrawal that reopened the gap — a new inquiry for this basis is a new question'),
     open_question_message_ids: z.array(uuid),
-    public_data_can_resolve: z.boolean(),
-    suggested_source: z.enum(['PARTNER_INQUIRY', 'HUMAN_VERIFICATION']),
-    suggested_intent: z.enum(['TRUCK_SLOT', 'FACILITY_CAPACITY']),
-    suggested_counterparty_role: z.enum(['TRUCKING', 'ODCY', 'WAREHOUSE']),
+    public_data_can_resolve: z.boolean().describe('T-136: true only when the fact is public-verifiable (public-authority) — look it up before asking anyone'),
+    suggested_source: z.enum(['PARTNER_INQUIRY', 'HUMAN_VERIFICATION', 'PUBLIC_DATA']),
+    suggested_intent: z.enum(['TRUCK_SLOT', 'FACILITY_CAPACITY']).nullable().describe('Inquiry intent when a partner can answer; null for public-data facts'),
+    suggested_counterparty_role: z.enum(['TRUCKING', 'ODCY', 'WAREHOUSE']).nullable(),
     owner_counterparty_id: uuid.nullable(),
     selected_address_id: uuid
       .nullable()

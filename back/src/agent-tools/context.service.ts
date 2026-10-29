@@ -13,6 +13,9 @@ import {
   questionItem,
   recoveryRun,
   truckPool,
+  planningContainerRecord,
+  container,
+  vesselCall,
 } from '../db/schema/index.js';
 import { sha256Bytes } from '../shared/hash/hash.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
@@ -26,7 +29,8 @@ import { ToolFailure } from './tool-errors.js';
 // gap-rules/1(T-105): 업무 공백(state)은 그대로, 묻은 상대의 회신 · 검증된 후보(candidate_state)를 따로 보여 준다
 // gap-rules/2(T-093): 업무 공백이 사실의 상태를 따른다 — 사람이 확인한 사실만 공백을 닫고(known), 임시 사실은 PROVISIONAL_AVAILABLE, 충돌 · 보류는 NEEDS_REVIEW
 // gap-rules/3(T-111): 확인됐어도 오래됐거나(STALE · 만료) 철회된 사실은 공백을 닫지 못한다 → NEEDS_REFRESH(다시 물어야 함). 새로 물었으면 ASKED
-// gap-rules/4(T-136): 트럭 공백은 문의 시간창을 덮는 슬롯 사실만 닫는다(같은 날 다른 시간대 값으로 닫히지 않는다)
+// gap-rules/4(T-136): 트럭 공백은 문의 시간창을 덮는 슬롯 사실만 닫는다(같은 날 다른 시간대 값으로 닫히지 않는다) ·
+// 실행의 컨테이너가 입항 건에 연결돼 있으면 입항 신고 일시 공백(VESSEL_ARRIVAL — 공공데이터로 확인)을 더한다
 export const GAP_RULE_VERSION = 'gap-rules/4';
 // 공백 id 의 재료는 판 1 그대로다 — 규칙 판이 올라가도 이미 도는 Agent 실행(checkpoint 에 공백 id 가 있다)이 자기 공백을 잃지 않게
 const GAP_ID_BASIS = 'gap-rules/1';
@@ -210,6 +214,9 @@ export class RecoveryContextService {
           owner: p.owner_counterparty_id,
         })),
     ];
+    // T-136: 공공데이터로 확인할 수 있는 사실 — 이 실행의 컨테이너(LIVE 운영 기록 → 공공 컨테이너)가 실린 입항 건의 입항 신고 일시.
+    // 창고 수용량 · 트럭은 공공 API 에 없다(public-authority). 입항 건이 연결되지 않은 실행(시나리오 등)에는 이 공백이 없다
+    const vessels = run.containsSimulated ? [] : await this.vesselCallsOfRun(recoveryRunId);
     // 값이 있는 사실 + 철회돼 값이 없어진 사실(REVOKED). 처음부터 값이 없던 좌표(UNKNOWN)는 공백 판정에 쓰지 않는다
     const live = (await this.truth.liveForSubjects(needs.map((n) => n.id), { isSimulated: run.containsSimulated, scenarioId: run.scenarioId }, asOf)).filter((f) => f.state !== 'UNKNOWN');
     const questions = await this.openQuestions(recoveryRunId);
@@ -257,7 +264,53 @@ export class RecoveryContextService {
         candidate_extraction_ids: [],
       });
     }
+    if (vessels.length > 0) {
+      const vesselFacts = await this.truth.liveForSubjects(
+        vessels.map((v) => v.id),
+        { isSimulated: false, scenarioId: null },
+        asOf,
+      );
+      for (const v of vessels) {
+        const f = vesselFacts.find((x) => x.data.coordinate.entityId === v.id && x.data.coordinate.factKey === 'declared_arrival' && x.state !== 'UNKNOWN');
+        if (f && (f.state === 'CONFIRMED' || f.state === 'OBSERVED')) {
+          known.push({ subject_type: 'VESSEL_CALL', subject_id: v.id, required_fact: 'declared_arrival', evidence: this.observationOf(f), fact: this.factViewOf(f) as FactView });
+          continue;
+        }
+        gaps.push({
+          gap_id: `gap:${sha256Bytes(`${GAP_ID_BASIS}|${recoveryRunId}|${v.id}|declared_arrival`).slice(7, 23)}`,
+          gap_kind: 'VESSEL_ARRIVAL',
+          subject_type: 'VESSEL_CALL',
+          subject_id: v.id,
+          subject_name: v.name,
+          required_fact: 'declared_arrival',
+          // 업체 진술만 있으면(PROVISIONAL) · 공공 근거와 충돌하면(NEEDS_REVIEW) 그 상태 그대로 — 공공데이터로 다시 확인할 수 있다
+          state: !f ? 'MISSING' : f.state === 'NEEDS_REVIEW' ? 'NEEDS_REVIEW' : f.state === 'STALE' || f.state === 'REVOKED' ? 'NEEDS_REFRESH' : 'PROVISIONAL_AVAILABLE',
+          fact: f ? this.factViewOf(f) : null,
+          refresh_basis_event_id: null,
+          open_question_message_ids: [],
+          public_data_can_resolve: true,
+          suggested_source: 'PUBLIC_DATA',
+          suggested_intent: null,
+          suggested_counterparty_role: null,
+          owner_counterparty_id: null,
+          selected_address_id: null,
+          candidate_state: 'NONE',
+          candidate_extraction_ids: [],
+        });
+      }
+    }
     return { recovery_run_id: recoveryRunId, plan_date: D, rule_version: GAP_RULE_VERSION, evaluated_as_of: asOf.toSeoulIso(), gaps, known };
+  }
+
+  /** T-136: 실행의 컨테이너(운영 기록이 공공 컨테이너에 연결된 것)가 실린 입항 건들 */
+  async vesselCallsOfRun(recoveryRunId: string): Promise<{ id: string; name: string }[]> {
+    const rows = await this.db
+      .selectDistinct({ id: vesselCall.vesselCallId, sign: vesselCall.callSign, name: vesselCall.vesselName, year: vesselCall.callYear, seq: vesselCall.callSeq })
+      .from(planningContainerRecord)
+      .innerJoin(container, eq(container.containerId, planningContainerRecord.containerId))
+      .innerJoin(vesselCall, eq(vesselCall.vesselCallId, container.vesselCallId))
+      .where(and(eq(planningContainerRecord.recoveryRunId, recoveryRunId), eq(vesselCall.isSimulated, false)));
+    return rows.map((r) => ({ id: r.id, name: `${r.name ?? r.sign} (${r.sign} · ${r.year}-${String(r.seq).padStart(3, '0')})` })).sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /** 판정된 현재 사실들(Agent 용) — 값과 함께 상태 · 근거를 준다. 값이 없는(UNKNOWN) 좌표는 뺀다. */

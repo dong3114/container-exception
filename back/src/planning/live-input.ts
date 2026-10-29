@@ -23,6 +23,8 @@ export interface ContainerRecordIn {
   record_id: string;
   container_no: string;
   container_id: string | null;
+  /** T-136: 공공 컨테이너가 실린 입항 건(있을 때만) */
+  vessel_call_id?: string | null;
   size_type: string;
   carrier_code: string;
   priority: 'CRITICAL' | 'HIGH' | 'NORMAL';
@@ -260,6 +262,7 @@ export function assessLiveInput(s: LiveSources): LiveAssessment {
       alternate_destination_allowed: c.alternate_destination_allowed,
       evidence_refs: [`planning_container_record:${c.record_id}`, ...(c.container_id ? [`container:${c.container_id}`] : [])],
       is_simulated: false,
+      vessel_call_id: c.vessel_call_id ?? null,
     }));
     // 시설 보관 한도는 운영 기록(사람이 넣은 시설 정보) — 출처를 OPERATIONAL_RECORD 로 남긴다
     const profileFacts: PlanningFact[] = facilities

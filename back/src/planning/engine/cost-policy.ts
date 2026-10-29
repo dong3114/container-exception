@@ -24,9 +24,15 @@ export interface CostPolicy {
   aging_penalty_krw: number;
   /** 반출 후 빈 컨테이너 반납까지 걸리는 날(Detention 계산). [ASSUMPTION] */
   empty_return_lead_days: number;
+  /**
+   * T-136 검증 위험 벌점(선택지 1개당) [ASSUMPTION] — 반출 가능 여부를 정하는 사실(입항 신고 일시)이 공공 근거와 업체 주장 사이에서 충돌 중일 때
+   * 오늘 반출하는 선택지에 붙인다. 정책 벌점이지 실제 비용이 아니다. 충돌한 값 자체는 어느 쪽도 제약으로 쓰지 않는다
+   */
+  verification_risk_penalty_krw: number;
 }
 
-export const COST_POLICY_VERSION = 'cost-policy/1';
+// cost-policy/2(T-136): 공공 근거와 업체 주장이 어긋난 사실에 기대는 선택지의 검증 위험 벌점
+export const COST_POLICY_VERSION = 'cost-policy/2';
 
 export const DEFAULT_COST_POLICY: CostPolicy = {
   version: COST_POLICY_VERSION,
@@ -35,6 +41,7 @@ export const DEFAULT_COST_POLICY: CostPolicy = {
   provisional: { allowed: true, penalty_krw: 20_000 },
   aging_penalty_krw: 10_000,
   empty_return_lead_days: 1,
+  verification_risk_penalty_krw: 30_000,
 };
 
 export type FactUsage =

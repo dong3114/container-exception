@@ -2590,14 +2590,16 @@
                   "type": "string",
                   "enum": [
                     "FACILITY_CAPACITY",
-                    "TRUCK_AVAILABILITY"
+                    "TRUCK_AVAILABILITY",
+                    "VESSEL_ARRIVAL"
                   ]
                 },
                 "subject_type": {
                   "type": "string",
                   "enum": [
                     "FACILITY",
-                    "TRUCK_POOL"
+                    "TRUCK_POOL",
+                    "VESSEL_CALL"
                   ]
                 },
                 "subject_id": {
@@ -2823,28 +2825,45 @@
                   }
                 },
                 "public_data_can_resolve": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "description": "T-136: true only when the fact is public-verifiable (public-authority) — look it up before asking anyone"
                 },
                 "suggested_source": {
                   "type": "string",
                   "enum": [
                     "PARTNER_INQUIRY",
-                    "HUMAN_VERIFICATION"
+                    "HUMAN_VERIFICATION",
+                    "PUBLIC_DATA"
                   ]
                 },
                 "suggested_intent": {
-                  "type": "string",
-                  "enum": [
-                    "TRUCK_SLOT",
-                    "FACILITY_CAPACITY"
-                  ]
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "TRUCK_SLOT",
+                        "FACILITY_CAPACITY"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Inquiry intent when a partner can answer; null for public-data facts"
                 },
                 "suggested_counterparty_role": {
-                  "type": "string",
-                  "enum": [
-                    "TRUCKING",
-                    "ODCY",
-                    "WAREHOUSE"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "TRUCKING",
+                        "ODCY",
+                        "WAREHOUSE"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "owner_counterparty_id": {

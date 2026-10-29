@@ -311,8 +311,11 @@ export class PlanningInputService {
     const profiles = (await this.profileHeads()).filter((r) => r.recordStatus === 'ACTIVE');
     const recorded = new Set((await this.containerHeads(runId)).map((r) => r.containerNo));
     const pub = await this.publicContainers(runId);
+    // T-136: 운영 기록이 공공 컨테이너에 연결돼 있으면 그 컨테이너가 실린 입항 건(입항 신고 일시 사실의 주체)
+    const linked = recs.map((r) => r.containerId).filter((x): x is string => x !== null);
+    const vesselOf = new Map(linked.length ? (await this.db.select({ id: container.containerId, vessel: container.vesselCallId }).from(container).where(inArray(container.containerId, linked))).map((x) => [x.id, x.vessel] as const) : []);
     return {
-      containers: recs.map((r) => ({ record_id: r.recordId, container_no: r.containerNo, container_id: r.containerId, size_type: r.sizeType, carrier_code: r.carrierCode, priority: r.priority as ContainerRecordIn['priority'], lfd: r.lfd, pickup_ready: r.pickupReady, current_terminal: r.currentTerminal, destination_facility_id: r.destinationFacilityId, planned_day: r.plannedDay, planned_depart_hour: r.plannedDepartHour, alternate_destination_allowed: r.alternateDestinationAllowed, content_hash: r.contentHash })),
+      containers: recs.map((r) => ({ record_id: r.recordId, container_no: r.containerNo, container_id: r.containerId, vessel_call_id: r.containerId ? (vesselOf.get(r.containerId) ?? null) : null, size_type: r.sizeType, carrier_code: r.carrierCode, priority: r.priority as ContainerRecordIn['priority'], lfd: r.lfd, pickup_ready: r.pickupReady, current_terminal: r.currentTerminal, destination_facility_id: r.destinationFacilityId, planned_day: r.plannedDay, planned_depart_hour: r.plannedDepartHour, alternate_destination_allowed: r.alternateDestinationAllowed, content_hash: r.contentHash })),
       rates: rates.map((r) => ({ rate_id: r.rateId, rate_type: r.rateType, carrier_code: r.carrierCode, from_ref: r.fromRef, to_ref: r.toRef, size_type: r.sizeType, amount: Number(r.amount), effective_from: r.effectiveFrom, content_hash: r.contentHash })),
       profiles: profiles.map((r) => ({ profile_id: r.profileId, facility_id: r.facilityId, accepts: r.accepts, open_from_hour: r.openFromHour, last_departure_hour: r.lastDepartureHour, trip_hours: r.tripHours, max_storage_days: r.maxStorageDays, content_hash: r.contentHash })),
       unrecordedPublicContainers: [...pub.keys()].filter((no) => !recorded.has(no)).sort(),

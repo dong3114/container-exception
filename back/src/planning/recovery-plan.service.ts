@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
-import { actor, bl, container, containerBl, counterparty, facility, planningSnapshot, recoveryPlan, recoveryPlanItem, recoveryRun, truckPool } from '../db/schema/index.js';
+import { actor, bl, container, containerBl, counterparty, facility, operationalException, operationalExceptionContainer, planningSnapshot, recoveryPlan, recoveryPlanItem, recoveryRun, truckPool } from '../db/schema/index.js';
 import { TransactionRunner } from '../db/transaction.js';
 import { AuditRecorder } from '../persistence/audit-recorder.js';
 import { AUDIT_ACTION } from '../persistence/catalog.js';
@@ -139,13 +139,13 @@ export class RecoveryPlanService implements OnModuleInit {
   }
 
   /** Truth Layer 의 현재 사실 → 계획 사실. 같은 좌표(주체 · 키)가 적용 범위별로 여럿이면 가장 믿을 만한 것 하나. */
-  private toPlanningFacts(results: CoordinateResult[], planDay: string, horizon: string[], kinds: Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL'>): PlanningFact[] {
+  private toPlanningFacts(results: CoordinateResult[], planDay: string, horizon: string[], kinds: Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL' | 'VESSEL_CALL'>): PlanningFact[] {
     const best = new Map<string, CoordinateResult>();
     for (const r of results) {
       const kind = kinds.get(r.data.coordinate.entityId);
       if (!kind) continue;
       const key = r.data.coordinate.factKey;
-      const relevant = kind === 'TRUCK_POOL' ? isTruthManagedKey(key, planDay, kind) : horizon.some((d) => key.endsWith(`day(${d})`)) && key.startsWith('capacity.');
+      const relevant = kind === 'VESSEL_CALL' ? key === 'declared_arrival' : kind === 'TRUCK_POOL' ? isTruthManagedKey(key, planDay, kind) : horizon.some((d) => key.endsWith(`day(${d})`)) && key.startsWith('capacity.');
       if (!relevant) continue;
       const k = `${r.data.coordinate.entityId}|${key}`;
       const cur = best.get(k);
@@ -212,9 +212,11 @@ export class RecoveryPlanService implements OnModuleInit {
     const facilities = await this.db.select({ id: facility.facilityId, type: facility.facilityType, name: facility.facilityName }).from(facility).where(eq(facility.isActive, true));
     const pools = await this.db.select({ id: truckPool.truckPoolId, name: truckPool.poolName, ownership: truckPool.ownership }).from(truckPool).where(eq(truckPool.isActive, true));
     const ops = await this.inputs.operationalSources(run.runId, planDay);
-    const kinds = new Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL'>([
+    const kinds = new Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL' | 'VESSEL_CALL'>([
       ...facilities.filter((f) => f.type === 'WAREHOUSE' || f.type === 'ODCY').map((f) => [f.id, f.type as 'WAREHOUSE' | 'ODCY'] as const),
       ...pools.map((p) => [p.id, 'TRUCK_POOL'] as const),
+      // T-136: 컨테이너가 실린 입항 건 — 입항 신고 일시(공공 관측 · 업체 주장 교차 확인)를 계획 사실로 쓴다
+      ...ops.containers.filter((c) => c.vessel_call_id).map((c) => [c.vessel_call_id!, 'VESSEL_CALL'] as const),
     ]);
     const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: false, scenarioId: null }, asOf, knownBy);
     const truthFacts = this.toPlanningFacts(live, planDay, horizon, kinds);
@@ -236,7 +238,7 @@ export class RecoveryPlanService implements OnModuleInit {
         const view = this.readinessView(a, run, asOf);
         throw new BusinessRuleError('PLANNING_INPUT_UNAVAILABLE', `Live run inputs missing — ${view.note} See GET /planning/runs/${runId}/input-readiness`, 409, { status: view.status, plan_day: view.plan_day, missing_inputs: view.missing_inputs, groups: view.groups });
       }
-      return { run, asOf, input: a.input, provenance: a.provenance };
+      return { run, asOf, input: { ...a.input, affected_container_ids: await this.affectedContainers(runId) }, provenance: a.provenance };
     }
     const pack = this.scenarioPack();
     const ids = this.packIds;
@@ -253,7 +255,29 @@ export class RecoveryPlanService implements OnModuleInit {
     const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: run.containsSimulated, scenarioId: run.scenarioId }, asOf, knownBy);
     const truthFacts = this.toPlanningFacts(live, days.D0!, horizon, kinds);
     const input = planningInputFromScenario(pack, { as_of: asOf.toSeoulIso(), truthFacts, ids });
-    return { run, asOf, input, provenance: null };
+    return { run, asOf, input: { ...input, affected_container_ids: await this.affectedContainers(runId) }, provenance: null };
+  }
+
+  /**
+   * T-136 Phase 5 — 이 실행을 연 예외의 가장 최근 관측에서 넘친 컨테이너(관계 `operational_exception_container`). 예외 없이 연 실행이면 null(전부 후보).
+   * 예외가 해소됐으면(넘친 컨테이너 없음) 빈 목록이 아니라 null — 다시 계산하는 사람이 범위를 잃지 않게 전체로 돌아간다.
+   */
+  async affectedContainers(runId: string): Promise<string[] | null> {
+    const [ex] = await this.db.select({ id: operationalException.exceptionId }).from(operationalException).where(eq(operationalException.recoveryRunId, runId)).limit(1);
+    if (!ex) return null;
+    const [latest] = await this.db
+      .select({ observationId: operationalExceptionContainer.observationId })
+      .from(operationalExceptionContainer)
+      .where(eq(operationalExceptionContainer.exceptionId, ex.id))
+      .orderBy(desc(operationalExceptionContainer.createdAt), desc(operationalExceptionContainer.observationId))
+      .limit(1);
+    if (!latest) return null;
+    const rows = await this.db
+      .select({ ref: operationalExceptionContainer.containerRef })
+      .from(operationalExceptionContainer)
+      .where(eq(operationalExceptionContainer.observationId, latest.observationId))
+      .orderBy(asc(operationalExceptionContainer.planOrder));
+    return rows.length > 0 ? rows.map((r) => r.ref) : null;
   }
 
   async compute(runId: string, asOfOverride?: string | null): Promise<PlanningComputation> {
@@ -419,6 +443,8 @@ export class RecoveryPlanService implements OnModuleInit {
               warning_refs: a.warning_refs,
               evidence_refs: a.evidence_refs,
               assumptions: a.assumptions,
+              // T-136: 예외 영향 컨테이너(재배치 후보) · 영향 없는 고정 계획 · 범위 제한 없음 — 고른 선택지의 범위(고정할 수 없어 후보로 넣은 컨테이너는 AFFECTED)
+              scope: s.table.options.find((o) => o.option_id === a.option_id)?.scope ?? (s.table.affected ? (s.table.affected.includes(a.container_id) ? 'AFFECTED' : 'FIXED') : 'ALL'),
             },
           })),
         );

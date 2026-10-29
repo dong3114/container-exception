@@ -158,7 +158,7 @@ describe('T-114 recovery plan — deterministic engine on Truth facts, versioned
     expect(item.detail.cost.lines.length).toBeGreaterThan(2);
     expect(item.reason_codes.length).toBeGreaterThan(0);
     const scope = (await db.query('SELECT s.scope_ref, s.policy_version, s.as_of FROM cera.recovery_plan p JOIN cera.planning_snapshot s USING (snapshot_id) WHERE p.plan_id = $1', [p.plan_id])).rows[0];
-    expect(scope.policy_version).toBe('cost-policy/1');
+    expect(scope.policy_version).toBe('cost-policy/2');
     expect(scope.scope_ref.truth_facts.find((f: { fact_key: string }) => f.fact_key === 'capacity.size_type(40DRY).day(2026-10-13)')).toMatchObject({ fact_ref: `event:${odcyAEvent}`, fact_state: 'CONFIRMED', value: 4 });
     expect((await db.query("SELECT count(*) FROM cera.audit_log WHERE action = 'PLAN_PROPOSED' AND target_id = $1", [p.plan_id])).rows[0].count).toBe('1');
     const again = (await http.post(`/planning/runs/${w.runId}/plans`).set(ACTOR, humanId).expect(200)).body;

@@ -10,7 +10,7 @@ import type { CoordinateData, EventRow } from '../../src/truth/truth.repository.
 import { toFactEvent } from '../../src/truth/truth.repository.js';
 import { knownAsOf } from '../../src/truth/truth.service.js';
 import { reconcile } from '../../src/truth/reconcile-rules.js';
-import { miniInput, withFact } from './planning-fixture.js';
+import { container, fact, miniInput, withFact } from './planning-fixture.js';
 
 /** T-136 Phase 1 — 실행 결함 재현 · 회귀(순수 규칙). DB 경로는 test/db 의 해당 시험이 본다. */
 
@@ -143,5 +143,64 @@ describe('1-5 an outdated approval is not a current approval', () => {
     expect(planStatus({ ...base, planStatus: 'APPROVED', approvedByActorId: 'h1' } as never, false)).toMatchObject({ approved: true, previously_approved: true, executable: true });
     expect(planStatus({ ...base, planStatus: 'OUTDATED', approvedByActorId: 'h1' } as never, false)).toMatchObject({ approved: false, previously_approved: true, executable: false });
     expect(planStatus({ ...base, planStatus: 'PROPOSED', approvedByActorId: null } as never, false)).toMatchObject({ approved: false, previously_approved: false, executable: false });
+  });
+});
+
+describe('T-136 Phase 4 — public evidence reaches Risk and the HiGHS objective (deterministic)', () => {
+  const arrival = (iso: string, state: 'OBSERVED' | 'NEEDS_REVIEW' | 'PROVISIONAL') => fact('V1', 'declared_arrival', Instant.parseIso(iso).epochMs, { fact_ref: 'f:V1:arrival', fact_state: state, source: 'TRUTH' });
+  const withVessel = (f: ReturnType<typeof arrival>) => miniInput({ containers: [container('C1', { vessel_call_id: 'V1' })], facts: [...miniInput().facts, f] });
+
+  it('a vessel declared to arrive tomorrow: no option may pick the container up today (VESSEL_NOT_ARRIVED)', () => {
+    const table = buildCostTable(withVessel(arrival('2026-10-14T08:00:00+09:00', 'OBSERVED')));
+    const today = table.options.filter((o) => o.container_id === 'C1' && o.action !== 'WAIT_AT_TERMINAL');
+    expect(today.every((o) => !o.feasible && o.infeasible_reasons.some((r) => r.code === 'VESSEL_NOT_ARRIVED'))).toBe(true);
+  });
+
+  it('a vessel arriving today at 14:30 moves the earliest departure to 15:00', () => {
+    const table = buildCostTable(withVessel(arrival('2026-10-13T14:30:00+09:00', 'OBSERVED')));
+    const keep = table.options.find((o) => o.container_id === 'C1' && o.action === 'KEEP_CURRENT_PLAN')!;
+    expect(keep.truck_job?.earliest_hour).toBe(15);
+  });
+
+  it('a disputed arrival (public vs partner CONFLICT) is not used as a constraint; moving today carries a verification-risk penalty that the solver sees', async () => {
+    const disputed = withVessel(arrival('2026-10-14T08:00:00+09:00', 'NEEDS_REVIEW'));
+    const clean = miniInput({ containers: [container('C1', { vessel_call_id: 'V1' })] });
+    const t1 = buildCostTable(disputed);
+    const t0 = buildCostTable(clean);
+    const keep1 = t1.options.find((o) => o.container_id === 'C1' && o.action === 'KEEP_CURRENT_PLAN')!;
+    const keep0 = t0.options.find((o) => o.container_id === 'C1' && o.action === 'KEEP_CURRENT_PLAN')!;
+    expect(keep1.feasible).toBe(true); // 충돌한 값은 제약으로 쓰지 않는다
+    expect(keep1.cost.risk_penalty - keep0.cost.risk_penalty).toBe(30_000);
+    expect(keep1.warning_refs).toContainEqual({ fact_ref: 'f:V1:arrival', reason: 'CONFLICTED' });
+    const r1 = await solveRecovery(disputed, t1, computeBaseline(disputed, t1));
+    const r0 = await solveRecovery(clean, t0, computeBaseline(clean, t0));
+    expect(r1.objective_value! - r0.objective_value!).toBe(30_000); // HiGHS 목적함수까지 간다
+    expect(solverInputHash(disputed, t1)).not.toBe(solverInputHash(clean, t0));
+  });
+});
+
+describe('T-136 Phase 5 — only affected containers are re-planned; the rest keep their plan but still use capacity and trucks', () => {
+  it('unaffected containers have only the original plan; affected ones get every action', () => {
+    const input = miniInput({ containers: [container('C1'), container('C2'), container('C3')], affected_container_ids: ['C3'] });
+    const table = buildCostTable(input);
+    for (const id of ['C1', 'C2']) expect(new Set(table.options.filter((o) => o.container_id === id).map((o) => `${o.action}:${o.scope}`))).toEqual(new Set(['KEEP_CURRENT_PLAN:FIXED']));
+    expect(new Set(table.options.filter((o) => o.container_id === 'C3').map((o) => o.action)).size).toBeGreaterThan(1);
+    expect(table.affected).toEqual(['C3']);
+  });
+
+  it('fixed containers consume warehouse capacity: with room for 2, the affected one cannot also keep its plan', async () => {
+    const input = withFact(miniInput({ containers: [container('C1'), container('C2'), container('C3')], affected_container_ids: ['C3'] }), 'W', 'capacity.day(2026-10-13)', { value: 2 });
+    const table = buildCostTable(input);
+    const r = await solveRecovery(input, table, computeBaseline(input, table));
+    const by = new Map(r.assignments.map((a) => [a.container_id, a.action]));
+    expect(by.get('C1')).toBe('KEEP_CURRENT_PLAN');
+    expect(by.get('C2')).toBe('KEEP_CURRENT_PLAN');
+    expect(by.get('C3')).not.toBe('KEEP_CURRENT_PLAN');
+  });
+
+  it('no exception (affected = null) → every container is a candidate, as before', () => {
+    const table = buildCostTable(miniInput({ containers: [container('C1'), container('C2')] }));
+    expect(table.affected).toBeNull();
+    expect(table.options.every((o) => o.scope === 'ALL')).toBe(true);
   });
 });

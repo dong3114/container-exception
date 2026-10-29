@@ -8,6 +8,7 @@ import {
   facility,
   operationalException,
   operationalExceptionObservation,
+  operationalExceptionContainer,
   planningContainerRecord,
   planningInputBatch,
   planningSnapshot,
@@ -237,8 +238,9 @@ export class ExceptionDetectorService implements OnModuleInit {
     const now = this.clock.now().toDb();
     const observe = async (exceptionId: string, kind: 'DETECTED' | 'CHANGED' | 'RESOLVED' | 'INDETERMINATE') => {
       const batchIds = scope.kind === 'LIVE' ? await this.batchIdsOf(t, a.demand_refs) : [];
+      const observationId = this.ids.newId();
       await t.insert(operationalExceptionObservation).values({
-        observationId: this.ids.newId(),
+        observationId,
         exceptionId,
         kind,
         asOf: scope.asOf.toDb(),
@@ -251,6 +253,16 @@ export class ExceptionDetectorService implements OnModuleInit {
         evidence: { ...material, fact_key: a.fact_key, scheduled: a.scheduled, affected: a.affected, input_batch_ids: batchIds, rule: 'warehouse-capacity/1', as_of: scope.asOf.toSeoulIso() },
         evidenceHash,
       });
+      // T-136 Phase 5: 넘친 컨테이너를 관계로 남긴다(evidence JSON 은 감사용으로 그대로). 복구 계획은 이 관계로 재배치 후보 · 고정 계획을 나눈다
+      // 컨테이너 표시 = 계획이 쓰는 컨테이너 id(LIVE = 컨테이너 번호, SCENARIO = 시나리오 컨테이너 id). 탐지 규칙의 affected 는 컨테이너 번호다 —
+      // 시나리오는 같은 순서의 demand_refs(시나리오 id)로 바꾼다
+      if ((kind === 'DETECTED' || kind === 'CHANGED') && a.affected.length > 0) {
+        const rows = a.affected.map((no) => {
+          const idx = Math.max(0, a.scheduled.indexOf(no));
+          return { exceptionId, observationId, containerRef: scope.kind === 'SCENARIO' ? (a.demand_refs[idx] ?? no) : no, planOrder: idx, createdAt: now };
+        });
+        await t.insert(operationalExceptionContainer).values(rows).onConflictDoNothing();
+      }
     };
 
     let exceptionId = active?.exceptionId ?? null;

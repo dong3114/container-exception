@@ -3277,6 +3277,111 @@
         ]
       }
     },
+    "/truth/claims/partner-statement": {
+      "post": {
+        "operationId": "TruthController_partnerStatement",
+        "parameters": [
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactCoordinateDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_FACT_REQUEST · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TARGET_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-136: record what a partner (shipping line · terminal · trucker) SAID about a publicly verifiable fact — currently the declared arrival time of a vessel call. It stays a claim (authority W → provisional), never a confirmation, and is cross-checked against the public observation (corroboration)",
+        "tags": [
+          "truth"
+        ]
+      }
+    },
+    "/truth/corroborations": {
+      "get": {
+        "operationId": "TruthController_listCorroborations",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorroborationListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-136: public-evidence cross-checks (MATCH · CONFLICT · NO_PUBLIC_EVIDENCE · STALE_PUBLIC_EVIDENCE · NOT_COMPARABLE) with both evidences, newest first. Decided by rules, not by an LLM",
+        "tags": [
+          "truth"
+        ]
+      }
+    },
     "/truth/facts/manual": {
       "post": {
         "operationId": "TruthController_enter",
@@ -8214,6 +8319,115 @@
         },
         "required": [
           "reason_code"
+        ]
+      },
+      "CorroborationDto": {
+        "type": "object",
+        "properties": {
+          "corroboration_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim_event_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The partner claim event (reply · relayed statement)"
+          },
+          "public_event_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The public observation compared — only for MATCH · CONFLICT · STALE_PUBLIC_EVIDENCE"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fact_key": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "MATCH",
+              "CONFLICT",
+              "NO_PUBLIC_EVIDENCE",
+              "STALE_PUBLIC_EVIDENCE",
+              "NOT_COMPARABLE"
+            ]
+          },
+          "reason_code": {
+            "type": "string"
+          },
+          "claim_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "public_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "difference_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "tolerance_minutes": {
+            "type": "number",
+            "nullable": true,
+            "description": "[ASSUMPTION] tolerance of the rule version"
+          },
+          "public_freshness": {
+            "type": "string",
+            "nullable": true
+          },
+          "claim_source": {
+            "type": "string"
+          },
+          "evaluated_as_of": {
+            "type": "string"
+          },
+          "rule_version": {
+            "type": "string"
+          },
+          "is_simulated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "corroboration_id",
+          "claim_event_id",
+          "public_event_id",
+          "entity_type",
+          "entity_id",
+          "fact_key",
+          "result",
+          "reason_code",
+          "claim_value",
+          "public_value",
+          "difference_minutes",
+          "tolerance_minutes",
+          "public_freshness",
+          "claim_source",
+          "evaluated_as_of",
+          "rule_version",
+          "is_simulated"
+        ]
+      },
+      "CorroborationListDto": {
+        "type": "object",
+        "properties": {
+          "corroborations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CorroborationDto"
+            }
+          }
+        },
+        "required": [
+          "corroborations"
         ]
       },
       "ManualFactRequestDto": {

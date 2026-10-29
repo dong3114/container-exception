@@ -284,6 +284,34 @@ function calculateOption(ctx: Ctx, c: ContainerInput, spec: ActionSpec): ActionO
     if (earliest > latest) L.reasons.push({ code: 'NO_DEPARTURE_WINDOW', ref: spec.target.facility_id, note: `오늘 ${spec.target.name}(으)로 출발할 수 있는 시간이 남지 않았다 (가장 이른 ${earliest}시 > 마지막 ${latest}시)` });
     truckJob = { trip_hours: spec.target.trip_hours, earliest_hour: earliest, latest_hour: latest };
   }
+  // T-136 공공 관측: 컨테이너가 실린 입항 건의 입항 신고 일시(Truth — Port-MIS 권한 A). 입항 전에는 반출할 수 없다.
+  // 충돌 중(NEEDS_REVIEW — 공공 근거와 업체 주장이 어긋남)이면 어느 값도 제약으로 쓰지 않고, 오늘 반출하는 선택지에 검증 위험 벌점(정책)을 붙인다.
+  // 공공데이터는 돈을 주지 않는다 — 입항 지연 시간 × 대기 요율 같은 비용은 계약 요율(대기료)이 없어 계산하지 않는다(NOT_AVAILABLE)
+  if (c.vessel_call_id) {
+    const arrival = factOf(ctx, c.vessel_call_id, 'declared_arrival');
+    const ua = usageOf(ctx, arrival);
+    const pickupDay = movesToday ? D0 : spec.deliveryDay;
+    if (arrival && ua.usable && arrival.value !== null) {
+      evidence.add(arrival.fact_ref);
+      const a = seoulParts(new Date(arrival.value).toISOString());
+      if (a.day > pickupDay) {
+        L.reasons.push({ code: 'VESSEL_NOT_ARRIVED', ref: arrival.fact_ref, note: `입항 신고 일시 ${a.day} — ${pickupDay}에는 아직 입항 전` });
+      } else if (a.day === pickupDay && movesToday && truckJob) {
+        const earliest = Math.max(truckJob.earliest_hour, Math.ceil(a.hour));
+        if (earliest > truckJob.latest_hour) L.reasons.push({ code: 'NO_DEPARTURE_WINDOW', ref: arrival.fact_ref, note: `입항(${Math.ceil(a.hour)}시) 뒤 오늘 출발할 수 있는 시간이 없다` });
+        truckJob = { ...truckJob, earliest_hour: earliest };
+      }
+      if (ua.warning) {
+        warningRefs.push({ fact_ref: arrival.fact_ref, reason: ua.warning });
+        const p = ua.warning === 'PROVISIONAL' ? policy.provisional.penalty_krw : policy.aging_penalty_krw;
+        L.policy('risk', ua.warning === 'PROVISIONAL' ? 'PROVISIONAL_RELIANCE' : 'AGING_RELIANCE', `${ua.warning === 'PROVISIONAL' ? '잠정' : '오래되는 중인'} 입항 신고 일시 의존`, 1, p, `${policy.version}#${ua.warning === 'PROVISIONAL' ? 'provisional.penalty_krw' : 'aging_penalty_krw'}`, '[ASSUMPTION] 정책 벌점 — 실제 비용이 아니다');
+      }
+    } else if (arrival && !ua.usable && ua.reason === 'FACT_CONFLICTED' && movesToday) {
+      evidence.add(arrival.fact_ref);
+      warningRefs.push({ fact_ref: arrival.fact_ref, reason: 'CONFLICTED' });
+      L.policy('risk', 'VERIFICATION_RISK', '입항 여부 검증 위험(공공 근거와 업체 주장 충돌)', 1, policy.verification_risk_penalty_krw, `${policy.version}#verification_risk_penalty_krw`, '[ASSUMPTION] 정책 벌점 — 실제 비용이 아니다. 충돌한 값은 제약으로 쓰지 않았다');
+    }
+  }
   if (spec.action === 'MOVE_TO_ODCY' && spec.target) {
     needFact('ODCY', spec.target, D0);
     const maxDays = factOf(ctx, spec.target.facility_id, 'max_days');
@@ -399,7 +427,18 @@ export function buildCostTable(input: PlanningInput, policy: CostPolicy = DEFAUL
   const { candidates, commitments } = partition(input);
   ctx.resources = buildResources(ctx, commitments);
   const { trucks, warnings } = buildTrucks(ctx);
-  const options = candidates.flatMap((c) => actionSpecs(ctx, c).map((s) => calculateOption(ctx, c, s)));
+  // T-136 Phase 5: 영향 컨테이너만 재배치 후보. 영향 없는 오늘 계획은 원래 계획(KEEP)만 — 그 자원(창고 용량 · 트럭)은 Solver 가 계속 센다.
+  // 원래 계획이 지금 실행 불가면(요율 · 사실 · 시간창) 고정할 수 없으니 전체 선택지로 되돌리고 그렇게 남긴다(조용히 빼지 않는다)
+  const affected = input.affected_container_ids ? new Set(input.affected_container_ids) : null;
+  const options = candidates.flatMap((c): ActionOption[] => {
+    if (!affected) return actionSpecs(ctx, c).map((s) => ({ ...calculateOption(ctx, c, s), scope: 'ALL' as const }));
+    if (affected.has(c.container_id)) return actionSpecs(ctx, c).map((s) => ({ ...calculateOption(ctx, c, s), scope: 'AFFECTED' as const }));
+    const specs = actionSpecs(ctx, c);
+    const keep = specs.filter((s) => s.action === 'KEEP_CURRENT_PLAN').map((s) => ({ ...calculateOption(ctx, c, s), scope: 'FIXED' as const }));
+    if (keep.some((o) => o.feasible)) return keep;
+    warnings.push(`${c.container_id}: 영향 없는 기존 계획이지만 원래 계획을 지금 실행할 수 없어 재배치 후보로 넣었다`);
+    return specs.map((s) => ({ ...calculateOption(ctx, c, s), scope: 'AFFECTED' as const }));
+  });
   for (const r of ctx.resources) {
     if (r.fact_value !== null && r.committed > r.fact_value) warnings.push(`${r.facility_id} ${r.day}: 이미 약속된 ${r.committed}대가 용량 ${r.fact_value}을(를) 넘는다`);
   }
@@ -421,6 +460,7 @@ export function buildCostTable(input: PlanningInput, policy: CostPolicy = DEFAUL
     facts,
     commitments,
     candidates: candidates.map((c) => c.container_id),
+    affected: affected ? candidates.map((c) => c.container_id).filter((id) => affected.has(id)) : null,
     warnings,
   };
 }

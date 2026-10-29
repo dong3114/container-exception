@@ -756,6 +756,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/truth/claims/partner-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** T-136: record what a partner (shipping line · terminal · trucker) SAID about a publicly verifiable fact — currently the declared arrival time of a vessel call. It stays a claim (authority W → provisional), never a confirmation, and is cross-checked against the public observation (corroboration) */
+        post: operations["TruthController_partnerStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/truth/corroborations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** T-136: public-evidence cross-checks (MATCH · CONFLICT · NO_PUBLIC_EVIDENCE · STALE_PUBLIC_EVIDENCE · NOT_COMPARABLE) with both evidences, newest first. Decided by rules, not by an LLM */
+        get: operations["TruthController_listCorroborations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/truth/facts/manual": {
         parameters: {
             query?: never;
@@ -2255,6 +2289,40 @@ export interface components {
              */
             reason_code: "SOURCE_WITHDREW" | "OPERATOR_INVALIDATED" | "OUTDATED_OPERATIONAL_STATE";
             note?: string;
+        };
+        CorroborationDto: {
+            /** Format: uuid */
+            corroboration_id: string;
+            /**
+             * Format: uuid
+             * @description The partner claim event (reply · relayed statement)
+             */
+            claim_event_id: string;
+            /**
+             * Format: uuid
+             * @description The public observation compared — only for MATCH · CONFLICT · STALE_PUBLIC_EVIDENCE
+             */
+            public_event_id: string | null;
+            entity_type: string;
+            /** Format: uuid */
+            entity_id: string;
+            fact_key: string;
+            /** @enum {string} */
+            result: "MATCH" | "CONFLICT" | "NO_PUBLIC_EVIDENCE" | "STALE_PUBLIC_EVIDENCE" | "NOT_COMPARABLE";
+            reason_code: string;
+            claim_value: string | null;
+            public_value: string | null;
+            difference_minutes: number | null;
+            /** @description [ASSUMPTION] tolerance of the rule version */
+            tolerance_minutes: number | null;
+            public_freshness: string | null;
+            claim_source: string;
+            evaluated_as_of: string;
+            rule_version: string;
+            is_simulated: boolean;
+        };
+        CorroborationListDto: {
+            corroborations: components["schemas"]["CorroborationDto"][];
         };
         ManualFactRequestDto: {
             /** Format: uuid */
@@ -4752,6 +4820,85 @@ export interface operations {
             };
             /** @description EVENT_SUPERSEDED · ALREADY_REJECTED */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_partnerStatement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Deciding operator (active HUMAN actor). Development stand-in until authentication exists — the backend checks it. AI, agents and the system cannot confirm. */
+                "X-CERA-Actor-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactCoordinateDto"];
+                };
+            };
+            /** @description INVALID_FACT_REQUEST · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TARGET_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_listCorroborations: {
+        parameters: {
+            query?: {
+                entity_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorroborationListDto"];
+                };
+            };
+            /** @description INVALID_ID */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

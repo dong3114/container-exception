@@ -93,6 +93,7 @@ class RecoveryState(TypedDict, total=False):
     plan: dict[str, Any] | None  # the proposed plan version: id · version · status (the backend's)
     plan_rounds: int  # how many times this run proposed a plan (re-solve after facts changed)
     stale_plan_input: bool  # T-136: the inputs changed between solve and propose — nothing was stored, solve again
+    public_lookups: list[str]  # T-136: gap ids already looked up in public data in this run (each is looked up once)
     last_tool_call: dict[str, Any] | None
     tool_results: list[dict[str, Any]]  # last calls: tool · status · code · tool_call_id
     decision_results: list[dict[str, Any]]
@@ -120,14 +121,31 @@ class DeterministicPolicy:
         done = "PLAN" if (state.get("parameters") or {}).get("plan_recovery") else "COMPLETE"
         if not gaps:
             return done
-        if any(g.get("public_data_can_resolve") and g.get("state") == "MISSING" for g in gaps):
+        # T-136: a public-verifiable fact (vessel arrival) is looked up in public data before anything else — once per gap per run.
+        # Internal facts (warehouse capacity · partner trucks) are never looked up there (public_data_can_resolve is false for them)
+        if public_lookup_gap(state):
             return "PUBLIC_DATA"
         if pick_inquiry_gap(gaps):
             return "COMMUNICATION"
-        if all(g.get("state") in HUMAN_HELD_STATES or g.get("state") == "ASKED" for g in gaps):
+        if all(g.get("state") in HUMAN_HELD_STATES or g.get("state") == "ASKED" or public_only_done(state, g) for g in gaps):
             # what is left is already asked (a reply may come) or waits for a person (confirmation / review) — nothing for the agent to ask
             return "WAIT_EXTERNAL" if any(awaiting_reply(g) for g in gaps) else done
         return "FAIL"
+
+
+PUBLIC_LOOKUP_STATES = ("MISSING", "NEEDS_REFRESH", "PROVISIONAL_AVAILABLE", "NEEDS_REVIEW")
+
+
+def public_lookup_gap(state: RecoveryState) -> dict[str, Any] | None:
+    """The first public-verifiable gap not yet looked up in this run (deterministic order: gap id)."""
+    done = set(state.get("public_lookups") or [])
+    gaps = [g for g in state.get("information_gaps") or [] if g.get("public_data_can_resolve") and g.get("state") in PUBLIC_LOOKUP_STATES and g.get("gap_id") not in done]
+    return sorted(gaps, key=lambda g: str(g.get("gap_id")))[0] if gaps else None
+
+
+def public_only_done(state: RecoveryState, g: dict[str, Any]) -> bool:
+    """A public-data gap already looked up — nobody else can answer it in this slice; a person decides (it is not a failure)."""
+    return g.get("suggested_source") == "PUBLIC_DATA" and g.get("gap_id") in set(state.get("public_lookups") or [])
 
 
 def inquiry_candidates(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -419,12 +437,20 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         return {"plan": plan_ref(r.output["plan"])}
 
     def fetch_public_data(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
+        # T-136: look up the declared arrivals around the plan date (the backend stores them as public observations; Truth decides
+        # whether they close the gap — the agent never reads a value as a fact itself). Every public gap open now counts as looked up,
+        # so a missing record does not loop: what public data cannot answer is left to a person
         day = state.get("plan_date")
-        r = s.call("get_vessel_calls", {"from_date": day, "to_date": day})
+        gaps = [g for g in state.get("information_gaps") or [] if g.get("public_data_can_resolve") and g.get("state") in PUBLIC_LOOKUP_STATES]
+        looked = sorted(set(state.get("public_lookups") or []) | {str(g.get("gap_id")) for g in gaps})
+        start = (datetime.fromisoformat(day) - timedelta(days=3)).date().isoformat() if day else day
+        end = (datetime.fromisoformat(day) + timedelta(days=1)).date().isoformat() if day else day
+        r = s.call("get_vessel_calls", {"from_date": start, "to_date": end})
         if not r.ok:
-            return failed(r.error.code if r.error else "PUBLIC_DATA_FAILED")
+            # a public-data outage is not the run's failure: record it and leave the gap to a person / a later run
+            return {"public_lookups": looked, "public_data": {"mode": None, "outcome": r.error.code if r.error else "PUBLIC_DATA_FAILED", "vessel_call_count": 0, "fetch_ids": []}}
         refs = sorted({p["fetch_id"] for p in r.output["summary"]["pages"]})
-        return {"evidence_refs": ((state.get("evidence_refs") or []) + refs)[-50:]}
+        return {"public_lookups": looked, "evidence_refs": ((state.get("evidence_refs") or []) + refs)[-50:]}
 
     def wait_external(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
         # T-136: the awaited record is the recovery run (its inquiries) — the backend reconciler wakes this run when no gap still awaits a reply
@@ -441,7 +467,7 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
             return {"result": {"status": "COMPLETED", "result_code": "PLAN_APPROVED", "error_code": None, "summary": summary}}
         if state.get("next_action") == "COMPLETE":
             # held = a value waits for a person, or (T-136) a reply came without a usable value and a person must review it
-            held = any(g.get("state") in HUMAN_HELD_STATES or (g.get("state") == "ASKED" and not awaiting_reply(g)) for g in state.get("information_gaps") or [])
+            held = any(g.get("state") in HUMAN_HELD_STATES or (g.get("state") == "ASKED" and not awaiting_reply(g)) or public_only_done(state, g) for g in state.get("information_gaps") or [])
             return {"result": {"status": "COMPLETED", "result_code": "OPEN_GAPS_AWAIT_HUMAN" if held else "NO_INFORMATION_GAPS", "error_code": None, "summary": summary}}
         reply = state.get("reply_summary")
         if reply:
