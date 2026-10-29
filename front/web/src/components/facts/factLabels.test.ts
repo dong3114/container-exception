@@ -66,3 +66,13 @@ describe("fact labels", () => {
     expect(factErrorText("SCENARIO_NOT_FOUND", "x")).toContain("시나리오를 찾지 못했습니다");
   });
 });
+
+describe("T-144 timestamp facts are shown as Seoul time, not epoch ms", () => {
+  it("declared_arrival → MM-DD HH:mm (Asia/Seoul)", () => {
+    expect(formatValue(Date.parse("2026-10-29T06:35:00+09:00"), null, "declared_arrival")).toBe("10-29 06:35");
+  });
+  it("other facts keep number + unit", () => {
+    expect(formatValue(4, "TRUCK", "available.slot(2026-10-29T15:00-18:00)")).not.toContain("10-");
+    expect(formatValue(null, null, "declared_arrival")).toBe("값 없음");
+  });
+});

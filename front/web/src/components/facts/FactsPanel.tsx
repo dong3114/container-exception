@@ -42,7 +42,7 @@ import {
 type Mode = "reject" | "correct" | "revoke" | null;
 
 /** 한 후보(근거) 줄 — 값 · 역할 · 누가 말했나 · 원문 인용 · 만든 방식, 그리고 사람의 확인 · 거절 · 정정 · 철회. */
-function CandidateRow({ c, actorId, asOf, onUpdated }: { c: FactCandidate; actorId: string | null; asOf?: string; onUpdated: (f: FactCoordinate) => void }) {
+function CandidateRow({ c, factKey, actorId, asOf, onUpdated }: { c: FactCandidate; factKey: string; actorId: string | null; asOf?: string; onUpdated: (f: FactCoordinate) => void }) {
   const [mode, setMode] = useState<Mode>(null);
   const [reason, setReason] = useState<FactReasonCode>("MODEL_MISREAD");
   const [revokeReason, setRevokeReason] = useState<RevokeReasonCode>("SOURCE_WITHDREW");
@@ -67,7 +67,7 @@ function CandidateRow({ c, actorId, asOf, onUpdated }: { c: FactCandidate; actor
   return (
     <li data-testid="fact-candidate" data-role={c.role} style={{ display: "grid", gap: 2, fontSize: 12 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        <b className="num">{formatValue(c.value, c.unit)}</b>
+        <b className="num">{formatValue(c.value, c.unit, factKey)}</b>
         <span className="badge b-outline">{ROLE_LABEL[c.role]}</span>
         <span className={`badge ${c.generated_by === "RECORDED_REPLAY" ? "b-sim" : c.generated_by === "HUMAN" ? "b-green" : "b-violet"}`}>{GENERATED_BY_LABEL[c.generated_by]}</span>
         {c.verification === "CONFIRMED" && <span className="badge b-green">사람 확인 완료</span>}
@@ -181,7 +181,7 @@ export function FactCard({ fact, actorId, asOf, onUpdated }: { fact: FactCoordin
           <span className="muted">{REVOKED_NOTE}</span>
         ) : cur ? (
           <>
-            현재 값 <b className="num">{formatValue(cur.value, cur.unit)}</b>
+            현재 값 <b className="num">{formatValue(cur.value, cur.unit, fact.fact_key)}</b>
             {formatWindow(cur.valid_from, cur.valid_until) ? <span className="muted"> · 적용 {formatWindow(cur.valid_from, cur.valid_until)}</span> : null}
           </>
         ) : (
@@ -194,12 +194,12 @@ export function FactCard({ fact, actorId, asOf, onUpdated }: { fact: FactCoordin
         신선도 판단 기준 시각 {formatTime(fact.evaluated_as_of)}
       </div>
       {hints.length > 0 && <div className="muted" style={{ fontSize: 11.5 }}>{hints.join(" · ")}</div>}
-      {fact.fact_key === "declared_arrival" && <CorroborationLine entityId={fact.entity_id} refreshKey={fact.evaluated_as_of} />}
+      {fact.fact_key === "declared_arrival" && <CorroborationLine entityId={fact.entity_id} refreshKey={fact.evaluated_as_of} disputedNow={fact.conflict_status === "OPEN"} />}
       <details>
         <summary style={{ fontSize: 12, cursor: "pointer" }}>근거 {fact.candidates.length}건 보기</summary>
         <ul style={{ margin: "4px 0 0", paddingLeft: 16, display: "grid", gap: 8, listStyle: "none" }}>
           {fact.candidates.map((c) => (
-            <CandidateRow key={c.event_id} c={c} actorId={actorId} asOf={asOf} onUpdated={onUpdated} />
+            <CandidateRow key={c.event_id} c={c} factKey={fact.fact_key} actorId={actorId} asOf={asOf} onUpdated={onUpdated} />
           ))}
         </ul>
       </details>
@@ -216,7 +216,7 @@ const CORROBORATION_LABEL: Record<string, { text: string; badge: string }> = {
 };
 
 /** T-136 — 업체 회신 · 진술과 공공 관측(입항 신고)의 교차 확인 결과. 규칙이 정한 결과를 그대로 보여 준다(화면이 판정하지 않는다) */
-function CorroborationLine({ entityId, refreshKey }: { entityId: string; refreshKey: string }) {
+function CorroborationLine({ entityId, refreshKey, disputedNow }: { entityId: string; refreshKey: string; disputedNow: boolean }) {
   const list = useAsyncAction((signal) => listCorroborations(entityId, signal));
   const { run } = list;
   useEffect(() => {
@@ -224,7 +224,8 @@ function CorroborationLine({ entityId, refreshKey }: { entityId: string; refresh
   }, [run, entityId, refreshKey]);
   const latest = list.state.status === "SUCCESS" ? list.state.data.corroborations[0] : undefined;
   if (!latest) return null;
-  const label = CORROBORATION_LABEL[latest.result] ?? { text: latest.result, badge: "b-outline" };
+  // 판정 기록은 남지만(append-only), 사람이 이미 판단해 사실이 더는 충돌 중이 아니면 "해소됨"으로 보인다(T-144 — 지금 상태는 Truth 가 정한다)
+  const label = latest.result === "CONFLICT" && !disputedNow ? { text: "공공 근거와 충돌했음 — 사람이 판단함(해소)", badge: "b-outline" } : (CORROBORATION_LABEL[latest.result] ?? { text: latest.result, badge: "b-outline" });
   return (
     <div style={{ fontSize: 11.5, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }} data-testid="fact-corroboration" data-result={latest.result}>
       <span className={`badge ${label.badge}`}>{label.text}</span>

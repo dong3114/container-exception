@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { type Plan, approvePlan, getPlan, listPlans, recalculatePlan } from "@/api/plans";
 import { describeApiError } from "@/api/errors";
 import { krw } from "@/components/format";
+import { formatValue } from "@/components/facts/factLabels";
 import { outdatedText, outdatedValueChange } from "@/components/ops/opsModel";
 import { Callout, EmptyState } from "@/components/ui/primitives";
 import { useAsyncAction } from "@/state/async";
@@ -203,7 +204,7 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
             <div style={{ display: "grid", gap: 4, fontSize: 12 }} data-testid="plan-warnings">
               {warnFacts.map((f, i) => (
                 <div key={i} className={`badge ${f.usage === "EXCLUDED" ? "b-red" : "b-amber"}`} style={{ whiteSpace: "normal", justifySelf: "start" }}>
-                  {usageLabel(String(f.usage))}: {String(f.subject_name ?? f.subject_id)} {String(f.fact_key)} = {f.value === null ? "값 없음" : String(f.value)} ({factReasonLabel(f.reason as string | null)} · 출처 {String(f.source)})
+                  {usageLabel(String(f.usage))}: {String(f.subject_name ?? f.subject_id)} {String(f.fact_key)} = {formatValue(f.value === null ? null : Number(f.value), null, String(f.fact_key))} ({factReasonLabel(f.reason as string | null)} · 출처 {String(f.source)})
                 </div>
               ))}
               {(result.binding_constraints ?? []).map((b, i) => (

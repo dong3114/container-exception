@@ -4,6 +4,7 @@ import type { ContactAddress, Counterparty, FollowUpView } from "@/api/ops";
 import type { Plan, PlanItem, PlanSummary } from "@/api/plans";
 import type { FactCoordinate, OpenConflict } from "@/api/truth";
 import { nodeLabel } from "@/components/agent/agentLabels";
+import { formatValue } from "@/components/facts/factLabels";
 import { ACTION_LABEL, outdatedLabel } from "@/components/plan/planLabels";
 import { HUMAN_REASON, RECORD_KIND_LABEL, type RunGroup, reasonTitle } from "./opsLabels";
 
@@ -323,7 +324,7 @@ export function gapRows(facts: FactCoordinate[], drafts: Draft[]): GapRow[] {
       askedTo: asked ? `${asked.thread.counterparty_name}${asked.thread.contact_name ? ` · ${asked.thread.contact_name}` : ""}` : null,
       askStatus: asked?.message.status ?? null,
       replied: Boolean(asked && asked.replies.length > 0),
-      value: f.current ? `${f.current.value}${f.current.unit ? ` ${f.current.unit}` : ""}` : null,
+      value: f.current ? (f.fact_key === "declared_arrival" ? formatValue(f.current.value, f.current.unit, f.fact_key) : `${f.current.value}${f.current.unit ? ` ${f.current.unit}` : ""}`) : null,
       confirmed: f.fact_state === "CONFIRMED" || f.fact_state === "OBSERVED",
     };
   });

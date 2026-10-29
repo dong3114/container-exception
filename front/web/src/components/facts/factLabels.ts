@@ -126,7 +126,12 @@ const SOURCE_LABEL: Record<string, string> = { EMAIL: "메일 회신", HUMAN_UI:
 export const sourceLabel = (source: string) => SOURCE_LABEL[source] ?? source;
 
 const UNIT_LABEL: Record<string, string> = { TRUCK: "대", CONTAINER: "개", KRW: "원" };
-export const formatValue = (value: number | null, unit: string | null) => (value === null ? "값 없음" : `${value}${unit ? (UNIT_LABEL[unit] ?? ` ${unit}`) : ""}`);
+/** 값이 시각(epoch ms)인 사실 — 입항 신고 일시(T-136 · T-144). Backend 는 시각 값을 epoch ms 로 준다 */
+const TIMESTAMP_FACTS = new Set(["declared_arrival"]);
+const seoulMinute = (ms: number) => new Date(ms + 9 * 3_600_000).toISOString().slice(5, 16).replace("T", " ");
+
+export const formatValue = (value: number | null, unit: string | null, factKey?: string) =>
+  value === null ? "값 없음" : factKey && TIMESTAMP_FACTS.has(factKey) ? seoulMinute(value) : `${value}${unit ? (UNIT_LABEL[unit] ?? ` ${unit}`) : ""}`;
 
 export const formatTime = (iso: string) => iso.slice(0, 16).replace("T", " ");
 export function formatWindow(from: string | null, until: string | null): string {
