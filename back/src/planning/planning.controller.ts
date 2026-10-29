@@ -117,7 +117,7 @@ export class PlanningController {
   @ApiBody({ type: ApprovePlanRequestDto })
   @ApiOkResponse({ type: PlanDto })
   @ApiBadRequestResponse({ description: 'INVALID_PLAN_REQUEST', schema: ERROR_SCHEMA })
-  @ApiConflictResponse({ description: 'PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH · PLAN_RELIES_ON_DISPUTED_FACT', schema: ERROR_SCHEMA })
   async approve(@Param('planId') planId: string, @Headers(PLAN_ACTOR_HEADER) actorHeader: string | undefined, @Body() body: unknown): Promise<PlanDto> {
     await this.plans.approve(planId, actorHeader, body);
     return this.dto(planId);

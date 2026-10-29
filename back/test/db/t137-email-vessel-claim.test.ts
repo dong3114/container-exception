@@ -248,6 +248,7 @@ describe('T-137 CONFLICT — a partner email contradicts the public declaration'
     const open = (await http.get('/truth/corroborations/open-conflicts').expect(200)).body.conflicts.find((x: { entity_id: string }) => x.entity_id === v.id);
     expect(open).toMatchObject({ entity_type: 'VESSEL_CALL', fact_key: 'declared_arrival', recovery_run_id: w.runId, difference_minutes: 1440, tolerance_minutes: 60 });
     expect(open.claim_value).not.toBe(open.public_value);
+    expect(open.entity_name).toContain(v.sign); // 운영자가 어느 배인지 안다(T-144 — "선박명 (호출부호)")
 
     // Solver: 충돌한 값을 제약으로 조용히 쓰지 않는다(입항 전 판정 없음) — 대신 검증 위험 정책 벌점 [ASSUMPTION]
     expect(facts[0]).toMatchObject({ fact_state: 'NEEDS_REVIEW' });

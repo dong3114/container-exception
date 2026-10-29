@@ -4100,7 +4100,7 @@
             }
           },
           "409": {
-            "description": "PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH",
+            "description": "PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH · PLAN_RELIES_ON_DISPUTED_FACT",
             "content": {
               "application/json": {
                 "schema": {

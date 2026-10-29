@@ -399,6 +399,8 @@ export class TruthRepository {
     if (ids.length === 0) return out;
     for (const r of await q.select({ id: facility.facilityId, n: facility.facilityName }).from(facility).where(inArray(facility.facilityId, [...ids]))) out.set(r.id, r.n);
     for (const r of await q.select({ id: truckPool.truckPoolId, n: truckPool.poolName }).from(truckPool).where(inArray(truckPool.truckPoolId, [...ids]))) out.set(r.id, r.n);
+    // T-144: 입항 신고(공공 근거 교차 확인 대상) — 운영자가 어느 배인지 알 수 있게 "선박명 (호출부호)"
+    for (const r of await q.select({ id: vesselCall.vesselCallId, n: vesselCall.vesselName, s: vesselCall.callSign }).from(vesselCall).where(inArray(vesselCall.vesselCallId, [...ids]))) out.set(r.id, r.n ? `${r.n} (${r.s})` : r.s);
     return out;
   }
 

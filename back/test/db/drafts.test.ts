@@ -293,8 +293,23 @@ describe('GET /communication/drafts and /planning/runs', () => {
     const d = (await http.post('/communication/drafts').send(truckRequest(w)).expect(201)).body;
     const list = (await http.get('/communication/drafts').expect(200)).body;
     expect(list.drafts[0].message.message_id).toBe(d.message.message_id);
+    // 실행 목록은 최근 20건(실행 시각 순)이다. 공유 시험 DB 에서 다른 시험이 지금 시각의 실행을 많이 만들면 T0(과거) 실행은 밀려난다 —
+    // 목록 확인용 실행은 지금 시각으로 하나 따로 만든다(시험 순서와 무관하게)
+    const snap = (await app.query('SELECT snapshot_id FROM cera.recovery_run WHERE run_id = $1', [w.runId])).rows[0].snapshot_id as string;
+    const listedRunId = v7();
+    const listedSnapshotId = v7();
+    await app.query(
+      `INSERT INTO cera.planning_snapshot (snapshot_id, as_of, fact_fingerprint, rule_version, tariff_version, policy_version, contains_simulated, created_at, scenario_id)
+       SELECT $1, as_of, $2, rule_version, tariff_version, policy_version, contains_simulated, created_at, scenario_id FROM cera.planning_snapshot WHERE snapshot_id = $3`,
+      [listedSnapshotId, hashOf(`snap-${listedSnapshotId}`), snap],
+    );
+    await app.query(
+      `INSERT INTO cera.recovery_run (run_id, snapshot_id, trigger_type, trigger_ref, objective_version, run_status, contains_simulated, executed_at)
+       VALUES ($1, $2, 'EXCEPTION_DETECTED', 'RP-TEST-LIST', 'o1', 'FEASIBLE', true, clock_timestamp())`,
+      [listedRunId, listedSnapshotId],
+    );
     const runs = (await http.get('/planning/runs').expect(200)).body;
-    expect(runs.runs.some((r: { run_id: string; trigger_ref: string }) => r.run_id === w.runId && r.trigger_ref === 'RP-TEST')).toBe(true);
+    expect(runs.runs.some((r: { run_id: string; trigger_ref: string }) => r.run_id === listedRunId && r.trigger_ref === 'RP-TEST-LIST')).toBe(true);
   });
 
   it('OpenAPI carries the draft contract', async () => {

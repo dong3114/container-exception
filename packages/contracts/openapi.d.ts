@@ -5431,7 +5431,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH */
+            /** @description PLAN_OUTDATED · PLAN_NOT_PROPOSED · PLAN_HASH_MISMATCH · PLAN_RELIES_ON_DISPUTED_FACT */
             409: {
                 headers: {
                     [name: string]: unknown;

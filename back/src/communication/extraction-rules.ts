@@ -86,10 +86,11 @@ function timeInQuote(value: string, quote: string): boolean {
   const [h, m] = value.split(':').map(Number) as [number, number];
   if (quote.includes(value)) return true;
   const minuteOk = (text: string) => m === 0 || new RegExp(`${m}\\s*분`).test(text) || (m === 30 && /반/.test(text));
-  if (new RegExp(`(^|[^0-9])${h}\\s*시`).test(quote) && minuteOk(quote)) return true;
+  // 앞에 0 이 붙은 시각("06시" · "오전 09시")도 같은 시각이다(T-144 실제 회신) — 0 하나만. 다른 숫자에 붙은 시각("16시"의 6)은 여전히 아니다
+  if (new RegExp(`(^|[^0-9])0?${h}\\s*시`).test(quote) && minuteOk(quote)) return true;
   const h12 = h > 12 ? h - 12 : h;
   const meridiem = h >= 12 ? '오후' : '오전';
-  return new RegExp(`${meridiem}\\s*${h12}\\s*시`).test(quote) && minuteOk(quote);
+  return new RegExp(`${meridiem}\\s*0?${h12}\\s*시`).test(quote) && minuteOk(quote);
 }
 
 const FORMAT: Record<string, RegExp> = { QUANTITY: /^\d{1,6}$/, TIME: /^([01]\d|2[0-3]):[0-5]\d$/, MONEY: /^\d{1,12}$/, DATE: /^\d{4}-\d{2}-\d{2}$/ };

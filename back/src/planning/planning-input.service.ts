@@ -138,8 +138,9 @@ export class PlanningInputService {
     const parsed = importSchema.safeParse(body ?? {});
     if (!parsed.success) throw new ValidationError('INVALID_IMPORT_REQUEST', 'command_id (uuid) and exactly one of csv (text) or rows (array); dry_run optional', parsed.error.issues.map((i) => i.path.join('.') || 'body'));
     const req = parsed.data;
-    const ctx = await this.context(kind, runId);
     const table = readTable(kind, req);
+    const numbers = 'errors' in table ? [] : table.rows.map((r) => (r.cells.container_no ?? '').trim().toUpperCase()).filter((x) => x.length > 0);
+    const ctx = await this.context(kind, runId, numbers);
     const dryRun = req.dry_run === true;
     const base = { kind, dry_run: dryRun, recovery_run_id: runId, replayed: false, batch_id: null };
     if ('errors' in table) return this.rejected({ ...base, content_hash: '', row_count: 0, valid_rows: 0, errors: table.errors });
@@ -323,6 +324,14 @@ export class PlanningInputService {
   }
 
   /** 범위 안 공공데이터 컨테이너(스냅숏 scope_ref.vessel_call_ids) — 아무 컨테이너나 끌어오지 않는다. */
+  /** 공공 적하목록으로 등록된(실제 · 활성) 컨테이너 가운데 번호가 정확히 같은 것 */
+  private async publicContainersByNumber(numbers: readonly string[]): Promise<Map<string, { id: string; sizeType: string | null }>> {
+    const wanted = [...new Set(numbers)];
+    if (wanted.length === 0) return new Map();
+    const rows = await this.db.select({ id: container.containerId, no: container.containerNo, size: container.sizeType }).from(container).where(and(inArray(container.containerNo, wanted), eq(container.isActive, true), eq(container.isSimulated, false)));
+    return new Map(rows.map((r) => [r.no, { id: r.id, sizeType: r.size }]));
+  }
+
   private async publicContainers(runId: string): Promise<Map<string, { id: string; sizeType: string | null }>> {
     const [snap] = await this.db.select({ scope: planningSnapshot.scopeRef }).from(planningSnapshot).innerJoin(recoveryRun, eq(recoveryRun.snapshotId, planningSnapshot.snapshotId)).where(eq(recoveryRun.runId, runId)).limit(1);
     const scoped = z.array(z.string().uuid()).safeParse((snap?.scope as { vessel_call_ids?: unknown } | null)?.vessel_call_ids);
@@ -331,11 +340,12 @@ export class PlanningInputService {
     return new Map(rows.map((r) => [r.no, { id: r.id, sizeType: r.size }]));
   }
 
-  private async context(kind: ImportKind, runId: string | null): Promise<ImportContext> {
+  private async context(kind: ImportKind, runId: string | null, containerNumbers: readonly string[] = []): Promise<ImportContext> {
     const facilities = (await this.db.select({ id: facility.facilityId, name: facility.facilityName, type: facility.facilityType, isActive: facility.isActive }).from(facility)).map((f) => ({ ...f }));
     if (kind !== 'CONTAINERS') return { planDay: null, facilities, publicContainers: new Map() };
-    // 운영 기준 계획: 기준 날짜 = 오늘(서울). 공공데이터 범위가 없으므로 컨테이너는 행에 적힌 그대로
-    if (runId === null) return { planDay: this.clock.now().toSeoulIso().slice(0, 10), facilities, publicContainers: new Map() };
+    // 운영 기준 계획: 기준 날짜 = 오늘(서울). 실행 범위가 없으므로 적힌 컨테이너 번호(유일 식별자)로만 공공 적하목록 컨테이너와 잇는다(T-144) —
+    // 이 연결이 없으면 탐지기가 만든 실행의 컨테이너가 입항 신고와 이어지지 않아 실제 입항 일시가 계획에 닿지 않는다. 이름 · 유사도 대조는 없다
+    if (runId === null) return { planDay: this.clock.now().toSeoulIso().slice(0, 10), facilities, publicContainers: await this.publicContainersByNumber(containerNumbers) };
     const run = await this.liveRun(runId);
     return { planDay: run.planDay, facilities, publicContainers: await this.publicContainers(runId!) };
   }

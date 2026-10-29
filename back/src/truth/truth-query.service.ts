@@ -15,7 +15,7 @@ import type { FactListDto, OpenConflictListDto } from './dto.js';
 export const TRUTH_LIMITATIONS = [
   'FRESHNESS_IS_AN_ASSUMPTION — per-family freshness values are generous starting points [ASSUMPTION]; an explicit valid_until wins',
   'SINGLE_REPLY_IS_NOT_AUTHORITY — an emailed answer is at most PROVISIONAL until a human confirms it',
-  'NO_SOLVER — no recovery optimisation uses these values yet (T-036)',
+  'SOLVER_USES_USABLE_FACTS_ONLY — the recovery solver uses a fact only while it is usable; a disputed (NEEDS_REVIEW) value is never a constraint (T-136 · T-144)',
 ] as const;
 
 /** 사실 목록 읽기(화면). 계획 실행이 물은 좌표들 + 그 개체의 모든 사실. */

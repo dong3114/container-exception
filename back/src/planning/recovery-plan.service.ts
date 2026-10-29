@@ -538,6 +538,10 @@ export class RecoveryPlanService implements OnModuleInit {
     if (fresh.planStatus === 'OUTDATED') throw new BusinessRuleError('PLAN_OUTDATED', 'A fact this plan relied on changed — recalculate before approving', 409);
     if (fresh.planStatus !== 'PROPOSED') throw new BusinessRuleError('PLAN_NOT_PROPOSED', `Only a PROPOSED plan can be approved (this one is ${fresh.planStatus})`, 409);
     if (fresh.planHash !== parsed.data.plan_hash) throw new BusinessRuleError('PLAN_HASH_MISMATCH', 'The plan changed since you viewed it — reload and review again', 409);
+    // T-144(ADR-042 결정 3): 사람이 아직 판단하지 않은 공공 근거 충돌에 기댄 계획은 승인할 수 없다 — 충돌을 확인 · 거절하면 사실이 바뀌어
+    // 이 판은 OUTDATED 가 되고, 다시 계산한 판을 승인한다(계획 계산은 막지 않는다 — 승인만)
+    const disputed = itemsRelyingOnDisputedFacts(await this.items(planId));
+    if (disputed.length > 0) throw new BusinessRuleError('PLAN_RELIES_ON_DISPUTED_FACT', `${disputed.length} container(s) rely on a fact whose public evidence and partner claim disagree — resolve the conflict (confirm or reject the claim) and recalculate before approving`, 409);
     const now = this.clock.now().toDb();
     await this.tx.run(async (tx) => {
       const rows = await tx
@@ -620,4 +624,9 @@ export function truthToPlanningFacts(results: CoordinateResult[], planDay: strin
       evidence_time: w ? Instant.parseIso(w.evidenceTime).toSeoulIso() : null,
     };
   });
+}
+
+/** T-144(ADR-042 결정 3) — 사람이 아직 판단하지 않은 공공 근거 충돌(경고 CONFLICTED)에 기댄 계획 항목. 하나라도 있으면 그 판은 승인할 수 없다 */
+export function itemsRelyingOnDisputedFacts<T extends { detail: unknown }>(items: readonly T[]): T[] {
+  return items.filter((i) => ((i.detail as { warning_refs?: { reason?: string }[] } | null)?.warning_refs ?? []).some((w) => w.reason === 'CONFLICTED'));
 }

@@ -39,11 +39,12 @@ def _time_in_quote(value: str, quote: str) -> bool:
     def minute_ok(text: str) -> bool:
         return m == 0 or bool(re.search(rf"{m}{_WS}*분", text)) or (m == 30 and "반" in text)
 
-    if re.search(rf"(^|[^0-9]){h}{_WS}*시", quote) and minute_ok(quote):
+    # zero-padded hours ("06시", "오전 09시") are the same time (T-144 real reply) — one leading zero only
+    if re.search(rf"(^|[^0-9])0?{h}{_WS}*시", quote) and minute_ok(quote):
         return True
     h12 = h - 12 if h > 12 else h
     meridiem = "오후" if h >= 12 else "오전"
-    return bool(re.search(rf"{meridiem}{_WS}*{h12}{_WS}*시", quote)) and minute_ok(quote)
+    return bool(re.search(rf"{meridiem}{_WS}*0?{h12}{_WS}*시", quote)) and minute_ok(quote)
 
 
 def backend_checks(ask: dict[str, Any], source_text: str, answers: list[dict[str, Any]], ambiguity_flags: list[str]) -> list[dict[str, Any]]:  # noqa: ARG001
