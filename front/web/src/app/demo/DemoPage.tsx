@@ -163,16 +163,35 @@ export default function DemoPage() {
 
   return (
     <div style={{ maxWidth: 1360, margin: "0 auto", padding: "16px 16px 40px", display: "grid", gap: 12 }} data-testid="demo-page">
-      <header className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <div>
-          <div className="card-title">CERA 시연 · 테스트 콘솔</div>
+      <header className="card demo-head" data-testid="demo-header">
+        <div style={{ display: "grid", gap: 4 }}>
+          <div className="intro-kicker" style={{ color: "var(--amber)" }}>GUIDED DEMO · 단계별 체험</div>
+          <div className="card-title" style={{ fontSize: 17 }}>창고 수용량 부족 → 복구 계획까지, 12단계로 따라가 보기</div>
           <div className="muted" style={{ fontSize: 12 }}>
-            부산항 창고 수용량 감소 · 컨테이너 30대 <b>합성 시나리오</b>(시뮬레이션). 업체 · 요율 · 컨테이너는 가상이고, 숫자는 실제 Cost Engine · Solver 계산 결과입니다. 업체 회신은 Mock 메일함, AI 추출은 녹화 재생입니다.
+            부산항 · 컨테이너 30대 <b>합성 시나리오</b>(시뮬레이션). 업체 · 요율 · 컨테이너는 가상이고, 숫자는 실제 Cost Engine · Solver 계산 결과입니다. 업체 회신은 Mock 메일함, AI 추출은 녹화 재생입니다. 실제 업무 화면은 운영 콘솔입니다.
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <a className="act-btn" href="/">Control Tower 열기</a>
+          <a className="act-btn" href="/">운영 콘솔 열기</a>
           <button type="button" className="act-btn" onClick={() => load()}>새로 고침</button>
+        </div>
+        <div className="demo-now" data-testid="demo-now">
+          <div className="demo-progress" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={steps.filter((s) => s.done).length} aria-label="체험 진행">
+            <span style={{ width: `${Math.round((steps.filter((s) => s.done).length / steps.length) * 100)}%` }} />
+          </div>
+          <span>
+            <b>{steps.filter((s) => s.done).length}</b> / {steps.length} 단계 완료
+          </span>
+          {now >= 0 ? (
+            <>
+              <span>
+                지금: <a href={`#step-${now + 1}`}><b>{now + 1}. {steps[now]!.title}</b></a>
+              </span>
+              {steps[now + 1] && <span className="muted">다음: {now + 2}. {steps[now + 1]!.title}</span>}
+            </>
+          ) : (
+            <span className="badge b-green">✓ 모든 단계를 마쳤습니다</span>
+          )}
         </div>
       </header>
 
