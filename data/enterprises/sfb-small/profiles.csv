@@ -1,0 +1,3 @@
+facility,accepts,open_from_hour,last_departure_hour,trip_hours,max_storage_days
+SFB 부산 강서 창고 (가상),20DRY|40HC,9,21,1,
+SFB 감천 ODCY (가상),20DRY|40HC,0,23,1,3

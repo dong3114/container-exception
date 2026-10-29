@@ -1,0 +1,4 @@
+facility,accepts,open_from_hour,last_departure_hour,trip_hours,max_storage_days
+CL 김해 물류센터 A동 (가상),20DRY|40DRY|40HC,8,21,2,
+CL 양산 물류센터 (가상),20DRY|40DRY|40HC,8,20,2,
+CL 신항 ODCY 1 (가상),20DRY|40DRY|40HC,0,22,1,5

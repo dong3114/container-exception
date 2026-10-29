@@ -1,0 +1,222 @@
+{
+  "pack": "enterprise-pack/1",
+  "note": "T-144 가상 물류기업 A — 모든 이름 · 숫자는 합성(SYNTHETIC)이다. 실제 기업 · 시설 · 요율이 아니다. 실제는 입항 신고(Port-MIS)와 그 적하목록 컨테이너 번호뿐이며, 그 번호는 실행 때 공공데이터에서 고르고 이 파일 · 저장소에 남기지 않는다. 연락처 주소도 저장소에 없다(실행 환경변수).",
+  "enterprise": {
+    "key": "cera-logistics",
+    "name": "CERA Logistics (가상)"
+  },
+  "counterparties": [
+    {
+      "key": "WH_OPS",
+      "role": "WAREHOUSE",
+      "name": "CL 김해센터 운영팀 (가상)"
+    },
+    {
+      "key": "TRUCKER",
+      "role": "TRUCKING",
+      "name": "CL 파트너운송 (가상)"
+    },
+    {
+      "key": "ODCY_OPS",
+      "role": "ODCY",
+      "name": "CL 신항 ODCY 운영 (가상)"
+    }
+  ],
+  "contacts": [
+    {
+      "counterparty": "TRUCKER",
+      "person_name": "배차 담당 (가상)",
+      "team": "배차팀",
+      "channel": "GMAIL",
+      "address_env": "CERA_HYBRID_TRUCKER_EMAIL"
+    },
+    {
+      "counterparty": "WH_OPS",
+      "person_name": "입고 담당 (가상)",
+      "team": "입고팀",
+      "channel": "GMAIL",
+      "address_env": "CERA_HYBRID_WAREHOUSE_EMAIL"
+    },
+    {
+      "counterparty": "ODCY_OPS",
+      "person_name": "야드 담당 (가상)",
+      "team": "야드팀",
+      "channel": "GMAIL",
+      "address_env": "CERA_HYBRID_ODCY_EMAIL"
+    }
+  ],
+  "facilities": [
+    {
+      "key": "WH_A",
+      "type": "WAREHOUSE",
+      "name": "CL 김해 물류센터 A동 (가상)",
+      "area": "김해",
+      "operator": "WH_OPS"
+    },
+    {
+      "key": "WH_B",
+      "type": "WAREHOUSE",
+      "name": "CL 양산 물류센터 (가상)",
+      "area": "양산",
+      "operator": "WH_OPS"
+    },
+    {
+      "key": "ODCY_1",
+      "type": "ODCY",
+      "name": "CL 신항 ODCY 1 (가상)",
+      "area": "부산신항",
+      "operator": "ODCY_OPS"
+    }
+  ],
+  "truck_pools": [
+    {
+      "key": "OWN",
+      "name": "CL 자사 셔틀 (가상)",
+      "ownership": "OWN"
+    },
+    {
+      "key": "PARTNER",
+      "name": "CL 파트너운송 셔틀 (가상)",
+      "ownership": "PARTNER",
+      "owner": "TRUCKER"
+    }
+  ],
+  "profiles_csv": "profiles.csv",
+  "rates_csv": "rates.csv",
+  "terminal_code": "BNP_TML",
+  "carrier_code": "LINE_A",
+  "plan": {
+    "groups": [
+      {
+        "destination": "WH_A",
+        "count": 20,
+        "sizes": {
+          "40HC": 14,
+          "20DRY": 4,
+          "40DRY": 2
+        },
+        "depart_hours": [
+          15,
+          15,
+          16,
+          16,
+          16,
+          17,
+          17,
+          17,
+          18,
+          18,
+          18,
+          19,
+          19,
+          19,
+          20,
+          20,
+          20,
+          20,
+          21,
+          21
+        ],
+        "lfd_offsets": [
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          3,
+          3,
+          3,
+          4,
+          4,
+          4,
+          4,
+          5,
+          5,
+          5,
+          5,
+          6,
+          6,
+          6
+        ],
+        "high_priority": 3
+      },
+      {
+        "destination": "WH_B",
+        "count": 4,
+        "sizes": {
+          "40HC": 4
+        },
+        "depart_hours": [
+          16,
+          17,
+          18,
+          19
+        ],
+        "lfd_offsets": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "high_priority": 0
+      }
+    ]
+  },
+  "initial_facts": [
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "WH_A",
+      "value": 20,
+      "source_note": "김해센터 A동 오늘 입고 가능 대수 — 운영팀 일일 계획(가상)"
+    },
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "WH_B",
+      "value": 8,
+      "source_note": "양산센터 오늘 입고 가능 대수 — 운영팀 일일 계획(가상)"
+    },
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "ODCY_1",
+      "value": 10,
+      "source_note": "신항 ODCY 1 오늘 반입 가능 대수 — 야드팀 회신(가상)"
+    },
+    {
+      "kind": "TRUCK_SLOT",
+      "target": "OWN",
+      "window_from": "15:00",
+      "window_to": "21:00",
+      "value": 4,
+      "source_note": "자사 셔틀 오늘 오후 배차 가능 — 자사 배차표(가상)"
+    },
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "WH_A",
+      "day_offset": 1,
+      "value": 12,
+      "source_note": "김해센터 A동 내일 입고 가능 대수 — 운영팀 주간 계획(가상)"
+    },
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "WH_A",
+      "day_offset": 2,
+      "value": 12,
+      "source_note": "김해센터 A동 모레 입고 가능 대수 — 운영팀 주간 계획(가상)"
+    },
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "WH_B",
+      "day_offset": 1,
+      "value": 8,
+      "source_note": "양산센터 내일 입고 가능 대수 — 운영팀 주간 계획(가상)"
+    },
+    {
+      "kind": "FACILITY_CAPACITY",
+      "target": "WH_B",
+      "day_offset": 2,
+      "value": 8,
+      "source_note": "양산센터 모레 입고 가능 대수 — 운영팀 주간 계획(가상)"
+    }
+  ]
+}

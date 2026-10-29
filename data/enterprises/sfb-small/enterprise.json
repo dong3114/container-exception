@@ -1,0 +1,36 @@
+{
+  "pack": "enterprise-pack/1",
+  "note": "T-144 가상 물류기업 B(소형) — 범용성 확인용 두 번째 기업. 모든 이름 · 숫자는 합성(SYNTHETIC). A 와 시설 · 운송사 · 요율 · 시간이 다르고 자사 트럭이 없다. 실제는 입항 신고와 그 적하목록 컨테이너 번호뿐(실행 때 고르고 저장소에 남기지 않는다).",
+  "enterprise": { "key": "sfb-small", "name": "SFB 소형물류 (가상)" },
+  "counterparties": [
+    { "key": "WH_OPS", "role": "WAREHOUSE", "name": "SFB 강서창고 관리 (가상)" },
+    { "key": "HAULIER", "role": "TRUCKING", "name": "SFB 협력운송 (가상)" },
+    { "key": "YARD_OPS", "role": "ODCY", "name": "SFB 감천야드 (가상)" }
+  ],
+  "contacts": [
+    { "counterparty": "HAULIER", "person_name": "운송 담당 (가상)", "channel": "GMAIL", "address_env": "CERA_HYBRID_B_HAULIER_EMAIL" }
+  ],
+  "facilities": [
+    { "key": "WH_MAIN", "type": "WAREHOUSE", "name": "SFB 부산 강서 창고 (가상)", "area": "강서", "operator": "WH_OPS" },
+    { "key": "YARD", "type": "ODCY", "name": "SFB 감천 ODCY (가상)", "area": "감천", "operator": "YARD_OPS" }
+  ],
+  "truck_pools": [
+    { "key": "HAUL_POOL", "name": "SFB 협력운송 트럭 (가상)", "ownership": "PARTNER", "owner": "HAULIER" }
+  ],
+  "profiles_csv": "profiles.csv",
+  "rates_csv": "rates.csv",
+  "terminal_code": "BNP_T2",
+  "carrier_code": "LINE_B",
+  "plan": {
+    "groups": [
+      { "destination": "WH_MAIN", "count": 10, "sizes": { "40HC": 7, "20DRY": 3 }, "depart_hours": [16, 16, 17, 17, 17, 18, 18, 19, 19, 20], "lfd_offsets": [0, 1, 1, 2, 2, 2, 3, 3, 4, 4], "high_priority": 2 }
+    ]
+  },
+  "initial_facts": [
+    { "kind": "FACILITY_CAPACITY", "target": "WH_MAIN", "value": 10, "source_note": "강서 창고 오늘 입고 가능 대수 — 창고 관리 일일 계획(가상)" },
+    { "kind": "FACILITY_CAPACITY", "target": "WH_MAIN", "day_offset": 1, "value": 5, "source_note": "강서 창고 내일 입고 가능 대수(가상)" },
+    { "kind": "FACILITY_CAPACITY", "target": "WH_MAIN", "day_offset": 2, "value": 5, "source_note": "강서 창고 모레 입고 가능 대수(가상)" },
+    { "kind": "FACILITY_CAPACITY", "target": "YARD", "value": 4, "source_note": "감천 ODCY 오늘 반입 가능 대수(가상)" },
+    { "kind": "TRUCK_SLOT", "target": "HAUL_POOL", "window_from": "16:00", "window_to": "22:00", "value": 4, "source_note": "협력운송 오늘 배차 확정 — 운송 담당 확인(가상)" }
+  ]
+}
