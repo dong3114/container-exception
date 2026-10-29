@@ -17,6 +17,7 @@ import { nextDate, seoulToUtcIso } from './promotion-rules.js';
 import type { Role } from './reconcile-rules.js';
 import { type Coordinate, TruthRepository } from './truth.repository.js';
 import { type FactCoordinateView, TruthService } from './truth.service.js';
+import { CorroborationService } from './corroboration.service.js';
 
 /** 사람 명령 헤더 — 인증이 생기기 전 개발용(승인 API 와 같은 방식). 서버가 활성 HUMAN actor 인지 확인한다. */
 export const FACT_ACTOR_HEADER = 'x-cera-actor-id';
@@ -62,6 +63,23 @@ const manualSchema = z
   .strict()
   .refine((b) => b.kind !== 'TRUCK_SLOT' || (b.window_from !== undefined && b.window_to !== undefined && b.window_from < b.window_to), { message: 'TRUCK_SLOT needs window_from < window_to', path: ['window_from'] });
 
+/**
+ * T-136 업체 진술(사람이 전달) — 전화 · 메신저로 업체(선사 · 터미널 · 운송사)가 공공데이터로 확인할 수 있는 사실(선박 입항 일시)을 말했을 때,
+ * 운영자가 "업체가 이렇게 말했다"를 그대로 남긴다. 운영자의 확인이 아니다(권한 W → 강도 1 → 임시). 공공 근거 교차 확인(Corroboration)의 주장이 된다.
+ */
+const partnerStatementSchema = z
+  .object({
+    command_id: commandId,
+    intent: z.literal('PARTNER_STATEMENT'),
+    vessel_call_id: uuid,
+    // 업체가 말한 입항(신고) 일시 — 오프셋 필수(+09:00)
+    arrival_at: z.string().min(16).max(40),
+    // 누가 · 어떻게 말했나(예: "K해운 배차 담당 전화") — 출처 없는 진술은 받지 않는다
+    source_note: z.string().trim().min(1).max(200),
+    observed_at: z.string().optional(),
+  })
+  .strict();
+
 type Action = 'CONFIRM' | 'REJECT' | 'CORRECT' | 'REVOKE';
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
@@ -99,6 +117,7 @@ export class FactActionService {
   constructor(
     @Inject(TruthRepository) private readonly repo: TruthRepository,
     @Inject(TruthService) private readonly truth: TruthService,
+    @Inject(CorroborationService) private readonly corroborations: CorroborationService,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(ContentService) private readonly content: ContentService,
     @Inject(EventWriter) private readonly events: EventWriter,
@@ -133,6 +152,70 @@ export class FactActionService {
    * 운영자 직접 입력(T-111): AI 후보 없이 사람이 확인한 사실(전화 · 방문 등)을 넣는다. 사람의 직접 입력(HUMAN_UI)이라 바로 CONFIRMED 다 —
    * 대신 활성 HUMAN · 명시적 의도(`OPERATOR_DIRECT_ENTRY`) · 출처 메모 · 감사가 반드시 있다. 고칠 때는 정정(대체 + 새 사건)이다(UPDATE 없음).
    */
+  /** T-136: 사람이 전달한 업체 진술(선박 입항 일시) — 임시 주장으로 남고, 공공 관측과 교차 확인된다. 사실을 확정하지 않는다 */
+  async enterPartnerStatement(actorHeader: string | undefined, body: unknown): Promise<FactCoordinateView> {
+    const req = parse(partnerStatementSchema, body);
+    const humanId = await this.resolveHuman(actorHeader);
+    const now = this.clock.now();
+    let arrivalAt: Instant;
+    let observedAt: Instant | null = null;
+    try {
+      arrivalAt = Instant.parseIso(req.arrival_at);
+      if (req.observed_at !== undefined) observedAt = Instant.parseIso(req.observed_at);
+    } catch {
+      throw new ValidationError('INVALID_FACT_REQUEST', 'arrival_at / observed_at must be ISO 8601 with an offset', ['arrival_at']);
+    }
+    if (observedAt && observedAt.isAfter(now)) throw new ValidationError('INVALID_FACT_REQUEST', 'observed_at cannot be in the future', ['observed_at']);
+    const commandIdValue = req.command_id ?? this.ids.newId();
+    const call = await this.repo.vesselCall(req.vessel_call_id);
+    if (!call) throw new BusinessRuleError('TARGET_NOT_FOUND', 'No vessel call with this id', 404);
+    const coordinate: Coordinate = { entityType: 'VESSEL_CALL', entityId: call.id, factKey: 'declared_arrival', scopeType: 'GLOBAL', scopeRef: '', isSimulated: call.isSimulated };
+    const payloadBytes = new TextEncoder().encode(canonicalJson({ k: 'fact-command', v: 1, command: 'PARTNER_STATEMENT', command_id: commandIdValue, vessel_call_id: call.id, arrival_at: arrivalAt.toIsoUtc(), source_note: req.source_note, observed_at: req.observed_at ?? null }));
+    const stored = await this.content.storeVerified('RAW_INPUT_PAYLOAD', payloadBytes, 'application/json');
+    const changed = await this.tx.run(async (tx) => {
+      await this.repo.lockCoordinate(tx, coordinate);
+      const rawInputId = this.ids.newId();
+      const rawCreated = await this.events.insertRawInput(tx, { rawInputId, sourceType: 'HUMAN_UI', sourceName: FACT_COMMAND_SOURCE, sourceRecordKey: commandIdValue, payloadRef: stored.ref, payloadHash: stored.sha256, receivedAt: now.toDb(), collectedByActorId: humanId, isSimulated: call.isSimulated });
+      if (!rawCreated) return false;
+      const eventId = this.ids.newId();
+      const subject = { entityType: 'VESSEL_CALL', entityId: call.id };
+      await this.repo.insertEvent(tx, {
+        eventId,
+        schemaVersion: 'ev-1',
+        rawInputId,
+        eventClass: 'OBSERVATION',
+        eventType: 'ARRIVAL_DECLARED',
+        factKind: 'STATE',
+        factKey: 'declared_arrival',
+        valueTimestamp: arrivalAt.toDb(),
+        applicabilityScopeType: 'GLOBAL',
+        applicabilityScopeRef: '',
+        sourceEventTime: observedAt ? observedAt.toDb() : null,
+        receivedAt: now.toDb(),
+        sourceType: 'HUMAN_UI',
+        sourceRoleAtIngestion: 'OPERATOR',
+        extractionMethod: 'DIRECT',
+        inputQuality: 'STRUCTURED',
+        inputConfidenceLevel: 'MEDIUM',
+        enteredByActorId: humanId,
+        idempotencyKey: eventIdempotencyKey({ rawInputId, claimLocator: '/', subject, factKey: 'declared_arrival', targets: null, scope: { type: 'GLOBAL', ref: '' }, eventClass: 'OBSERVATION' }),
+        // 권한 W = 업체의 주장(운영자 확인이 아니다) · claim_kind 로 교차 확인 대상임을 남긴다
+        payload: { claim_locator: '/', authority: 'W', claim_kind: 'PARTNER_STATEMENT', entry: 'PARTNER_STATEMENT', source_note: req.source_note },
+        recordedAt: now.toDb(),
+        isSimulated: call.isSimulated,
+        scenarioId: call.scenarioId,
+      });
+      await this.repo.insertLinks(tx, [{ eventId, entityType: subject.entityType, entityId: subject.entityId, linkRole: 'SUBJECT' }]);
+      await this.audit.record(tx, { actorId: humanId, action: AUDIT_ACTION.PARTNER_STATEMENT_RECORDED, targetType: 'EVENT', targetId: eventId, result: 'SUCCESS', isSimulated: call.isSimulated });
+      return true;
+    });
+    // 진술은 곧바로 공공 관측과 교차 확인한다 — 응답의 사실 상태가 그 결과(일치 · 충돌)를 이미 반영한다(알림 · Worker 주기는 같은 결과를 다시 만들지 않는다)
+    if (changed) await this.corroborations.sweep({ entityId: coordinate.entityId });
+    if (changed) this.signals.emit({ type: 'FACT_CHANGED', entityId: coordinate.entityId, factKey: coordinate.factKey });
+    const [view] = await this.truth.view([await this.truth.liveForCoordinate(coordinate)]);
+    return view as FactCoordinateView;
+  }
+
   async enter(actorHeader: string | undefined, body: unknown, asOf?: string): Promise<FactCoordinateView> {
     const req = parse(manualSchema, body);
     const viewAsOf = parseAsOf(asOf);

@@ -8,6 +8,7 @@ import {
   commMessage,
   commThread,
   conflict,
+  corroboration,
   counterparty,
   event,
   eventEntityLink,
@@ -19,9 +20,12 @@ import {
   recoveryRun,
   scenario,
   truckPool,
+  vesselCall,
 } from '../db/schema/index.js';
+import { PUBLIC_DATA_REPLAY_SCENARIO_ID } from '../public-data/public-data.repository.js';
 import { Instant } from '../shared/time/instant.js';
 import type { Authority, Confidence, FactEvent, VerificationEvent } from './reconcile-rules.js';
+import { isTimestampFact } from './public-authority.js';
 
 export type Q = Database | DbTransaction;
 export type EventRow = typeof event.$inferSelect;
@@ -44,6 +48,8 @@ export interface CoordinateData {
   events: FactEvent[];
   verifications: (VerificationEvent & { actorId: string | null; reasonCode: string | null; note: string | null })[];
   scenarioId: string | null;
+  /** T-136 공공 근거 교차 확인(주장 사건마다) — 결과 · 판정 시각. 없으면 빈 목록 */
+  corroborations?: { claimEventId: string; result: string; createdAt: string }[];
 }
 
 export function toFactEvent(r: EventRow): FactEvent {
@@ -57,7 +63,8 @@ export function toFactEvent(r: EventRow): FactEvent {
     eventId: r.eventId,
     eventClass: r.eventClass as 'OBSERVATION' | 'CORRECTION',
     supersedesEventId: r.supersedesEventId,
-    value: r.valueNumber === null ? null : Number(r.valueNumber),
+    // T-136: 시각 사실(입항 신고 일시)은 epoch ms 로 비교한다 — 숫자 사실과 같은 판정 규칙(public-authority.ts)
+    value: r.valueNumber !== null ? Number(r.valueNumber) : r.valueTimestamp !== null && isTimestampFact(r.factKey) ? Instant.fromDb(r.valueTimestamp).epochMs : null,
     unit: r.valueUnit,
     factKind: r.factKind ?? 'STATE',
     validFrom: r.validFrom ? Instant.fromDb(r.validFrom).toIsoUtc() : null,
@@ -203,7 +210,24 @@ export class TruthRepository {
       }
       verifications.push(...byId.values());
     }
-    return { coordinate: c, rows, events: rows.map(toFactEvent), verifications, scenarioId: rows[0]?.scenarioId ?? null };
+    const corroborations =
+      rows.length === 0
+        ? []
+        : (
+            await q
+              .select({ claimEventId: corroboration.claimEventId, result: corroboration.result, createdAt: corroboration.createdAt })
+              .from(corroboration)
+              .where(inArray(corroboration.claimEventId, rows.map((r) => r.eventId)))
+              .orderBy(asc(corroboration.createdAt), asc(corroboration.corroborationId))
+          ).map((x) => ({ ...x, createdAt: Instant.fromDb(x.createdAt).toIsoUtc() }));
+    return { coordinate: c, rows, events: rows.map(toFactEvent), verifications, scenarioId: rows[0]?.scenarioId ?? null, corroborations };
+  }
+
+  /** T-136: 입항 건 하나(업체 진술의 대상) — 시뮬레이션 구분 · 시나리오를 같이(같은 좌표에 모이도록) */
+  async vesselCall(id: string): Promise<{ id: string; isSimulated: boolean; scenarioId: string | null } | null> {
+    const rows = await this.db.select({ id: vesselCall.vesselCallId, isSimulated: vesselCall.isSimulated }).from(vesselCall).where(eq(vesselCall.vesselCallId, id)).limit(1);
+    const r = rows[0];
+    return r ? { id: r.id, isSimulated: r.isSimulated, scenarioId: r.isSimulated ? PUBLIC_DATA_REPLAY_SCENARIO_ID : null } : null;
   }
 
   async eventById(eventId: string, q: Q = this.db): Promise<(EventRow & { subjectType: string; subjectId: string }) | null> {

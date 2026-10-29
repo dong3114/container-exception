@@ -79,7 +79,8 @@ export interface Reconciled {
   verificationBasis: 'HUMAN_VERIFICATION' | 'AUTHORITATIVE_SYSTEM' | null;
   appliedRule: string | null;
   conflictStatus: ConflictStatus;
-  conflictType: 'CHALLENGED_BY_WEAKER' | 'SIMULTANEOUS' | 'DISSENT' | null;
+  /** PUBLIC_EVIDENCE_CONFLICT(T-136) = 같은 사실의 공공 관측과 업체 주장이 어긋난다(교차 확인) — 사람 검토 */
+  conflictType: 'CHALLENGED_BY_WEAKER' | 'SIMULTANEOUS' | 'DISSENT' | 'PUBLIC_EVIDENCE_CONFLICT' | null;
   conflictEventIds: string[];
   holdStatus: HoldStatus;
   heldEventId: string | null;
@@ -116,7 +117,8 @@ export function score(events: readonly FactEvent[], verifications: readonly Veri
   const states = verificationStates(verifications);
   return events.map((e) => {
     const state = states.get(e.eventId);
-    const humanEntered = e.sourceType === 'HUMAN_UI';
+    // T-136: 사람이 **전달한** 업체 진술(권한 W)은 사람 확인이 아니다 — 업체의 주장일 뿐이다(사람이 그 값을 확인한 것이 아니다)
+    const humanEntered = e.sourceType === 'HUMAN_UI' && e.authority !== 'W';
     const confirmed = state === 'CONFIRMED';
     const base = baseStrength(e.sourceType, e.authority, e.confidence);
     // 확인에 따른 상향: 운영자(권한 S)가 확인하면 최소 2 (docs/05 3.3)

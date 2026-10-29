@@ -1139,6 +1139,69 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 - **초기화**: 공유 상태 → `infra/portfolio/reset-demo.sh`(볼륨을 새로 만들고 시드). 포트폴리오 compose 프로젝트의 합성 데이터만 — 업무 기록 append-only 정책(개인 운영)과 별개
 - **검증**: Backend 시험(unit 13 · DB 18 — 실제 채널 403 · 관리 403 · 옛 헤더 사칭 401 · Origin · CORS 없음 · 비밀값 없음 · 한도 · 일반 배포에 입구 없음) · 로컬 HTTPS 포트폴리오 스택(새 볼륨) 브라우저 E2E 45항목
 
+### 18.29 T-136 실행 결함 수정 · 공공 근거 교차 확인 · 예외 영향 범위 (2026-10-29 · ADR-042)
+
+Backend Core 동결을 이 작업 동안만 풀었다(사용자 지시). 끝나면 다시 FROZEN.
+
+**Phase 1 — 실행 결함 10건**(커밋 `92d0e80`)
+
+| # | 결함 | 수정 |
+| --- | --- | --- |
+| 1-1 | 회신을 기다리는 Agent 가 회신이 와도 깨지 않음 | 재조정이 AWAITING_REPLIES 실행을 보고 회신 후보 상태로 깨운다(`repliesWakeReason`, 재개 참조 = RECOVERY_RUN). 사람에게 넘어간 회신은 `REPLY_HANDED_TO_PERSON` 으로 멈춘다 |
+| 1-2 | 트럭 정보 공백이 시간창과 상관없이 닫힘 | 슬롯이 실행 시간창(기본 09:00–18:00, Agent 매개변수)을 덮을 때만 닫는다(gap-rules/4) |
+| 1-3 | Truth 가 계산 시각보다 뒤에 받은 근거를 앞당겨 씀 | 아는 시각(`knownBy`)과 판단 시각(`as_of`)을 나눴다. LIVE = 받은 시각, 시뮬레이션 = 근거 시각 |
+| 1-4 | 용량 사실 값이 없으면(null) 제약이 빠짐 | 값 없는 사실 = FACT_MISSING, Solver 는 가용 0 으로 묶는다 |
+| 1-5 | OUTDATED 계획을 '승인됨'으로 보고 Agent 가 멈춤 | `planStatus` 가 `approved` · `previously_approved` · `executable` 을 따로 준다 |
+| 1-6 | Gmail 보류함 회신을 다시 처리할 길이 없음 | `POST /communication/inbound/held/:rawInputId/reprocess`(communication.approve) — 원문에서 다시 판정 |
+| 1-7 | LIVE 입력 지문에 as_of 가 들어가 같은 입력도 새 판 | 입력 지문 v2 — as_of 제외, 후보 · 영향 · 선택지 시간창 · 자원 포함 |
+| 1-8 | Agent 가 본 입력과 다른 입력으로 계획을 만듦 | `expected_input_hash` 가 다르면 409 `STALE_PLAN_INPUT`, Agent 는 비용 계산부터 다시 |
+| 1-9 | 계획이 바뀐 뒤 옛 계획 기반 발송 승인이 살아 있음 | PLAN_CHANGED 신호 → 옛 판 기반 승인 무효화 |
+| 1-10 | 이미 처리된 회신에 '처리 완료' · 재시도 409 | `ReplyRelevance` — 공백이 이미 풀렸거나 대체된 회신은 재시도하지 않고 화면이 '업무 검토 불필요'로 보인다 |
+
+**Phase 2 — 공공 관측은 근거(Evidence)**
+
+- 공공 API 응답은 사실을 **확정하지 않는다**. 권한은 **사실 영역별**로 코드에 고정한다(`back/src/truth/public-authority.ts`): 지금은 `VESSEL_CALL.declared_arrival`(Port-MIS 입항 신고 일시) 하나만 권한 A → Truth 상태 **OBSERVED**(공식 기록, 사람 확인 아님). 위치 · 식별 정보 같은 다른 공공 사건은 권한 없음(관측일 뿐 Truth 사실이 아님)
+- 값(입항 일시)과 관측 시각(CERA 가 가져온 시각)을 나눈다. 신선도 `vessel_arrival` = 하루 신선 · 사흘 뒤 오래됨 [ASSUMPTION]
+- Agent: 공공으로 확인할 수 있는 공백(`public_data_can_resolve`, 지금은 입항 일시)만 공공데이터를 먼저 조회한다. 공공데이터 장애는 실행을 실패시키지 않는다. 창고 수용량 · 트럭 가용은 공공데이터로 묻지 않는다
+
+**Phase 3 — 교차 확인(Corroboration)** `corroboration/1`, 결정론 · LLM 없음
+
+| 결과 | 뜻 |
+| --- | --- |
+| MATCH | 업체 주장과 공공 관측 차이 ≤ 60분 [ASSUMPTION] |
+| CONFLICT | 차이 > 60분 → 사실 NEEDS_REVIEW(`PUBLIC_EVIDENCE_CONFLICT`, APPROVAL_BLOCKED). 사람이 그 뒤 확인하면 사람 판단이 이긴다 |
+| NO_PUBLIC_EVIDENCE | 공공 관측 없음 — 업체 말이 거짓이라는 뜻이 아니다. 기존 Truth 정책 그대로(임시) |
+| STALE_PUBLIC_EVIDENCE | 공공 관측이 오래됨 — 비교만 기록, 충돌로 보지 않는다 |
+| NOT_COMPARABLE | 공공데이터가 다루지 않는 사실(창고 수용량 · 트럭) 또는 값 없음 |
+
+- 업체 주장 = EMAIL 사건 또는 사람이 전달한 업체 진술(`POST /truth/claims/partner-statement` — HUMAN_UI · 권한 W · `claim_kind=PARTNER_STATEMENT`, 사람 확인으로 세지 않는다). 짝은 **식별자(주체 id · 사실 키)로만** — 이름 유사도 없음
+- 저장 = `corroboration`(22.65, append-only, 같은 주장 · 같은 공공 근거 · 같은 규칙 판은 한 번). 계기 = 사실 변경 신호(FACT_CHANGED) + Worker 사실 갱신 주기. 조회 `GET /truth/corroborations?entity_id=`
+- **[PARTIAL]** 업체 회신 메일에서 입항 일시를 추출하는 문의 의도 · AI 필드는 아직 없다 → 지금 주장은 사람이 전달한 진술(또는 EMAIL 사건)뿐. 후속 Task
+
+**Phase 4 — Truth · Gap · Risk · Cost · Solver 연결**
+
+- 컨테이너가 입항 신고와 연결돼 있으면(LIVE `vessel_call_id`) Cost Engine 이 입항 일시를 쓴다: 반출일에 아직 입항 전 = 실행 불가 `VESSEL_NOT_ARRIVED` · 같은 날이면 입항 정시 이후로 출발을 미룬다 · 임시/오래되는 중 = 기존 의존 벌점
+- 충돌(NEEDS_REVIEW) 이면 어느 값도 제약으로 쓰지 않고, 오늘 반출 선택지에 **검증 위험 벌점** 30,000원(`cost-policy/2#verification_risk_penalty_krw`, [ASSUMPTION] 정책 벌점 — 실제 비용 아님)
+- **비용을 만들지 않는다**: 입항 지연 × 대기 요율 · Detention 은 계약 요율이 없어 계산하지 않는다(NOT_PRICED). LFD 는 지금처럼 위험 벌점이며 hard deadline 이 아니다. 여러 날 트럭 · ODCY 일별 점유는 모델 밖(08 10절)
+- System Health: 공공데이터 줄에 교차 확인 요약(최근 판정 · 지난 24시간 결과별 건수, 값 · 식별자 없음)
+
+**Phase 5 — 예외 영향 컨테이너와 Solver 범위**
+
+- 탐지기가 관측마다 넘친 컨테이너를 `operational_exception_container`(22.66)에 남긴다(LIVE = 컨테이너 번호, SCENARIO = 시나리오 id)
+- 계획은 최신 관측의 이 목록만 **재배치 후보(AFFECTED)** 로, 나머지 오늘 계획은 **고정(FIXED — KEEP 만)** 으로 본다. 고정 컨테이너도 창고 용량 · 트럭 시간을 계속 쓴다. 고정 컨테이너의 원래 계획이 지금 실행 불가면 조용히 빼지 않고 후보로 넣으며 경고를 남긴다. 예외 없이 연 실행 = 전부 후보(ALL)
+- 계획 항목 `detail.scope` 에 범위를 남기고 화면이 "예외 영향 N대 재배치 후보 · 영향 없는 M대 고정" 을 보인다
+- **State B 비교**(오프라인 `npx tsx src/dev/t136-state-b.ts`, 같은 Truth 사실):
+
+| 계산 | Baseline | 추천안(목적값) | 실비용 | 벌점 | 절감 | 조치 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 이전(범위 없음, 23대 후보) | 7,220,000 | 5,735,000 | 5,535,000 | 200,000 | 1,485,000 | KEEP 11 · ODCY 8 · 대기 4 |
+| T-136(영향 12대만 후보) | 6,600,000 | 5,890,000 | 5,680,000 | 210,000 | 710,000 | KEEP 11 · ODCY 7 · 대기 5 |
+
+  추천안이 155,000원 비싸진 이유: 탐지기가 넘친 컨테이너를 **원래 출발 순서**로 고르므로(C019 냉동 포함) 영향 없는 컨테이너를 대신 옮기는 더 싼 해가 범위 밖이 됐다. 업무 의도(영향 없는 계획은 건드리지 않는다)를 따른 결과이며, 그룹 단위 범위(같은 창고 · 같은 날 전체를 후보로)는 후속 Task 로 남긴다
+
+**검증**: Backend 시험(unit `t136-invariants` · DB `t136-corroboration` C/D/E/F · 탐지 관계 · 계획 무효화 · 재처리 · 기존 전부) · Python Agent 시험 · 화면 시험 · 계약 재생성(OpenAPI · agent-tools)
+
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).
@@ -2927,6 +2990,50 @@ M19 가드 · 권한(T-104 custom — 생애주기 · 열 가드 교체 · appen
 ### 22.64 M40 heartbeat 가드 · 권한 **(T-133)**
 
 - `runtime_heartbeat`: 종류(component)는 바뀌지 않음(컬럼 보호) · 삭제 · TRUNCATE 금지. 권한: cera_app = SELECT · INSERT · UPDATE
+
+### 22.65 `corroboration` — 공공 근거 교차 확인 **(M41 · T-136)**
+
+- 논리: `DERIVED_DECISION_RECORD`(append-only) · 업체 주장 사건(업체 회신 승격 · 사람이 전달한 업체 진술)과 **같은 사실**(같은 주체 id · 같은 사실 키)의 공공 관측 사건을 결정론 규칙(`back/src/truth/corroboration-rules.ts`)으로 비교한 결과. 새 공공 근거 = 새 행(이력)
+- 공공데이터가 다루지 않는 사실(창고 수용량 · 트럭 가용)은 NOT_COMPARABLE(정상) · 공공 관측이 없으면 NO_PUBLIC_EVIDENCE(업체 말이 거짓이라는 뜻이 아님)
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `corroboration_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK |
+| 2 | `claim_event_id` | REF(event) | `uuid` | NOT NULL | — | `uuid()` | FK event · RESTRICT — 업체 주장 |
+| 3 | `public_event_id` | REF(event) | `uuid` | NULL | — | `uuid()` | FK event · RESTRICT — 비교한 공공 관측(MATCH · CONFLICT · STALE 에만) |
+| 4 | `entity_type` | STRING | `text` | NOT NULL | — | `text()` | 주체 종류(VESSEL_CALL 등) |
+| 5 | `entity_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | 주체 id(식별자로 짝지음 — 이름 유사도 아님) |
+| 6 | `fact_key` | STRING | `text` | NOT NULL | — | `text()` | 사실 키 |
+| 7 | `result` | CODE(CORROBORATION_RESULT) | `text` | NOT NULL | — | `text()` | CHECK IN (MATCH, CONFLICT, NO_PUBLIC_EVIDENCE, STALE_PUBLIC_EVIDENCE, NOT_COMPARABLE) |
+| 8 | `reason_code` | STRING | `text` | NOT NULL | — | `text()` | 결정론 이유 코드 |
+| 9 | `claim_value_text` | STRING | `text` | NULL | — | `text()` | 주장 값(표시용) |
+| 10 | `public_value_text` | STRING | `text` | NULL | — | `text()` | 공공 관측 값(표시용) |
+| 11 | `difference_minutes` | INTEGER | `integer` | NULL | — | `integer()` | 값 차이(분) |
+| 12 | `tolerance_minutes` | INTEGER | `integer` | NULL | — | `integer()` | 허용 오차 [ASSUMPTION] |
+| 13 | `public_freshness` | STRING | `text` | NULL | — | `text()` | 공공 관측 신선도(판정 시각 기준) |
+| 14 | `evaluated_as_of` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | 판정 기준 시각 |
+| 15 | `rule_version` | STRING | `text` | NOT NULL | — | `text()` | 규칙 판(corroboration/1) |
+| 16 | `is_simulated` | BOOLEAN | `boolean` | NOT NULL | — | `boolean()` | — |
+| 17 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+- **UNIQUE**: (`claim_event_id`, coalesce(`public_event_id`), `rule_version`) — 다시 돌려도 행이 늘지 않는다
+- **CHECK**: 공공 관측 id 는 MATCH · CONFLICT · STALE_PUBLIC_EVIDENCE 에만
+
+### 22.66 `operational_exception_container` — 예외 영향 컨테이너 **(M41 · T-136)**
+
+- 논리: 관측 기록마다 넘친 컨테이너(재배치 후보)의 관계 — evidence JSON 은 감사용으로 그대로. 복구 계획은 최신 관측의 이 목록만 재배치 후보로, 나머지 오늘 계획은 고정(원래 계획)으로 본다
+
+| # | 컬럼 | 논리 타입 | PostgreSQL | NULL | 기본값 | Drizzle | FK / CHECK / 메모 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `exception_id` | REF(operational_exception) | `uuid` | NOT NULL | — | `uuid()` | FK operational_exception · RESTRICT |
+| 2 | `observation_id` | UUID | `uuid` | NOT NULL | — | `uuid()` | PK(1/2) — 그 관측 |
+| 3 | `container_ref` | STRING | `text` | NOT NULL | — | `text()` | PK(2/2) — 계획이 쓰는 컨테이너 id(LIVE = 번호 · SCENARIO = 시나리오 id) |
+| 4 | `plan_order` | INTEGER | `integer` | NOT NULL | — | `integer()` | 그날 계획 순서(≥ 0) |
+| 5 | `created_at` | TIMESTAMP_TZ | `timestamptz(3)` | NOT NULL | — | `timestamp({ withTimezone: true, precision: 3, mode: 'string' })` | — |
+
+### 22.67 M42 교차 확인 · 영향 컨테이너 가드 · 권한 **(T-136)**
+
+- `corroboration` · `operational_exception_container`: append-only(UPDATE · DELETE · TRUNCATE 금지). 권한: cera_app = SELECT · INSERT
 
 ## 23. 논리 → 물리 대응 (누락 검사)
 

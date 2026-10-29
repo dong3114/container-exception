@@ -136,3 +136,6 @@ export const EXCEPTION_OBSERVATION_KIND = ['DETECTED', 'CHANGED', 'RESOLVED', 'I
 // ── M39 실행 프로세스 heartbeat (T-133) ──
 // 살아 있음을 DB 에 남기는 프로세스 종류. API 는 요청 자체가 상태 확인이라 남기지 않는다
 export const RUNTIME_COMPONENT = ['WORKER'] as const;
+
+/** T-136 공공 근거 교차 확인 결과(M41) */
+export const CORROBORATION_RESULT = ['MATCH', 'CONFLICT', 'NO_PUBLIC_EVIDENCE', 'STALE_PUBLIC_EVIDENCE', 'NOT_COMPARABLE'] as const;

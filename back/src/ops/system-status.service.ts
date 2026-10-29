@@ -83,7 +83,7 @@ export class SystemStatusService {
       return this.compose(now, { api, database, redis, worker: down, ai_server: aiServer, agent_runtime: agentRuntime }, { llm: { level: aiServer.level === 'HEALTHY' ? 'HEALTHY' : 'DOWN', provider: ai.provider }, gmail: { level: this.env.CERA_GMAIL_ENABLED ? 'DEGRADED' : 'DISABLED' }, public_data: { level: this.env.CERA_PUBLIC_DATA_MODE === 'off' ? 'DISABLED' : 'DEGRADED' } }, { send: { count: 0, oldest_age_seconds: null, retrying: 0 }, extraction: { count: 0, oldest_age_seconds: null }, extraction_retry: { count: 0, oldest_age_seconds: null }, agent_retry: { count: 0, oldest_age_seconds: null } });
     }
 
-    const [beat, queues, llmRow, gmailRow, publicRow] = await Promise.all([this.heartbeats.worker(), this.queues(now), this.llmEvidence(), this.gmailEvidence(), this.publicDataEvidence()]);
+    const [beat, queues, llmRow, gmailRow, publicRow] = await Promise.all([this.heartbeats.worker(), this.queues(now), this.llmEvidence(), this.gmailEvidence(), this.publicDataEvidence(now)]);
     const ageMs = beat ? Math.max(0, now.epochMs - Instant.fromDb(beat.lastSeenAt).epochMs) : null;
     const worker: ComponentStatus = {
       level: workerLevel({ ageMs, lastCycleErrors: beat?.lastCycleErrors ?? 0 }),
@@ -102,7 +102,7 @@ export class SystemStatusService {
     const publicData: ComponentStatus =
       this.env.CERA_PUBLIC_DATA_MODE === 'off'
         ? { level: 'DISABLED', mode: 'OFF' }
-        : { level: publicRow.lastOutcome && !['SUCCESS', 'NO_DATA'].includes(publicRow.lastOutcome) ? 'DEGRADED' : 'HEALTHY', mode: this.env.CERA_PUBLIC_DATA_MODE.toUpperCase(), last_request_at: publicRow.lastRequest, last_outcome: publicRow.lastOutcome, last_success_at: publicRow.lastSuccess };
+        : { level: publicRow.lastOutcome && !['SUCCESS', 'NO_DATA'].includes(publicRow.lastOutcome) ? 'DEGRADED' : 'HEALTHY', mode: this.env.CERA_PUBLIC_DATA_MODE.toUpperCase(), last_request_at: publicRow.lastRequest, last_outcome: publicRow.lastOutcome, last_success_at: publicRow.lastSuccess, corroboration: publicRow.corroboration };
 
     return this.compose(now, { api, database, redis, worker, ai_server: aiServer, agent_runtime: agentRuntime }, { llm, gmail, public_data: publicData }, queues);
   }
@@ -217,11 +217,18 @@ export class SystemStatusService {
     return { lastSendOk: iso(r?.send_ok), lastSendFail: iso(r?.send_fail), lastSendFailCode: (r?.send_fail_code as string | null) ?? null, lastReceive: iso(r?.receive) };
   }
 
-  private async publicDataEvidence(): Promise<{ lastRequest: string | null; lastOutcome: string | null; lastSuccess: string | null }> {
+  /** 공공데이터 최근 호출 + T-136 교차 확인 요약(최근 판정 시각 · 지난 24시간 결과별 건수). 값 · 식별자는 내보내지 않는다 */
+  private async publicDataEvidence(now: Instant): Promise<{ lastRequest: string | null; lastOutcome: string | null; lastSuccess: string | null; corroboration: { last_at: string | null; last_24h: Record<string, number> } }> {
+    const counts = await this.rows(sql`
+      SELECT c.result, count(*)::int AS n FROM cera.corroboration c
+       WHERE c.created_at > ${now.toDb()}::timestamptz - interval '24 hours' GROUP BY c.result`);
+    const [last] = await this.rows(sql`SELECT max(c.created_at) AS last_at FROM cera.corroboration c`);
+    const last24h: Record<string, number> = { MATCH: 0, CONFLICT: 0, NO_PUBLIC_EVIDENCE: 0, STALE_PUBLIC_EVIDENCE: 0, NOT_COMPARABLE: 0 };
+    for (const c of counts) last24h[String(c.result)] = Number(c.n);
     const [r] = await this.rows(sql`
       SELECT (SELECT f.requested_at FROM cera.public_data_fetch f ORDER BY f.requested_at DESC LIMIT 1) AS last_request,
              (SELECT f.outcome FROM cera.public_data_fetch f ORDER BY f.requested_at DESC LIMIT 1) AS last_outcome,
              (SELECT max(f.requested_at) FROM cera.public_data_fetch f WHERE f.outcome IN ('SUCCESS', 'NO_DATA')) AS last_success`);
-    return { lastRequest: iso(r?.last_request), lastOutcome: (r?.last_outcome as string | null) ?? null, lastSuccess: iso(r?.last_success) };
+    return { lastRequest: iso(r?.last_request), lastOutcome: (r?.last_outcome as string | null) ?? null, lastSuccess: iso(r?.last_success), corroboration: { last_at: iso(last?.last_at), last_24h: last24h } };
   }
 }

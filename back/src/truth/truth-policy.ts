@@ -77,6 +77,9 @@ export const FRESHNESS_POLICIES: readonly (FreshnessPolicy & { factName: RegExp 
   { family: 'truck_availability', factName: /^available\.slot\(/, freshForMs: 6 * HOUR, staleAfterMs: 24 * HOUR },
   { family: 'warehouse_capacity', factName: /^capacity\.day\(/, freshForMs: 6 * HOUR, staleAfterMs: 24 * HOUR },
   { family: 'yard_capacity', factName: /^capacity\.size_type\(/, freshForMs: 12 * HOUR, staleAfterMs: 48 * HOUR },
+  // T-136 공공 관측 — 입항 신고 일시. 기준 시각 = CERA 가 그 관측을 받은(API 로 가져온) 시각이다(신고 자체의 시각은 응답에 없다).
+  // "API 를 지금 불렀다" ≠ "입항이 지금 일어났다" — 값(입항 일시)과 관측 시각을 나눈다. [ASSUMPTION] 하루 신선 · 사흘 뒤 오래됨
+  { family: 'vessel_arrival', factName: /^declared_arrival$/, freshForMs: 24 * HOUR, staleAfterMs: 72 * HOUR },
 ];
 
 export function freshnessPolicyFor(factKey: string): FreshnessPolicy | null {

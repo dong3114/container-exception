@@ -5,6 +5,7 @@ import { TruthController } from './truth.controller.js';
 import { TruthQueryService } from './truth-query.service.js';
 import { TruthRepository } from './truth.repository.js';
 import { TruthService } from './truth.service.js';
+import { CorroborationService } from './corroboration.service.js';
 
 /**
  * 사실 파이프라인(T-093): 검증된 후보 → 임시 사실(PROVISIONAL) → 사람 확인 → 정식 사실(CONFIRMED) · 거절 · 정정.
@@ -13,7 +14,7 @@ import { TruthService } from './truth.service.js';
  */
 @Module({
   controllers: [TruthController],
-  providers: [TruthRepository, TruthService, PromotionService, FactActionService, TruthQueryService],
-  exports: [TruthRepository, TruthService, PromotionService],
+  providers: [TruthRepository, TruthService, PromotionService, FactActionService, TruthQueryService, CorroborationService],
+  exports: [TruthRepository, TruthService, PromotionService, CorroborationService],
 })
 export class TruthModule {}

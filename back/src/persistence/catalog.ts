@@ -58,6 +58,8 @@ export const AUDIT_ACTION = {
   // T-111 철회(새 값 없이 현재 사실에서 뺌) · 운영자 직접 입력
   FACT_REVOKED: 'FACT_REVOKED',
   FACT_ENTERED_MANUALLY: 'FACT_ENTERED_MANUALLY',
+  // T-136 사람이 전달한 업체 진술(공공데이터로 확인할 수 있는 사실 — 선박 입항 일시). 확인이 아니라 주장으로 남는다
+  PARTNER_STATEMENT_RECORDED: 'PARTNER_STATEMENT_RECORDED',
   // T-114 복구 계획 판(결정론 Solver 결과) — 제안 · 사람 승인 · 사실 변경으로 무효 · 새 판에 밀림
   PLAN_PROPOSED: 'PLAN_PROPOSED',
   // T-123 실제 계획 입력 — 사람이 실제 계획 실행을 열었다 / 운영 기록 묶음을 넣었다(대상 = planning_input_batch)

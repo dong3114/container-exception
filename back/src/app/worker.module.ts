@@ -6,6 +6,7 @@ import { ChannelModule } from '../channel/channel.module.js';
 import { CommunicationModule } from '../communication/communication.module.js';
 import { ExtractionProcessor } from '../communication/extraction-processor.js';
 import { InboundProcessor } from '../communication/inbound-processor.js';
+import { CorroborationService } from '../truth/corroboration.service.js';
 import { OutboxDispatcher } from '../communication/outbox-dispatcher.js';
 import { ConfigModule, ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
@@ -74,6 +75,7 @@ export class WorkerRunner {
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     @Inject(OutboxDispatcher) private readonly dispatcher: OutboxDispatcher,
     @Inject(InboundProcessor) private readonly inbound: InboundProcessor,
+    @Inject(CorroborationService) private readonly corroborations: CorroborationService,
     @Inject(ExtractionProcessor) private readonly extraction: ExtractionProcessor,
     @Inject(AgentReconciler) private readonly agents: AgentReconciler,
     @Inject(TruthService) private readonly truth: TruthService,
@@ -221,6 +223,14 @@ export class WorkerRunner {
         } catch (error) {
           this.failedSteps.push('TRUTH_REFRESH');
           this.logger.error({ msg: 'truth refresh failed', error: errorText(error) });
+        }
+        // 공공 근거 교차 확인(T-136) — 알림을 놓쳐도(다른 프로세스의 승격 · 공공 수집) 이 주기 안에 같은 결과. 같은 판정은 한 번만(DB 유일)
+        try {
+          const c = await this.corroborations.sweep();
+          if (c.recorded > 0) this.logger.log({ msg: 'corroboration', ...c });
+        } catch (error) {
+          this.failedSteps.push('CORROBORATION');
+          this.logger.error({ msg: 'corroboration sweep failed', error: errorText(error) });
         }
         // 계획 판이 기댄 사실이 바뀌었으면 OUTDATED(T-114) — API 의 FACT_CHANGED 알림을 놓쳐도 여기서 잡는다
         try {

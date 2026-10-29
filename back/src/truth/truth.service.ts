@@ -50,7 +50,7 @@ export class TruthService {
    */
   evaluate(data: CoordinateData, asOf = this.clock.now(), knownBy: Instant = asOf): CoordinateResult {
     data = knownAsOf(data, knownBy);
-    const result = reconcile(data.events, data.verifications, asOf.toIsoUtc(), undefined, freshnessPolicyFor(data.coordinate.factKey));
+    const result = applyCorroboration(reconcile(data.events, data.verifications, asOf.toIsoUtc(), undefined, freshnessPolicyFor(data.coordinate.factKey)), data, knownBy);
     const winnerRow = result.winner ? (data.rows.find((r) => r.eventId === result.winner?.eventId) ?? null) : null;
     return { data, result, state: factState(result), winnerRow, asOf: asOf.toSeoulIso() };
   }
@@ -324,4 +324,42 @@ export function knownAsOf(data: CoordinateData, knownBy: Instant): CoordinateDat
   const ids = new Set(rows.map((r) => r.eventId));
   const verifications = data.verifications.filter((v) => data.coordinate.isSimulated || v.receivedAt <= cut);
   return { ...data, rows, events: data.events.filter((e) => ids.has(e.eventId)), verifications };
+}
+
+/**
+ * 공공 근거 교차 확인을 판정에 반영한다(T-136 · Phase 4-1). 공공데이터가 업체 내부 정보를 덮어쓰지 않는다 — 결과는 이것뿐이다:
+ * - CONFLICT: 이 좌표의 살아 있는 주장(거절되지 않은 사건)의 가장 최근 교차 확인이 CONFLICT 이고, 그 뒤 사람이 그 주장을 확인(CONFIRM)하지 않았으면
+ *   좌표를 사람 검토(NEEDS_REVIEW · 승인 막힘)로 둔다 — 약한 쪽이든 강한 쪽이든 조용히 정답이 되지 않는다
+ * - MATCH · NO_PUBLIC_EVIDENCE · STALE_PUBLIC_EVIDENCE · NOT_COMPARABLE: 판정 그대로(근거 강도는 출처 권한이 이미 정했다 — public-authority)
+ * `knownBy` 이후에 기록된 교차 확인은 쓰지 않는다(과거 as_of 판정에 미래가 섞이지 않게).
+ */
+export function applyCorroboration(result: Reconciled, data: CoordinateData, knownBy: Instant): Reconciled {
+  const cut = knownBy.toIsoUtc();
+  const rows = (data.corroborations ?? []).filter((c) => c.createdAt <= cut);
+  if (rows.length === 0 || result.status === 'UNKNOWN') return result;
+  const latest = new Map<string, { result: string; createdAt: string }>();
+  for (const c of rows) latest.set(c.claimEventId, c);
+  const live = new Set(result.scored.filter((e) => e.verification !== 'REJECTED').map((e) => e.eventId));
+  const disputed: string[] = [];
+  for (const [claimId, c] of latest) {
+    if (c.result !== 'CONFLICT' || !live.has(claimId)) continue;
+    const settledByHuman = data.verifications.some((v) => v.action === 'CONFIRM' && v.targetEventIds.includes(claimId) && v.receivedAt > c.createdAt);
+    if (!settledByHuman) disputed.push(claimId);
+  }
+  if (disputed.length === 0) {
+    // 같은 사실을 허용 오차 안에서 지지하는 주장(MATCH)은 값이 조금 달라도(분 단위) "더 강한 값에 대한 도전"이 아니다 — 판정 규칙의 열린 충돌을 닫는다
+    const contesting = result.conflictEventIds.filter((id) => id !== result.winner?.eventId);
+    if (result.conflictStatus === 'OPEN' && result.conflictType === 'CHALLENGED_BY_WEAKER' && contesting.length > 0 && contesting.every((id) => latest.get(id)?.result === 'MATCH')) {
+      const usability = result.freshness === 'AGING' || result.status === 'PROVISIONAL' ? 'USABLE_WITH_WARNING' : result.freshness === 'STALE' ? 'APPROVAL_BLOCKED' : result.freshness === 'EXPIRED' ? 'UNUSABLE' : 'USABLE';
+      return { ...result, conflictStatus: 'NONE', conflictType: null, conflictEventIds: [], usability };
+    }
+    return result;
+  }
+  return {
+    ...result,
+    conflictStatus: 'OPEN',
+    conflictType: 'PUBLIC_EVIDENCE_CONFLICT',
+    conflictEventIds: [...new Set([...(result.winner ? [result.winner.eventId] : []), ...disputed])],
+    usability: result.usability === 'UNUSABLE' ? 'UNUSABLE' : 'APPROVAL_BLOCKED',
+  };
 }

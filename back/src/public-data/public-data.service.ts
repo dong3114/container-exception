@@ -1,3 +1,5 @@
+import { publicAuthorityFor } from '../truth/public-authority.js';
+import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
@@ -73,6 +75,7 @@ export class PublicDataService {
     @Inject(SystemErrorRecorder) private readonly systemErrors: SystemErrorRecorder,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
+    @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
   ) {}
 
   status() {
@@ -118,6 +121,8 @@ export class PublicDataService {
         }
       },
     );
+    // T-136: 입항 신고(공공 관측)가 들어왔다 — 같은 사실의 업체 주장 교차 확인 · 사실 판정을 바로 다시 본다(정확성은 Worker 주기)
+    for (const id of touched) this.signals.emit({ type: 'FACT_CHANGED', entityId: id, factKey: 'declared_arrival' });
     return { summary, vessel_calls: await this.vesselCallViews([...touched]) };
   }
 
@@ -339,6 +344,8 @@ export class PublicDataService {
         payload: {
           dataset: 'MOF_VESSEL_CALL',
           basis: 'PORT_MIS_ENTRY_DECLARATION',
+          // T-136: 공공데이터의 사실 영역별 권한(public-authority.ts) — 입항 신고 일시는 Port-MIS 가 권한자(A). Truth 가 OBSERVED 로 쓴다
+          authority: publicAuthorityFor('VESSEL_CALL', 'declared_arrival'),
           request_kind: v.arrival.requestKind,
           relative_to_received: v.arrival.relativeToReceived,
           ...(v.arrival.tzAssumed ? { tz_assumed: true } : {}),

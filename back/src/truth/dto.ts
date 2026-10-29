@@ -262,3 +262,64 @@ export class ManualFactRequestDto {
   @ApiPropertyOptional({ type: String, format: 'uuid', description: 'Scenario for simulated (MOCK) data' })
   scenario_id?: string;
 }
+
+export const CORROBORATION_RESULTS = ['MATCH', 'CONFLICT', 'NO_PUBLIC_EVIDENCE', 'STALE_PUBLIC_EVIDENCE', 'NOT_COMPARABLE'] as const;
+
+/** T-136 공공 근거 교차 확인 한 줄 — 업체 주장과 공공 관측을 결정론 규칙으로 비교한 결과(LLM 판정 아님). 두 근거를 모두 남긴다 */
+export class CorroborationDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  corroboration_id!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', description: 'The partner claim event (reply · relayed statement)' })
+  claim_event_id!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The public observation compared — only for MATCH · CONFLICT · STALE_PUBLIC_EVIDENCE' })
+  public_event_id!: string | null;
+
+  @ApiProperty({ type: String })
+  entity_type!: string;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  entity_id!: string;
+
+  @ApiProperty({ type: String })
+  fact_key!: string;
+
+  @ApiProperty({ type: String, enum: CORROBORATION_RESULTS })
+  result!: (typeof CORROBORATION_RESULTS)[number];
+
+  @ApiProperty({ type: String })
+  reason_code!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  claim_value!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  public_value!: string | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  difference_minutes!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true, description: '[ASSUMPTION] tolerance of the rule version' })
+  tolerance_minutes!: number | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  public_freshness!: string | null;
+
+  @ApiProperty({ type: String })
+  claim_source!: string;
+
+  @ApiProperty({ type: String })
+  evaluated_as_of!: string;
+
+  @ApiProperty({ type: String })
+  rule_version!: string;
+
+  @ApiProperty({ type: Boolean })
+  is_simulated!: boolean;
+}
+
+export class CorroborationListDto {
+  @ApiProperty({ type: [CorroborationDto] })
+  corroborations!: CorroborationDto[];
+}
