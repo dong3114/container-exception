@@ -9,7 +9,8 @@ import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
 import { replyDateOf, sentenceAround } from './date-scope.js';
 import { parseFactKey } from './fact-key.js';
-import { type BlockReason, evaluatePromotion } from './promotion-rules.js';
+import { type BlockReason, evaluatePromotion, evaluateVesselClaim } from './promotion-rules.js';
+import { vesselCallIdOfAsk } from '../communication/vessel-claim-rules.js';
 import { type Coordinate, TruthRepository } from './truth.repository.js';
 import { TruthService } from './truth.service.js';
 
@@ -202,6 +203,120 @@ export class PromotionService {
       await this.truth.materialize(tx, coordinate);
       summary.promoted.push({ eventId: actualId, coordinate });
     }
+    await this.promoteVesselClaims(tx, ctx, systemActorId, sourceText, now, summary);
     return summary;
+  }
+
+  /**
+   * T-137 — 업체 회신 속 선박 입항 일시 주장 → 사건(OBSERVATION · 출처 EMAIL · 권한 W). 업체의 **주장**이다: 사실 판정(reconcile)에서 공공 관측(권한 A)을
+   * 이기지 못하고, 일치 · 충돌은 교차 확인(`corroboration-rules.ts`)이 정한다. 시각을 확실히 풀 수 없으면 후보로 남고(PENDING) 사람이 본다.
+   */
+  private async promoteVesselClaims(tx: DbTransaction, ctx: NonNullable<Awaited<ReturnType<TruthRepository['promotionContext']>>>, systemActorId: string, sourceText: string, now: Instant, summary: PromotionSummary): Promise<void> {
+    const askIds = [...new Set(ctx.extractions.map((x) => x.askId).filter((id): id is string => vesselCallIdOfAsk(id) !== null))].sort();
+    for (const askId of askIds) {
+      const vesselCallId = vesselCallIdOfAsk(askId) as string;
+      const mine = ctx.extractions.filter((x) => x.askId === askId).map(candidateOf);
+      const time = mine.find((c) => c.field === 'arrival_time' && c.row.reviewStatus === 'PENDING' && c.row.createdEventId === null) ?? null;
+      if (!time) continue; // 시각 없는 말 · 이미 사건이 된 후보 — 공공 입항 일시와 비교할 값이 아니다
+      const date = mine.find((c) => c.field === 'arrival_date' && c.row.reviewStatus === 'PENDING') ?? null;
+      const call = await this.repo.vesselCall(vesselCallId);
+      const sentence = sourceText ? sentenceAround(sourceText, quoteText(sourceText, time.row.quoteLocation)) : '';
+      const decision = evaluateVesselClaim({
+        time: { extractionId: time.row.extractionId, value: time.row.candidateValueText, validated: time.validated, reviewStatus: time.row.reviewStatus, createdEventId: time.row.createdEventId },
+        date: date ? { extractionId: date.row.extractionId, value: date.row.candidateValueText, validated: date.validated } : null,
+        sentence,
+        replyDate: replyDateOf(ctx.rawSourceRecordedAt, ctx.rawReceivedAt),
+        ambiguous: time.ambiguous,
+        isSimulated: ctx.isSimulated,
+        scenarioId: call?.scenarioId ?? null,
+      });
+      const blocked = (reasons: BlockReason[]) => summary.blocked.push({ extractionId: time.row.extractionId, reasons });
+      if (!call || call.isSimulated !== ctx.isSimulated) {
+        await this.audit.record(tx, { actorId: systemActorId, action: 'FACT_PROMOTION_BLOCKED_QUESTION_TARGET_MISSING', targetType: 'EXTRACTION', targetId: time.row.extractionId, result: 'SUCCESS', isSimulated: ctx.isSimulated });
+        blocked(['QUESTION_TARGET_MISSING']);
+        continue;
+      }
+      if (!decision.ok) {
+        if (decision.reasons.includes('NOT_PENDING')) continue;
+        for (const reason of decision.reasons) {
+          await this.audit.record(tx, { actorId: systemActorId, action: `FACT_PROMOTION_BLOCKED_${reason}` as AuditAction, targetType: 'EXTRACTION', targetId: time.row.extractionId, result: 'SUCCESS', isSimulated: ctx.isSimulated });
+        }
+        blocked(decision.reasons);
+        continue;
+      }
+      const coordinate: Coordinate = { entityType: 'VESSEL_CALL', entityId: vesselCallId, factKey: 'declared_arrival', scopeType: 'GLOBAL', scopeRef: '', isSimulated: ctx.isSimulated };
+      await this.repo.lockCoordinate(tx, coordinate);
+      const idempotencyKey = eventIdempotencyKey({
+        rawInputId: ctx.rawInputId,
+        claimLocator: `ask:${askId}`,
+        subject: { entityType: coordinate.entityType, entityId: coordinate.entityId },
+        factKey: coordinate.factKey,
+        targets: null,
+        scope: { type: 'GLOBAL', ref: '' },
+        eventClass: 'OBSERVATION',
+      });
+      const eventId = this.ids.newId();
+      const arrivalAt = Instant.parseIso(decision.arrivalAtIso);
+      const inserted = await this.repo.insertEvent(tx, {
+        eventId,
+        schemaVersion: 'ev-1',
+        rawInputId: ctx.rawInputId,
+        eventClass: 'OBSERVATION',
+        eventType: 'ARRIVAL_DECLARED',
+        factKind: 'STATE',
+        factKey: coordinate.factKey,
+        valueTimestamp: arrivalAt.toDb(),
+        applicabilityScopeType: 'GLOBAL',
+        applicabilityScopeRef: '',
+        sourceEventTime: null,
+        sourceRecordedAt: ctx.rawSourceRecordedAt,
+        receivedAt: ctx.rawReceivedAt,
+        sourceType: ctx.rawSourceType,
+        sourceRoleAtIngestion: ctx.counterpartyRole,
+        extractionMethod: 'LLM_EXTRACTED',
+        inputQuality: 'UNSTRUCTURED',
+        inputConfidenceLevel: 'MEDIUM',
+        inputConfidenceReasons: [{ code: 'BACKEND_VALIDATOR_PASSED' }, { code: 'SENDER_AUTHORITY_W' }],
+        assertedByCounterpartyId: ctx.counterpartyId,
+        enteredByActorId: systemActorId,
+        extractionId: time.row.extractionId,
+        correlationId: ctx.threadId,
+        idempotencyKey,
+        payload: {
+          claim_locator: `ask:${askId}`,
+          // 권한 W = 업체의 주장(공공 입항 신고의 권한자가 아니다) — 교차 확인의 대상
+          authority: 'W',
+          claim_kind: 'PARTNER_REPLY',
+          ask_id: askId,
+          thread_id: ctx.threadId,
+          inbound_message_id: ctx.messageId,
+          promotion: { rule: PROMOTION_RULE },
+          extraction: {
+            extraction_id: time.row.extractionId,
+            model_version: time.row.modelVersion,
+            prompt_version: time.row.promptVersion,
+            schema_version: time.row.schemaVersion,
+            input_hash: time.row.inputHash,
+            source_quote_ref: time.row.sourceQuoteRef,
+            source_quote_hash: time.row.sourceQuoteHash,
+            quote_location: time.row.quoteLocation,
+          },
+        },
+        recordedAt: now.toDb(),
+        isSimulated: ctx.isSimulated,
+        scenarioId: call.scenarioId,
+      });
+      const actualId = inserted ? eventId : ((await this.repo.eventIdByKey(tx, idempotencyKey)) ?? eventId);
+      if (inserted) {
+        await this.repo.insertLinks(tx, [
+          { eventId, entityType: coordinate.entityType, entityId: coordinate.entityId, linkRole: 'SUBJECT' },
+          { eventId, entityType: 'COUNTERPARTY', entityId: ctx.counterpartyId, linkRole: 'CONTEXT' },
+        ]);
+        await this.audit.record(tx, { actorId: systemActorId, action: AUDIT_ACTION.FACT_PROVISIONAL_CREATED, targetType: 'EVENT', targetId: eventId, result: 'SUCCESS', isSimulated: ctx.isSimulated });
+      }
+      await this.repo.acceptExtractions(tx, [time.row.extractionId, ...decision.siblingExtractionIds], actualId, systemActorId, now.toDb());
+      await this.truth.materialize(tx, coordinate);
+      summary.promoted.push({ eventId: actualId, coordinate });
+    }
   }
 }

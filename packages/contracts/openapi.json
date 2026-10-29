@@ -3340,6 +3340,28 @@
         ]
       }
     },
+    "/truth/corroborations/open-conflicts": {
+      "get": {
+        "operationId": "TruthController_openConflicts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenConflictListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "T-137: public-evidence conflicts a person has not resolved yet (the fact is still NEEDS_REVIEW because a partner claim and the public record disagree) — the operator to-do list reads this",
+        "tags": [
+          "truth"
+        ]
+      }
+    },
     "/truth/corroborations": {
       "get": {
         "operationId": "TruthController_listCorroborations",
@@ -8319,6 +8341,86 @@
         },
         "required": [
           "reason_code"
+        ]
+      },
+      "OpenConflictDto": {
+        "type": "object",
+        "properties": {
+          "corroboration_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entity_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "fact_key": {
+            "type": "string"
+          },
+          "recovery_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The recovery run whose reply made the claim (null = relayed statement outside a run)"
+          },
+          "claim_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "public_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "difference_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "tolerance_minutes": {
+            "type": "number",
+            "nullable": true,
+            "description": "[ASSUMPTION] tolerance of the rule version"
+          },
+          "detected_at": {
+            "type": "string"
+          },
+          "is_simulated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "corroboration_id",
+          "entity_type",
+          "entity_id",
+          "entity_name",
+          "fact_key",
+          "recovery_run_id",
+          "claim_value",
+          "public_value",
+          "difference_minutes",
+          "tolerance_minutes",
+          "detected_at",
+          "is_simulated"
+        ]
+      },
+      "OpenConflictListDto": {
+        "type": "object",
+        "properties": {
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenConflictDto"
+            }
+          }
+        },
+        "required": [
+          "conflicts"
         ]
       },
       "CorroborationDto": {

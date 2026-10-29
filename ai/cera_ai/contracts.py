@@ -39,7 +39,8 @@ class AskWindow(_Strict):
 class Ask(_Strict):
     ask_id: str = Field(max_length=40)
     question: str = Field(max_length=500)
-    answer_shape: Literal["QUANTITY_IN_TIME_WINDOW", "QUANTITY_ON_DATE"]
+    # ARRIVAL_DATETIME (T-137): when the named vessel arrived / will arrive — the Backend made the ask from a registered vessel call
+    answer_shape: Literal["QUANTITY_IN_TIME_WINDOW", "QUANTITY_ON_DATE", "ARRIVAL_DATETIME"]
     fields: list[AskField] = Field(min_length=1, max_length=10)
     window: AskWindow | None = None
 

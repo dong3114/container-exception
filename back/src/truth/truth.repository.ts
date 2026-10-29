@@ -435,6 +435,17 @@ export class TruthRepository {
       .map((r) => ({ entityType: r.entityType as string, entityId: r.entityId as string, factKey: r.factKey as string, scopeType: r.scopeType as string, scopeRef: r.scopeRef as string, isSimulated: r.isSimulated }));
   }
 
+  /** T-137 — 이 실행의 스레드로 온 업체 회신이 주장한 입항 신고(사건 SUBJECT). 실행의 사실 목록이 교차 확인 결과와 함께 보여 준다. */
+  async runVesselClaimSubjects(recoveryRunId: string, q: Q = this.db): Promise<{ entityId: string; isSimulated: boolean }[]> {
+    const rows = await q
+      .selectDistinct({ entityId: eventEntityLink.entityId, isSimulated: event.isSimulated })
+      .from(event)
+      .innerJoin(eventEntityLink, and(eq(eventEntityLink.eventId, event.eventId), eq(eventEntityLink.linkRole, 'SUBJECT'), eq(eventEntityLink.entityType, 'VESSEL_CALL')))
+      .innerJoin(commThread, sql`${commThread.threadId}::text = ${event.correlationId}`)
+      .where(and(eq(commThread.relatedRunId, recoveryRunId), eq(event.factKey, 'declared_arrival')));
+    return rows;
+  }
+
   /** 메시지(보낸 문의)의 질문 좌표들 — Agent 가 기다리는 사실. */
   async messageCoordinates(outboundMessageId: string, q: Q = this.db): Promise<Coordinate[]> {
     const rows = await q

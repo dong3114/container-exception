@@ -1,15 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { DATABASE, type Database } from '../db/database.js';
-import { planningSnapshot, recoveryRun } from '../db/schema/index.js';
+import { commThread, corroboration, event, planningSnapshot, recoveryRun } from '../db/schema/index.js';
 import { BusinessRuleError, ValidationError } from '../shared/errors/cera-error.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { Instant } from '../shared/time/instant.js';
 import { RECONCILE_RULE_VERSION } from './reconcile-rules.js';
 import { TruthRepository, coordinateKey } from './truth.repository.js';
 import { TruthService, type CoordinateResult } from './truth.service.js';
-import type { FactListDto } from './dto.js';
+import type { FactListDto, OpenConflictListDto } from './dto.js';
 
 /** 이 판정이 아직 다루지 않는 것 — 화면 · Agent 가 사실을 과대 해석하지 않게 응답에 싣는다. */
 export const TRUTH_LIMITATIONS = [
@@ -58,6 +58,54 @@ export class TruthQueryService {
         if (!results.has(coordinateKey(r.data.coordinate))) results.set(coordinateKey(r.data.coordinate), r);
       }
     }
+    // T-137: 이 실행의 회신이 주장한 선박 입항 일시 — 공공 관측과의 교차 확인 결과(일치 · 충돌)가 그 사실 상태에 있다
+    for (const v of await this.repo.runVesselClaimSubjects(runId)) {
+      const c = { entityType: 'VESSEL_CALL', entityId: v.entityId, factKey: 'declared_arrival', scopeType: 'GLOBAL', scopeRef: '', isSimulated: v.isSimulated };
+      if (!results.has(coordinateKey(c))) results.set(coordinateKey(c), await this.truth.liveForCoordinate(c, asOf));
+    }
     return { evaluated_at: asOf.toSeoulIso(), rule_version: RECONCILE_RULE_VERSION, limitations: [...TRUTH_LIMITATIONS], facts: await this.truth.view([...results.values()]) };
+  }
+
+  /**
+   * T-137 — 사람이 아직 판단하지 않은 공공 근거 충돌(Action Required). 지난 14일 CONFLICT 판정이 있는 좌표 가운데 **지금도** Truth 가
+   * 사람 검토(NEEDS_REVIEW · PUBLIC_EVIDENCE_CONFLICT)로 보는 것만 — 사람이 확인 · 정정했거나 새 근거로 풀린 충돌은 나오지 않는다(판정은 Truth 규칙).
+   */
+  async openConflicts(): Promise<OpenConflictListDto> {
+    const now = this.clock.now();
+    const rows = await this.db
+      .select({ c: corroboration, runId: commThread.relatedRunId })
+      .from(corroboration)
+      .innerJoin(event, eq(event.eventId, corroboration.claimEventId))
+      .leftJoin(commThread, sql`${commThread.threadId}::text = ${event.correlationId}`)
+      .where(and(eq(corroboration.result, 'CONFLICT'), gte(corroboration.createdAt, now.plusMs(-14 * 86_400_000).toDb())))
+      .orderBy(desc(corroboration.createdAt))
+      .limit(100);
+    const latest = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const key = `${r.c.entityType}:${r.c.entityId}:${r.c.factKey}:${r.c.isSimulated}`;
+      if (!latest.has(key)) latest.set(key, r);
+    }
+    const open: { r: (typeof rows)[number]; live: CoordinateResult }[] = [];
+    for (const r of latest.values()) {
+      const live = await this.truth.liveForCoordinate({ entityType: r.c.entityType, entityId: r.c.entityId, factKey: r.c.factKey, scopeType: 'GLOBAL', scopeRef: '', isSimulated: r.c.isSimulated }, now);
+      if (live.state === 'NEEDS_REVIEW' && live.result.conflictType === 'PUBLIC_EVIDENCE_CONFLICT') open.push({ r, live });
+    }
+    const names = await this.repo.entityNames(open.map((o) => o.r.c.entityId));
+    return {
+      conflicts: open.map(({ r }) => ({
+        corroboration_id: r.c.corroborationId,
+        entity_type: r.c.entityType,
+        entity_id: r.c.entityId,
+        entity_name: names.get(r.c.entityId) ?? null,
+        fact_key: r.c.factKey,
+        recovery_run_id: r.runId ?? null,
+        claim_value: r.c.claimValueText,
+        public_value: r.c.publicValueText,
+        difference_minutes: r.c.differenceMinutes,
+        tolerance_minutes: r.c.toleranceMinutes,
+        detected_at: Instant.fromDb(r.c.createdAt).toSeoulIso(),
+        is_simulated: r.c.isSimulated,
+      })),
+    };
   }
 }

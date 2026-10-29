@@ -22,7 +22,8 @@ export interface AskField {
 export interface Ask {
   ask_id: string;
   question: string;
-  answer_shape: 'QUANTITY_IN_TIME_WINDOW' | 'QUANTITY_ON_DATE';
+  /** ARRIVAL_DATETIME(T-137) = 선박 입항 일시 주장 — Backend 가 등록된 입항 신고(선박 식별자)로 질문을 만든다 */
+  answer_shape: 'QUANTITY_IN_TIME_WINDOW' | 'QUANTITY_ON_DATE' | 'ARRIVAL_DATETIME';
   fields: AskField[];
   window: { date: string; from: string; to: string } | null;
 }

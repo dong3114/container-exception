@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, like, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
+import type { VesselCandidate } from './vessel-claim-rules.js';
 import {
   auditLog,
   commMessage,
@@ -13,6 +14,9 @@ import {
   questionItem,
   rawInput,
   systemError,
+  container,
+  planningContainerRecord,
+  vesselCall,
 } from '../db/schema/index.js';
 
 export type ExtractionInsert = typeof extraction.$inferInsert;
@@ -137,6 +141,38 @@ export class ExtractionRepository {
       for (const f of fields) values[f.key] = f.text ?? f.num;
     }
     return { ...head, questions, askedValues: values };
+  }
+
+  /**
+   * T-137 — 이 회신이 말할 수 있는 입항 신고 후보: 스레드가 속한 복구 실행의 컨테이너가 연결된 입항 신고 + 회신 본문이 호출부호 · 선박명을 직접 쓴 입항 신고.
+   * 회신과 같은 시뮬레이션 구분만(Mock 회신 ↔ 녹화 재생 관측 · 실제 회신 ↔ 실제 관측). 고르기 · 식별자 대조는 `vessel-claim-rules.ts`.
+   */
+  async vesselCandidates(threadId: string, isSimulated: boolean, body: string): Promise<VesselCandidate[]> {
+    const linked = await this.db
+      .selectDistinct({ id: vesselCall.vesselCallId })
+      .from(commThread)
+      .innerJoin(planningContainerRecord, eq(planningContainerRecord.recoveryRunId, commThread.relatedRunId))
+      .innerJoin(container, eq(container.containerId, planningContainerRecord.containerId))
+      .innerJoin(vesselCall, eq(vesselCall.vesselCallId, container.vesselCallId))
+      .where(and(eq(commThread.threadId, threadId), eq(vesselCall.isSimulated, isSimulated)));
+    const linkedIds = new Set(linked.map((r) => r.id));
+    const text = body.slice(0, 20_000);
+    const rows = await this.db
+      .select({ id: vesselCall.vesselCallId, name: vesselCall.vesselName, sign: vesselCall.callSign })
+      .from(vesselCall)
+      .where(
+        and(
+          eq(vesselCall.isSimulated, isSimulated),
+          or(
+            linkedIds.size > 0 ? inArray(vesselCall.vesselCallId, [...linkedIds]) : undefined,
+            sql`strpos(upper(${text}::text), upper(${vesselCall.callSign})) > 0`,
+            sql`(length(coalesce(${vesselCall.vesselName}, '')) >= 3 AND strpos(upper(${text}::text), upper(${vesselCall.vesselName})) > 0)`,
+          ),
+        ),
+      )
+      .orderBy(asc(vesselCall.vesselCallId))
+      .limit(50);
+    return rows.map((r) => ({ vesselCallId: r.id, vesselName: r.name, callSign: r.sign, linkedToRun: linkedIds.has(r.id) }));
   }
 
   /** 같은 회신의 추출 저장을 줄 세운다(트랜잭션 끝까지). */

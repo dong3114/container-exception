@@ -1,4 +1,6 @@
 import type { Ask, ExtractionAnswer, ExtractionResponse } from '../ai/ai-client.js';
+import { sentenceAround } from '../truth/date-scope.js';
+import { type VesselCandidate, identifierBacked, vesselCallIdOfAsk } from './vessel-claim-rules.js';
 
 /**
  * 회신 추출의 결정론 규칙(T-092 U7 · docs/18 D.3 · docs/05 4.6 · docs/22 15.9.2).
@@ -96,7 +98,7 @@ const FORMAT: Record<string, RegExp> = { QUANTITY: /^\d{1,6}$/, TIME: /^([01]\d|
  * 답마다 검사(docs/05 4.6 의 일곱 검사 안에서): 질문 범위 · 인용이 원문에 그대로 있음 · 값 형식 · 단위 · 값이 인용에 있음 · 상충.
  * 모델 거절 · 호출 실패 · 스키마 위반은 여기 오기 전에 기술 실패로 끝난다(system_error).
  */
-export function validateAnswers(asks: readonly Ask[], sourceText: string, response: ExtractionResponse): ValidatedAnswer[] {
+export function validateAnswers(asks: readonly Ask[], sourceText: string, response: ExtractionResponse, vessels: readonly VesselCandidate[] = []): ValidatedAnswer[] {
   const out: ValidatedAnswer[] = response.answers.map((answer) => {
     const checks: Check[] = [{ check: 'FIELD', passed: true, detail_code: answer.field }];
     const ask = asks.find((a) => a.ask_id === answer.ask_id);
@@ -116,6 +118,13 @@ export function validateAnswers(asks: readonly Ask[], sourceText: string, respon
       // 날짜(v2)는 인용의 날짜 표현을 회신 날짜 기준으로 다시 풀어야 맞는지 안다 — 그 판정은 승격 단계(date-scope)가 한다. 여기서는 형식만
       const inQuote = formatOk && (field.kind === 'DATE' ? true : field.kind === 'TIME' ? timeInQuote(answer.value, answer.evidence.quote) : quantityInQuote(answer.value, answer.evidence.quote));
       checks.push({ check: 'VALUE_IN_QUOTE', passed: inQuote, detail_code: inQuote ? null : 'VALUE_NOT_IN_QUOTE' });
+    }
+    // T-137: 선박 입항 질문의 답은 그 배를 말한 것이어야 한다 — 이름 · 호출부호가 인용 문장에 있거나 회신이 그 배 하나만 말한다(결정론 대조, 유사도 없음)
+    const vesselId = vesselCallIdOfAsk(answer.ask_id);
+    if (vesselId !== null) {
+      const vessel = vessels.find((v) => v.vesselCallId === vesselId);
+      const backed = Boolean(vessel && at >= 0 && identifierBacked(sentenceAround(sourceText, answer.evidence.quote), sourceText, vessel, vessels));
+      checks.push({ check: 'IDENTIFIER_IN_SOURCE', passed: backed, detail_code: backed ? null : 'VESSEL_NOT_IDENTIFIED' });
     }
     if (response.ambiguity_flags.length > 0) {
       // 모호 표현은 여기서 탈락시키지 않는다 — 사건이 될 때 입력 신뢰도를 낮추는 재료(U8)

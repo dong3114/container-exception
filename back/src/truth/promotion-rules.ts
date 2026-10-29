@@ -194,3 +194,46 @@ export function evaluatePromotion(i: PromotionInput): PromotionDecision {
   if (!unit) return { ok: false, reasons: ['QUESTION_TARGET_MISSING'] };
   return { ok: true, plan: { eventType, factKind, family, value: Number(x.value), unit, validFrom, validUntil, authority, siblingExtractionIds: siblingIds } };
 }
+
+/**
+ * T-137 업체 회신 속 선박 입항 일시 주장 → 사건(업체 주장 · 권한 W) 자격. 공공데이터와 비교할 **주장**일 뿐이다 — 확정 · 일치 판정은 여기서 하지 않는다
+ * (교차 확인 `corroboration-rules.ts`). 날짜는 기존 회신 날짜 기준(`dateMentions` — 회신 근거 시각의 Asia/Seoul 날짜)으로만 푼다:
+ * 인용 문장에 풀 수 있는 날짜 표현이 정확히 하나 있어야 한다. 날짜 말이 없거나("14시에 입항") 풀 수 없거나 둘 이상이면 사람에게(새 추론 규칙 없음).
+ */
+export interface VesselClaimInput {
+  time: { extractionId: string; value: string; validated: boolean; reviewStatus: string; createdEventId: string | null } | null;
+  date: { extractionId: string; value: string; validated: boolean } | null;
+  /** 시각 인용이 든 문장 */
+  sentence: string;
+  replyDate: string;
+  ambiguous: boolean;
+  isSimulated: boolean;
+  scenarioId: string | null;
+}
+
+export type VesselClaimDecision = { ok: true; arrivalAtIso: string; siblingExtractionIds: string[] } | { ok: false; reasons: BlockReason[] };
+
+export function evaluateVesselClaim(i: VesselClaimInput): VesselClaimDecision {
+  const t = i.time;
+  if (!t) return { ok: false, reasons: ['FIELD_NOT_A_FACT_VALUE'] }; // 시각 없는 말("아직 입항 전", "방금 입항")은 공공 입항 일시와 비교할 값이 아니다
+  if (t.reviewStatus !== 'PENDING' || t.createdEventId !== null) return { ok: false, reasons: ['NOT_PENDING'] };
+  if (!t.validated || !TIME.test(t.value)) return { ok: false, reasons: ['VALIDATION_NOT_PASSED'] };
+  const reasons: BlockReason[] = [];
+  if (i.ambiguous) reasons.push('AMBIGUOUS_REPLY');
+  if (i.isSimulated && i.scenarioId === null) reasons.push('SCENARIO_MISSING');
+  let day: string | null = null;
+  if (i.sentence.trim() === '') reasons.push('DATE_UNVERIFIED');
+  else {
+    const m = dateMentions(i.sentence, i.replyDate, i.replyDate);
+    if (m.unresolved.length > 0 || m.resolved.length !== 1) reasons.push('DATE_UNVERIFIED');
+    else day = m.resolved[0] as string;
+  }
+  const siblings: string[] = [];
+  if (i.date) {
+    // 모델이 낸 날짜는 후보 — 인용 문장에서 CERA 가 푼 날짜와 같을 때만 같은 사건에 반영한다
+    if (!i.date.validated || (day !== null && i.date.value !== day)) reasons.push('DATE_UNVERIFIED');
+    else siblings.push(i.date.extractionId);
+  }
+  if (reasons.length > 0 || day === null) return { ok: false, reasons: [...new Set(reasons.length > 0 ? reasons : ['DATE_UNVERIFIED' as const])] };
+  return { ok: true, arrivalAtIso: new Date(`${day}T${t.value}:00+09:00`).toISOString(), siblingExtractionIds: siblings };
+}

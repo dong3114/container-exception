@@ -13,7 +13,7 @@ import time
 from .contracts import ExtractionRequest, ExtractionResponse, Meta
 from .providers import LlmProvider
 
-PROMPT_VERSION = "reply-extract-v2"
+PROMPT_VERSION = "reply-extract-v3"
 
 _INSTRUCTIONS = """You read one business reply and answer ONLY the questions listed in ASKS.
 Rules:
@@ -23,6 +23,9 @@ Rules:
 - Answer a DATE field only when the reply itself states the day ("tomorrow", "10/27"). Relative days are relative to
   reply_date (the day the reply was sent) when it is given, otherwise to reference_date. Never use today's date.
 - If the reply states a different day than asked, still answer the DATE field with that day — do not move it to the asked day.
+- ARRIVAL_DATETIME asks name one vessel. Answer only when the reply states when THAT vessel arrived or is expected to
+  arrive, with a clock time. arrival_time = HH:MM; arrival_date only when the reply says the day. Never guess a time
+  ("just arrived", "not yet arrived" have no time — put them into unmapped_statements). Do not decide whether it is true.
 - evidence.quote must be copied character-for-character from the reply. Never paraphrase.
 - If the reply answers nothing asked, return outcome NO_CHANGE, REFUSAL or UNPARSEABLE with no answers.
 - Put statements that answer no ask into unmapped_statements (they will not be used as facts).

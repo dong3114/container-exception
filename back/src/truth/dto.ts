@@ -323,3 +323,47 @@ export class CorroborationListDto {
   @ApiProperty({ type: [CorroborationDto] })
   corroborations!: CorroborationDto[];
 }
+
+/** T-137 사람이 아직 판단하지 않은 공공 근거 충돌 — 운영자 할 일(Action Required). 값은 표시용 문자열, 판정은 Backend 규칙 */
+export class OpenConflictDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  corroboration_id!: string;
+
+  @ApiProperty({ type: String })
+  entity_type!: string;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  entity_id!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  entity_name!: string | null;
+
+  @ApiProperty({ type: String })
+  fact_key!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'The recovery run whose reply made the claim (null = relayed statement outside a run)' })
+  recovery_run_id!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  claim_value!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  public_value!: string | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  difference_minutes!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true, description: '[ASSUMPTION] tolerance of the rule version' })
+  tolerance_minutes!: number | null;
+
+  @ApiProperty({ type: String })
+  detected_at!: string;
+
+  @ApiProperty({ type: Boolean })
+  is_simulated!: boolean;
+}
+
+export class OpenConflictListDto {
+  @ApiProperty({ type: [OpenConflictDto] })
+  conflicts!: OpenConflictDto[];
+}

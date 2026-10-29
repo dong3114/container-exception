@@ -19,6 +19,8 @@ import { DraftService } from './draft.service.js';
 import { EXTRACTION_COMPONENT, EXTRACTION_OPERATION, type ExtractionInsert, ExtractionRepository } from './extraction.repository.js';
 import { buildAsk, validateAnswers } from './extraction-rules.js';
 import { PromotionService } from '../truth/promotion.service.js';
+import { CorroborationService } from '../truth/corroboration.service.js';
+import { buildVesselAsk, selectVesselCandidates } from './vessel-claim-rules.js';
 
 export type ExtractResult = 'EXTRACTED' | 'NO_CANDIDATE' | 'FAILED' | 'SKIPPED' | 'DUPLICATE';
 
@@ -44,6 +46,7 @@ export class ExtractionProcessor {
     @Inject(ExtractionRepository) private readonly repo: ExtractionRepository,
     @Inject(DraftService) private readonly drafts: DraftService,
     @Inject(PromotionService) private readonly promotion: PromotionService,
+    @Inject(CorroborationService) private readonly corroborations: CorroborationService,
     @Inject(ContentService) private readonly content: ContentService,
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
@@ -87,6 +90,9 @@ export class ExtractionProcessor {
     const asks = subject.questions
       .map((q) => buildAsk({ askId: q.askId, questionType: q.questionType, questionText: q.questionText, expectedUnit: q.expectedUnit, values: subject.askedValues }))
       .filter((a): a is Ask => a !== null);
+    // T-137: 회신이 등록된 입항 신고의 배를 직접 말하면 그 배의 입항 일시도 묻는다(공공 관측과 교차 확인할 주장 — 질문은 Backend 가 만든다)
+    const vessels = selectVesselCandidates(await this.repo.vesselCandidates(subject.threadId, subject.isSimulated, surface.bodyText), surface.bodyText);
+    asks.push(...vessels.map(buildVesselAsk));
     if (asks.length === 0) return this.finish(messageId, since, subject.isSimulated, system, AUDIT_ACTION.EXTRACTION_SKIPPED_NO_QUESTION, [], '');
 
     const request: ExtractionRequest = {
@@ -124,7 +130,7 @@ export class ExtractionProcessor {
       return 'FAILED';
     }
     const response = result.response;
-    const validated = validateAnswers(asks, surface.bodyText, response);
+    const validated = validateAnswers(asks, surface.bodyText, response, vessels);
 
     // 인용(원문의 일부)을 내용 저장소에 — 추출 행에는 참조 + 지문만(docs/22 15.9 · 29절)
     const quotes: { ref: string; hash: string }[] = [];
@@ -174,7 +180,7 @@ export class ExtractionProcessor {
 
   /** 한 트랜잭션: 같은 회신을 줄 세우고, 이미 끝났으면 아무것도 하지 않는다(재시도 · 동시 Worker — 중복 행 없음). */
   private async finish(messageId: string, since: string | null, isSimulated: boolean, system: string, action: AuditAction, rows: ExtractionInsert[], sourceText: string): Promise<ExtractResult> {
-    let promoted: { entityId: string; factKey: string }[] = [];
+    let promoted: { entityType: string; entityId: string; factKey: string }[] = [];
     const outcome = await this.tx.run(async (tx) => {
       await this.repo.lockMessage(tx, messageId);
       if (await this.repo.hasExtractions(tx, messageId, since)) return 'DUPLICATE' as const;
@@ -188,6 +194,14 @@ export class ExtractionProcessor {
       }
       return rows.length > 0 ? ('EXTRACTED' as const) : ('NO_CANDIDATE' as const);
     });
+    // T-137: 업체 회신의 입항 일시 주장은 곧바로 공공 관측과 교차 확인한다(사람 진술과 같은 경로) — 알림을 받는 Agent 가 판정이 반영된 사실을 본다
+    for (const c of promoted.filter((p) => p.entityType === 'VESSEL_CALL')) {
+      try {
+        await this.corroborations.sweep({ entityId: c.entityId });
+      } catch (e) {
+        this.logger.warn({ msg: 'corroboration after reply extraction failed — the worker sweep retries', message_id: messageId, error: (e as Error).message });
+      }
+    }
     for (const c of promoted) this.signals.emit({ type: 'FACT_CHANGED', entityId: c.entityId, factKey: c.factKey });
     return outcome;
   }

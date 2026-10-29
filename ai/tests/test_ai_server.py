@@ -156,3 +156,20 @@ def test_health_names_the_provider_and_agent_runtime_without_urls_or_keys():
     assert body["status"] == "ok" and body["provider"] == "replay"
     assert body["agent_runtime"] in {"ready", "disabled"}
     assert set(body) == {"status", "provider", "agent_runtime"}  # T-133: nothing else (no URLs, keys, model config)
+
+
+def test_t137_vessel_arrival_ask_is_a_contract_shape_and_the_prompt_forbids_guessing_or_judging():
+    v2 = json.loads((CONTRACTS / "reply-extract.v2.request.sample.json").read_text(encoding="utf-8"))
+    vessel_ask = {
+        "ask_id": "v:01a0fb92-9b66-7544-aeb3-216d6e00eef3",
+        "question": "선박 HMM TEST(호출부호 D7AB)의 입항 일시",
+        "answer_shape": "ARRIVAL_DATETIME",
+        "fields": [{"name": "arrival_date", "kind": "DATE", "unit": None}, {"name": "arrival_time", "kind": "TIME", "unit": None}],
+        "window": None,
+    }
+    req = ExtractionRequest.model_validate({**v2, "asks": [*v2["asks"], vessel_ask]})
+    prompt = build_prompt(req)
+    assert "ARRIVAL_DATETIME" in prompt and "Never guess a time" in prompt and "Do not decide whether it is true" in prompt
+    # the answer has no place for a vessel id, a match verdict or a fact state — only the ask the Backend made
+    with pytest.raises(Exception):
+        ExtractionRequest.model_validate({**v2, "asks": [{**vessel_ask, "answer_shape": "VESSEL_MATCH"}]})

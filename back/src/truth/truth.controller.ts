@@ -16,7 +16,7 @@ import {
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { ConfirmFactRequestDto, CorroborationListDto, CorrectFactRequestDto, FactCoordinateDto, FactListDto, ManualFactRequestDto, RejectFactRequestDto, RevokeFactRequestDto } from './dto.js';
+import { ConfirmFactRequestDto, CorroborationListDto, OpenConflictListDto, CorrectFactRequestDto, FactCoordinateDto, FactListDto, ManualFactRequestDto, RejectFactRequestDto, RevokeFactRequestDto } from './dto.js';
 import { FACT_ACTOR_HEADER, FactActionService } from './fact-actions.service.js';
 import { TruthQueryService } from './truth-query.service.js';
 import { CorroborationService } from './corroboration.service.js';
@@ -86,6 +86,13 @@ export class TruthController {
   @ApiNotFoundResponse({ description: 'TARGET_NOT_FOUND', schema: ERROR_SCHEMA })
   partnerStatement(@Headers(FACT_ACTOR_HEADER) actor: string | undefined, @Body() body: unknown): Promise<FactCoordinateDto> {
     return this.actions.enterPartnerStatement(actor, body);
+  }
+
+  @Get('corroborations/open-conflicts')
+  @ApiOperation({ summary: 'T-137: public-evidence conflicts a person has not resolved yet (the fact is still NEEDS_REVIEW because a partner claim and the public record disagree) — the operator to-do list reads this' })
+  @ApiOkResponse({ type: OpenConflictListDto })
+  openConflicts(): Promise<OpenConflictListDto> {
+    return this.query.openConflicts();
   }
 
   @Get('corroborations')

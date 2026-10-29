@@ -140,32 +140,7 @@ export class RecoveryPlanService implements OnModuleInit {
 
   /** Truth Layer 의 현재 사실 → 계획 사실. 같은 좌표(주체 · 키)가 적용 범위별로 여럿이면 가장 믿을 만한 것 하나. */
   private toPlanningFacts(results: CoordinateResult[], planDay: string, horizon: string[], kinds: Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL' | 'VESSEL_CALL'>): PlanningFact[] {
-    const best = new Map<string, CoordinateResult>();
-    for (const r of results) {
-      const kind = kinds.get(r.data.coordinate.entityId);
-      if (!kind) continue;
-      const key = r.data.coordinate.factKey;
-      const relevant = kind === 'VESSEL_CALL' ? key === 'declared_arrival' : kind === 'TRUCK_POOL' ? isTruthManagedKey(key, planDay, kind) : horizon.some((d) => key.endsWith(`day(${d})`)) && key.startsWith('capacity.');
-      if (!relevant) continue;
-      const k = `${r.data.coordinate.entityId}|${key}`;
-      const cur = best.get(k);
-      if (!cur || (TRUTH_RANK[r.state] ?? 9) < (TRUTH_RANK[cur.state] ?? 9)) best.set(k, r);
-    }
-    return [...best.values()].map((r) => {
-      const w = r.result.winner;
-      const ref = w ? `event:${w.eventId}` : r.result.revokedBy ? `event:${r.result.revokedBy}` : `truth:${r.data.coordinate.entityId}:${r.data.coordinate.factKey}`;
-      return {
-        fact_ref: ref,
-        subject_id: r.data.coordinate.entityId,
-        fact_key: r.data.coordinate.factKey,
-        value: w && w.value !== null && Number.isSafeInteger(w.value) && w.value >= 0 ? w.value : null,
-        fact_state: r.state,
-        freshness: r.result.freshness,
-        source: 'TRUTH' as const,
-        is_simulated: r.data.coordinate.isSimulated,
-        evidence_time: w ? Instant.parseIso(w.evidenceTime).toSeoulIso() : null,
-      };
-    });
+    return truthToPlanningFacts(results, planDay, horizon, kinds);
   }
 
   /**
@@ -615,4 +590,34 @@ export class RecoveryPlanService implements OnModuleInit {
     const [row] = await this.db.select({ scope: planningSnapshot.scopeRef }).from(planningSnapshot).where(eq(planningSnapshot.snapshotId, snapshotId)).limit(1);
     return row?.scope ?? null;
   }
+}
+
+/** Truth 판정 → 계획 입력 사실(T-114 · T-136). 계열마다 가장 강한 상태 하나 — 충돌(NEEDS_REVIEW) 값은 Cost Engine 이 제약으로 쓰지 않는다. 시험도 이 함수를 그대로 쓴다 */
+export function truthToPlanningFacts(results: CoordinateResult[], planDay: string, horizon: string[], kinds: Map<string, 'WAREHOUSE' | 'ODCY' | 'TRUCK_POOL' | 'VESSEL_CALL'>): PlanningFact[] {
+  const best = new Map<string, CoordinateResult>();
+  for (const r of results) {
+    const kind = kinds.get(r.data.coordinate.entityId);
+    if (!kind) continue;
+    const key = r.data.coordinate.factKey;
+    const relevant = kind === 'VESSEL_CALL' ? key === 'declared_arrival' : kind === 'TRUCK_POOL' ? isTruthManagedKey(key, planDay, kind) : horizon.some((d) => key.endsWith(`day(${d})`)) && key.startsWith('capacity.');
+    if (!relevant) continue;
+    const k = `${r.data.coordinate.entityId}|${key}`;
+    const cur = best.get(k);
+    if (!cur || (TRUTH_RANK[r.state] ?? 9) < (TRUTH_RANK[cur.state] ?? 9)) best.set(k, r);
+  }
+  return [...best.values()].map((r) => {
+    const w = r.result.winner;
+    const ref = w ? `event:${w.eventId}` : r.result.revokedBy ? `event:${r.result.revokedBy}` : `truth:${r.data.coordinate.entityId}:${r.data.coordinate.factKey}`;
+    return {
+      fact_ref: ref,
+      subject_id: r.data.coordinate.entityId,
+      fact_key: r.data.coordinate.factKey,
+      value: w && w.value !== null && Number.isSafeInteger(w.value) && w.value >= 0 ? w.value : null,
+      fact_state: r.state,
+      freshness: r.result.freshness,
+      source: 'TRUTH' as const,
+      is_simulated: r.data.coordinate.isSimulated,
+      evidence_time: w ? Instant.parseIso(w.evidenceTime).toSeoulIso() : null,
+    };
+  });
 }

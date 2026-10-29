@@ -7,7 +7,8 @@
           "answer_shape": {
             "enum": [
               "QUANTITY_IN_TIME_WINDOW",
-              "QUANTITY_ON_DATE"
+              "QUANTITY_ON_DATE",
+              "ARRIVAL_DATETIME"
             ],
             "title": "Answer Shape",
             "type": "string"

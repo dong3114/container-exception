@@ -101,7 +101,7 @@ describe('T-136 corroboration — partner statement vs public observation (deter
     expect(live.state).toBe('NEEDS_REVIEW');
     expect(live.result.conflictType).toBe('PUBLIC_EVIDENCE_CONFLICT');
     expect(live.result.usability).toBe('APPROVAL_BLOCKED');
-    expect([...new Set(live.data.rows.map((r) => r.sourceType))].sort()).toEqual(['HUMAN_UI', 'PUBLIC_API']); // 둘 다 보존(공유 시험 DB 에서는 같은 공공 관측이 여러 번 들어와 있을 수 있다)
+    expect(live.data.rows.map((r) => r.sourceType)).toEqual(expect.arrayContaining(['HUMAN_UI', 'PUBLIC_API'])); // 둘 다 보존(공유 시험 DB 에는 다른 시험의 근거도 같은 배에 있을 수 있다)
   });
 
   it('E NOT_COMPARABLE: a partner reply about internal warehouse capacity is never compared with (or overwritten by) public data', async () => {

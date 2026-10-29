@@ -773,6 +773,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/truth/corroborations/open-conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** T-137: public-evidence conflicts a person has not resolved yet (the fact is still NEEDS_REVIEW because a partner claim and the public record disagree) — the operator to-do list reads this */
+        get: operations["TruthController_openConflicts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/truth/corroborations": {
         parameters: {
             query?: never;
@@ -2289,6 +2306,30 @@ export interface components {
              */
             reason_code: "SOURCE_WITHDREW" | "OPERATOR_INVALIDATED" | "OUTDATED_OPERATIONAL_STATE";
             note?: string;
+        };
+        OpenConflictDto: {
+            /** Format: uuid */
+            corroboration_id: string;
+            entity_type: string;
+            /** Format: uuid */
+            entity_id: string;
+            entity_name: string | null;
+            fact_key: string;
+            /**
+             * Format: uuid
+             * @description The recovery run whose reply made the claim (null = relayed statement outside a run)
+             */
+            recovery_run_id: string | null;
+            claim_value: string | null;
+            public_value: string | null;
+            difference_minutes: number | null;
+            /** @description [ASSUMPTION] tolerance of the rule version */
+            tolerance_minutes: number | null;
+            detected_at: string;
+            is_simulated: boolean;
+        };
+        OpenConflictListDto: {
+            conflicts: components["schemas"]["OpenConflictDto"][];
         };
         CorroborationDto: {
             /** Format: uuid */
@@ -4874,6 +4915,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    TruthController_openConflicts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenConflictListDto"];
                 };
             };
         };
