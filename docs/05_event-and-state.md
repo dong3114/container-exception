@@ -889,6 +889,13 @@ Reconciliation 결과마다 템플릿으로 설명을 만든다(LLM을 쓰지 �
 
 ---
 
+## 16. 공공 관측 · 교차 확인 (T-136 · ADR-042)
+
+- 공공 API 사건의 권한은 출처가 아니라 **사실 영역**이 정한다(`public-authority.ts`). 지금 권한이 있는 것은 입항 신고 일시(`VESSEL_CALL.declared_arrival`, A) 하나 → **OBSERVED**. 사람 확인(CONFIRMED)과 다르다
+- 아는 시각과 판단 시각을 나눈다: 계산은 그 시각까지 **알았던** 근거만 쓴다(LIVE = 받은 시각). 관측 시각 ≠ 사건 시각
+- 업체 주장(메일 사건 · 사람이 전달한 업체 진술 — 권한 W, 사람 확인 아님)은 같은 사실의 공공 관측과 결정론으로 비교한다: MATCH · CONFLICT · NO_PUBLIC_EVIDENCE · STALE_PUBLIC_EVIDENCE · NOT_COMPARABLE. **CONFLICT 는 NEEDS_REVIEW(`PUBLIC_EVIDENCE_CONFLICT`)** — 두 근거 모두 보존, 사람이 판단. NO_PUBLIC_EVIDENCE 는 "거짓"이 아니다
+- 상세 · 시험: `docs/24` 18.29
+
 ## 부록 A. 검증 사례 (정책을 직접 적용한 결과)
 
 공통: 날짜 D = 2026-10-05. 파라미터는 15절 PoC 데모 값(τ 5분, δ_m 30분, 신선도·θ는 표 값)이다. 결과가 파라미터에 따라 달라지는 경우는 따로 적었다. 강도는 3.3 표, 권한은 3.2 표에 따른다.

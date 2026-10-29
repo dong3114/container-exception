@@ -21,6 +21,19 @@
 
 ---
 
+## 2026-10-29 · T-136 실행 결함 · 공공 근거 교차 확인 · 예외 영향 범위 · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 사용자가 이 작업만 Backend Core 동결 해제. 끝나고 **Backend 다시 FROZEN**
+- 한 일:
+  - Phase 1 결함 10건(1-1~1-10) 수정 — `92d0e80`
+  - 공공 관측 = 사실 영역별 권한의 근거(입항 신고 → OBSERVED, 사람 확인 아님) · 결정론 교차 확인 5결과 · CONFLICT → NEEDS_REVIEW · 업체 진술 입력 · 교차 확인 조회 · Worker 주기 · 시스템 상태 요약 — `79e80af`
+  - Cost Engine 입항 반영(입항 전 반출 불가 · 출발 시각 · 충돌 시 검증 위험 정책 벌점, 돈은 만들지 않음) · Agent 공공데이터 먼저 · 예외 영향 컨테이너만 재배치 후보 — `ffe8212`
+  - 화면: 사실 카드 교차 확인 줄 · 계획 범위 줄 · 시스템 상태 요약 — `8ad837e`
+- 변경 파일: `back/src/{truth,planning,detection,agent-tools,public-data,ops,db/schema}/**` · migration 0040 · 0041 · `ai/cera_ai/agent/graph.py` · `front/web/src/**`(최소) · `packages/contracts/*` · docs 05 · 06 · 08 · 11 · 14(ADR-042) · 24(18.29 · 22.65~22.67) · deliverables 10
+- 검증: Backend 632 · Python 101 · Front 134 · typecheck · lint · build · LIVE 공공데이터 smoke(키 값 출력 없음) · State B 오프라인 전후 비교(`npx tsx src/dev/t136-state-b.ts`)
+- 남은 일 / 다음 한 걸음: T-134(노트북). 후속 T-137~T-143(P2 · 사용자 결정)
+- 큐 변경: T-136 DONE · T-137~T-143 추가
+- 주의사항: 공유 시험 DB 에서는 같은 공공 관측이 여러 번 쌓일 수 있다(시험은 출처 종류 집합으로 비교). 입항 공백은 시뮬레이션이 아닌 입항 신고에만 생긴다(T-143). 허용 오차 60분 · 벌점 30,000원 · 신선도 24h/72h 는 [ASSUMPTION](T-142)
+
 ## 2026-10-29 · T-135 운영 콘솔 1차 제품 UI/UX · Claude Code (claude-opus-5-5)
 - 상태: 완료 — Frontend only. Backend · API · migration 변경 없음(Core FROZEN 유지). T-134 는 배포 대상 노트북에서 재개
 - 한 일:

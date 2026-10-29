@@ -584,3 +584,15 @@
   7. **새 인프라 없음**: 5초 폴링 재사용 · WebSocket · Prometheus · Grafana · OpenTelemetry 를 넣지 않는다. 상태 이력은 없다(현재 상태만)
 - 대안: Worker 에 HTTP 상태 경로(기각 — 내부망 · 프로세스마다 따로 물어야 함, DB 한 행이면 충분) · Redis 키 기반 heartbeat(기각 — Redis 가 정본이 아니고 장애 시 같이 사라짐) · 지표 스택(범위 밖 [향후])
 - 결과: `back/src/ops/*` · M39 · M40 · `WorkerRunner` heartbeat · `InboundProcessor` 채널별 결과 · AI `/health` 의 `agent_runtime` · 화면 `SystemHealth` · `ExceptionBoard` · `ModeBadge` · 운영 기준 계획 입력 · 시험 `unit/system-status-policy.test.ts` · `db/ops-status.test.ts` · `fe/components/ops/dashboard.test.tsx`
+
+## ADR-042: 공공 관측 = 사실 영역별 권한의 근거 · 결정론 교차 확인 · 예외 영향 범위 (T-136)
+- 상태: **Accepted (사용자 지시 2026-10-29 — T-136 범위. 허용 오차 60분 · 검증 위험 벌점 30,000원은 [ASSUMPTION] 정책값)**
+- 맥락: 공공데이터(Port-MIS)를 가져오기만 하고 Truth · 계획에 쓰지 않았다. 반대로 공공 응답을 그대로 사실로 쓰면 "공공데이터는 진실원천이 아니다"(AGENTS 1절)를 어긴다. 또 복구 계획이 예외와 상관없는 오늘 계획 전체를 다시 짜 운영자의 기존 약속을 흔들었다
+- 결정:
+  1. **권한은 사실 영역별 코드 표**(`public-authority.ts`): 공공 출처라고 권한이 생기지 않는다. 지금은 입항 신고 일시 하나만 A → OBSERVED(사람 확인 아님). 나머지 공공 사건은 관측 기록일 뿐
+  2. **교차 확인은 결정론 규칙**(`corroboration-rules.ts`, `corroboration/1`): MATCH · CONFLICT · NO_PUBLIC_EVIDENCE · STALE_PUBLIC_EVIDENCE · NOT_COMPARABLE. LLM 은 권한 · 일치 · 확정을 정하지 않는다. 짝은 식별자로만. 결과는 append-only(`corroboration`)
+  3. **충돌은 사람 검토**: CONFLICT → NEEDS_REVIEW · 승인 차단. 공공이 이기지도, 업체가 이기지도 않는다. 사람이 그 뒤에 확인하면 사람 판단
+  4. **돈은 만들지 않는다**: 공공 근거는 실행 가능성(입항 전 반출 불가 · 출발 시각)과 정책 벌점만 바꾼다. 대기 요율 · Detention 이 없으면 NOT_PRICED
+  5. **예외 영향 범위**: 예외의 최신 관측이 넘친 컨테이너만 재배치 후보, 나머지는 고정 계획(자원은 계속 소비). 고정할 수 없으면 경고와 함께 후보
+- 대안: 공공 값을 바로 CONFIRMED(기각 — 공공데이터는 진실원천이 아니다) · LLM 비교(기각 — 숫자 · 확정은 결정론) · 이름 유사도 짝짓기(기각 — 잘못된 배를 근거로 삼을 위험) · 범위 없이 전체 재최적화 유지(기각 — 영향 없는 약속을 흔든다)
+- 결과: M41 · M42 · `back/src/truth/{public-authority,corroboration-rules,corroboration.service}.ts` · Cost Engine `cost-policy/2` · 계획 `detail.scope` · Agent 공공데이터 먼저 · 화면(사실 카드 교차 확인 · 계획 범위 · 시스템 상태). 상세 `docs/24` 18.29. 한계: 메일 회신에서 입항 주장 추출 없음 · 범위는 컨테이너 단위(그룹 단위 아님)
