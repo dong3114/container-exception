@@ -111,7 +111,7 @@ export function integrationLines(s: SystemStatus): Line[] {
     gmail.level === "DISABLED"
       ? "꺼짐 — 실제 메일을 보내지 않음"
       : `${gmail.connection === "CONNECTED" ? "연결됨" : gmail.connection === "AUTH_FAILED" ? `인증 실패${gmail.last_error_code ? `(${gmail.last_error_code})` : ""} — 다시 인증 필요` : gmail.connection === "CHECK_FAILED" ? `수신 확인 실패${gmail.last_error_code ? `(${gmail.last_error_code})` : ""}` : "아직 확인 전"} · 최근 발송 ${clock(gmail.last_send_at)} · 최근 수신 ${clock(gmail.last_receive_at)}`;
-  const pdText = public_data.level === "DISABLED" ? "꺼짐" : `${public_data.mode ?? ""} · 최근 조회 ${clock(public_data.last_request_at)}${public_data.last_outcome ? `(${public_data.last_outcome})` : ""} · 최근 성공 ${clock(public_data.last_success_at)}`;
+  const pdText = public_data.level === "DISABLED" ? "꺼짐" : `${public_data.mode ?? ""} · 최근 조회 ${clock(public_data.last_request_at)}${public_data.last_outcome ? `(${public_data.last_outcome})` : ""} · 최근 성공 ${clock(public_data.last_success_at)}${corroText(public_data.corroboration)}`;
   return [
     { key: "llm", name: "LLM", level: llm.level, text: llmText },
     { key: "gmail", name: "Gmail", level: gmail.level, text: gmailText },
@@ -131,4 +131,11 @@ export function queueLines(s: SystemStatus): { key: string; name: string; line: 
 export function queueText(q: QueueLine): string {
   if (q.count === 0) return "0건";
   return `${q.count}건 · 가장 오래 ${age(q.oldest_age_seconds)}${q.retrying ? ` · 재시도 중 ${q.retrying}` : ""}`;
+}
+
+/** T-136 교차 확인 요약 — 지난 24시간 일치 · 충돌 · 공공 근거 없음 건수(결정론 판정 결과) */
+function corroText(c: { last_at: string | null; last_24h: Record<string, number> } | undefined): string {
+  if (!c) return "";
+  const n = (k: string) => c.last_24h[k] ?? 0;
+  return ` · 교차 확인(24시간) 일치 ${n("MATCH")} · 충돌 ${n("CONFLICT")} · 공공 근거 없음 ${n("NO_PUBLIC_EVIDENCE")}`;
 }

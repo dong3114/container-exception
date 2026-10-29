@@ -6,6 +6,7 @@ import { outdatedText, outdatedValueChange } from "@/components/ops/opsModel";
 import { Callout, EmptyState } from "@/components/ui/primitives";
 import { useAsyncAction } from "@/state/async";
 import {
+  scopeLine,
   ACTION_BADGE,
   ACTION_LABEL,
   PLAN_STATUS_BADGE,
@@ -187,6 +188,7 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
             </div>
             <div className="metric" style={{ fontSize: 12 }}>
               <span className="metric-label">조치 {plan.changed_count}대 변경 / 대상 {plan.candidate_count}대</span>
+              {scopeLine(plan.items) && <span className="metric-hint" data-testid="plan-scope">{scopeLine(plan.items)}</span>}
               {actionCounts(plan.items).map((c) => (
                 <div key={c.action}>
                   <span className={`badge ${ACTION_BADGE[c.action] ?? "b-outline"}`}>{c.label}</span> {c.count}대
@@ -327,3 +329,4 @@ function CostCompare({ baseline, recommended }: { baseline: number | null; recom
     </div>
   );
 }
+

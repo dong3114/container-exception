@@ -29,7 +29,7 @@ export interface SystemStatus {
   integrations: {
     llm: { level: ComponentLevel; mode?: "REPLAY" | "COMMERCIAL" | null; provider?: string | null; model?: string | null; last_success_at?: string | null; last_failure_at?: string | null; last_failure_code?: string | null };
     gmail: { level: ComponentLevel; enabled?: boolean; connection?: "CONNECTED" | "AUTH_FAILED" | "CHECK_FAILED" | "NOT_CHECKED"; connection_checked_at?: string | null; last_error_code?: string | null; last_send_at?: string | null; last_send_failure_at?: string | null; last_receive_at?: string | null };
-    public_data: { level: ComponentLevel; mode?: string; last_request_at?: string | null; last_outcome?: string | null; last_success_at?: string | null };
+    public_data: { level: ComponentLevel; mode?: string; last_request_at?: string | null; last_outcome?: string | null; last_success_at?: string | null; corroboration?: { last_at: string | null; last_24h: Record<string, number> } };
   };
   queues: { send: QueueLine & { retrying: number }; extraction: QueueLine; extraction_retry: QueueLine; agent_retry: QueueLine };
 }

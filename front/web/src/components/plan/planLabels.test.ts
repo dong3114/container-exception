@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Plan, PlanItem } from "@/api/plans";
-import { actionCounts, alternatives, costLines, nameMap, reasonLabel, resourceLabel } from "./planLabels";
+import { actionCounts, alternatives, costLines, nameMap, reasonLabel, resourceLabel, scopeLine } from "./planLabels";
 
 const W = "01a0fb92-9b66-7544-aeb3-216d6e00eef3";
 const O = "01a0fb92-9b66-7544-aeb3-28ca5dc2afa8";
@@ -58,5 +58,18 @@ describe("plan labels (T-114) — names what the engine reported, never computes
     const plan = { facts: [{ subject_id: W, subject_name: "창고 A" }], items: [item()] } as unknown as Plan;
     expect(nameMap(plan).get(W)).toBe("창고 A");
     expect(nameMap(plan).get(O)).toBe("ODCY A");
+  });
+});
+
+describe("T-136 plan scope line", () => {
+  const scoped = (id: string, action: string, scope: string) => item({ container_id: id, action, detail: { scope } } as Partial<PlanItem>);
+  it("counts affected candidates by action and the fixed baseline", () => {
+    const line = scopeLine([scoped("C001", "MOVE_TO_ODCY", "AFFECTED"), scoped("C002", "KEEP_CURRENT_PLAN", "AFFECTED"), scoped("C003", "KEEP_CURRENT_PLAN", "FIXED")]);
+    expect(line).toContain("예외 영향 2대 재배치 후보");
+    expect(line).toContain("영향 없는 1대는 원래 계획 고정");
+  });
+  it("is hidden when the run has no exception scope", () => {
+    expect(scopeLine([scoped("C001", "MOVE_TO_ODCY", "ALL")])).toBeNull();
+    expect(scopeLine([item()])).toBeNull();
   });
 });

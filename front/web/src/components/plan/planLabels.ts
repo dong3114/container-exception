@@ -152,3 +152,12 @@ export function alternatives(item: PlanItem, names: Map<string, string>): Altern
     blockedBy: a.blocked_by.map((b) => (b.startsWith("CAPACITY_FULL:") ? `${resourceLabel(b.slice(14), names)} 가득` : b === "TRUCKS_BUSY" ? "트럭 · 시각 없음" : b === "TOTAL_COST_TRADEOFF" ? "전체 합 기준" : b)),
   }));
 }
+
+/** T-136 — 예외 영향 컨테이너만 재배치 후보, 나머지는 원래 계획 고정(용량 · 트럭은 함께 셈). 범위 제한이 없으면(예외 없이 연 실행) 표시하지 않는다 */
+export function scopeLine(items: PlanItem[]): string | null {
+  const affected = items.filter((i) => i.detail.scope === "AFFECTED");
+  const fixed = items.filter((i) => i.detail.scope === "FIXED").length;
+  if (affected.length === 0 && fixed === 0) return null;
+  const parts = actionCounts(affected).map((c) => `${c.label} ${c.count}`);
+  return `예외 영향 ${affected.length}대 재배치 후보${parts.length ? `(${parts.join(" · ")})` : ""} · 영향 없는 ${fixed}대는 원래 계획 고정`;
+}

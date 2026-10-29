@@ -7,6 +7,7 @@ import {
   type RevokeReasonCode,
   confirmFact,
   correctFact,
+  listCorroborations,
   listFacts,
   rejectFact,
   revokeFact,
@@ -193,6 +194,7 @@ export function FactCard({ fact, actorId, asOf, onUpdated }: { fact: FactCoordin
         신선도 판단 기준 시각 {formatTime(fact.evaluated_as_of)}
       </div>
       {hints.length > 0 && <div className="muted" style={{ fontSize: 11.5 }}>{hints.join(" · ")}</div>}
+      {fact.fact_key === "declared_arrival" && <CorroborationLine entityId={fact.entity_id} refreshKey={fact.evaluated_as_of} />}
       <details>
         <summary style={{ fontSize: 12, cursor: "pointer" }}>근거 {fact.candidates.length}건 보기</summary>
         <ul style={{ margin: "4px 0 0", paddingLeft: 16, display: "grid", gap: 8, listStyle: "none" }}>
@@ -201,6 +203,35 @@ export function FactCard({ fact, actorId, asOf, onUpdated }: { fact: FactCoordin
           ))}
         </ul>
       </details>
+    </div>
+  );
+}
+
+const CORROBORATION_LABEL: Record<string, { text: string; badge: string }> = {
+  MATCH: { text: "공공 근거와 일치", badge: "b-green" },
+  CONFLICT: { text: "공공 근거와 충돌 — 사람 검토", badge: "b-red" },
+  NO_PUBLIC_EVIDENCE: { text: "공공 근거 없음(거짓이라는 뜻 아님)", badge: "b-outline" },
+  STALE_PUBLIC_EVIDENCE: { text: "공공 근거가 오래됨", badge: "b-amber" },
+  NOT_COMPARABLE: { text: "공공데이터로 비교할 수 없는 사실", badge: "b-outline" },
+};
+
+/** T-136 — 업체 회신 · 진술과 공공 관측(입항 신고)의 교차 확인 결과. 규칙이 정한 결과를 그대로 보여 준다(화면이 판정하지 않는다) */
+function CorroborationLine({ entityId, refreshKey }: { entityId: string; refreshKey: string }) {
+  const list = useAsyncAction((signal) => listCorroborations(entityId, signal));
+  const { run } = list;
+  useEffect(() => {
+    run();
+  }, [run, entityId, refreshKey]);
+  const latest = list.state.status === "SUCCESS" ? list.state.data.corroborations[0] : undefined;
+  if (!latest) return null;
+  const label = CORROBORATION_LABEL[latest.result] ?? { text: latest.result, badge: "b-outline" };
+  return (
+    <div style={{ fontSize: 11.5, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }} data-testid="fact-corroboration" data-result={latest.result}>
+      <span className={`badge ${label.badge}`}>{label.text}</span>
+      <span className="muted">
+        업체 {latest.claim_value ? formatTime(latest.claim_value) : "-"} · 공공 {latest.public_value ? formatTime(latest.public_value) : "-"}
+        {latest.difference_minutes !== null ? ` · 차이 ${latest.difference_minutes}분(허용 ${latest.tolerance_minutes ?? "-"}분, 가정값)` : ""}
+      </span>
     </div>
   );
 }

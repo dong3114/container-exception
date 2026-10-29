@@ -10,6 +10,8 @@ import { ACTOR_HEADER } from "./drafts";
 export type FactList = components["schemas"]["FactListDto"];
 export type FactCoordinate = components["schemas"]["FactCoordinateDto"];
 export type FactCandidate = components["schemas"]["FactCandidateDto"];
+export type Corroboration = components["schemas"]["CorroborationDto"];
+export type CorroborationList = components["schemas"]["CorroborationListDto"];
 export type RejectFactRequest = components["schemas"]["RejectFactRequestDto"];
 export type FactReasonCode = RejectFactRequest["reason_code"];
 export type RevokeFactRequest = components["schemas"]["RevokeFactRequestDto"];
@@ -94,4 +96,9 @@ export function revokeFact(
 export function enterFact(actorId: string, body: Omit<ManualFactRequest, "command_id" | "intent">, signal?: AbortSignal, fetchImpl?: typeof fetch, asOf?: string) {
   const request: ManualFactRequest = { command_id: crypto.randomUUID(), intent: "OPERATOR_DIRECT_ENTRY", ...body };
   return apiRequest<FactCoordinate>(withQuery("/truth/facts/manual", asOf), { method: "POST", body: request, headers: { [ACTOR_HEADER]: actorId }, signal }, fetchImpl);
+}
+
+/** T-136 — 공공 근거 교차 확인(업체 주장 ↔ 공공 관측, 결정론 판정) — 한 주체의 최신순 */
+export function listCorroborations(entityId: string, signal?: AbortSignal, fetchImpl?: typeof fetch) {
+  return apiRequest<CorroborationList>(`/truth/corroborations?entity_id=${encodeURIComponent(entityId)}`, { signal }, fetchImpl);
 }
