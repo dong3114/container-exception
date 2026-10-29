@@ -39,10 +39,11 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged, facts = [] 
         const tag = tags.get(id);
         const kind = tag ? FOLLOW_UP_KIND[tag.kind]! : { label: "[문의]", badge: "b-outline" };
         const st = messageStatus(d.message.status);
-        const answered = questionAnswered(d, facts);
-        // 답장의 검토 표시는 Backend 그대로 두되, 물은 정보가 이미 채워졌으면 '처리 완료'로 보인다(아직 할 일로 오해하지 않게)
-        const review = d.replies.some((r) => r.extraction?.needs_review) && !answered;
-        const reviewDone = d.replies.some((r) => r.extraction?.needs_review) && answered;
+        // T-136: 두 가지를 나눠 보인다 — 메시지 처리(답장 받음 · 추출 결과)와 업무 검토(review_pending, Backend 판정).
+        // 추출이 값을 못 냈어도(needs_review) 물은 정보가 이미 확정됐으면 업무 검토는 끝 — 하나의 "처리 완료"로 섞지 않는다
+        const review = d.replies.some((r) => r.extraction?.review_pending);
+        const reviewDone = d.replies.some((r) => r.extraction?.needs_review) && !review;
+        const provisionalOnly = !review && !reviewDone && questionAnswered(d, facts) && d.replies.some((r) => r.extraction?.needs_review);
         const superseded = d.blocked_reasons.includes("PLAN_SUPERSEDED");
         return (
           <div key={id} className="ops-subcard" data-testid="comm-item" data-message-id={id} data-kind={tag?.kind ?? "INQUIRY"} data-status={d.message.status}>
@@ -63,7 +64,12 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged, facts = [] 
               {d.plan_based && <span className="badge b-outline" title="복구 계획에서 나온 요청">▣ 계획 근거{d.source_run?.trigger_ref ? ` · ${d.source_run.trigger_ref}` : ""}</span>}
               {d.replies.length > 0 && <span className="badge b-green">✉ 답장 {d.replies.length}</span>}
               {review && <span className="badge b-amber">! 답장 검토 필요</span>}
-              {reviewDone && <span className="badge b-green" data-testid="review-done">✓ 처리 완료(정보가 이미 채워짐)</span>}
+              {reviewDone && (
+                <span className="badge b-outline" data-testid="review-done" title="추출은 값을 내지 못했지만 물은 정보는 다른 경로로 확정됐습니다">
+                  ✓ 업무 검토 불필요 · 추출 결과 값 없음
+                </span>
+              )}
+              {provisionalOnly && <span className="badge b-amber">◐ 임시 값 — 사람 확인 필요</span>}
               {superseded && <span className="badge b-orange">↻ 이전 계획 기준</span>}
               <span className="muted mono">{shortTime(d.dispatch.sent_at ?? d.message.created_at)}</span>
             </button>
@@ -74,7 +80,7 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged, facts = [] 
             )}
             {openId === id && reviewDone && (
               <span className="muted" style={{ fontSize: 12 }}>
-                이 답장에서 AI 가 값을 얻지 못했지만, 물은 정보는 이미 다른 길(직접 입력 등)로 채워졌습니다 — 다시 추출할 필요가 없습니다.
+                메시지 처리: 답장 받음 · AI 추출은 값을 얻지 못함. 업무 검토: 필요 없음 — 물은 정보가 이미 확정(사람 확인 · 공식 기록)됐거나 더 새 답장이 있습니다.
               </span>
             )}
             {openId === id && <DraftView key={`${id}:${d.message.status}:${d.approval.history.length}:${d.replies.length}`} draft={d} approverId={approver} onChanged={onChanged} />}

@@ -131,7 +131,8 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
 
   const runOfThread = new Map(drafts.map((d) => [d.thread.thread_id, draftRunId(d)]));
   for (const i of inbound) {
-    if (i.status !== "NORMAL" || !i.extraction?.needs_review) continue;
+    // T-136: 회신 단위 추출 결과(needs_review)가 아니라 업무 검토 대기(review_pending — Backend 가 사실 · 스레드로 판정)만 할 일이다
+    if (i.status !== "NORMAL" || !i.extraction?.review_pending) continue;
     const runId = runOfThread.get(i.thread_id ?? "") ?? null;
     // Agent 가 이 실행에서 회신 검토를 기다리면 그 항목이 같은 일이다
     if (runId && [...out.values()].some((a) => a.runId === runId && a.title === HUMAN_REASON.REPLY_REVIEW_REQUIRED!.title)) continue;

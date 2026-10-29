@@ -88,3 +88,33 @@ describe('T-108 reconciler sees every waiting run', () => {
     expect(mine.every((id) => resumed.includes(id))).toBe(true);
   });
 });
+
+describe('T-136 1-1 a run waiting for replies is woken by polling, not by a person', () => {
+  function reconcilerRecording(resumed: { id: string; reason: string; ref: unknown }[]) {
+    return new AgentReconciler(
+      api.get(RuntimeStoreRepository),
+      { resume: async (id: string, reason: string, ref: unknown) => (resumed.push({ id, reason, ref }), { already: false }) } as never,
+      api.get(DraftService),
+      api.get(TruthService),
+      api.get(RecoveryContextService),
+      api.get(RecoveryPlanService),
+      api.get(CLOCK),
+      { CERA_AGENT_RECONCILE_ENABLED: true } as never,
+      { subscribe: () => undefined } as never,
+      api.get(RegistryService),
+      api.get(ContactSelectionRepository),
+    );
+  }
+
+  it('AWAITING_REPLIES (also an older run saved without a pending ref): no gap still awaits a reply → woken once with the recovery run as the ref', async () => {
+    const recoveryRunId = await simulatedRun(); // 이 실행에는 문의가 없다 → ASKED 공백이 없다 = 기다릴 회신이 없다
+    const id = v7();
+    await db.query(`INSERT INTO cera.agent_run (agent_run_id, recovery_run_id, goal, status, created_by_actor_id, agent_actor_id, started_at, is_simulated) VALUES ($1, $2, 'close gaps', 'CREATED', $3, $4, $5, true)`, [id, recoveryRunId, ids.human, ids.agent, T0]);
+    await db.query("UPDATE cera.agent_run SET status = 'RUNNING', updated_at = $2 WHERE agent_run_id = $1", [id, T0]);
+    // 예전 그래프가 남긴 모양: 대기 대상 없음
+    await db.query("UPDATE cera.agent_run SET status = 'WAITING_EXTERNAL', waiting_reason = 'AWAITING_REPLIES', pending_ref_type = NULL, pending_ref_id = NULL, updated_at = $2 WHERE agent_run_id = $1", [id, T0]);
+    const resumed: { id: string; reason: string; ref: unknown }[] = [];
+    await reconcilerRecording(resumed).runOnce(500);
+    expect(resumed.filter((r) => r.id === id)).toEqual([{ id, reason: 'REPLIES_SETTLED', ref: { type: 'RECOVERY_RUN', id: recoveryRunId } }]);
+  });
+});

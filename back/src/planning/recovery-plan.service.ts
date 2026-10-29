@@ -206,7 +206,7 @@ export class RecoveryPlanService implements OnModuleInit {
   }
 
   /** 실제 실행의 입력 원천을 모아 판정한다 — 등록부 · 운영 기록(지금 판) · Truth(as_of). 시나리오 팩은 읽지 않는다. */
-  private async liveAssessment(run: CaseRun, asOf: Instant): Promise<LiveAssessment & { planDay: string }> {
+  private async liveAssessment(run: CaseRun, asOf: Instant, knownBy?: Instant): Promise<LiveAssessment & { planDay: string }> {
     const planDay = Instant.fromDb(run.snapshotAsOf).toSeoulIso().slice(0, 10);
     const horizon = Array.from({ length: LIVE_HORIZON_DAYS }, (_, k) => new Date(Date.parse(`${planDay}T00:00:00Z`) + k * 86_400_000).toISOString().slice(0, 10));
     const facilities = await this.db.select({ id: facility.facilityId, type: facility.facilityType, name: facility.facilityName }).from(facility).where(eq(facility.isActive, true));
@@ -216,18 +216,22 @@ export class RecoveryPlanService implements OnModuleInit {
       ...facilities.filter((f) => f.type === 'WAREHOUSE' || f.type === 'ODCY').map((f) => [f.id, f.type as 'WAREHOUSE' | 'ODCY'] as const),
       ...pools.map((p) => [p.id, 'TRUCK_POOL'] as const),
     ]);
-    const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: false, scenarioId: null }, asOf);
+    const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: false, scenarioId: null }, asOf, knownBy);
     const truthFacts = this.toPlanningFacts(live, planDay, horizon, kinds);
     const a = assessLiveInput({ planDay, asOf: asOf.toSeoulIso(), containers: ops.containers, unrecordedPublicContainers: ops.unrecordedPublicContainers, facilities, profiles: ops.profiles, rates: ops.rates, pools, truthFacts });
     return { ...a, planDay };
   }
 
-  async planningInput(runId: string, asOfOverride?: string | null): Promise<{ run: CaseRun; asOf: Instant; input: PlanningInput; provenance: LiveProvenance | null }> {
+  /**
+   * `knownBy`(T-136) — 사실을 "이 시각까지 알려진 사건"으로 판정한다. 기본 = asOf(과거 as_of 에 미래 사건이 섞이지 않는다).
+   * 무효 점검만 판의 as_of(신선도) + 지금까지 들어온 사건(knownBy = 지금)으로 다시 만든다.
+   */
+  async planningInput(runId: string, asOfOverride?: string | null, knownBy?: Instant): Promise<{ run: CaseRun; asOf: Instant; input: PlanningInput; provenance: LiveProvenance | null }> {
     const run = await this.caseRun(runId);
     const asOf = this.evaluationAsOf(run, asOfOverride);
     if (!run.containsSimulated) {
       // 실제 실행(T-123): 운영 기록 + Truth 만. 빠진 것이 있으면 계산하지 않고 무엇이 빠졌는지 정확히 돌려준다 — 숫자를 지어내지 않는다
-      const a = await this.liveAssessment(run, asOf);
+      const a = await this.liveAssessment(run, asOf, knownBy);
       if (!a.ready || !a.input) {
         const view = this.readinessView(a, run, asOf);
         throw new BusinessRuleError('PLANNING_INPUT_UNAVAILABLE', `Live run inputs missing — ${view.note} See GET /planning/runs/${runId}/input-readiness`, 409, { status: view.status, plan_day: view.plan_day, missing_inputs: view.missing_inputs, groups: view.groups });
@@ -246,7 +250,7 @@ export class RecoveryPlanService implements OnModuleInit {
       ...facilities.filter((f) => f.type === 'WAREHOUSE' || f.type === 'ODCY').map((f) => [f.id, f.type as 'WAREHOUSE' | 'ODCY'] as const),
       ...pools.filter((p) => p.ownership === 'PARTNER').map((p) => [p.id, 'TRUCK_POOL'] as const),
     ]);
-    const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: run.containsSimulated, scenarioId: run.scenarioId }, asOf);
+    const live = await this.truth.liveForSubjects([...kinds.keys()], { isSimulated: run.containsSimulated, scenarioId: run.scenarioId }, asOf, knownBy);
     const truthFacts = this.toPlanningFacts(live, days.D0!, horizon, kinds);
     const input = planningInputFromScenario(pack, { as_of: asOf.toSeoulIso(), truthFacts, ids });
     return { run, asOf, input, provenance: null };
@@ -274,9 +278,13 @@ export class RecoveryPlanService implements OnModuleInit {
   async propose(
     runId: string,
     by: { actorId: string; agentRunId?: string | null },
-    opts: { asOf?: string | null; inTransaction?: (tx: DbTransaction, planId: string) => Promise<void> } = {},
+    opts: { asOf?: string | null; expectedInputHash?: string | null; inTransaction?: (tx: DbTransaction, planId: string) => Promise<void> } = {},
   ): Promise<{ plan: PlanRow; items: ItemRow[]; reused: boolean }> {
     const s = await this.solve(runId, opts.asOf);
+    // T-136 낙관적 동시성: 계산을 시작한 쪽이 본 입력 지문과 지금 입력이 다르면 오래된 계산을 조용히 저장하지 않는다
+    if (opts.expectedInputHash && opts.expectedInputHash !== s.result.input_hash) {
+      throw new BusinessRuleError('STALE_PLAN_INPUT', 'Planning inputs changed after the calculation started — nothing was stored. Solve again on the current inputs.', 409, { expected_input_hash: opts.expectedInputHash, current_input_hash: s.result.input_hash });
+    }
     const current = await this.currentPlan(runId);
     if (current && current.inputHash === s.result.input_hash && current.planStatus !== 'OUTDATED') {
       if (opts.inTransaction) await this.tx.run((tx) => opts.inTransaction!(tx, current.planId));
@@ -464,7 +472,8 @@ export class RecoveryPlanService implements OnModuleInit {
   private async outdatedReasons(runId: string, asOf: string, before: FactSignature[], beforeOps: LiveProvenance | null = null): Promise<Record<string, unknown>[]> {
     let rebuilt: Awaited<ReturnType<RecoveryPlanService['planningInput']>>;
     try {
-      rebuilt = await this.planningInput(runId, asOf);
+      // 신선도는 판의 as_of 로, 사건은 지금까지 들어온 것 전부로 — 판을 만든 뒤 들어온 새 사실이 무효 사유가 된다
+      rebuilt = await this.planningInput(runId, asOf, this.clock.now());
     } catch (e) {
       // LIVE: 판이 기댄 입력이 이제 빠졌다(기록 철회 · 사실 철회) — 계산할 수 없으니 그 판은 더는 지금 판이 아니다
       if (e instanceof BusinessRuleError && e.code === 'PLANNING_INPUT_UNAVAILABLE') return [{ code: 'INPUT_UNAVAILABLE', details: e.details }];

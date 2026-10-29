@@ -13,6 +13,7 @@ import { type FactCoordinate, listFacts } from "@/api/truth";
 import { useMe } from "@/app/MeContext";
 import { isActive } from "@/components/agent/agentLabels";
 import { FactsPanel } from "@/components/facts/FactsPanel";
+import { HeldMailList } from "@/components/drafts/InboundViews";
 import { PlanPanel } from "@/components/plan/PlanPanel";
 import { ActionRequired } from "@/components/ops/ActionRequired";
 import { AppShell, type NavItem, type OpsView } from "@/components/ops/AppShell";
@@ -118,7 +119,7 @@ export function OpsConsole() {
           listRuns(signal),
           listAgentRuns(signal),
           listDrafts(signal),
-          listInbound("NORMAL", signal),
+          listInbound(undefined, signal),
           getHealth(signal).catch(() => null),
           listExceptions(signal).catch(() => null),
           monitor ? getSystemStatus(signal).then((r) => ({ data: r.data, error: null }), (e) => ({ data: null, error: describeApiError(toApiError(e)) })) : Promise.resolve({ data: null, error: null }),
@@ -255,7 +256,19 @@ export function OpsConsole() {
           <PageHeader title="개요" description="지금 해야 할 일 → 현재 예외 → 복구 진행 순서로 보세요. 숫자와 상태는 모두 Backend 기록이며, 외부 연락과 계획 승인은 사람이 합니다." />
           <OpsCounters board={board} actions={actions} onView={goView} />
           <div className="overview-grid">
-            <ActionRequired actions={actions} runLabel={runLabel} onOpen={open} />
+            <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
+              <ActionRequired actions={actions} runLabel={runLabel} onOpen={open} />
+              {board.inbound.some((i) => i.status === "HOLD") && (
+                <section className="card" data-testid="held-mail-card" aria-labelledby="held-mail-title">
+                  <SectionHeader title="보류된 회신" id="held-mail-title" meta={<span className="badge b-amber">보류 {board.inbound.filter((i) => i.status === "HOLD").length}</span>}>
+                    <span className="card-meta">발신자 · 스레드를 확인할 수 없어 문의에 붙지 않은 메일입니다. 담당자를 등록 · 승인한 뒤 다시 판정하세요</span>
+                  </SectionHeader>
+                  <div className="card-body">
+                    <HeldMailList items={board.inbound.filter((i) => i.status === "HOLD").slice(0, 5)} onChanged={bump} />
+                  </div>
+                </section>
+              )}
+            </div>
             <div className="overview-side">
               <ExceptionBoard compact exceptions={board.exceptions?.exceptions ?? null} runSource={runSource} onOpenRun={openRun} onShowAll={() => goView("exceptions")} />
               <RecentRuns rows={board.rows} actions={actions} onOpen={openRun} onShowAll={() => goView("recovery")} />

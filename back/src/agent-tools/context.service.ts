@@ -26,7 +26,8 @@ import { ToolFailure } from './tool-errors.js';
 // gap-rules/1(T-105): 업무 공백(state)은 그대로, 묻은 상대의 회신 · 검증된 후보(candidate_state)를 따로 보여 준다
 // gap-rules/2(T-093): 업무 공백이 사실의 상태를 따른다 — 사람이 확인한 사실만 공백을 닫고(known), 임시 사실은 PROVISIONAL_AVAILABLE, 충돌 · 보류는 NEEDS_REVIEW
 // gap-rules/3(T-111): 확인됐어도 오래됐거나(STALE · 만료) 철회된 사실은 공백을 닫지 못한다 → NEEDS_REFRESH(다시 물어야 함). 새로 물었으면 ASKED
-export const GAP_RULE_VERSION = 'gap-rules/3';
+// gap-rules/4(T-136): 트럭 공백은 문의 시간창을 덮는 슬롯 사실만 닫는다(같은 날 다른 시간대 값으로 닫히지 않는다)
+export const GAP_RULE_VERSION = 'gap-rules/4';
 // 공백 id 의 재료는 판 1 그대로다 — 규칙 판이 올라가도 이미 도는 Agent 실행(checkpoint 에 공백 id 가 있다)이 자기 공백을 잃지 않게
 const GAP_ID_BASIS = 'gap-rules/1';
 
@@ -34,6 +35,22 @@ type FactObservation = z.infer<typeof recoveryContextOutput>['latest_observation
 type FactView = z.infer<typeof factViewSchema>;
 
 const TRUTH_RANK: Record<string, number> = { CONFIRMED: 0, OBSERVED: 1, PROVISIONAL: 2, NEEDS_REVIEW: 3, STALE: 4, REVOKED: 5, UNKNOWN: 9 };
+
+/**
+ * 트럭 공백의 시간창(T-136). 사람이 Agent 를 시작할 때 준 문의 시간창 — 없으면 그래프의 기본 시간창과 같은 09:00~18:00.
+ * 슬롯 사실은 **그 시간창을 덮을 때만** 공백을 닫는다(같은 날 09~12 가용이 15~18 문의를 닫지 않는다).
+ */
+export const DEFAULT_TRUCK_WINDOW = { from: '09:00', to: '18:00' } as const;
+export function truckWindowOf(parameters: Record<string, unknown> | null | undefined): { from: string; to: string } {
+  const inquiry = (parameters?.inquiry ?? null) as { window_from?: unknown; window_to?: unknown } | null;
+  const ok = (v: unknown): v is string => typeof v === 'string' && /^\d{2}:\d{2}$/.test(v);
+  return ok(inquiry?.window_from) && ok(inquiry?.window_to) ? { from: inquiry.window_from, to: inquiry.window_to } : { ...DEFAULT_TRUCK_WINDOW };
+}
+/** `available.slot(DTHH:MM-HH:MM)` 가 날짜 D 의 [from, to] 를 덮는가(같은 날 · 시작 ≤ from · 끝 ≥ to). 시간창이 없는 키는 덮지 않는다 */
+export function slotCovers(factKey: string, day: string, window: { from: string; to: string }): boolean {
+  const m = /^available\.slot\((\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})-(\d{2}:\d{2})\)$/.exec(factKey);
+  return Boolean(m && m[1] === day && m[2]! <= window.from && m[3]! >= window.to);
+}
 
 /** 아직 묻는 중으로 보는 메시지 상태(답이 오면 회신 · 추출 · 확인으로 넘어간다) */
 const OPEN_INQUIRY_STATUSES = ['DRAFTED', 'PENDING_APPROVAL', 'APPROVED', 'QUEUED', 'SENT', 'REPLIED'];
@@ -153,7 +170,7 @@ export class RecoveryContextService {
    * 같은 시뮬레이션 구분의 관측(사건)이 있으면 known, 없으면 공백 — 이 실행에서 이미 묻는 중이면 ASKED.
    * 공공데이터는 이 공백을 풀지 못한다(창고 · ODCY · 트럭은 공공 API 에 없다 — docs/11 4절).
    */
-  async informationGaps(recoveryRunId: string, asOfOverride?: Instant | null): Promise<z.infer<typeof informationGapsOutput>> {
+  async informationGaps(recoveryRunId: string, asOfOverride?: Instant | null, truckWindow: { from: string; to: string } = DEFAULT_TRUCK_WINDOW): Promise<z.infer<typeof informationGapsOutput>> {
     const run = await this.run(recoveryRunId);
     const asOf = this.evaluationAsOf(run, asOfOverride);
     const { facilities, truck_pools } = await this.resources();
@@ -165,6 +182,8 @@ export class RecoveryContextService {
       name: string;
       fact: string;
       matches: (k: string) => boolean;
+      /** 공백 id 의 재료(판 1 그대로 — 실행 중인 Agent 가 자기 공백을 잃지 않게) */
+      idFact: string;
       role: 'TRUCKING' | 'ODCY' | 'WAREHOUSE';
       owner: string | null;
     };
@@ -173,8 +192,8 @@ export class RecoveryContextService {
         .filter((f) => f.facility_type === 'WAREHOUSE' || f.facility_type === 'ODCY')
         .map((f): Need =>
           f.facility_type === 'WAREHOUSE'
-            ? { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.day(${D})`, matches: (k) => k === `capacity.day(${D})`, role: 'WAREHOUSE', owner: f.operator_counterparty_id }
-            : { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.*.day(${D})`, matches: (k) => k.startsWith('capacity.') && k.endsWith(`day(${D})`), role: 'ODCY', owner: f.operator_counterparty_id },
+            ? { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.day(${D})`, idFact: `capacity.day(${D})`, matches: (k) => k === `capacity.day(${D})`, role: 'WAREHOUSE', owner: f.operator_counterparty_id }
+            : { kind: 'FACILITY_CAPACITY', subjectType: 'FACILITY', id: f.facility_id, name: f.facility_name, fact: `capacity.*.day(${D})`, idFact: `capacity.*.day(${D})`, matches: (k) => k.startsWith('capacity.') && k.endsWith(`day(${D})`), role: 'ODCY', owner: f.operator_counterparty_id },
         ),
       ...truck_pools
         .filter((p) => p.ownership === 'PARTNER')
@@ -183,8 +202,10 @@ export class RecoveryContextService {
           subjectType: 'TRUCK_POOL',
           id: p.truck_pool_id,
           name: p.pool_name,
-          fact: `available.slot(${D}…)`,
-          matches: (k) => k.startsWith(`available.slot(${D}`),
+          // T-136: 문의 시간창을 덮는 슬롯만 이 공백의 사실이다(날짜 접두어만 보던 규칙은 다른 시간대 값으로 공백을 닫았다)
+          fact: `available.slot(${D}T${truckWindow.from}-${truckWindow.to})`,
+          idFact: `available.slot(${D}…)`,
+          matches: (k) => slotCovers(k, D, truckWindow),
           role: 'TRUCKING',
           owner: p.owner_counterparty_id,
         })),
@@ -216,7 +237,7 @@ export class RecoveryContextService {
       else if (best) state = best.state === 'NEEDS_REVIEW' ? 'NEEDS_REVIEW' : 'PROVISIONAL_AVAILABLE';
       else state = asked.length > 0 ? 'ASKED' : 'MISSING';
       gaps.push({
-        gap_id: `gap:${sha256Bytes(`${GAP_ID_BASIS}|${recoveryRunId}|${n.id}|${n.fact}`).slice(7, 23)}`,
+        gap_id: `gap:${sha256Bytes(`${GAP_ID_BASIS}|${recoveryRunId}|${n.id}|${n.idFact}`).slice(7, 23)}`,
         gap_kind: n.kind,
         subject_type: n.subjectType,
         subject_id: n.id,

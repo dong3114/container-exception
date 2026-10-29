@@ -73,3 +73,14 @@ export function contactWakeReason(waitingReason: string | null, usable: readonly
   }
   return null;
 }
+
+/**
+ * 이 실행의 문의들의 회신을 기다리는 실행(T-136, AWAITING_REPLIES — 대기 대상 = 복구 실행). `asked` = 아직 ASKED 인 공백마다 그 문의들의 회신 · 추출 결과.
+ * 아직 회신을 기다리는 공백(회신 없음 · 추출 중)이 하나라도 있으면 그대로 기다린다. 없으면(값이 들어와 ASKED 가 아님 · 회신이 왔지만 쓸 값이 없어
+ * 사람 검토로 넘어감 · 검증된 후보가 사람을 기다림) 깨운다 — 깨어난 그래프는 같은 조건으로 다시 이 대기에 들어오지 않는다.
+ */
+export const REPLY_HANDED_TO_PERSON = ['NO_VALID_CANDIDATE', 'CANDIDATE_RECEIVED'] as const;
+export function repliesWakeReason(asked: readonly { candidateState: string }[]): string | null {
+  const stillWaiting = asked.some((a) => !(REPLY_HANDED_TO_PERSON as readonly string[]).includes(a.candidateState));
+  return stillWaiting ? null : 'REPLIES_SETTLED';
+}

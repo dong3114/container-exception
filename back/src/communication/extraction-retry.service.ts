@@ -20,6 +20,7 @@ import { ExtractionRepository } from './extraction.repository.js';
 import { type Check, failedCodes } from './extraction-rules.js';
 import { extractionStatus } from './extraction-status.js';
 import { InboundService } from './inbound.service.js';
+import { ReplyRelevance } from './reply-relevance.service.js';
 
 const uuid = z.string().uuid();
 const retrySchema = z.object({ command_id: uuid, note: z.string().trim().min(1).max(200).optional() }).strict();
@@ -50,6 +51,7 @@ export class ExtractionRetryService {
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(DOMAIN_SIGNALS) private readonly signals: DomainSignals,
+    @Inject(ReplyRelevance) private readonly relevance: ReplyRelevance,
     @Inject(ENV) env: Env,
   ) {
     this.maxAttempts = env.CERA_EXTRACTION_MAX_ATTEMPTS;
@@ -101,50 +103,13 @@ export class ExtractionRetryService {
     return { retry_request_id: result.id, replayed: result.replayed, reply };
   }
 
-  /** 옛 회신을 다시 읽어 지금 사실을 흔들지 않는다: 더 새 회신 · 문의가 없고, 물은 사실이 아직 알려지지 않았을 때만. */
+  /** 옛 회신을 다시 읽어 지금 사실을 흔들지 않는다: 더 새 회신 · 문의가 없고, 물은 사실이 아직 알려지지 않았을 때만(판정 = ReplyRelevance, 화면 표시와 같다). */
   private async assertStillRelevant(threadId: string, messageId: string, isSimulated: boolean): Promise<void> {
-    const [self] = await this.db.select({ createdAt: commMessage.createdAt }).from(commMessage).where(eq(commMessage.messageId, messageId)).limit(1);
-    const newer = await this.db
-      .select({ id: commMessage.messageId, direction: commMessage.direction })
-      .from(commMessage)
-      .where(and(eq(commMessage.threadId, threadId), gt(commMessage.createdAt, self!.createdAt)))
-      .limit(20);
-    // 더 새 회신이 왔거나, 이 회신 뒤에 같은 스레드로 새 문의가 나갔다
-    const newerOutbound = await this.db
-      .select({ id: commMessage.messageId })
-      .from(commMessage)
-      .where(and(eq(commMessage.threadId, threadId), eq(commMessage.direction, 'OUTBOUND'), isNotNull(commMessage.sentAt), gt(commMessage.sentAt, self!.createdAt)))
-      .limit(1);
-    if (newer.some((m) => m.direction === 'INBOUND') || newerOutbound.length > 0) {
-      throw new BusinessRuleError('REPLY_SUPERSEDED', 'A newer reply or inquiry exists on this thread — review that one instead', 409);
+    const reason = await this.relevance.staleReason(threadId, messageId, isSimulated);
+    if (reason === 'REPLY_SUPERSEDED') throw new BusinessRuleError('REPLY_SUPERSEDED', 'A newer reply or inquiry exists on this thread — review that one instead', 409);
+    if (reason === 'GAP_ALREADY_RESOLVED') {
+      throw new BusinessRuleError('GAP_ALREADY_RESOLVED', 'What this reply was asked about is already known (confirmed by a person or an official record) — extraction is no longer needed', 409);
     }
-    const [asked] = await this.db
-      .select({ id: commMessage.messageId })
-      .from(commMessage)
-      .where(and(eq(commMessage.threadId, threadId), eq(commMessage.direction, 'OUTBOUND'), isNotNull(commMessage.sentAt)))
-      .orderBy(desc(commMessage.sentAt))
-      .limit(1);
-    if (!asked) return;
-    const asOf = await this.evaluationAsOf(threadId, isSimulated);
-    for (const c of await this.truthRepo.messageCoordinates(asked.id)) {
-      const live = await this.truth.liveForCoordinate(c, asOf);
-      if (GAP_CLOSING_STATES.includes(live.state)) {
-        throw new BusinessRuleError('GAP_ALREADY_RESOLVED', 'What this reply was asked about is already known (confirmed by a person or an official record) — extraction is no longer needed', 409);
-      }
-    }
-  }
-
-  /** 판정 기준 시각: 실제 = 지금 · 시뮬레이션 = 그 스레드가 묶인 계획 실행의 스냅숏 시각(Agent 와 같은 규칙). */
-  private async evaluationAsOf(threadId: string, isSimulated: boolean): Promise<Instant> {
-    if (!isSimulated) return this.clock.now();
-    const [row] = await this.db
-      .select({ asOf: planningSnapshot.asOf })
-      .from(commThread)
-      .innerJoin(recoveryRun, eq(recoveryRun.runId, commThread.relatedRunId))
-      .innerJoin(planningSnapshot, eq(planningSnapshot.snapshotId, recoveryRun.snapshotId))
-      .where(eq(commThread.threadId, threadId))
-      .limit(1);
-    return row ? Instant.fromDb(row.asOf) : this.clock.now();
   }
 }
 

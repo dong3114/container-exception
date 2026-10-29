@@ -563,6 +563,13 @@ export class InboundExtractionDto {
   @ApiProperty({ type: Boolean, description: 'A reply arrived but no validated value came out — a person reviews it: retry the extraction or enter the fact directly' })
   needs_review!: boolean;
 
+  @ApiProperty({
+    type: Boolean,
+    description:
+      'needs_review is about this reply\'s extraction only. review_pending = a person still has business work here: needs_review AND what was asked is not yet confirmed / officially recorded AND no newer reply or inquiry exists. A reply can show needs_review=true with review_pending=false (the information was filled another way)',
+  })
+  review_pending!: boolean;
+
   @ApiProperty({ type: [ExtractionAttemptDto], description: 'Every attempt in order. Earlier attempts are never removed' })
   attempts!: ExtractionAttemptDto[];
 
@@ -637,6 +644,20 @@ export class ExtractionRetryRequestDto {
 
   @ApiPropertyOptional({ type: String, maxLength: 200, description: 'Why the operator asks again (e.g. provider changed)' })
   note?: string;
+}
+
+export class HeldReprocessResultDto {
+  @ApiProperty({ type: String, format: 'uuid', description: 'The held mail (raw_input) — its original is not changed' })
+  raw_input_id!: string;
+
+  @ApiProperty({ enum: ['ATTACHED', 'STILL_HELD', 'ALREADY_ATTACHED'], description: 'ATTACHED = judged again against the current registry / threads and attached as a reply (extraction follows as usual) · STILL_HELD = nothing changed · ALREADY_ATTACHED = it was attached before' })
+  result!: 'ATTACHED' | 'STILL_HELD' | 'ALREADY_ATTACHED';
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  message_id!: string | null;
+
+  @ApiProperty({ type: [String], description: 'Hold reasons now (STILL_HELD only)' })
+  hold_reasons!: string[];
 }
 
 export class ExtractionRetryResultDto {

@@ -256,6 +256,11 @@ function calculateOption(ctx: Ctx, c: ContainerInput, spec: ActionSpec): ActionO
         L.reasons.push({ code: u.reason, ref: r.fact_ref ?? r.resource_key, note: `${facility.name} ${f?.fact_key ?? ''}: ${u.reason}` });
         continue;
       }
+      // T-136: 사용할 수 있는 사실인데 값이 없다(null) — 숫자가 필요한 용량 제약에서 null 은 "무제한"이 아니다. 이 선택지는 계산할 수 없다
+      if (r.available === null) {
+        L.reasons.push({ code: 'FACT_MISSING', ref: r.fact_ref ?? r.resource_key, note: `${facility.name} ${f?.fact_key ?? ''}: 용량 값 없음 — 무제한으로 보지 않는다` });
+        continue;
+      }
       if (r.available !== null && r.available <= 0) L.reasons.push({ code: 'CAPACITY_ZERO', ref: r.resource_key, note: `${facility.name} ${day}: 남은 용량 0 (사실 ${r.fact_value} − 약속 ${r.committed})` });
       if (u.warning && f) {
         warningRefs.push({ fact_ref: f.fact_ref, reason: u.warning });

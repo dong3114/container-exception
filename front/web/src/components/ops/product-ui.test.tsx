@@ -156,7 +156,7 @@ describe("reply review", () => {
   it("an unreadable reply reads as a person's next step, not a system error", () => {
     const html = renderToStaticMarkup(
       <ExtractionView
-        extraction={{ state: "NO_CANDIDATE", needs_review: true, failure_kind: "NO_ANSWER_FOUND", provider_code: null, no_candidate_outcome: "UNPARSEABLE", last_error_code: null, failed_attempts: 0, candidates: [], attempts: [{ attempt_no: 1, trigger: "AUTO", result: "NO_CANDIDATE", outcome: "UNPARSEABLE", error_code: null, at: "2026-10-28T10:00:00.000+09:00" }], retry: { available: true, blocked_reason: null } } as never}
+        extraction={{ state: "NO_CANDIDATE", needs_review: true, review_pending: true, failure_kind: "NO_ANSWER_FOUND", provider_code: null, no_candidate_outcome: "UNPARSEABLE", last_error_code: null, failed_attempts: 0, candidates: [], attempts: [{ attempt_no: 1, trigger: "AUTO", result: "NO_CANDIDATE", outcome: "UNPARSEABLE", error_code: null, at: "2026-10-28T10:00:00.000+09:00" }], retry: { available: true, blocked_reason: null } } as never}
         onRetry={() => undefined}
       />,
     );

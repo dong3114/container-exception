@@ -29,6 +29,7 @@ const base: Extraction = {
   next_attempt_at: null,
   failure_kind: null,
   needs_review: false,
+  review_pending: false,
   attempts: [],
   retry: { available: false, blocked_reason: "EXTRACTION_NOT_REQUIRED" },
 };
@@ -80,7 +81,7 @@ describe("AI suggestions — candidates with evidence, never facts", () => {
     const attempt = (n: number, over: Partial<Extraction["attempts"][number]> = {}): Extraction["attempts"][number] => ({
       attempt_no: n, trigger: "AUTO", result: "FAILED", at: "2026-10-27T13:38:35.000+09:00", error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", outcome: null, retry_request_id: null, requested_by_actor_id: null, ...over,
     });
-    const failed = { state: "FAILED" as const, failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", next_attempt_at: null, failure_kind: "AI_CALL_FAILED" as const, needs_review: true, attempts: [attempt(1), attempt(2), attempt(3)], retry: { available: true, blocked_reason: null } };
+    const failed = { state: "FAILED" as const, failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: "NO_RECORDING", next_attempt_at: null, failure_kind: "AI_CALL_FAILED" as const, needs_review: true, review_pending: true, attempts: [attempt(1), attempt(2), attempt(3)], retry: { available: true, blocked_reason: null } };
     const html = view(failed, () => undefined);
     expect(html).toContain("사람 검토 필요");
     expect(html).toContain("AI 호출 자체가 실패했습니다");
@@ -94,6 +95,6 @@ describe("AI suggestions — candidates with evidence, never facts", () => {
     expect(running).toContain("#4 사람 요청 RUNNING");
     expect(running).toContain("추출이 진행 중입니다");
     // the model found no answer — told apart from an AI call failure
-    expect(view({ state: "NO_CANDIDATE", no_candidate_outcome: "UNPARSEABLE", failure_kind: "NO_ANSWER_FOUND", needs_review: true, attempts: [attempt(1, { result: "NO_CANDIDATE", error_code: null, provider_code: null, outcome: "UNPARSEABLE" })], retry: { available: true, blocked_reason: null } })).toContain("AI 가 회신에서 답을 찾지 못했습니다");
+    expect(view({ state: "NO_CANDIDATE", no_candidate_outcome: "UNPARSEABLE", failure_kind: "NO_ANSWER_FOUND", needs_review: true, review_pending: true, attempts: [attempt(1, { result: "NO_CANDIDATE", error_code: null, provider_code: null, outcome: "UNPARSEABLE" })], retry: { available: true, blocked_reason: null } })).toContain("AI 가 회신에서 답을 찾지 못했습니다");
   });
 });

@@ -8,7 +8,7 @@ import type { RegistryService } from '../registry/registry.service.js';
 import { BusinessRuleError } from '../shared/errors/cera-error.js';
 import { Instant } from '../shared/time/instant.js';
 import type { AgentRunRepository, AgentRunRow } from './agent-run.repository.js';
-import type { RecoveryContextService } from './context.service.js';
+import { type RecoveryContextService, truckWindowOf } from './context.service.js';
 import type { ToolHandler } from './executor.js';
 import type { ToolName } from './registry.js';
 import type {
@@ -19,6 +19,7 @@ import type {
   messageIdInput,
   messageStatusSchema,
   planIdInput,
+  proposePlanInput,
   recoveryRunInput,
   vesselCallIdInput,
 } from './schemas.js';
@@ -151,7 +152,8 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
     },
     get_information_gaps: {
       async run(input, ctx) {
-        const out = await deps.context.informationGaps(scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id));
+        // T-136: 트럭 공백은 사람이 이 실행에 준 문의 시간창을 덮는 슬롯만 닫는다
+        const out = await deps.context.informationGaps(scopedRun(ctx.run, (input as z.infer<typeof recoveryRunInput>).recovery_run_id), null, truckWindowOf(ctx.run.parameters));
         // T-129: 사람이 이 실행 · 이 주체의 받는 주소를 골랐고 그 주소가 지금도 쓸 수 있으면 알려 준다(그래프는 그 주소로만 초안). 못 쓰게 됐으면 알리지 않는다
         const simulated = (await deps.context.run(ctx.run.recoveryRunId)).containsSimulated;
         for (const gap of out.gaps) {
@@ -322,9 +324,13 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
       },
     },
     propose_recovery_plan: {
-      async run(_input, ctx) {
-        // 계획 실행 · 행위자는 실행 기록이 정한다. 사실이 그 사이 바뀌었으면 지금 사실로 다시 푼다(input_hash 가 달라진다)
-        const r = await planningCall(() => deps.plans.propose(ctx.run.recoveryRunId, { actorId: ctx.run.agentActorId, agentRunId: ctx.run.agentRunId }, { inTransaction: (tx, planId) => ctx.commit(tx, { type: 'RECOVERY_PLAN', id: planId }) }));
+      async run(input, ctx) {
+        // 계획 실행 · 행위자는 실행 기록이 정한다. T-136: solve_recovery 때의 입력 지문과 지금 입력이 다르면 저장하지 않는다(STALE_PLAN_INPUT —
+        // 그 사이 사실 · 운영 기록이 바뀌었다. 그래프가 지금 입력으로 다시 계산한다). 지문을 주지 않으면 지금 입력으로 푼다
+        const i = input as z.infer<typeof proposePlanInput>;
+        const r = await planningCall(() =>
+          deps.plans.propose(ctx.run.recoveryRunId, { actorId: ctx.run.agentActorId, agentRunId: ctx.run.agentRunId }, { expectedInputHash: i.expected_input_hash ?? null, inTransaction: (tx, planId) => ctx.commit(tx, { type: 'RECOVERY_PLAN', id: planId }) }),
+        );
         return planStatus(r.plan, r.reused);
       },
       async replay(ref) {
@@ -346,7 +352,7 @@ export function buildHandlers(deps: HandlerDeps): Record<ToolName, ToolHandler> 
 
 type PlanRow = NonNullable<Awaited<ReturnType<RecoveryPlanService['plan']>>>;
 
-function planStatus(p: PlanRow, reused: boolean) {
+export function planStatus(p: PlanRow, reused: boolean) {
   return {
     plan_id: p.planId,
     recovery_run_id: p.caseRunId,
@@ -359,7 +365,10 @@ function planStatus(p: PlanRow, reused: boolean) {
     saving_krw: p.savingKrw === null ? null : Number(p.savingKrw),
     outdated_reason_codes: ((p.outdatedReasons ?? []) as { code?: string }[]).map((x) => String(x.code ?? 'UNKNOWN')).slice(0, 50),
     superseded_by_plan_id: p.supersededByPlanId,
-    approved: p.planStatus === 'APPROVED' || p.approvedByActorId !== null,
+    // T-136: 승인 이력(감사)과 지금 유효한 승인을 나눈다 — OUTDATED 가 된 승인 판을 "승인됨"으로 읽지 않게
+    approved: p.planStatus === 'APPROVED',
+    previously_approved: p.approvedByActorId !== null,
+    executable: p.planStatus === 'APPROVED',
     reused,
     note: 'A PROPOSED plan is a candidate. Only a human approves it; approval is not dispatch.' as const,
   };
@@ -371,6 +380,8 @@ async function planningCall<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (e) {
     if (e instanceof BusinessRuleError && e.code === 'PLANNING_INPUT_UNAVAILABLE') throw new ToolFailure('CAPABILITY_NOT_AVAILABLE', e.message);
+    // T-136: 계산 뒤 입력이 바뀌었다 — 아무것도 저장하지 않았다. 그래프가 지금 입력으로 다시 계산한다
+    if (e instanceof BusinessRuleError && e.code === 'STALE_PLAN_INPUT') throw new ToolFailure('CONFLICT', e.message, { causeCode: 'STALE_PLAN_INPUT', details: e.details ?? undefined });
     throw e;
   }
 }

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { type SQL, and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { type SQL, and, asc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
 import {
   actor,
@@ -180,6 +180,20 @@ export class ApprovalRepository {
   async findRunPrevious(tx: DbTransaction, runId: string): Promise<{ previousRunId: string | null } | null> {
     const rows = await tx.select({ previousRunId: recoveryRun.previousRunId }).from(recoveryRun).where(eq(recoveryRun.runId, runId)).limit(1);
     return rows[0] ?? null;
+  }
+
+  /**
+   * T-136: 이 복구 실행에서 **지금 승인된 판이 아닌** 판(OUTDATED · SUPERSEDED 등)에서 나온 후속 요청 메시지의 `APPROVED` 행들.
+   * 판이 승인 상태를 잃으면 그 판의 후속 초안 승인은 더는 유효하지 않다 — 이력은 남기고 지금 유효성만 무효화한다.
+   */
+  async listApprovedForStalePlans(tx: DbTransaction, recoveryRunId: string): Promise<{ approvalId: string; messageId: string }[]> {
+    return tx
+      .select({ approvalId: messageApproval.approvalId, messageId: messageApproval.messageId })
+      .from(messageApproval)
+      .innerJoin(planFollowUp, eq(planFollowUp.messageId, messageApproval.messageId))
+      .innerJoin(recoveryPlan, eq(recoveryPlan.planId, planFollowUp.planId))
+      .where(and(eq(recoveryPlan.caseRunId, recoveryRunId), ne(recoveryPlan.planStatus, 'APPROVED'), eq(messageApproval.decision, 'APPROVED')))
+      .orderBy(asc(messageApproval.decidedAt), asc(messageApproval.approvalId));
   }
 
   /** 이 실행을 근거로 한 `APPROVED` 행들(계획 교체 때 살아 있는 것을 골라 무효화한다). */

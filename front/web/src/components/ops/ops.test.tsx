@@ -99,7 +99,7 @@ const reply = (needsReview: boolean, state = "FAILED"): InboundItem =>
     thread_counterparty_name: "ODCY A 운영",
     is_simulated: true,
     content_available: true,
-    extraction: { state, no_candidate_outcome: null, candidates: [], failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: null, next_attempt_at: null, failure_kind: "AI_CALL_FAILED", needs_review: needsReview, attempts: [{ attempt_no: 1, trigger: "AUTO", result: "FAILED", at: "2026-10-13T10:40:01.000+09:00", error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: null, outcome: null, retry_request_id: null, requested_by_actor_id: null }], retry: { available: true, blocked_reason: null } },
+    extraction: { state, no_candidate_outcome: null, candidates: [], failed_attempts: 3, last_error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: null, next_attempt_at: null, failure_kind: "AI_CALL_FAILED", needs_review: needsReview, review_pending: needsReview, attempts: [{ attempt_no: 1, trigger: "AUTO", result: "FAILED", at: "2026-10-13T10:40:01.000+09:00", error_code: "EXTRACTION_PROVIDER_FAILED", provider_code: null, outcome: null, retry_request_id: null, requested_by_actor_id: null }], retry: { available: true, blocked_reason: null } },
   }) as unknown as InboundItem;
 const plan = (version: number, status: string, id = `${PLAN}${version}`): PlanSummary => ({ plan_id: id, version, plan_status: status, solver_status: "OPTIMAL", objective_krw: 1000, base_cost_krw: 900, baseline_total_krw: 2000, saving_krw: 1000, agent_run_id: AGENT, created_at: `2026-10-13T11:0${version}:00.000+09:00`, outdated_reason_count: 0 }) as PlanSummary;
 const address = (over: Partial<ContactAddress> = {}): ContactAddress => ({ address_id: "a1", channel_type: "MOCK", normalized_address: "a@example.invalid", email_verification_status: "VERIFIED", relationship_status: "APPROVED", communication_status: "ACTIVE", is_simulated: true, eligible: true, reasons: [], ...over }) as ContactAddress;
@@ -307,16 +307,20 @@ describe("시연 전 다듬기 — 트럭 풀 상대 회사 · 이미 채워진 
     expect(ownerFromInquiries([d], "pool-2")).toBeNull();
   });
 
-  it("a reply the AI could not read shows 'done' once the asked fact has a value — the backend flag is left as it is", () => {
+  it("T-136: message processing and business review are shown apart — the backend decides whether review is still pending", () => {
     const d = draft({ status: "SENT", replies: [reply(true)] });
-    const fact = { entity_id: FAC, fact_key: "capacity.day(2026-10-13)", fact_state: "CONFIRMED", current: { value: 3 } } as unknown as FactCoordinate;
-    expect(questionAnswered(d, [])).toBe(false);
-    expect(questionAnswered(d, [fact])).toBe(true);
     const open = withMe(OPERATOR, <CommsList drafts={[d]} tags={new Map()} openId={null} onOpen={() => undefined} onChanged={() => undefined} />);
     expect(open).toContain("답장 검토 필요");
-    const done = withMe(OPERATOR, <CommsList drafts={[d]} tags={new Map()} openId={null} onOpen={() => undefined} onChanged={() => undefined} facts={[fact]} />);
-    expect(done).toContain("처리 완료");
+    // 추출은 값을 못 냈지만(needs_review) 물은 정보가 이미 확정됐다(review_pending=false — Backend 판정)
+    const settled = { ...d, replies: d.replies.map((r) => ({ ...r, extraction: r.extraction ? { ...r.extraction, review_pending: false, retry: { available: false, blocked_reason: "GAP_ALREADY_RESOLVED" as const } } : null })) };
+    const done = withMe(OPERATOR, <CommsList drafts={[settled]} tags={new Map()} openId={null} onOpen={() => undefined} onChanged={() => undefined} />);
+    expect(done).toContain("업무 검토 불필요");
+    expect(done).toContain("추출 결과 값 없음");
     expect(done).not.toContain("답장 검토 필요");
+    expect(done).not.toContain("처리 완료");
+    // 임시 값만 있으면(사람 확인 전) 끝난 것으로 보이지 않는다
+    const fact = { entity_id: FAC, fact_key: "capacity.day(2026-10-13)", fact_state: "PROVISIONAL", current: { value: 3 } } as unknown as FactCoordinate;
+    expect(questionAnswered(d, [fact])).toBe(true);
   });
 });
 

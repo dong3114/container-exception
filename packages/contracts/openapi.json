@@ -1589,6 +1589,89 @@
         ]
       }
     },
+    "/communication/inbound/held/{rawInputId}/reprocess": {
+      "post": {
+        "operationId": "InboundController_reprocessHeld",
+        "parameters": [
+          {
+            "name": "rawInputId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The held mail (raw_input) id"
+          },
+          {
+            "name": "X-CERA-Actor-Id",
+            "in": "header",
+            "description": "Requesting operator (active HUMAN actor). In session mode the backend sets it from the session",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeldReprocessResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_ID · ACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACTOR_NOT_ALLOWED · PERMISSION_DENIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONTENT_MISSING",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Judge a held mail again against the current registry and threads (after registering / approving the sender or fixing the thread). The original and its hold record stay as they are; if it now matches, it is attached as a reply and extracted as usual. Safe to repeat",
+        "tags": [
+          "communication"
+        ]
+      }
+    },
     "/planning/runs": {
       "get": {
         "operationId": "PlanningRunController_list",
@@ -6236,7 +6319,9 @@
             "enum": [
               "EXTRACTION_IN_PROGRESS",
               "EXTRACTION_NOT_REQUIRED",
-              "NOT_EXTRACTABLE"
+              "NOT_EXTRACTABLE",
+              "GAP_ALREADY_RESOLVED",
+              "REPLY_SUPERSEDED"
             ],
             "nullable": true
           }
@@ -6306,6 +6391,10 @@
             "type": "boolean",
             "description": "A reply arrived but no validated value came out — a person reviews it: retry the extraction or enter the fact directly"
           },
+          "review_pending": {
+            "type": "boolean",
+            "description": "needs_review is about this reply's extraction only. review_pending = a person still has business work here: needs_review AND what was asked is not yet confirmed / officially recorded AND no newer reply or inquiry exists. A reply can show needs_review=true with review_pending=false (the information was filled another way)"
+          },
           "attempts": {
             "description": "Every attempt in order. Earlier attempts are never removed",
             "type": "array",
@@ -6327,6 +6416,7 @@
           "next_attempt_at",
           "failure_kind",
           "needs_review",
+          "review_pending",
           "attempts",
           "retry"
         ]
@@ -6790,6 +6880,43 @@
           "retry_request_id",
           "replayed",
           "reply"
+        ]
+      },
+      "HeldReprocessResultDto": {
+        "type": "object",
+        "properties": {
+          "raw_input_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The held mail (raw_input) — its original is not changed"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "ATTACHED",
+              "STILL_HELD",
+              "ALREADY_ATTACHED"
+            ],
+            "description": "ATTACHED = judged again against the current registry / threads and attached as a reply (extraction follows as usual) · STILL_HELD = nothing changed · ALREADY_ATTACHED = it was attached before"
+          },
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "hold_reasons": {
+            "description": "Hold reasons now (STILL_HELD only)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "raw_input_id",
+          "result",
+          "message_id",
+          "hold_reasons"
         ]
       },
       "RunExceptionDto": {

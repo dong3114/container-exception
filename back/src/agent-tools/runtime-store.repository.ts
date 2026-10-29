@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, or, desc, eq, gt, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
 import { DATABASE, type Database, type DbTransaction } from '../db/database.js';
 import { agentCheckpoint, agentCheckpointWrite, agentRun, agentStep } from '../db/schema/index.js';
 
@@ -100,9 +100,10 @@ export class RuntimeStoreRepository {
    * 순서 = 실행 id(UUIDv7 — 만든 순서). 깨우지 않은 실행의 updated_at 은 바뀌지 않으므로 그것으로 순서를 매기면 같은 쪽만 반복된다.
    */
   async waitingOnRecords(limit: number, afterId: string | null = null) {
-    const waiting = and(inArray(agentRun.status, ['WAITING_HUMAN', 'WAITING_EXTERNAL']), isNotNull(agentRun.pendingRefId));
+    // T-136: 회신들을 기다리는 실행(AWAITING_REPLIES)은 대상 기록이 실행 전체다 — 예전 실행은 대상 없이 저장돼 있어도 같이 본다
+    const waiting = and(inArray(agentRun.status, ['WAITING_HUMAN', 'WAITING_EXTERNAL']), or(isNotNull(agentRun.pendingRefId), eq(agentRun.waitingReason, 'AWAITING_REPLIES')));
     return this.db
-      .select({ agentRunId: agentRun.agentRunId, waitingReason: agentRun.waitingReason, pendingRefType: agentRun.pendingRefType, pendingRefId: agentRun.pendingRefId })
+      .select({ agentRunId: agentRun.agentRunId, recoveryRunId: agentRun.recoveryRunId, parameters: agentRun.parameters, waitingReason: agentRun.waitingReason, pendingRefType: agentRun.pendingRefType, pendingRefId: agentRun.pendingRefId })
       .from(agentRun)
       .where(afterId ? and(waiting, gt(agentRun.agentRunId, afterId)) : waiting)
       .orderBy(asc(agentRun.agentRunId))

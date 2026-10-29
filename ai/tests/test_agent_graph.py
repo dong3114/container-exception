@@ -267,7 +267,11 @@ def test_a_resume_claiming_approval_does_not_count_when_the_backend_still_says_p
 def test_deterministic_branches():
     assert runtime(FakeTools(gaps=[])).start(RUN, RR, "goal", PARAMS)["result_code"] == "NO_INFORMATION_GAPS"
     waiting = runtime(FakeTools(gaps=[gap("ASKED")])).start(RUN, RR, "goal", PARAMS)
-    assert (waiting["status"], waiting["waiting_reason"], waiting["pending"]) == ("WAITING_EXTERNAL", "AWAITING_REPLIES", None)
+    # T-136: the run waits on its own recovery run (its inquiries) so the backend reconciler can wake it when no reply is still pending
+    assert (waiting["status"], waiting["waiting_reason"], waiting["pending"]) == ("WAITING_EXTERNAL", "AWAITING_REPLIES", {"type": "RECOVERY_RUN", "id": RR})
+    # a reply came but gave nothing usable → a person reviews it; the agent does not wait for that gap again
+    handed = runtime(FakeTools(gaps=[{**gap("ASKED"), "candidate_state": "NO_VALID_CANDIDATE"}])).start(RUN, RR, "goal", PARAMS)
+    assert handed["status"] == "COMPLETED" and handed["result_code"] == "OPEN_GAPS_AWAIT_HUMAN"
     missing = runtime(FakeTools()).start(RUN, RR, "goal", {})
     assert (missing["status"], missing["error_code"]) == ("FAILED", "INQUIRY_PARAMETERS_REQUIRED")
 

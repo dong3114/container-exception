@@ -12,6 +12,10 @@ import { extractionStatus } from './extraction-status.js';
 import { InboundRepository } from './inbound.repository.js';
 import { type DateRejectReason, type HoldReason, normalizeAddress } from './inbound-rules.js';
 import { TruthRepository } from '../truth/truth.repository.js';
+import { ValidationError } from '../shared/errors/cera-error.js';
+import { InboundProcessor } from './inbound-processor.js';
+import { ReplyRelevance } from './reply-relevance.service.js';
+import { z } from 'zod';
 
 const PREVIEW = 300;
 const LIMIT = 50;
@@ -28,6 +32,7 @@ export class InboundService {
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
     @Inject(ExtractionRepository) private readonly extractions: ExtractionRepository,
     @Inject(TruthRepository) private readonly truth: TruthRepository,
+    @Inject(ReplyRelevance) private readonly relevance: ReplyRelevance,
     @Inject(ENV) env: Env,
   ) {
     this.maxAttempts = env.CERA_EXTRACTION_MAX_ATTEMPTS;
@@ -93,6 +98,15 @@ export class InboundService {
     // 근거 시각 · 기준 · 거부 사유는 수신 순간 서버가 정해 영속한 값만 쓴다(원문 재계산이 아니다)
     const dateRejections = await this.inbound.dateRejections(rows.map((r) => r.rawInputId));
     const extractionView = await this.extractionView(rows.map((r) => r.messageId).filter((m): m is string => m !== null));
+    // T-136: 추출이 값을 못 낸 회신(needs_review)이 업무상 아직 검토 대상인지 — 사실 · 스레드로 좁힌다(다시 추출 버튼과 같은 판정)
+    for (const r of rows) {
+      const x = r.messageId ? extractionView.get(r.messageId) : undefined;
+      if (!x || !x.needs_review || !r.threadId || !r.messageId) continue;
+      const stale = await this.relevance.staleReason(r.threadId, r.messageId, r.isSimulated);
+      if (!stale) continue;
+      x.review_pending = false;
+      if (x.retry.available) x.retry = { available: false, blocked_reason: stale };
+    }
     const labels = await this.inbound.threadLabels([...new Set(rows.map((r) => r.threadId).filter((t): t is string => t !== null))]);
     const out: InboundItemDto[] = [];
     for (const r of rows) {

@@ -18,6 +18,8 @@ import { InboundRepository } from './inbound.repository.js';
 import { InboundService } from './inbound.service.js';
 import { OutboxDispatcher } from './outbox-dispatcher.js';
 import { PlanSupersessionService } from './plan-supersession.service.js';
+import { ReplyRelevance } from './reply-relevance.service.js';
+import { HeldReprocessService } from './held-reprocess.service.js';
 import { SendController } from './send.controller.js';
 import { SendRepository } from './send.repository.js';
 import { SendService } from './send.service.js';
@@ -45,6 +47,8 @@ import { SendService } from './send.service.js';
     ApprovalService,
     SendService,
     PlanSupersessionService,
+    ReplyRelevance,
+    HeldReprocessService,
     OutboxDispatcher,
   ],
   exports: [DraftService, ApprovalService, SendService, PlanSupersessionService, OutboxDispatcher, InboundProcessor, ExtractionProcessor],

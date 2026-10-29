@@ -15,7 +15,8 @@ export type ExtractionState = (typeof EXTRACTION_STATES)[number];
 export const FAILURE_KINDS = ['AI_CALL_FAILED', 'NO_ANSWER_FOUND', 'VALIDATOR_REJECTED', 'NOT_EXTRACTABLE'] as const;
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 
-export const RETRY_BLOCKS = ['EXTRACTION_IN_PROGRESS', 'EXTRACTION_NOT_REQUIRED', 'NOT_EXTRACTABLE'] as const;
+// T-136: GAP_ALREADY_RESOLVED · REPLY_SUPERSEDED = 추출은 실패했지만 업무상 다시 읽을 필요가 없다(사실이 이미 확정 · 더 새 회신) — 화면이 [다시 추출]을 내지 않는다
+export const RETRY_BLOCKS = ['EXTRACTION_IN_PROGRESS', 'EXTRACTION_NOT_REQUIRED', 'NOT_EXTRACTABLE', 'GAP_ALREADY_RESOLVED', 'REPLY_SUPERSEDED'] as const;
 export type RetryBlock = (typeof RETRY_BLOCKS)[number];
 
 export interface AttemptView {
@@ -41,6 +42,8 @@ export interface ExtractionStatus {
   next_attempt_at: string | null;
   failure_kind: FailureKind | null;
   needs_review: boolean;
+  /** T-136: 업무 검토 대기 — needs_review(이 회신의 추출 결과)이면서 물은 사실이 아직 확정되지 않았고 더 새 회신이 없다. 기본 = needs_review, 화면 서비스가 사실로 좁힌다 */
+  review_pending: boolean;
   attempts: AttemptView[];
   retry: { available: boolean; blocked_reason: RetryBlock | null };
 }
@@ -119,6 +122,7 @@ export function extractionStatus(log: AttemptLog, candidates: { validation: 'PAS
     next_attempt_at: state === 'RETRYING' && !open && last ? Instant.ofEpochMs(Instant.fromDb(last.at).epochMs + retryDelayMs(autoFailures, backoff)).toDb() : null,
     failure_kind: failureKind,
     needs_review: failureKind !== null,
+    review_pending: failureKind !== null,
     attempts,
     retry: { available: blocked === null, blocked_reason: blocked },
   };

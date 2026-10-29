@@ -15,9 +15,10 @@ import {
 } from '@nestjs/swagger';
 import { RequirePermission } from '../auth/auth.decorators.js';
 import { ACTOR_HEADER } from './approval.service.js';
-import { ExtractionRetryRequestDto, ExtractionRetryResultDto, InboundListDto } from './dto.js';
+import { ExtractionRetryRequestDto, ExtractionRetryResultDto, HeldReprocessResultDto, InboundListDto } from './dto.js';
 import { ExtractionRetryService } from './extraction-retry.service.js';
 import { InboundService } from './inbound.service.js';
+import { HeldReprocessService } from './held-reprocess.service.js';
 
 const ERROR_SCHEMA = { $ref: '#/components/schemas/ErrorResponse' };
 const ACTOR = {
@@ -37,6 +38,7 @@ export class InboundController {
   constructor(
     @Inject(InboundService) private readonly inbound: InboundService,
     @Inject(ExtractionRetryService) private readonly retries: ExtractionRetryService,
+    @Inject(HeldReprocessService) private readonly held: HeldReprocessService,
   ) {}
 
   @Get('inbound')
@@ -65,5 +67,23 @@ export class InboundController {
   @ApiConflictResponse({ description: 'EXTRACTION_IN_PROGRESS · EXTRACTION_NOT_REQUIRED · NOT_EXTRACTABLE · REPLY_SUPERSEDED · GAP_ALREADY_RESOLVED · COMMAND_ID_REUSED', schema: ERROR_SCHEMA })
   retry(@Param('messageId') messageId: string, @Headers(ACTOR_HEADER) actor: string | undefined, @Body() body: unknown): Promise<ExtractionRetryResultDto> {
     return this.retries.request(messageId, actor, body);
+  }
+
+  @RequirePermission('communication.approve')
+  @Post('inbound/held/:rawInputId/reprocess')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Judge a held mail again against the current registry and threads (after registering / approving the sender or fixing the thread). The original and its hold record stay as they are; if it now matches, it is attached as a reply and extracted as usual. Safe to repeat',
+  })
+  @ApiParam({ name: 'rawInputId', required: true, schema: { type: 'string', format: 'uuid' }, description: 'The held mail (raw_input) id' })
+  @ApiHeader(ACTOR)
+  @ApiOkResponse({ type: HeldReprocessResultDto })
+  @ApiBadRequestResponse({ description: 'INVALID_ID · ACTOR_REQUIRED', schema: ERROR_SCHEMA })
+  @ApiForbiddenResponse({ description: 'ACTOR_NOT_ALLOWED · PERMISSION_DENIED', schema: ERROR_SCHEMA })
+  @ApiNotFoundResponse({ description: 'NOT_FOUND', schema: ERROR_SCHEMA })
+  @ApiConflictResponse({ description: 'CONTENT_MISSING', schema: ERROR_SCHEMA })
+  reprocessHeld(@Param('rawInputId') rawInputId: string, @Headers(ACTOR_HEADER) actor: string | undefined): Promise<HeldReprocessResultDto> {
+    return this.held.reprocess(rawInputId, actor);
   }
 }

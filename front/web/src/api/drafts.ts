@@ -107,6 +107,11 @@ export function retryExtraction(messageId: string, commandId: string, actorId: s
   );
 }
 
+/** T-136: 보류된 회신을 지금 등록부 · 스레드 기준으로 다시 판정(사람만). 원문은 그대로 — 붙으면 평소처럼 추출된다 */
+export function reprocessHeld(rawInputId: string, actorId: string, signal?: AbortSignal) {
+  return apiRequest<{ raw_input_id: string; result: "ATTACHED" | "STILL_HELD" | "ALREADY_ATTACHED"; message_id: string | null; hold_reasons: string[] }>(`/communication/inbound/held/${encodeURIComponent(rawInputId)}/reprocess`, { method: "POST", body: {}, headers: { [ACTOR_HEADER]: actorId }, signal });
+}
+
 export function listInbound(status?: "NORMAL" | "HOLD", signal?: AbortSignal) {
   return apiRequest<InboundList>(`/communication/inbound${status ? `?status=${status}` : ""}`, { signal });
 }

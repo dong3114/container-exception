@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getMe } from "@/api/auth";
-import { type Draft, type InboundItem, getDraft, listInbound, retryExtraction } from "@/api/drafts";
+import { type Draft, type InboundItem, getDraft, listInbound, reprocessHeld, retryExtraction } from "@/api/drafts";
 import { useAsyncAction } from "@/state/async";
 import { AsyncStatus } from "../workflow/AsyncStatus";
 import { ExtractionView } from "./ExtractionView";
@@ -52,8 +52,46 @@ function useRetry(item: InboundItem, onRequested?: () => void) {
 /** 값을 얻지 못한 회신의 검토 상자만(T-124) — 다른 화면(시연 콘솔)이 회신을 한 줄로 보여 줄 때 덧붙인다. */
 export function ReplyReview({ item, onRetried }: { item: InboundItem; onRetried?: () => void }) {
   const { retry, error, busy } = useRetry(item, onRetried);
-  if (!item.extraction?.needs_review) return null;
+  if (!item.extraction?.review_pending) return null;
   return <ExtractionView extraction={item.extraction} onRetry={item.message_id ? () => void retry() : undefined} retryError={error} retryBusy={busy} />;
+}
+
+/** T-136: 보류된 회신을 지금 등록부 기준으로 다시 판정 — 원문은 그대로, 붙으면 평소처럼 추출된다(사람만 · 두 번 눌러도 하나) */
+function HeldReprocess({ item, onDone }: { item: InboundItem; onDone?: () => void }) {
+  const [state, setState] = useState<{ busy: boolean; text: string | null }>({ busy: false, text: null });
+  const run = async () => {
+    setState({ busy: true, text: null });
+    try {
+      const me = await getMe();
+      const r = (await reprocessHeld(item.raw_input_id, me.data.actor_id)).data;
+      setState({
+        busy: false,
+        text: r.result === "ATTACHED" ? "✓ 문의에 붙었습니다 — 곧 AI 가 읽습니다" : r.result === "ALREADY_ATTACHED" ? "✓ 이미 붙은 회신입니다" : `여전히 보류 — ${r.hold_reasons.map((x) => HOLD_LABEL[x as InboundItem["hold_reasons"][number]] ?? x).join(" · ")}`,
+      });
+      onDone?.();
+    } catch (e) {
+      setState({ busy: false, text: e instanceof Error ? e.message : "다시 판정 실패" });
+    }
+  };
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <button type="button" className="act-btn" onClick={() => void run()} disabled={state.busy} data-testid="held-reprocess">
+        {state.busy ? "판정 중…" : "발신자 · 스레드를 고친 뒤 다시 판정"}
+      </button>
+      {state.text && <span className="muted" style={{ fontSize: 12 }} data-testid="held-reprocess-result">{state.text}</span>}
+    </div>
+  );
+}
+
+export function HeldMailList({ items, onChanged }: { items: InboundItem[]; onChanged?: () => void }) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ display: "grid", gap: 6 }} data-testid="held-mail">
+      {items.map((i) => (
+        <InboundCard key={i.raw_input_id} item={i} onRetried={onChanged} />
+      ))}
+    </div>
+  );
 }
 
 function InboundCard({ item, compact = false, onRetried, asked }: { item: InboundItem; compact?: boolean; onRetried?: () => void; /** 이 회신이 답하는 질문(문의 제목) */ asked?: string | null }) {
@@ -72,6 +110,7 @@ function InboundCard({ item, compact = false, onRetried, asked }: { item: Inboun
           보류 사유: {item.hold_reasons.map((r) => HOLD_LABEL[r]).join(" · ") || "—"}
         </div>
       )}
+      {item.status === "HOLD" && <HeldReprocess item={item} onDone={onRetried} />}
       {item.subject && <div style={{ fontWeight: 600, fontSize: 12.5 }}>{item.subject}</div>}
       {asked && (
         <div className="muted" style={{ fontSize: 12 }} data-testid="inbound-asked">

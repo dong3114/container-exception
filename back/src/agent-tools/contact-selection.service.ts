@@ -11,7 +11,7 @@ import { ID_GENERATOR, type IdGenerator } from '../shared/id/uuid.js';
 import { DOMAIN_SIGNALS, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { AgentRunRepository } from './agent-run.repository.js';
-import { RecoveryContextService } from './context.service.js';
+import { RecoveryContextService, truckWindowOf } from './context.service.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OPEN_GAP = ['MISSING', 'NEEDS_REFRESH'];
@@ -47,7 +47,7 @@ export class AgentContactSelectionService {
     if (run.status !== 'WAITING_HUMAN' || run.waitingReason !== 'CONTACT_SELECTION_REQUIRED' || (subjectType !== 'FACILITY' && subjectType !== 'TRUCK_POOL') || !subjectId) {
       throw new BusinessRuleError('NOT_WAITING_FOR_CONTACT_SELECTION', `This run is not waiting for a contact choice (status ${run.status}, waiting ${run.waitingReason ?? 'none'})`, 409);
     }
-    const gaps = await this.context.informationGaps(run.recoveryRunId);
+    const gaps = await this.context.informationGaps(run.recoveryRunId, null, truckWindowOf(run.parameters));
     const gap = gaps.gaps.find((g) => g.subject_id === subjectId && OPEN_GAP.includes(g.state));
     if (!gap) throw new BusinessRuleError('GAP_ALREADY_RESOLVED', 'The information this run was going to ask for is no longer missing', 409);
     if (!gap.owner_counterparty_id) throw new BusinessRuleError('NO_OWNER_REGISTERED', 'Nobody is registered as the owner / operator of this subject — register one first', 409);

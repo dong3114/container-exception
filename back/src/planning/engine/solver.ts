@@ -133,7 +133,12 @@ function buildModel(table: CostTable): Model {
   });
   // 용량(창고 일별 · ODCY)
   table.resources.forEach((r, ri) => {
-    if (r.available === null) return;
+    // 값이 없는 용량(null)은 제약을 없애지 않는다(T-136): 그 자원을 쓰는 선택지는 비용 엔진이 이미 실행 불가로 뺐다. 혹시 남았다면 0 으로 막는다
+    if (r.available === null) {
+      const ys = options.map((o, i) => (o.capacity_uses.some((u) => u.resource_key === r.resource_key) ? `y${i}` : null)).filter((x): x is string => x !== null);
+      if (ys.length) lines.push(`cap_${ri}: ${sum(ys)} <= 0`);
+      return;
+    }
     const ys = options.map((o, i) => (o.capacity_uses.some((u) => u.resource_key === r.resource_key) ? `y${i}` : null)).filter((x): x is string => x !== null);
     if (ys.length) lines.push(`cap_${ri}: ${sum(ys)} <= ${r.available}`);
   });
@@ -167,14 +172,17 @@ function mapStatus(s: string): SolverStatus {
 export function solverInputHash(input: PlanningInput, table: CostTable): string {
   return canonicalHash({
     k: 'solver_input',
-    v: 1,
+    v: 2,
     solver_version: SOLVER_VERSION,
     policy_version: table.policy_version,
     rate_version: table.rate_version,
-    as_of: input.as_of,
+    // T-136: 실행 시각(as_of) 자체는 넣지 않는다 — 같은 업무 입력이면 같은 지문(LIVE 에서 다시 계산할 때마다 새 판이 생기던 문제).
+    // as_of 가 결정을 바꾸는 효과는 아래에 이미 들어 있다: 사실의 신선도 · 옵션의 실행 가능 여부 · 오늘 출발 가능 시간창(earliest/latest) · 트럭 시간창
     plan_day: input.plan_day,
+    candidates: [...table.candidates].sort(),
     facts: input.facts.map((f) => ({ ref: f.fact_ref, key: f.fact_key, subject: f.subject_id, value: f.value, state: f.fact_state, freshness: f.freshness })),
-    options: table.options.map((o) => ({ id: o.option_id, feasible: o.feasible, total: o.cost.total })),
+    options: table.options.map((o) => ({ id: o.option_id, feasible: o.feasible, total: o.cost.total, window: o.truck_job ? [o.truck_job.earliest_hour, o.truck_job.latest_hour, o.truck_job.trip_hours] : null })),
+    resources: table.resources.map((r) => ({ key: r.resource_key, available: r.available })),
     trucks: table.trucks.map((t) => ({ id: t.truck_id, from: t.from_hour, to: t.to_hour, penalty: t.penalty_krw })),
   });
 }

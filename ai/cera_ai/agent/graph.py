@@ -57,6 +57,13 @@ from .tooling import LimitReached, ToolCaller, ToolSession
 log = logging.getLogger("cera_ai.agent")
 KST = timezone(timedelta(hours=9))
 HUMAN_HELD_STATES = ("PROVISIONAL_AVAILABLE", "NEEDS_REVIEW")  # a value exists but a person must confirm / decide — not a gap the agent can ask about
+# T-136: an ASKED gap whose reply came but gave nothing usable (or a validated candidate waits for a person) is no longer waiting for the partner
+REPLY_HANDED_TO_PERSON = ("NO_VALID_CANDIDATE", "CANDIDATE_RECEIVED")
+
+
+def awaiting_reply(g: dict[str, Any]) -> bool:
+    """Still waiting for the partner's answer — same rule as the backend wake rule (wake-rules.ts repliesWakeReason)."""
+    return g.get("state") == "ASKED" and g.get("candidate_state") not in REPLY_HANDED_TO_PERSON
 Action = Literal["COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "PLAN", "FAIL"]
 ACTIONS: tuple[Action, ...] = ("COMPLETE", "COMMUNICATION", "PUBLIC_DATA", "WAIT_EXTERNAL", "PLAN", "FAIL")
 
@@ -85,6 +92,7 @@ class RecoveryState(TypedDict, total=False):
     solve: dict[str, Any] | None  # solver summary: status · input_hash · engine objective / saving
     plan: dict[str, Any] | None  # the proposed plan version: id · version · status (the backend's)
     plan_rounds: int  # how many times this run proposed a plan (re-solve after facts changed)
+    stale_plan_input: bool  # T-136: the inputs changed between solve and propose — nothing was stored, solve again
     last_tool_call: dict[str, Any] | None
     tool_results: list[dict[str, Any]]  # last calls: tool · status · code · tool_call_id
     decision_results: list[dict[str, Any]]
@@ -118,7 +126,7 @@ class DeterministicPolicy:
             return "COMMUNICATION"
         if all(g.get("state") in HUMAN_HELD_STATES or g.get("state") == "ASKED" for g in gaps):
             # what is left is already asked (a reply may come) or waits for a person (confirmation / review) — nothing for the agent to ask
-            return "WAIT_EXTERNAL" if any(g.get("state") == "ASKED" for g in gaps) else done
+            return "WAIT_EXTERNAL" if any(awaiting_reply(g) for g in gaps) else done
         return "FAIL"
 
 
@@ -389,9 +397,13 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         rounds = state.get("plan_rounds", 0) + 1
         digest = str(solve.get("input_hash", ""))[7:19]
         r = s.call("propose_recovery_plan", {"expected_input_hash": solve["input_hash"]} if solve.get("input_hash") else {}, idempotency_key=f"{state['agent_run_id']}:plan:{rounds}:{digest}")
+        if not r.ok and r.error and r.error.cause_code == "STALE_PLAN_INPUT":
+            # T-136: facts / records changed after solve — the backend stored nothing. Solve again on the current inputs
+            # (bounded by the run's step limit; each round is a new idempotency key because the input hash differs)
+            return {"stale_plan_input": True, "plan_rounds": rounds}
         if not r.ok:
             return failed(r.error.code if r.error else "PLAN_PROPOSAL_FAILED")
-        return {"plan": plan_ref(r.output), "plan_rounds": rounds}
+        return {"plan": plan_ref(r.output), "plan_rounds": rounds, "stale_plan_input": False}
 
     def wait_plan_decision(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
         # a person approves (or not); a changed fact makes the plan OUTDATED — either wakes this run. The resume value is a reason only
@@ -415,7 +427,8 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         return {"evidence_refs": ((state.get("evidence_refs") or []) + refs)[-50:]}
 
     def wait_external(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
-        interrupt({"waiting": "EXTERNAL", "reason": "AWAITING_REPLIES", "ref_type": None, "ref_id": None})
+        # T-136: the awaited record is the recovery run (its inquiries) — the backend reconciler wakes this run when no gap still awaits a reply
+        interrupt({"waiting": "EXTERNAL", "reason": "AWAITING_REPLIES", "ref_type": "RECOVERY_RUN", "ref_id": state["recovery_run_id"]})
         return {}
 
     def build_result(state: RecoveryState, s: ToolSession) -> dict[str, Any]:
@@ -427,7 +440,8 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
         if plan and plan.get("plan_status") == "APPROVED":
             return {"result": {"status": "COMPLETED", "result_code": "PLAN_APPROVED", "error_code": None, "summary": summary}}
         if state.get("next_action") == "COMPLETE":
-            held = any(g.get("state") in HUMAN_HELD_STATES for g in state.get("information_gaps") or [])
+            # held = a value waits for a person, or (T-136) a reply came without a usable value and a person must review it
+            held = any(g.get("state") in HUMAN_HELD_STATES or (g.get("state") == "ASKED" and not awaiting_reply(g)) for g in state.get("information_gaps") or [])
             return {"result": {"status": "COMPLETED", "result_code": "OPEN_GAPS_AWAIT_HUMAN" if held else "NO_INFORMATION_GAPS", "error_code": None, "summary": summary}}
         reply = state.get("reply_summary")
         if reply:
@@ -468,7 +482,11 @@ def build_graph(deps: GraphDeps, checkpointer: Any) -> Any:
     )
     g.add_conditional_edges("calculate_costs", ok("solve_recovery"), ["solve_recovery", "build_result"])
     g.add_conditional_edges("solve_recovery", ok("propose_plan"), ["propose_plan", "build_result"])
-    g.add_conditional_edges("propose_plan", ok("wait_plan_decision"), ["wait_plan_decision", "build_result"])
+    g.add_conditional_edges(
+        "propose_plan",
+        lambda state: "build_result" if state.get("halt") else "calculate_costs" if state.get("stale_plan_input") else "wait_plan_decision",
+        ["wait_plan_decision", "calculate_costs", "build_result"],
+    )
     g.add_edge("wait_plan_decision", "track_plan")
     # the backend's plan status decides: approved → done · facts changed → re-read and solve again · still open → keep waiting
     g.add_conditional_edges(

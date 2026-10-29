@@ -379,6 +379,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/communication/inbound/held/{rawInputId}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Judge a held mail again against the current registry and threads (after registering / approving the sender or fixing the thread). The original and its hold record stay as they are; if it now matches, it is attached as a reply and extracted as usual. Safe to repeat */
+        post: operations["InboundController_reprocessHeld"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/planning/runs": {
         parameters: {
             query?: never;
@@ -1666,7 +1683,7 @@ export interface components {
             /** @description Whether a person may ask for one more attempt now (the request re-checks thread, gap and supersession) */
             available: boolean;
             /** @enum {string|null} */
-            blocked_reason: "EXTRACTION_IN_PROGRESS" | "EXTRACTION_NOT_REQUIRED" | "NOT_EXTRACTABLE" | null;
+            blocked_reason: "EXTRACTION_IN_PROGRESS" | "EXTRACTION_NOT_REQUIRED" | "NOT_EXTRACTABLE" | "GAP_ALREADY_RESOLVED" | "REPLY_SUPERSEDED" | null;
         };
         InboundExtractionDto: {
             /**
@@ -1692,6 +1709,8 @@ export interface components {
             failure_kind: "AI_CALL_FAILED" | "NO_ANSWER_FOUND" | "VALIDATOR_REJECTED" | "NOT_EXTRACTABLE" | null;
             /** @description A reply arrived but no validated value came out — a person reviews it: retry the extraction or enter the fact directly */
             needs_review: boolean;
+            /** @description needs_review is about this reply's extraction only. review_pending = a person still has business work here: needs_review AND what was asked is not yet confirmed / officially recorded AND no newer reply or inquiry exists. A reply can show needs_review=true with review_pending=false (the information was filled another way) */
+            review_pending: boolean;
             /** @description Every attempt in order. Earlier attempts are never removed */
             attempts: components["schemas"]["ExtractionAttemptDto"][];
             retry: components["schemas"]["ExtractionRetryAvailabilityDto"];
@@ -1824,6 +1843,22 @@ export interface components {
             replayed: boolean;
             /** @description The reply with its attempts — the new attempt shows as RUNNING until the worker records it */
             reply: components["schemas"]["InboundItemDto"];
+        };
+        HeldReprocessResultDto: {
+            /**
+             * Format: uuid
+             * @description The held mail (raw_input) — its original is not changed
+             */
+            raw_input_id: string;
+            /**
+             * @description ATTACHED = judged again against the current registry / threads and attached as a reply (extraction follows as usual) · STILL_HELD = nothing changed · ALREADY_ATTACHED = it was attached before
+             * @enum {string}
+             */
+            result: "ATTACHED" | "STILL_HELD" | "ALREADY_ATTACHED";
+            /** Format: uuid */
+            message_id: string | null;
+            /** @description Hold reasons now (STILL_HELD only) */
+            hold_reasons: string[];
         };
         RunExceptionDto: {
             /** Format: uuid */
@@ -3701,6 +3736,67 @@ export interface operations {
                 };
             };
             /** @description EXTRACTION_IN_PROGRESS · EXTRACTION_NOT_REQUIRED · NOT_EXTRACTABLE · REPLY_SUPERSEDED · GAP_ALREADY_RESOLVED · COMMAND_ID_REUSED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    InboundController_reprocessHeld: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Requesting operator (active HUMAN actor). In session mode the backend sets it from the session */
+                "X-CERA-Actor-Id": string;
+            };
+            path: {
+                /** @description The held mail (raw_input) id */
+                rawInputId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldReprocessResultDto"];
+                };
+            };
+            /** @description INVALID_ID · ACTOR_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ACTOR_NOT_ALLOWED · PERMISSION_DENIED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description CONTENT_MISSING */
             409: {
                 headers: {
                     [name: string]: unknown;

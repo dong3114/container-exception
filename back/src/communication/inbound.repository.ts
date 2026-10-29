@@ -49,6 +49,41 @@ export class InboundRepository {
     return rows[0]?.s ?? null;
   }
 
+  /** 받은 메일 1통의 원문 기록(보류 재처리 — T-136). */
+  async rawInputById(rawInputId: string) {
+    const rows = await this.db
+      .select({
+        rawInputId: rawInput.rawInputId,
+        sourceType: rawInput.sourceType,
+        sourceName: rawInput.sourceName,
+        sourceRecordKey: rawInput.sourceRecordKey,
+        payloadRef: rawInput.payloadRef,
+        payloadHash: rawInput.payloadHash,
+        receivedAt: rawInput.receivedAt,
+        isSimulated: rawInput.isSimulated,
+      })
+      .from(rawInput)
+      .where(eq(rawInput.rawInputId, rawInputId))
+      .limit(1);
+    const r = rows[0];
+    return r && r.sourceName && r.sourceRecordKey && r.payloadHash ? { ...r, sourceName: r.sourceName, sourceRecordKey: r.sourceRecordKey, payloadHash: r.payloadHash } : null;
+  }
+
+  /** 이 외부 메시지가 이미 회신 메시지로 붙었나(채널 · 외부 id 유일) */
+  async messageIdFor(channelType: string, externalMessageId: string, q: Database | DbTransaction = this.db): Promise<string | null> {
+    const rows = await q
+      .select({ id: commMessage.messageId })
+      .from(commMessage)
+      .where(and(eq(commMessage.channelType, channelType), eq(commMessage.externalMessageId, externalMessageId), eq(commMessage.direction, 'INBOUND')))
+      .limit(1);
+    return rows[0]?.id ?? null;
+  }
+
+  /** 같은 보류 회신의 재처리를 한 줄로(두 사람이 동시에 눌러도 메시지는 하나) */
+  async lockRawInput(tx: DbTransaction, rawInputId: string): Promise<void> {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`cera.inbound.reprocess:${rawInputId}`}))`);
+  }
+
   async rawInputExists(sourceName: string, externalMessageId: string): Promise<boolean> {
     const rows = await this.db
       .select({ id: rawInput.rawInputId })

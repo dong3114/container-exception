@@ -257,6 +257,8 @@ describe('T-124 B. the model found no answer → the operator enters the fact di
       .expect(200);
     expect(entered.body).toMatchObject({ fact_state: 'CONFIRMED' });
     expect((await retry(inboundId, w.humanId).expect(409)).body.code).toBe('GAP_ALREADY_RESOLVED');
+    // T-136: 화면은 "다시 추출 가능"을 보이지 않고(누르면 409 이던 문제), 회신 단위 결과(needs_review)와 업무 검토(review_pending)를 나눠 보인다
+    expect(await view(draftId, inboundId)).toMatchObject({ needs_review: true, review_pending: false, retry: { available: false, blocked_reason: 'GAP_ALREADY_RESOLVED' } });
     // 실패 기록 · 회신은 그대로 — 평가 데이터(회신 → 모델 실패 → 사람 입력)로 남는다
     expect(await view(draftId, inboundId)).toMatchObject({ state: 'NO_CANDIDATE', attempts: [expect.objectContaining({ trigger: 'AUTO', result: 'NO_CANDIDATE', outcome: 'UNPARSEABLE' })] });
   });

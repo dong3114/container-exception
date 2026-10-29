@@ -74,7 +74,23 @@ export function ExtractionView({ extraction, onRetry, retryError, retryBusy = fa
           {extraction.last_error_code && extraction.state !== "NO_CANDIDATE" ? ` · ${extraction.last_error_code}` : ""}
         </div>
       )}
-      {extraction.needs_review && (
+      {extraction.needs_review && !extraction.review_pending && (
+        <div className="callout tone-ok" data-testid="extraction-review-closed" role="status">
+          <span className="callout-icon" aria-hidden>
+            ✓
+          </span>
+          <div className="callout-body">
+            <b>AI 가 이 답장에서 값을 찾지 못했지만, 업무 검토는 필요 없습니다.</b>
+            <span>
+              {extraction.retry.blocked_reason === "REPLY_SUPERSEDED" ? "이 스레드에 더 새 답장 · 문의가 있습니다 — 그쪽을 보세요." : "물은 정보가 이미 확정(사람 확인 · 공식 기록)됐습니다."} 답장 원문과 시도 기록은 그대로 보관됩니다.
+            </span>
+            <div className="muted" style={{ fontSize: 11.5 }} data-testid="extraction-attempts">
+              시도 {extraction.attempts.length}회
+            </div>
+          </div>
+        </div>
+      )}
+      {extraction.needs_review && extraction.review_pending && (
         <div className="callout tone-warn" data-testid="extraction-review" role="status">
           <span className="callout-icon" aria-hidden>
             ?

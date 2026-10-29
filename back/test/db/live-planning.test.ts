@@ -169,6 +169,9 @@ describe('T-123 LIVE planning — operational inputs → readiness → engine �
     // 같은 입력 · 같은 as_of → 같은 입력 지문(재현)
     const asOf = new Date().toISOString();
     expect((await plans.solve(runId, asOf)).result.input_hash).toBe((await plans.solve(runId, asOf)).result.input_hash);
+    // T-136 1-7: LIVE 에서 아무것도 바뀌지 않았는데 다시 계산하면 새 판을 만들지 않는다(실행 시각이 지문에 들어가 매번 새 판이 생기던 문제)
+    const again = (await http.post(`/planning/runs/${runId}/plans`).set(ACTOR, humanId).send({}).expect(200)).body;
+    expect(again).toMatchObject({ plan_id: v1.plan_id, version: 1 });
 
     await http.post(`/planning/plans/${v1.plan_id}/approve`).set(ACTOR, humanId).send({ plan_hash: v1.plan_hash }).expect(200);
     const fu = (await http.post(`/planning/plans/${v1.plan_id}/follow-ups`).set(ACTOR, humanId).send({}).expect(200)).body;

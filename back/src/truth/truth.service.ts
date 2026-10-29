@@ -43,8 +43,13 @@ export class TruthService {
     @Inject(CONTENT_STORE) private readonly store: ContentStore,
   ) {}
 
-  /** 사건에서 바로 판정(파생 표를 거치지 않는다). */
-  evaluate(data: CoordinateData, asOf = this.clock.now()): CoordinateResult {
+  /**
+   * 사건에서 바로 판정(파생 표를 거치지 않는다).
+   * `knownBy` = 이 시각까지 CERA 가 **알 수 있었던** 사건만 쓴다(기본 = asOf). 과거 as_of 로 판정할 때 그 뒤에 기록된 사건이 섞이지 않게 한다.
+   * 무효 점검(refreshOutdated)처럼 "판의 as_of 로 신선도를 보되 지금까지 들어온 사건으로" 비교할 때만 knownBy 를 따로 준다.
+   */
+  evaluate(data: CoordinateData, asOf = this.clock.now(), knownBy: Instant = asOf): CoordinateResult {
+    data = knownAsOf(data, knownBy);
     const result = reconcile(data.events, data.verifications, asOf.toIsoUtc(), undefined, freshnessPolicyFor(data.coordinate.factKey));
     const winnerRow = result.winner ? (data.rows.find((r) => r.eventId === result.winner?.eventId) ?? null) : null;
     return { data, result, state: factState(result), winnerRow, asOf: asOf.toSeoulIso() };
@@ -54,9 +59,9 @@ export class TruthService {
    * `asOf` = 판정 기준 시각. 계획 실행 안에서는 그 계획의 스냅샷 시각을 넘긴다(계획은 그 시각의 그림이다 — 시스템 현재 시각이 아니다, 규칙 6).
    * 생략하면 지금(`materialize` 의 파생 표처럼 실행 문맥이 없을 때).
    */
-  async liveForSubjects(subjectIds: readonly string[], sim: { isSimulated: boolean; scenarioId: string | null }, asOf?: Instant): Promise<CoordinateResult[]> {
+  async liveForSubjects(subjectIds: readonly string[], sim: { isSimulated: boolean; scenarioId: string | null }, asOf?: Instant, knownBy?: Instant): Promise<CoordinateResult[]> {
     const data = await this.repo.subjectData(subjectIds, sim);
-    return data.map((d) => this.evaluate(d, asOf));
+    return data.map((d) => this.evaluate(d, asOf, knownBy ?? asOf));
   }
 
   async liveForCoordinate(c: Coordinate, asOf?: Instant): Promise<CoordinateResult> {
@@ -300,3 +305,23 @@ export interface FactCoordinateView {
 }
 
 export { coordinateKey };
+
+/**
+ * 사건이 CERA 에 **알려진 시각**(T-136 · 시각 불변식) — 과거 as_of 판정에 미래 사건이 섞이지 않게 한다.
+ * - 실제(LIVE): `received_at` = CERA 가 그 사건을 기록한 시각. 사건 시각(source_event_time)이 과거여도 그 뒤에 들어왔으면 그때는 몰랐다
+ * - 시뮬레이션: 시나리오 시계는 실제 시계와 다르다. 시나리오 세계의 시각(source_event_time)이 있으면 그것, 없으면(시연 화면의 직접 입력처럼
+ *   "시나리오의 지금" 들어온 사건) 시나리오 as_of 에 알려진 것으로 본다
+ * 확인 · 거절 · 철회(VERIFICATION)도 같은 규칙 — 실제는 received_at, 시뮬레이션은 늘 알려진 것으로 본다.
+ */
+export function knownAsOf(data: CoordinateData, knownBy: Instant): CoordinateData {
+  const cut = knownBy.toIsoUtc();
+  const known = (r: CoordinateData['rows'][number]): boolean => {
+    const t = r.isSimulated ? r.sourceEventTime : r.receivedAt;
+    return t === null || Instant.fromDb(t).toIsoUtc() <= cut;
+  };
+  const rows = data.rows.filter(known);
+  if (rows.length === data.rows.length && data.coordinate.isSimulated) return data;
+  const ids = new Set(rows.map((r) => r.eventId));
+  const verifications = data.verifications.filter((v) => data.coordinate.isSimulated || v.receivedAt <= cut);
+  return { ...data, rows, events: data.events.filter((e) => ids.has(e.eventId)), verifications };
+}

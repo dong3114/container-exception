@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApiApp } from '../../src/app/create-api.js';
 import { OutboxDispatcher } from '../../src/communication/outbox-dispatcher.js';
 import { RecoveryPlanService } from '../../src/planning/recovery-plan.service.js';
+import { PlanSupersessionService } from '../../src/communication/plan-supersession.service.js';
 import { RegistryService } from '../../src/registry/registry.service.js';
 import { actor, registry, type Registry } from './fixtures.js';
 import { appPool, expectSqlState, ownerPool, testEnv } from './support.js';
@@ -30,6 +31,7 @@ let db: pg.Pool;
 let humanId: string;
 let agentId: string;
 let plans: RecoveryPlanService;
+let supersession: PlanSupersessionService;
 
 interface World extends Registry {
   runId: string;
@@ -103,6 +105,7 @@ beforeAll(async () => {
   agentId = await actor(db, 'AI_AGENT');
   await actor(db, 'SYSTEM');
   plans = api.get(RecoveryPlanService);
+  supersession = api.get(PlanSupersessionService);
   w = await newWorld();
   plans.packIds = w.ids;
 });
@@ -231,6 +234,13 @@ describe('T-114 recovery plan — deterministic engine on Truth facts, versioned
     const proposedOther = (await http.get(`/planning/runs/${w.runId}/plans`).expect(200)).body.plans.find((p: { plan_status: string }) => p.plan_status !== 'APPROVED');
     if (proposedOther) expect((await http.post(`/planning/plans/${proposedOther.plan_id}/follow-ups`).set(ACTOR, humanId).expect(409)).body.code).toBe('PLAN_NOT_APPROVED');
 
+    // T-136 1-9: 판이 승인 상태를 잃기 전에 후속 초안 하나를 사람이 승인해 둔다(그 승인은 뒤에서 "과거 승인 · 지금 무효"가 된다)
+    const approvedFollowUp = drafted.length >= 2 ? drafted[1] : null;
+    if (approvedFollowUp) {
+      const ad = (await http.get(`/communication/drafts/${approvedFollowUp.message_id}`).expect(200)).body;
+      await http.post(`/communication/drafts/${approvedFollowUp.message_id}/approve`).set(ACTOR, humanId).send({ content_hash: ad.message.content_hash }).expect(200);
+    }
+
     // 판이 기대던 사실이 바뀌면 판은 OUTDATED → 그 판의 초안은 승인 · 발송이 막힌다
     await enter(w, { kind: 'FACILITY_CAPACITY', target_id: w.ids.WAREHOUSE_A, value: 3 });
     await plans.refreshOutdated();
@@ -240,6 +250,19 @@ describe('T-114 recovery plan — deterministic engine on Truth facts, versioned
     const res = await http.post(`/communication/drafts/${first.message_id}/approve`).set(ACTOR, humanId).send({ content_hash: d.message.content_hash });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('PLAN_SUPERSEDED');
+    // T-136 1-9: 승인을 잃은 판의 후속 초안 승인은 이력(APPROVED 행)을 남긴 채 무효화 기록(INVALIDATED · PLAN_SUPERSEDED)을 얻는다.
+    // 다시 돌려도 무효화 행이 늘지 않는다(살아 있는 승인만 대상)
+    if (approvedFollowUp) {
+      await supersession.invalidateForStalePlans(w.runId);
+      const rows = async () => (await db.query('SELECT decision, invalidation_cause FROM cera.message_approval WHERE message_id = $1 ORDER BY decided_at, approval_id', [approvedFollowUp.message_id])).rows;
+      expect(await rows()).toEqual([
+        { decision: 'APPROVED', invalidation_cause: null },
+        { decision: 'INVALIDATED', invalidation_cause: 'PLAN_SUPERSEDED' },
+      ]);
+      await supersession.invalidateForStalePlans(w.runId);
+      expect(await rows()).toHaveLength(2);
+      expect((await http.get(`/communication/drafts/${approvedFollowUp.message_id}`).expect(200)).body.approval.state).toBe('INVALIDATED');
+    }
     // 기록은 지울 수 없다
     await expectSqlState(db.query('DELETE FROM cera.plan_follow_up WHERE plan_id = $1', [approvedId]), '42501');
   });
@@ -417,6 +440,11 @@ describe('T-114 agent tools — COMPUTE (nothing stored) · PROPOSE (idempotent)
       expect(row.created_by_actor_id).toBe(row.agent_actor_id);
       expect((await tool('get_recovery_plan', runId, {}).expect(200)).body.output.plan).toMatchObject({ plan_id: proposed.plan_id, plan_status: 'PROPOSED' });
       for (const name of ['approve_plan', 'approve_recovery_plan', 'select_final_plan']) expect((await tool(name, runId, {}).expect(404)).body.error.code).toBe('TOOL_NOT_FOUND');
+      // T-136 1-8: 계산 뒤 입력이 바뀌었다는 지문으로 제안하면 아무것도 저장하지 않고 STALE_PLAN_INPUT(그래프가 다시 계산한다)
+      const before = Number((await db.query('SELECT count(*) FROM cera.recovery_plan WHERE case_run_id = $1', [x.runId])).rows[0].count);
+      const stale = (await tool('propose_recovery_plan', runId, { expected_input_hash: `sha256:${'0'.repeat(64)}` }, `${runId}:plan:stale`).expect(200)).body;
+      expect(stale.error).toMatchObject({ code: 'CONFLICT', cause_code: 'STALE_PLAN_INPUT' });
+      expect(Number((await db.query('SELECT count(*) FROM cera.recovery_plan WHERE case_run_id = $1', [x.runId])).rows[0].count)).toBe(before);
     } finally {
       plans.packIds = w.ids;
     }

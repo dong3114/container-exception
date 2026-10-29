@@ -5,6 +5,9 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import type { ChannelAdapters } from '../channel/channel.module.js';
 import { ContentService } from '../content/content-service.js';
+import { ABSENT, CONTENT_STORE, type ContentStore } from '../content/content-store.js';
+import { parseMail } from '../channel/gmail/gmail-mime.js';
+import { BusinessRuleError } from '../shared/errors/cera-error.js';
 import { TransactionRunner } from '../db/transaction.js';
 import { AuditRecorder } from '../persistence/audit-recorder.js';
 import { AUDIT_ACTION, type AuditAction } from '../persistence/catalog.js';
@@ -53,6 +56,7 @@ export class InboundProcessor {
     @Inject(InboundRepository) private readonly inbound: InboundRepository,
     @Inject(DraftService) private readonly drafts: DraftService,
     @Inject(ContentService) private readonly content: ContentService,
+    @Inject(CONTENT_STORE) private readonly store: ContentStore,
     @Inject(TransactionRunner) private readonly tx: TransactionRunner,
     @Inject(AuditRecorder) private readonly audit: AuditRecorder,
     @Inject(CLOCK) private readonly clock: Clock,
@@ -165,46 +169,103 @@ export class InboundProcessor {
         return 'HOLD' as const;
       }
 
-      const thread = decision.thread;
-      const messageId = this.ids.newId();
-      await this.inbound.insertInboundMessage(tx, {
-        messageId,
-        threadId: thread.threadId,
-        direction: 'INBOUND',
-        messageKind: 'BUSINESS',
-        channelType: adapter.channelType,
-        externalMessageId: m.externalMessageId,
-        fromAddress: normalizeAddress(m.from).slice(0, 200),
-        // 받은 메시지의 내용은 원문(raw_input)이 정본 — 메시지 행에는 원문 지문만(내용 참조는 보내는 메시지용 범주)
-        contentHash: stored.sha256,
-        createdAt: now.toDb(),
-        receivedAt: receivedAt.toDb(),
-        isSimulated: thread.isSimulated,
-        scenarioId,
-      });
-      if (thread.outboundMessageId) {
-        const status = await this.inbound.outboundStatus(tx, thread.outboundMessageId);
-        if (status === 'SENT' || status === 'REPLIED') {
-          await this.inbound.insertRepliedTransition(tx, {
-            id: this.ids.newId(),
-            messageId: thread.outboundMessageId,
-            actorId: system,
-            at: now.toDb(),
-            isSimulated: thread.isSimulated,
-            note: `reply received ${messageId}`,
-          });
-        }
-      }
-      await this.inbound.markThreadAnswered(tx, thread.threadId, now.toDb());
-      await this.audit.record(tx, {
-        actorId: system,
-        action: AUDIT_ACTION.INBOUND_RECEIVED,
-        targetType: 'COMM_MESSAGE',
-        targetId: messageId,
-        result: 'SUCCESS',
-        isSimulated: thread.isSimulated,
-      });
+      await this.attachReply(tx, { thread: decision.thread, channelType: adapter.channelType, externalMessageId: m.externalMessageId, from: m.from, contentHash: stored.sha256, receivedAt, now, system, scenarioId, actorId: system, action: AUDIT_ACTION.INBOUND_RECEIVED });
       return 'NORMAL' as const;
     });
   }
+
+  /** 회신을 문의에 붙인다 — 수신(Worker)과 보류 재처리(사람)가 같은 규칙을 쓴다. 원문(raw_input)은 바꾸지 않는다 */
+  private async attachReply(
+    tx: Parameters<Parameters<TransactionRunner['run']>[0]>[0],
+    a: { thread: NonNullable<InboundDecision['thread']>; channelType: string; externalMessageId: string; from: string; contentHash: string; receivedAt: Instant; now: Instant; system: string; scenarioId: string | null; actorId: string; action: AuditAction },
+  ): Promise<string> {
+    const { thread, now, system } = a;
+    const messageId = this.ids.newId();
+    await this.inbound.insertInboundMessage(tx, {
+      messageId,
+      threadId: thread.threadId,
+      direction: 'INBOUND',
+      messageKind: 'BUSINESS',
+      channelType: a.channelType,
+      externalMessageId: a.externalMessageId,
+      fromAddress: normalizeAddress(a.from).slice(0, 200),
+      // 받은 메시지의 내용은 원문(raw_input)이 정본 — 메시지 행에는 원문 지문만(내용 참조는 보내는 메시지용 범주)
+      contentHash: a.contentHash,
+      createdAt: now.toDb(),
+      receivedAt: a.receivedAt.toDb(),
+      isSimulated: thread.isSimulated,
+      scenarioId: a.scenarioId,
+    });
+    if (thread.outboundMessageId) {
+      const status = await this.inbound.outboundStatus(tx, thread.outboundMessageId);
+      if (status === 'SENT' || status === 'REPLIED') {
+        await this.inbound.insertRepliedTransition(tx, {
+          id: this.ids.newId(),
+          messageId: thread.outboundMessageId,
+          actorId: system,
+          at: now.toDb(),
+          isSimulated: thread.isSimulated,
+          note: `reply received ${messageId}`,
+        });
+      }
+    }
+    await this.inbound.markThreadAnswered(tx, thread.threadId, now.toDb());
+    await this.audit.record(tx, { actorId: a.actorId, action: a.action, targetType: 'COMM_MESSAGE', targetId: messageId, result: 'SUCCESS', isSimulated: thread.isSimulated });
+    return messageId;
+  }
+
+  /**
+   * 보류함 재처리(T-136) — 보류된 회신(raw_input, 메시지 없음)을 **지금** 등록부 · 스레드 기준으로 다시 판정한다. 사람(권한 확인은 호출자)이 부른다.
+   * - 원문은 바꾸지 않는다(내용 저장소의 원래 바이트를 다시 읽어 같은 규칙으로 판정 — append-only 출처 유지)
+   * - 붙으면 수신과 같은 규칙으로 회신 메시지를 만든다 → 추출은 Worker 가 평소처럼(한 번만 — 추출 쪽 잠금 · 상태가 중복을 막는다)
+   * - 여전히 보류면 메시지를 만들지 않고 지금의 보류 사유를 돌려준다(시도는 감사에만)
+   * - 이미 붙은 회신이면 ALREADY_ATTACHED — 두 번 눌러도 메시지 · 사실이 두 번 생기지 않는다(메시지는 (채널, 외부 id) 유일 + 원문 잠금)
+   */
+  async reprocessHeld(rawInputId: string, actorId: string): Promise<{ raw_input_id: string; result: 'ATTACHED' | 'STILL_HELD' | 'ALREADY_ATTACHED'; message_id: string | null; hold_reasons: string[] }> {
+    const raw = await this.inbound.rawInputById(rawInputId);
+    if (!raw || raw.sourceType !== 'EMAIL') throw new BusinessRuleError('NOT_FOUND', 'No received mail with this id', 404);
+    const existing = await this.inbound.messageIdFor(raw.sourceName, raw.sourceRecordKey);
+    if (existing) return { raw_input_id: rawInputId, result: 'ALREADY_ATTACHED', message_id: existing, hold_reasons: [] };
+    const bytes = raw.payloadRef ? await this.store.get(raw.payloadRef as Parameters<ContentStore['get']>[0]) : ABSENT;
+    if (bytes === ABSENT) throw new BusinessRuleError('CONTENT_MISSING', 'The original mail is no longer in the content store — it cannot be judged again', 409);
+    const m = await rebuildInbound(raw.sourceName, raw.sourceRecordKey, bytes);
+    const replyIds = [m.inReplyTo, ...m.references].filter((x): x is string => Boolean(x));
+    const decision: InboundDecision = classifyInbound({
+      byExternalThread: m.externalThreadId ? await this.inbound.threadsByExternalId(raw.sourceName, m.externalThreadId) : [],
+      byReplyHeaders: await this.inbound.threadsByProviderIds(raw.sourceName, [...new Set(replyIds)]),
+      senders: await this.inbound.sendersByAddress(raw.sourceName, normalizeAddress(m.from)),
+      adapterSimulated: raw.isSimulated,
+    });
+    const now = this.clock.now();
+    const system = await this.drafts.systemActor();
+    if (decision.status === 'HOLD' || !decision.thread) {
+      await this.tx.run((tx) => this.audit.record(tx, { actorId, action: AUDIT_ACTION.INBOUND_REPROCESS_STILL_HELD, targetType: 'RAW_INPUT', targetId: rawInputId, result: 'SUCCESS', isSimulated: raw.isSimulated }));
+      return { raw_input_id: rawInputId, result: 'STILL_HELD', message_id: null, hold_reasons: [...decision.reasons] };
+    }
+    const thread = decision.thread;
+    const scenarioId = await this.inbound.threadScenarioId(thread.threadId);
+    const out = await this.tx.run(async (tx) => {
+      await this.inbound.lockRawInput(tx, rawInputId);
+      const again = await this.inbound.messageIdFor(raw.sourceName, raw.sourceRecordKey, tx);
+      if (again) return { id: again, created: false };
+      const id = await this.attachReply(tx, { thread, channelType: raw.sourceName, externalMessageId: raw.sourceRecordKey, from: m.from, contentHash: raw.payloadHash, receivedAt: Instant.fromDb(raw.receivedAt), now, system, scenarioId, actorId, action: AUDIT_ACTION.INBOUND_REPROCESSED });
+      return { id, created: true };
+    });
+    if (out.created) this.signals.emit({ type: 'INBOUND_REPLY_RECEIVED', externalMessageId: raw.sourceRecordKey });
+    return { raw_input_id: rawInputId, result: out.created ? 'ATTACHED' : 'ALREADY_ATTACHED', message_id: out.id, hold_reasons: [] };
+  }
 }
+
+/** 저장된 원문 → 수신 때와 같은 머리글(보낸 사람 · 답장 대상 · 스레드). 원문을 바꾸지 않는다 — 읽기만 */
+export async function rebuildInbound(channelType: string, externalMessageId: string, bytes: Uint8Array): Promise<Pick<InboundRawMessage, 'from' | 'inReplyTo' | 'references' | 'externalThreadId'>> {
+  if (channelType === 'GMAIL') {
+    const parsed = await parseMail(bytes);
+    return { from: parsed.from, inReplyTo: parsed.inReplyTo, references: parsed.references, externalThreadId: null };
+  }
+  // MOCK — 수신함 JSON 봉투(mock-channel-adapter 의 형식)
+  const r = JSON.parse(new TextDecoder().decode(bytes)) as { external_thread_id?: string | null; headers?: Record<string, string | undefined> };
+  const h = r.headers ?? {};
+  if (typeof h.From !== 'string') throw new BusinessRuleError('UNREADABLE_ORIGINAL', `The stored original of ${externalMessageId} has no sender header`, 422);
+  return { from: h.From, inReplyTo: h['In-Reply-To'] ?? null, references: (h.References ?? '').split(/\s+/).filter(Boolean), externalThreadId: r.external_thread_id ?? null };
+}
+

@@ -199,6 +199,41 @@ describe('C. sender is checked against the registry — anything doubtful is hel
     expect((await http.get(`/communication/drafts/${s.messageId}`).expect(200)).body.message.status).toBe('SENT'); // 보류는 문의 상태를 바꾸지 않는다
   });
 
+  it('T-136: a held reply is judged again after the sender is fixed — attached once, original unchanged, audited; repeat is a no-op', async () => {
+    const w = await world();
+    const s = await sentInquiry(w);
+    await app.query("UPDATE cera.contact_channel_address SET communication_status = 'PAUSED' WHERE address_id = $1", [w.addressId]);
+    const { r } = await reply({ replyToCeraMessageId: s.messageId });
+    const [raw] = await rawRow(r.external_message_id);
+    const before = (await app.query('SELECT payload_ref, payload_hash FROM cera.raw_input WHERE raw_input_id = $1', [raw.raw_input_id])).rows[0];
+    // 아직 그대로면 여전히 보류 — 메시지를 만들지 않는다
+    const still = await http.post(`/communication/inbound/held/${raw.raw_input_id}/reprocess`).set(ACTOR, w.humanId).expect(200);
+    expect(still.body).toMatchObject({ result: 'STILL_HELD', message_id: null, hold_reasons: ['SENDER_INACTIVE'] });
+    expect(await inboundMessages(r.external_message_id)).toHaveLength(0);
+    // 담당자 주소를 다시 쓸 수 있게 한 뒤 → 붙는다
+    await app.query("UPDATE cera.contact_channel_address SET communication_status = 'ACTIVE' WHERE address_id = $1", [w.addressId]);
+    const attached = await http.post(`/communication/inbound/held/${raw.raw_input_id}/reprocess`).set(ACTOR, w.humanId).expect(200);
+    expect(attached.body).toMatchObject({ result: 'ATTACHED' });
+    expect(await inboundMessages(r.external_message_id)).toHaveLength(1);
+    expect((await http.get(`/communication/drafts/${s.messageId}`).expect(200)).body.message.status).toBe('REPLIED');
+    // 다시 눌러도 메시지 · 원문은 하나 — 원문 기록은 바뀌지 않았다
+    expect((await http.post(`/communication/inbound/held/${raw.raw_input_id}/reprocess`).set(ACTOR, w.humanId).expect(200)).body).toMatchObject({ result: 'ALREADY_ATTACHED', message_id: attached.body.message_id });
+    expect(await inboundMessages(r.external_message_id)).toHaveLength(1);
+    expect(await rawRow(r.external_message_id)).toHaveLength(1);
+    expect((await app.query('SELECT payload_ref, payload_hash FROM cera.raw_input WHERE raw_input_id = $1', [raw.raw_input_id])).rows[0]).toEqual(before);
+    const audits = (await app.query("SELECT action FROM cera.audit_log WHERE action IN ('INBOUND_REPROCESSED', 'INBOUND_REPROCESS_STILL_HELD') AND (target_id = $1 OR target_id = $2) ORDER BY occurred_at", [raw.raw_input_id, attached.body.message_id])).rows.map((x: { action: string }) => x.action);
+    expect(audits).toEqual(['INBOUND_REPROCESS_STILL_HELD', 'INBOUND_REPROCESSED']);
+  });
+
+  it('T-136: only an active human with communication.approve can reprocess held mail', async () => {
+    const w = await world();
+    const s = await sentInquiry(w);
+    const { r } = await reply({ replyToCeraMessageId: s.messageId, from: 'stranger@example.invalid' });
+    const [raw] = await rawRow(r.external_message_id);
+    expect((await http.post(`/communication/inbound/held/${raw.raw_input_id}/reprocess`).expect(400)).body.code).toBe('ACTOR_REQUIRED');
+    expect((await http.post(`/communication/inbound/held/${v7()}/reprocess`).set(ACTOR, w.humanId).expect(404)).body.code).toBe('NOT_FOUND');
+  });
+
   it('inactive · unverified address → HOLD', async () => {
     const w = await world();
     const s = await sentInquiry(w);

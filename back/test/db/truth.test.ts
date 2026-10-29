@@ -132,6 +132,9 @@ async function world(options: { ownRun?: boolean } = {}): Promise<World> {
 }
 
 /** 문의 → 승인 → 발송. 보낸 초안 id. 질문 시간창 기본 15:00–17:00. */
+/** T-136: 트럭 공백은 문의 시간창을 덮는 슬롯만 닫는다 — 이 시험의 문의 · 사실은 15:00~17:00 이다(Agent 는 사람이 준 시간창을 쓴다) */
+const ASKED_WINDOW = { from: '15:00', to: '17:00' };
+
 async function sentInquiry(w: World, window: [string, string] = ['15:00', '17:00']): Promise<string> {
   const d = (
     await http
@@ -434,7 +437,7 @@ describe('D · E · F. a human confirms, rejects or corrects — always as a new
     expect(await eventsOf(w.truckPoolId)).toHaveLength(2);
     expect((await db.query("SELECT count(*)::int AS n FROM cera.audit_log WHERE action = 'FACT_CONFIRMED' AND actor_id = $1 AND target_id = $2", [w.humanId, ev[1].event_id])).rows[0].n).toBe(1);
     // K · L: 임시 사실일 때는 공백이 PROVISIONAL_AVAILABLE, 확인 뒤에는 닫힌다(known)
-    const gaps = await worker.get(RecoveryContextService, { strict: false }).informationGaps(w.runId);
+    const gaps = await worker.get(RecoveryContextService, { strict: false }).informationGaps(w.runId, null, ASKED_WINDOW);
     expect(gaps.gaps.find((g) => g.subject_id === w.truckPoolId)).toBeUndefined();
     expect(gaps.known.find((k) => k.subject_id === w.truckPoolId)).toMatchObject({ fact: { fact_state: 'CONFIRMED', verified_by_human: true, value_number: '4.0000' } });
   });
@@ -454,7 +457,7 @@ describe('D · E · F. a human confirms, rejects or corrects — always as a new
     expect(await eventsOf(w.truckPoolId)).toHaveLength(2);
     await http.post(`/truth/events/${eventId}/confirm`).set(ACTOR, w.humanId).send({}).expect(409); // 거절한 것을 조용히 되살리지 않는다
     await http.post(`/truth/events/${eventId}/reject`).set(ACTOR, w.humanId).send({ reason_code: 'NOT_A_REASON' }).expect(400);
-    const gaps = await worker.get(RecoveryContextService, { strict: false }).informationGaps(w.runId);
+    const gaps = await worker.get(RecoveryContextService, { strict: false }).informationGaps(w.runId, null, ASKED_WINDOW);
     expect(gaps.gaps.find((g) => g.subject_id === w.truckPoolId)).toMatchObject({ state: 'ASKED', fact: null });
   });
 
@@ -555,7 +558,7 @@ describe('K · L. the recovery context and the information gaps follow the fact 
     const w = await world();
     const context = worker.get(RecoveryContextService, { strict: false });
     const draft = await sentInquiry(w);
-    const mine = async () => (await context.informationGaps(w.runId)).gaps.find((g) => g.subject_id === w.truckPoolId);
+    const mine = async () => (await context.informationGaps(w.runId, null, ASKED_WINDOW)).gaps.find((g) => g.subject_id === w.truckPoolId);
     expect(await mine()).toMatchObject({ state: 'ASKED', fact: null });
 
     await extractWith(await reply(draft, '차량 4대 가능합니다.'), [qty(4)]);
@@ -567,7 +570,7 @@ describe('K · L. the recovery context and the information gaps follow the fact 
     const eventId = (await factsOf(w))[0]?.current?.event_id as string;
     await http.post(`/truth/events/${eventId}/confirm`).set(ACTOR, w.humanId).send({}).expect(200);
     expect(await mine()).toBeUndefined();
-    const known = (await context.informationGaps(w.runId)).known.find((k) => k.subject_id === w.truckPoolId);
+    const known = (await context.informationGaps(w.runId, null, ASKED_WINDOW)).known.find((k) => k.subject_id === w.truckPoolId);
     expect(known?.fact).toMatchObject({ fact_state: 'CONFIRMED', verified_by_human: true, verification_basis: 'HUMAN_VERIFICATION' });
   });
 
@@ -587,7 +590,7 @@ const factsAt = async (w: World, asOf: string) =>
   );
 const gapOf = async (w: World, asOf?: string) => {
   const ctx = worker.get(RecoveryContextService, { strict: false });
-  const out = await ctx.informationGaps(w.runId, asOf ? Instant.parseIso(asOf) : null);
+  const out = await ctx.informationGaps(w.runId, asOf ? Instant.parseIso(asOf) : null, ASKED_WINDOW);
   return { gap: out.gaps.find((g) => g.subject_id === w.truckPoolId), known: out.known.find((k) => k.subject_id === w.truckPoolId) };
 };
 const manual = (w: World, over: Record<string, unknown> = {}) => ({

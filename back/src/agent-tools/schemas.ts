@@ -360,7 +360,7 @@ export const approvalRequestedOutput = z
 const krw = z.number().int().describe('KRW integer from the deterministic engine');
 const sha = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 export const proposePlanInput = z
-  .object({ expected_input_hash: sha.optional().describe('input_hash from solve_recovery — if the facts changed since, the backend solves again on the current facts and says so') })
+  .object({ expected_input_hash: sha.optional().describe('input_hash from solve_recovery — if the inputs changed since, nothing is stored and STALE_PLAN_INPUT is returned (solve again on the current facts)') })
   .strict();
 export const planIdInput = z.object({ plan_id: uuid.optional().describe('Defaults to the current (newest not superseded) plan of this recovery run') }).strict();
 export const recoveryCostsOutput = z
@@ -413,7 +413,9 @@ export const planStatusOutput = z
     saving_krw: z.number().int().nullable(),
     outdated_reason_codes: z.array(z.string()).max(50),
     superseded_by_plan_id: uuid.nullable(),
-    approved: z.boolean(),
+    approved: z.boolean().describe('true only while this version is APPROVED now — an approved version that later went OUTDATED / SUPERSEDED is false'),
+    previously_approved: z.boolean().describe('a person approved this version at some point (audit history) — not a current, executable approval'),
+    executable: z.boolean().describe('true only for the current APPROVED version: follow-up requests may be drafted from it'),
     reused: z.boolean().describe('true = the inputs were unchanged, so the current version was returned instead of a new one'),
     note: z.literal('A PROPOSED plan is a candidate. Only a human approves it; approval is not dispatch.'),
   })

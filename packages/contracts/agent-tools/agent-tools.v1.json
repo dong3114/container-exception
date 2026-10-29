@@ -4416,7 +4416,7 @@
         "type": "object",
         "properties": {
           "expected_input_hash": {
-            "description": "input_hash from solve_recovery — if the facts changed since, the backend solves again on the current facts and says so",
+            "description": "input_hash from solve_recovery — if the inputs changed since, nothing is stored and STALE_PLAN_INPUT is returned (solve again on the current facts)",
             "type": "string",
             "pattern": "^sha256:[0-9a-f]{64}$"
           }
@@ -4509,7 +4509,16 @@
             ]
           },
           "approved": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "true only while this version is APPROVED now — an approved version that later went OUTDATED / SUPERSEDED is false"
+          },
+          "previously_approved": {
+            "type": "boolean",
+            "description": "a person approved this version at some point (audit history) — not a current, executable approval"
+          },
+          "executable": {
+            "type": "boolean",
+            "description": "true only for the current APPROVED version: follow-up requests may be drafted from it"
           },
           "reused": {
             "type": "boolean",
@@ -4533,6 +4542,8 @@
           "outdated_reason_codes",
           "superseded_by_plan_id",
           "approved",
+          "previously_approved",
+          "executable",
           "reused",
           "note"
         ],
@@ -4649,7 +4660,16 @@
                     ]
                   },
                   "approved": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "true only while this version is APPROVED now — an approved version that later went OUTDATED / SUPERSEDED is false"
+                  },
+                  "previously_approved": {
+                    "type": "boolean",
+                    "description": "a person approved this version at some point (audit history) — not a current, executable approval"
+                  },
+                  "executable": {
+                    "type": "boolean",
+                    "description": "true only for the current APPROVED version: follow-up requests may be drafted from it"
                   },
                   "reused": {
                     "type": "boolean",
@@ -4673,6 +4693,8 @@
                   "outdated_reason_codes",
                   "superseded_by_plan_id",
                   "approved",
+                  "previously_approved",
+                  "executable",
                   "reused",
                   "note"
                 ],

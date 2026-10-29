@@ -1,14 +1,15 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DraftService } from '../communication/draft.service.js';
 import { TruthService } from '../truth/truth.service.js';
-import { RecoveryContextService } from './context.service.js';
+import { RecoveryContextService, truckWindowOf } from './context.service.js';
+import { candidateState } from './handlers.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { DOMAIN_SIGNALS, type DomainSignal, type DomainSignals } from '../shared/signals/domain-signals.js';
 import { CLOCK, type Clock } from '../shared/time/clock.js';
 import { AgentCoordinator } from './coordinator.js';
 import { RuntimeStoreRepository } from './runtime-store.repository.js';
-import { contactWakeReason, planWakeReason, wakeReason } from './wake-rules.js';
+import { contactWakeReason, planWakeReason, repliesWakeReason, wakeReason } from './wake-rules.js';
 import { ContactSelectionRepository } from '../registry/contact-selection.repository.js';
 import { RecoveryPlanService } from '../planning/recovery-plan.service.js';
 import { RegistryService } from '../registry/registry.service.js';
@@ -96,6 +97,24 @@ export class AgentReconciler implements OnModuleInit {
     }
 
     for (const w of await this.allWaiting(limit)) {
+      if (w.waitingReason === 'AWAITING_REPLIES') {
+        // T-136: 이 실행의 다른 문의들의 회신을 기다리는 실행 — 기다릴 회신이 더 없으면(값이 들어옴 · 검토로 넘어감 · 문의가 닫힘) 깨운다.
+        // 깨어난 그래프는 공백을 다시 읽고, 더 기다릴 것이 없으니 다시 이 대기로 돌아오지 않는다(같은 조건으로 반복해 깨우지 않는다)
+        summary.checked += 1;
+        const gaps = await this.context.informationGaps(w.recoveryRunId, null, truckWindowOf(w.parameters)).catch(() => null);
+        if (!gaps) continue;
+        const asked = [];
+        for (const g of gaps.gaps) {
+          if (g.state !== 'ASKED') continue;
+          const messages = (await Promise.all(g.open_question_message_ids.map((id) => this.drafts.get(id).catch(() => null)))).filter((m): m is NonNullable<typeof m> => m !== null);
+          asked.push({ candidateState: candidateState(messages).state });
+        }
+        const reason = repliesWakeReason(asked);
+        if (!reason) continue;
+        const r = await this.coordinator.resume(w.agentRunId, reason, { type: 'RECOVERY_RUN', id: w.recoveryRunId }).catch((e: unknown) => this.warn(w.agentRunId, e));
+        if (r && !r.already) summary.woken += 1;
+        continue;
+      }
       if (w.pendingRefType === 'RECOVERY_PLAN' && w.pendingRefId) {
         // 계획 판을 기다리는 실행(T-114) — 판의 지금 상태로 판정한다
         summary.checked += 1;
@@ -114,7 +133,7 @@ export class AgentReconciler implements OnModuleInit {
         summary.checked += 1;
         const recoveryRunId = await this.store.recoveryRunOf(w.agentRunId);
         if (!recoveryRunId) continue;
-        const gaps = await this.context.informationGaps(recoveryRunId).catch(() => null);
+        const gaps = await this.context.informationGaps(recoveryRunId, null, truckWindowOf(w.parameters)).catch(() => null);
         if (!gaps) continue;
         const openGap = gaps.gaps.find((g) => g.subject_id === w.pendingRefId && (g.state === 'MISSING' || g.state === 'NEEDS_REFRESH'));
         if (openGap) {
