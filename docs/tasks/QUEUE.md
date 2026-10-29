@@ -105,7 +105,9 @@
 ## 대기 — P0
 
 ### T-134: 1차 실서버 배포 검증 (demo · private staging)
-- 상태: TODO | 우선: P0 | 단계: Deployment | 담당: -
+- 상태: TODO — **배포 대상 노트북에서 재개**(2026-10-29 사용자 지시: 이 PC 에서는 Cloudflare · Tunnel credential · DNS · Docker 배포를 하지 않는다) | 우선: P0 | 단계: Deployment | 담당: -
+- 2026-10-29 확정 방향(사용자): 같은 노트북에서 Cloudflare Tunnel 로 공개 · 기존 Tunnel `donghwan-apps` 재사용(새 Tunnel 금지) · ACC · Articlue ingress 유지 · `cera.donghwan.cloud` → Portfolio Demo(127.0.0.1:3300 후보) · `cera-staging.donghwan.cloud` → Private Staging(127.0.0.1:3400 후보, Cloudflare Access + CERA 정식 로그인 — `staging.cera…` 는 Universal SSL 범위 밖이라 쓰지 않음) · Cloudflare HTTPS → Tunnel → localhost HTTP · 기존 VPS Caddy 구성은 지우지 않고 `compose.tunnel.yaml` override 로 우회 · 포트는 **노트북 실제 상태를 조사한 뒤** 확정(추측 금지) · credential 은 출력 · 커밋 금지 · 시작 순서 = 저장소 상태 → 준비물 → 실제 배포. 아래 "배포 방향"의 Caddy Basic Auth 안은 Tunnel 배포에서 기본안 아님
+- 참고(2026-10-29, 기존 데스크톱 PC 설정 파일 기준 — 노트북에서 다시 확인): 로컬 관리 Tunnel config 의 ingress = `acc.donghwan.cloud` → 127.0.0.1:5173(ACC `front`) · `articlue.donghwan.cloud` → 127.0.0.1:80(`articlue-frontend`) · `cera.donghwan.cloud` → 127.0.0.1:3000(옛 `infra/local`) · 마지막 404. ACC 디버그 127.0.0.1:8081. CERA local 3000 · 3100 · 8100 · 8080 · 55442 · 56379. 3300 · 3400 은 충돌 없음. 주의: CERA portfolio 기본 `caddy` 와 ACC `caddy` profile 은 0.0.0.0:80/443 — Articlue 80 과 충돌하므로 Tunnel 배포에서는 띄우지 않는다
 - 의존: T-131, T-132, T-133 (DONE)
 - 참조 문서: infra/README.md, infra/portfolio/README.md, infra/staging/README.md, docs/14_decisions.md(ADR-039 · 040 · 041)
 - 목표: 현재 main 을 실제 서버에 올려 demo 와 private staging 을 분리 운영하고, 실서버에서만 드러나는 배포 · 설정 문제만 고친다(사용자 지시 2026-10-28).
@@ -712,6 +714,14 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-135 — 운영 콘솔 1차 제품 UI/UX(Frontend only) · **DONE (2026-10-29, 사용자 지시)**
+
+- 담당: Claude Code (claude-opus-5-5) / 2026-10-29 · Backend 변경 없음(Core FROZEN 유지) · 새 API · migration 없음
+- 공통 틀: 왼쪽 메뉴(개요 · 예외 · 복구 실행 · 운영 입력 · 시스템) + 머리(배포 모드 · 시스템 상태 · 업데이트 표시 · 사용자 · 역할 · 로그아웃) · `?view=` 주소 · 반복 모양 `components/ui/primitives.tsx`(EmptyState · MetricCard · PageHeader · SectionHeader · Callout · Updating · LoadingState) · `components/ops/AppShell.tsx` · `RecoveryHeader.tsx`
+- 화면: 개요(숫자 카드 6 · 할 일 · 진행 중 예외 · 복구 진행 · 시스템) · 할 일 종류(시작 · 승인 · 발송 · 검토 · 선택 · 수정 · 확인 — 심각도 아님) · 발생 시각 · 예외 카드(코드값 대신 "창고 수용량 부족" · 숫자 칸 · 이력 Timeline) · 복구 실행 머리 · Agent(운영자 말 · 진행 단계 · 작업 기록 · 기술 상세 접기) · Truth 짧은 말 · 답장 검토(사람이 이어서 처리) · 승인 전 확인 · 계획(Baseline 대 추천 막대 · OUTDATED 기존 → 현재 값 + [다시 계산]) · 판 비교 숫자 카드 · 정정/취소 비교 · 운영 입력 5단계 · 행 오류 문장 · 시스템 상태 카드 · 빈 상태 · 공개 데모 소개 · `/demo` 진행 막대 · 지금/다음 단계
+- 검증: Front 18 파일 132 · typecheck · lint 오류 0(경고 2 = 기존 badges.tsx) · build · 로컬 Backend 브라우저 smoke(`/` · `/demo` · `/prototype` · 콘솔 오류 0) · 1366×768 · 1920×1080 가로 넘침 0
+- 산출물: `front/web/src/**` · `front/web/scripts/smoke-browser.mjs`(사이드 메뉴 경유) · `docs/deliverables/10_screen-definition-draft.md`(DRAFT 유지 · 정보 구조만)
 
 ### T-133 — 운영 Dashboard · 시스템 상태 · Private Staging 운영 준비 · **DONE (2026-10-28, 사용자 지시)**
 

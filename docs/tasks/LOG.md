@@ -21,6 +21,17 @@
 
 ---
 
+## 2026-10-29 · T-135 운영 콘솔 1차 제품 UI/UX · Claude Code (claude-opus-5-5)
+- 상태: 완료 — Frontend only. Backend · API · migration 변경 없음(Core FROZEN 유지). T-134 는 배포 대상 노트북에서 재개
+- 한 일:
+  - 공통 틀(왼쪽 메뉴 + 머리) · 개요 Dashboard · 할 일 종류 · 시각 · 예외 카드 · Timeline · 복구 실행 머리 · Agent 운영자 말 · 진행 단계 · 작업 기록 · Truth 짧은 말 · 답장 검토 문구 · 승인 전 확인 · 계획 비교 막대 · OUTDATED 값 변화 · 정정/취소 비교 · 운영 입력 단계 · 시스템 상태 카드 · 빈/로딩/오류 상태 · 공개 데모 소개 · `/demo` 진행 표시
+  - 기존 함수 · 컴포넌트 이름은 바꾸지 않음(새 컴포넌트만 추가). 기존 data-testid 유지
+- 변경 파일: `front/web/src/**`(새: `components/ui/primitives.tsx` · `components/ops/AppShell.tsx` · `RecoveryHeader.tsx` · `product-ui.test.tsx`) · `front/web/scripts/smoke-browser.mjs` · `docs/deliverables/10_screen-definition-draft.md` · `docs/tasks/*`
+- 검증: Front 18 파일 132 통과 · typecheck · lint 오류 0 · build · 로컬 Backend(PostgreSQL + API) 브라우저 smoke OK(콘솔 오류 0) · 1366×768 · 1920×1080 스크린샷 · 가로 넘침 0
+- 남은 일 / 다음 한 걸음: 사용자 화면 검토 · T-134(노트북)
+- 큐 변경: T-135 추가 · DONE · T-134 상태 메모(노트북 재개 · Tunnel 방향 · 포트 참고)
+- 주의사항: 테스트 문구 2곳은 의도한 UX 변경으로 갱신(예외 제목 · 무효 이유의 사실 키 → 쉬운 말). `?view=` 가 없으면 `?run=` 이 있을 때만 복구 실행 화면으로 연다. 로컬 확인 때 `db:seed`(local) 를 다시 돌렸다(반복 안전)
+
 ## 2026-10-28 · T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 업무 로직 변경 없음(운영 가시성 최소 범위). Backend 다시 FROZEN
 - 한 일:

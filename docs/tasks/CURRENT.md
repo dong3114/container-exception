@@ -10,13 +10,12 @@
 
 ## Status
 
-### 다음 세션 시작점 (2026-10-28 사용자 지시)
-- 다음 Task = **T-134 1차 실서버 배포 검증**(QUEUE P0, 순서 · 완료 보고 항목은 QUEUE 본문).
-- 시작하면 먼저 `git status` · main/origin 비교 → **현재 상태와 배포 준비물(서버 접속 · 도메인 · DNS · secret 목록 · 접근 통제)을 보고**한 뒤 배포를 진행한다.
-- 배포 방향: 서버 한 대에 demo · staging 동시 배포, Compose project · PostgreSQL · Redis · ContentStore · session 완전 분리. demo 공개 · staging = Caddy Basic Auth + CERA 정식 로그인. secret 은 사용자가 서버 .env 에 직접 넣는다 — 값을 묻지도 출력하지도 않고, 빠진 항목은 환경변수 이름만 보고.
-- 지키는 것: 새 업무 기능 · 새 예외 유형 금지, Backend Core FROZEN, 프론트 디자인 개편 금지, secret 값 출력 금지. 고칠 수 있는 것은 실서버 blocker · security · deployment 문제만.
+### 2026-10-29 상태
+- **T-135 운영 콘솔 1차 제품 UI/UX — DONE**(Frontend only · Backend FROZEN 유지). 다음은 사용자 화면 검토(색 · 메뉴 이름 · 개요 배치 · 숫자 카드 우선순위 · 모바일) — 확정 디자인이 아니다. 화면 정의서는 DRAFT 유지
+- **T-134 1차 배포 검증 — 배포 대상 노트북에서 재개**(이 PC 에서는 Cloudflare · Tunnel credential · DNS · Docker 배포 금지). 확정 방향 · 데스크톱 PC 설정 기준 포트 참고는 QUEUE T-134 본문. 노트북 세션 시작 순서 = `git status` · main/origin → 노트북 실제 포트 · Docker · Cloudflare ingress 조사 → Port Map 보고 → 준비물(환경변수 이름만) → 배포
+- 지키는 것: 새 업무 기능 · 새 예외 유형 금지 · Backend Core FROZEN · secret 값 출력 금지
 
-**IDLE — **T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 DONE(2026-10-28, ADR-041 Accepted · ADR-040 세부 선택 사용자 승인)** — 운영 콘솔 = 할 일 → 현재 예외(이력 · 실행 연결) → 복구 실행 → 운영 기준 계획 입력 → 시스템 상태(API · PostgreSQL · Redis 대체 표시 · Worker heartbeat(M39 · M40) · AI · LLM · Gmail · 공공데이터 · 대기 작업(PostgreSQL 기준)) · 결정론 전체 상태(HEALTHY · DEGRADED · ACTION_REQUIRED · DOWN) · `system.monitor`(ADMIN · OPERATOR) · 모드 배지. 검증: Backend 605 · Python 99 · Front 116 · Private Staging 브라우저 E2E 46/46(Redis · AI · Worker 장애 · 복구) · 공개 포트폴리오 30/30 + 보안 18/18. 업무 로직 변경 없음 — **Backend 다시 FROZEN**.**
+(이전 상태) **IDLE — **T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 DONE(2026-10-28, ADR-041 Accepted · ADR-040 세부 선택 사용자 승인)** — 운영 콘솔 = 할 일 → 현재 예외(이력 · 실행 연결) → 복구 실행 → 운영 기준 계획 입력 → 시스템 상태(API · PostgreSQL · Redis 대체 표시 · Worker heartbeat(M39 · M40) · AI · LLM · Gmail · 공공데이터 · 대기 작업(PostgreSQL 기준)) · 결정론 전체 상태(HEALTHY · DEGRADED · ACTION_REQUIRED · DOWN) · `system.monitor`(ADMIN · OPERATOR) · 모드 배지. 검증: Backend 605 · Python 99 · Front 116 · Private Staging 브라우저 E2E 46/46(Redis · AI · Worker 장애 · 복구) · 공개 포트폴리오 30/30 + 보안 18/18. 업무 로직 변경 없음 — **Backend 다시 FROZEN**.**
 
 ### 2026-10-28 T-133 남은 일(사용자)
 - 실제 Staging 서버 · 접근 통제(Basic Auth · IP · VPN) · `CERA_BUILD_COMMIT` 설정
