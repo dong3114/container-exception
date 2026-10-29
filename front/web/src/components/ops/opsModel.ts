@@ -51,7 +51,23 @@ export interface ActionItem {
   ref: { type: "AGENT_RUN" | "COMM_MESSAGE" | "INBOUND" | "PLAN" | "FOLLOW_UP"; id: string } | null;
   /** 버튼 문구(없으면 "열기 →") */
   cta?: string;
+  /** 어떤 종류의 일인가 — 시작 · 승인 · 발송 · 검토 · 선택 · 수정 · 확인(심각도가 아니다 — Backend 에 심각도는 없다) */
+  kind?: ActionKind;
+  /** 그 일이 생긴 시각(기록에 있을 때만) */
+  at?: string | null;
 }
+
+export type ActionKind = "START" | "APPROVE" | "SEND" | "REVIEW" | "SELECT" | "FIX" | "CONFIRM";
+const KIND_FOR_REASON: Record<string, ActionKind> = {
+  CONTACT_REGISTRATION_REQUIRED: "SELECT",
+  CONTACT_SELECTION_REQUIRED: "SELECT",
+  REPLY_REVIEW_REQUIRED: "REVIEW",
+  HUMAN_APPROVAL_REQUIRED: "APPROVE",
+  HUMAN_ACTION_REQUIRED: "FIX",
+  AWAITING_SEND_REQUEST: "SEND",
+  AWAITING_FACT_VERIFICATION: "CONFIRM",
+  AWAITING_PLAN_DECISION: "APPROVE",
+};
 
 const TAB_FOR_REASON: Record<string, OpsTab> = {
   CONTACT_REGISTRATION_REQUIRED: "agent",
@@ -97,6 +113,8 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
       detail: r?.detail ?? "",
       target: name(ref?.id) ?? null,
       tab: TAB_FOR_REASON[agent.waiting_reason] ?? "agent",
+      kind: KIND_FOR_REASON[agent.waiting_reason] ?? "CONFIRM",
+      at: agent.finished_at ?? agent.started_at,
       ref: ref?.type === "COMM_MESSAGE" ? { type: "COMM_MESSAGE", id: ref.id } : ref?.type === "RECOVERY_PLAN" ? { type: "PLAN", id: ref.id } : { type: "AGENT_RUN", id: agent.agent_run_id },
     });
   }
@@ -105,9 +123,9 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
     const id = d.message.message_id;
     const who = `${d.thread.counterparty_name}${d.thread.contact_name ? ` · ${d.thread.contact_name}` : ""}`;
     if (d.message.status === "PENDING_APPROVAL") {
-      add({ key: `msg:${id}`, runId: draftRunId(d), icon: "✔", title: "문의 초안 승인이 필요합니다", detail: d.message.subject ?? "", target: who, tab: "comms", ref: { type: "COMM_MESSAGE", id } });
+      add({ key: `msg:${id}`, runId: draftRunId(d), icon: "✔", title: "문의 초안 승인이 필요합니다", detail: d.message.subject ?? "", target: who, tab: "comms", ref: { type: "COMM_MESSAGE", id }, kind: "APPROVE", at: d.message.created_at });
     } else if (d.message.status === "APPROVED" && d.dispatch.can_request_send) {
-      add({ key: `msg:${id}`, runId: draftRunId(d), icon: "➤", title: "승인된 문의의 발송 요청이 필요합니다", detail: d.message.subject ?? "", target: who, tab: "comms", ref: { type: "COMM_MESSAGE", id } });
+      add({ key: `msg:${id}`, runId: draftRunId(d), icon: "➤", title: "승인된 문의의 발송 요청이 필요합니다", detail: d.message.subject ?? "", target: who, tab: "comms", ref: { type: "COMM_MESSAGE", id }, kind: "SEND", at: d.message.created_at });
     }
   }
 
@@ -121,18 +139,18 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
     // (답장의 needs_review 는 그 답장 추출에 대한 표시라 공백이 닫혀도 남는다)
     const agentOfRun = runId ? rows.find((r) => r.run.run_id === runId)?.agent : null;
     if (agentOfRun && agentOfRun.waiting_reason !== "REPLY_REVIEW_REQUIRED") continue;
-    add({ key: `in:${i.message_id ?? i.raw_input_id}`, runId, icon: "✉", title: HUMAN_REASON.REPLY_REVIEW_REQUIRED!.title, detail: i.subject ?? "", target: i.sender_label?.counterparty_name ?? i.thread_counterparty_name ?? i.from_address, tab: "comms", ref: { type: "INBOUND", id: i.message_id ?? i.raw_input_id } });
+    add({ key: `in:${i.message_id ?? i.raw_input_id}`, runId, icon: "✉", title: HUMAN_REASON.REPLY_REVIEW_REQUIRED!.title, detail: i.subject ?? "", target: i.sender_label?.counterparty_name ?? i.thread_counterparty_name ?? i.from_address, tab: "comms", ref: { type: "INBOUND", id: i.message_id ?? i.raw_input_id }, kind: "REVIEW", at: i.received_at });
   }
 
   // T-132: 탐지기가 만든 실행은 Agent 를 자동으로 시작하지 않는다 — 문의 수량 · 시간대는 사람이 정한다
   for (const { run, agent } of rows) {
     if (run.source !== "AUTO_DETECTED" || agent || run.exception?.status !== "ACTIVE") continue;
     // T-133: 왜 자동으로 시작하지 않았는지는 설명하지 않는다 — 할 일만 쉬운 말로
-    add({ key: `auto:${run.run_id}`, runId: run.run_id, icon: "⚡", title: "복구 조사를 시작해 주세요", detail: `[자동 탐지] ${exceptionText(run.exception)}`, target: null, tab: "agent", ref: null, cta: "Agent 시작" });
+    add({ key: `auto:${run.run_id}`, runId: run.run_id, icon: "⚡", title: "복구 조사를 시작해 주세요", detail: `[자동 탐지] ${exceptionText(run.exception)}`, target: null, tab: "agent", ref: null, cta: "Agent 시작", kind: "START", at: run.executed_at });
   }
 
   for (const { run, plan } of rows) {
-    if (plan?.plan_status === "PROPOSED") add({ key: `plan:${plan.plan_id}`, runId: run.run_id, icon: "▣", title: `복구 계획 v${plan.version} 승인이 필요합니다`, detail: "제안된 계획을 검토하고 승인하세요. 승인은 배차 · 발송 지시가 아닙니다.", target: run.trigger_ref, tab: "plan", ref: { type: "PLAN", id: plan.plan_id } });
+    if (plan?.plan_status === "PROPOSED") add({ key: `plan:${plan.plan_id}`, runId: run.run_id, icon: "▣", title: `복구 계획 v${plan.version} 승인이 필요합니다`, detail: "제안된 계획을 검토하고 승인하세요. 승인은 배차 · 발송 지시가 아닙니다.", target: run.trigger_ref, tab: "plan", ref: { type: "PLAN", id: plan.plan_id }, kind: "APPROVE", at: plan.created_at });
   }
 
   for (const f of followUps?.actions ?? []) {
@@ -147,6 +165,7 @@ export function deriveActions({ rows, drafts, inbound, followUps, names }: Actio
       target: f.target_name,
       tab: "changes",
       ref: { type: "FOLLOW_UP", id: f.action_key },
+      kind: "SELECT",
     });
   }
   return [...out.values()];
@@ -190,6 +209,22 @@ export function agentNarrative(run: Pick<AgentRun, "status" | "current_node" | "
     last: lastNode ? `${nodeLabel(lastNode.node)}${lastNode.detail_code ? ` — ${lastNode.detail_code}` : ""}` : null,
     next: run.waiting_reason ? (NEXT_AFTER[run.waiting_reason] ?? null) : null,
   };
+}
+
+/** 업무 작업 기록 — 시작 · 의미 있는 단계 · 대기 · 재개 · 종료만, 운영자 말로(기술 로그가 아니다) */
+const WORK_NODES = new Set(["observe_public_data", "inspect_gaps", "prepare_inquiry", "create_draft", "request_approval", "read_reply", "reassess_gaps", "calculate_costs", "solve_recovery", "propose_plan", "build_result"]);
+export function agentWorkLog(run: Pick<AgentRun, "steps">): { at: string; icon: string; text: string; kind: string }[] {
+  const out: { at: string; icon: string; text: string; kind: string }[] = [];
+  let lastNode: string | null = null;
+  for (const s of run.steps) {
+    if (s.kind === "START") out.push({ at: s.started_at, icon: "▶", text: "Agent 가 복구 조사를 시작했습니다", kind: "start" });
+    else if (s.kind === "INTERRUPT") out.push({ at: s.started_at, icon: "⏸", text: `멈춤 — ${reasonTitle(s.detail_code) ?? "대기"}`, kind: "wait" });
+    else if (s.kind === "RESUME") out.push({ at: s.started_at, icon: "↻", text: "다시 이어서 진행", kind: "resume" });
+    else if (s.kind === "TERMINAL") out.push({ at: s.started_at, icon: s.outcome === "FAILED" ? "✕" : "■", text: s.outcome === "FAILED" ? "실패로 끝남" : "실행을 마침", kind: "end" });
+    else if (s.node && WORK_NODES.has(s.node) && s.node !== lastNode) out.push({ at: s.started_at, icon: "•", text: nodeLabel(s.node), kind: "node" });
+    if (s.kind === "NODE") lastNode = s.node;
+  }
+  return out;
 }
 
 /** 시간 순서 기록 — Agent 단계 · 초안 · 승인 · 발송 · 답장 · 계획. 새 사건을 만들지 않고 이미 있는 기록을 늘어놓는다 */
@@ -308,7 +343,17 @@ export function outdatedText(r: Record<string, unknown>, names: Map<string, stri
     return `${what} (${verb}${r.key ? ` · ${String(r.key)}` : ""})`;
   }
   const subject = names.get(String(r.subject_id ?? "")) ?? (r.subject_id ? String(r.subject_id).slice(0, 8) : "");
-  return `${subject} ${r.fact_key ? String(r.fact_key) : ""} — ${outdatedLabel(code)}`.trim();
+  return `${subject} ${r.fact_key ? factKeyLabel(String(r.fact_key)) : ""} — ${outdatedLabel(code)}`.trim();
+}
+
+/** 무효 이유에 판 계산 때 값 · 지금 값이 기록돼 있으면 그 두 값(Backend 가 남긴 before · after 의 value) — 없으면 null(지어내지 않는다) */
+export function outdatedValueChange(r: Record<string, unknown>): { before: number | null; after: number | null } | null {
+  const v = (x: unknown) => (x && typeof x === "object" && typeof (x as { value?: unknown }).value === "number" ? (x as { value: number }).value : null);
+  const before = v(r.before);
+  const after = v(r.after);
+  if (before === null && after === null) return null;
+  if (before === after) return null;
+  return { before, after };
 }
 
 

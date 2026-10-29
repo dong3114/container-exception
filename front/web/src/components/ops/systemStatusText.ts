@@ -77,7 +77,7 @@ export function coreLines(s: SystemStatus): Line[] {
       key: "redis",
       name: "Redis",
       level: redis.level,
-      text: redis.state === "up" ? "정상 · 빠른 경로 사용 중" : redis.state === "down" ? "장애 — PostgreSQL 폴링으로 운영 중 · 업무 데이터 손실 없음 · 응답 지연 가능" : "사용 안 함 — PostgreSQL 폴링으로 운영",
+      text: redis.state === "up" ? "정상 · 빠른 경로 사용 중" : redis.state === "down" ? "대체 경로 사용 중 — PostgreSQL 폴링으로 운영 중 · 업무 데이터 손실 없음 · 일부 응답이 느려질 수 있음" : "사용 안 함 — PostgreSQL 폴링으로 운영",
     },
     {
       key: "worker",

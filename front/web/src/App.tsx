@@ -14,5 +14,5 @@ export function App() {
   if (path === "/dev/api") return <DevApiPage />;
   if (path === "/demo") return <LoginGate><DemoPage /></LoginGate>;
   if (path === "/prototype") return <LoginGate><ControlTower /></LoginGate>;
-  return <LoginGate><OpsConsole /></LoginGate>;
+  return <LoginGate shell><OpsConsole /></LoginGate>;
 }

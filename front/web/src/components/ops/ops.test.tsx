@@ -203,7 +203,7 @@ describe("F · G — 답장 다시 읽기 · 직접 입력", () => {
 describe("I · J — 계획 변경 · 정정 · 취소", () => {
   it("I: why a plan went OUTDATED is said in words — a fact change or an operational record change", () => {
     const names = new Map([["f1", "ODCY A"]]);
-    expect(outdatedText({ code: "FACT_SUPERSEDED", subject_id: "f1", fact_key: "capacity.day(2026-10-13)" }, names)).toBe("ODCY A capacity.day(2026-10-13) — 새 값으로 바뀜");
+    expect(outdatedText({ code: "FACT_SUPERSEDED", subject_id: "f1", fact_key: "capacity.day(2026-10-13)" }, names)).toBe("ODCY A 10/13 수용 가능량 — 새 값으로 바뀜");
     expect(outdatedText({ code: "OPERATIONAL_RECORD_CHANGED", kind: "RATE", key: "TRANSPORT|PNIT|odcy-a" }, names)).toBe("계약 요율 변경 (변경 · TRANSPORT|PNIT|odcy-a)");
   });
 

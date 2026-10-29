@@ -113,14 +113,25 @@ describe("exception board and action", () => {
     const resolved: OperationalException = { ...ex, exception_id: "x2", status: "RESOLVED", resolved_at: "2026-10-28T11:00:00.000+09:00" };
     const html = renderToStaticMarkup(<ExceptionBoard exceptions={[ex, resolved]} runSource={() => "AUTO_DETECTED"} onOpenRun={() => undefined} />);
     expect(html).toContain("자동 탐지");
-    expect(html).toContain("창고 A 수용량 부족");
-    expect(html).toMatch(/예정 <b>20<\/b>/);
-    expect(html).toMatch(/가능 <b>8<\/b>/);
-    expect(html).toMatch(/영향 <b>12대<\/b>/);
-    expect(html).toContain("진행 중(ACTIVE)");
+    // 코드값이 아니라 업무 말이 제목이다(코드는 기술 상세에만)
+    expect(html).toContain("창고 A · 창고 수용량 부족");
+    expect(html).toMatch(/예정 반입<\/span><b[^>]*>20대<\/b>/);
+    expect(html).toMatch(/현재 가능<\/span><b[^>]*>8대<\/b>/);
+    expect(html).toMatch(/영향<\/span><b[^>]*>12대<\/b>/);
+    expect(html).toContain("● 진행 중");
     expect(html).toContain("복구 실행 #00c0de 열기");
-    expect(html).toContain("출처: 자동 탐지");
+    expect(html).toContain("출처 자동 탐지");
     expect(html).toContain("해소된 예외 1건(기록 보존)");
+    expect(html.indexOf("WAREHOUSE_CAPACITY_SHORTAGE")).toBeGreaterThan(html.indexOf("기술 상세"));
+  });
+
+  it("compact board (overview) shows only active exceptions, a link to the full list and a plain empty state", () => {
+    const resolved: OperationalException = { ...ex, exception_id: "x2", status: "RESOLVED", resolved_at: "2026-10-28T11:00:00.000+09:00" };
+    const html = renderToStaticMarkup(<ExceptionBoard compact exceptions={[ex, resolved]} runSource={() => null} onOpenRun={() => undefined} onShowAll={() => undefined} />);
+    expect(html).toContain("exception-show-all");
+    expect(html).not.toContain("해소된 예외");
+    const empty = renderToStaticMarkup(<ExceptionBoard exceptions={[]} runSource={() => null} onOpenRun={() => undefined} />);
+    expect(empty).toContain("현재 처리 중인 예외가 없습니다.");
   });
 
   it("the start-agent action reads as a plain request with an [Agent 시작] button", () => {

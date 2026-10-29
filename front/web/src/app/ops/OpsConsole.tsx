@@ -15,13 +15,18 @@ import { isActive } from "@/components/agent/agentLabels";
 import { FactsPanel } from "@/components/facts/FactsPanel";
 import { PlanPanel } from "@/components/plan/PlanPanel";
 import { ActionRequired } from "@/components/ops/ActionRequired";
-import { AgentStatus } from "@/components/ops/AgentStatus";
+import { AppShell, type NavItem, type OpsView } from "@/components/ops/AppShell";
+import { RecoveryHeader } from "@/components/ops/RecoveryHeader";
+import { EmptyState, LoadingState, MetricCard, PageHeader, SectionHeader, Updating } from "@/components/ui/primitives";
+import { STATUS_LABEL } from "@/components/agent/agentLabels";
+import { PLAN_STATUS_LABEL } from "@/components/plan/planLabels";
+import { AgentMilestones, AgentStatus, AgentWorkLog } from "@/components/ops/AgentStatus";
 import { CommsList, type FollowUpTag } from "@/components/ops/CommsList";
 import { ContactResolver } from "@/components/ops/ContactResolver";
 import { ErrorNotice } from "@/components/ops/ErrorNotice";
 import { ExceptionBoard } from "@/components/ops/ExceptionBoard";
 import { SystemHealth } from "@/components/ops/SystemHealth";
-import { OVERALL_CLASS, OVERALL_LABEL } from "@/components/ops/systemStatusText";
+import { OVERALL_CLASS, OVERALL_LABEL, REASON_LABEL } from "@/components/ops/systemStatusText";
 import { FollowUpsPanel } from "@/components/ops/FollowUpsPanel";
 import { GapTable } from "@/components/ops/GapTable";
 import { OperationalInput } from "@/components/ops/OperationalInput";
@@ -29,7 +34,7 @@ import { PlanCompare } from "@/components/ops/PlanCompare";
 import { ReadinessPanel } from "@/components/ops/ReadinessPanel";
 import { RunList } from "@/components/ops/RunList";
 import { Timeline } from "@/components/ops/Timeline";
-import { HUMAN_REASON, can, shortId } from "@/components/ops/opsLabels";
+import { HUMAN_REASON, RUN_GROUP_BADGE, RUN_GROUP_LABEL, can, shortId } from "@/components/ops/opsLabels";
 import { type ActionItem, type OpsTab, type RunRow, buildTimeline, createPoller, deriveActions, draftRunId, gapRows, latestAgentByRun, ownerFromInquiries, runGroup } from "@/components/ops/opsModel";
 import { toApiError, useAsyncAction } from "@/state/async";
 
@@ -93,6 +98,12 @@ export function OpsConsole() {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("run"));
   const [tab, setTab] = useState<OpsTab>("overview");
+  const [view, setView] = useState<OpsView>(() => {
+    const q = new URLSearchParams(window.location.search);
+    const v = q.get("view") as OpsView | null;
+    return v && ["overview", "exceptions", "recovery", "inputs", "system"].includes(v) ? v : q.get("run") ? "recovery" : "overview";
+  });
+  const [refreshing, setRefreshing] = useState(false);
   const [openMessage, setOpenMessage] = useState<string | null>(null);
   const [followUpsOf, setFollowUpsOf] = useState<{ runId: string; list: FollowUpList } | null>(null);
   const followUps = followUpsOf && followUpsOf.runId === selected ? followUpsOf.list : null;
@@ -101,6 +112,7 @@ export function OpsConsole() {
 
   usePoll(
     async (signal) => {
+      setRefreshing(true);
       try {
         const [runs, agents, drafts, inbound, health, exceptions, system] = await Promise.all([
           listRuns(signal),
@@ -119,6 +131,8 @@ export function OpsConsole() {
       } catch (e) {
         const err = toApiError(e);
         if (err.kind !== "ABORTED") setBoard((b) => ({ ...b, error: err }));
+      } finally {
+        if (!signal.aborted) setRefreshing(false);
       }
     },
     [nonce, monitor],
@@ -144,8 +158,10 @@ export function OpsConsole() {
     const url = new URL(window.location.href);
     if (selected) url.searchParams.set("run", selected);
     else url.searchParams.delete("run");
+    if (view !== "overview") url.searchParams.set("view", view);
+    else url.searchParams.delete("view");
     window.history.replaceState(null, "", url);
-  }, [selected]);
+  }, [selected, view]);
 
   const runDrafts = useMemo(() => board.drafts.filter((d) => draftRunId(d) === selected), [board.drafts, selected]);
   const approvedPlan = detail?.plans.filter((p) => p.plan_status === "APPROVED").sort((a, b) => b.version - a.version)[0] ?? null;
@@ -174,13 +190,16 @@ export function OpsConsole() {
     setSelected(runId);
     setTab("overview");
     setOpenMessage(null);
-    document.querySelector('[data-testid="run-detail"]')?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    setView("recovery");
+    window.scrollTo?.({ top: 0 });
   };
   const runSource = (runId: string) => board.rows.find((r) => r.run.run_id === runId)?.run.source ?? null;
 
   const open = (a: ActionItem) => {
     if (a.runId) setSelected(a.runId);
     setTab(a.tab);
+    setView("recovery");
+    window.scrollTo?.({ top: 0 });
     if (a.ref?.type === "COMM_MESSAGE") setOpenMessage(a.ref.id);
     if (a.ref?.type === "INBOUND") {
       const d = board.drafts.find((x) => x.replies.some((r) => r.message_id === a.ref!.id));
@@ -194,131 +213,255 @@ export function OpsConsole() {
   const tabs = TABS.filter((t) => t.tab !== "inputs" || isLive);
   const badge = (t: OpsTab) => actions.filter((a) => a.runId === selected && a.tab === t).length;
 
+  const goView = (v: OpsView) => {
+    setView(v);
+    window.scrollTo?.({ top: 0 });
+  };
+  const activeExceptions = board.exceptions?.summary.active ?? null;
+  const navItems: NavItem[] = [
+    { view: "overview", label: "개요", icon: "◧", count: actions.length, attention: actions.length > 0 },
+    { view: "exceptions", label: "예외", icon: "⚡", count: activeExceptions, attention: Boolean(activeExceptions) },
+    { view: "recovery", label: "복구 실행", icon: "↻", count: board.rows.filter((r) => ["ACTION", "ACTIVE"].includes(runGroup(r, actions))).length },
+    ...(can(me, "planning.input") && !me?.portfolio_demo ? [{ view: "inputs" as const, label: "운영 입력", icon: "⇪" }] : []),
+    ...(monitor ? [{ view: "system" as const, label: "시스템", icon: "◉", attention: Boolean(board.system && board.system.overall.status !== "HEALTHY") }] : []),
+  ];
+  const loaded = board.at !== "" || board.error !== null;
+
   return (
-    <main className="ops-shell" data-testid="ops-console">
-      <header className="ops-top">
-        <h1>CERA 운영 콘솔</h1>
-        <SystemStatus board={board} monitor={monitor} />
-        <span style={{ flex: 1 }} />
-        <NewLiveRun onCreated={(id) => { setSelected(id); setTab("inputs"); bump(); }} />
-        <a className="act-btn" href="/demo">시연 콘솔(별도) →</a>
-      </header>
+    <AppShell
+      items={navItems}
+      view={view}
+      onView={goView}
+      status={<SystemStatus board={board} monitor={monitor} onOpen={monitor ? () => goView("system") : undefined} />}
+      actions={
+        <>
+          <Updating busy={refreshing} at={board.at || null} />
+          <NewLiveRun
+            onCreated={(id) => {
+              setSelected(id);
+              setTab("inputs");
+              setView("recovery");
+              bump();
+            }}
+          />
+        </>
+      }
+    >
       <ErrorNotice error={board.error} />
-      <OpsCounters board={board} actions={actions} />
+      {!loaded && <LoadingState text="운영 기록을 불러오는 중…" />}
 
-      <ActionRequired actions={actions} runLabel={runLabel} onOpen={open} />
-      <ExceptionBoard exceptions={board.exceptions?.exceptions ?? null} runSource={runSource} onOpenRun={openRun} />
-
-      <div className="ops-main">
-        <RunList rows={board.rows} actions={actions} selectedId={selected} onSelect={openRun} />
-        <section className="card" data-testid="run-detail" aria-label="선택한 실행">
-          {!row && <div className="card-body muted">왼쪽에서 복구 실행을 고르세요.</div>}
-          {row && (
-            <>
-              <div className="card-head">
-                <span className="card-title">
-                  실행 #{shortId(row.run.run_id)} · {row.run.trigger_ref}
-                </span>
-                <span className={`badge ${row.run.contains_simulated ? "b-sim" : "b-blue"}`}>{row.run.contains_simulated ? "시뮬레이션 실행(합성 데이터)" : "실제 실행"}</span>
-                <span className="card-meta mono">{row.run.run_id}</span>
-              </div>
-              <div className="ops-tabs" role="tablist">
-                {tabs.map((t) => (
-                  <button key={t.tab} type="button" role="tab" className="ops-tab" aria-selected={tab === t.tab} onClick={() => setTab(t.tab)} data-testid={`tab-${t.tab}`}>
-                    {t.label}
-                    {badge(t.tab) > 0 && <span className="badge b-amber">{badge(t.tab)}</span>}
-                  </button>
-                ))}
-              </div>
-              <div className="card-body" style={{ display: "grid", gap: 12 }}>
-                {tab === "overview" && (
-                  <>
-                    {agent ? <AgentStatus run={agent} /> : <div className="muted">이 실행에는 아직 Agent 가 없습니다 — Agent 탭에서 시작할 수 있습니다.</div>}
-                    {contactWait && <ContactResolver key={`${contactWait.agent_run_id}:${contactWait.waiting_reason}`} problem={{ scope: "AGENT", agentRunId: contactWait.agent_run_id, reason: contactWait.waiting_reason as "CONTACT_SELECTION_REQUIRED", subject: contactWait.pending_ref! }} simulated={row.run.contains_simulated} ownerHint={ownerFromInquiries(board.drafts, contactWait.pending_ref!.id)} onResolved={bump} />}
-                    {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
-                    <GapTable rows={gapRows(detail?.facts ?? [], runDrafts)} />
-                  </>
-                )}
-                {tab === "agent" && <AgentTab row={row} agent={agent} contactWait={contactWait} ownerHint={contactWait ? ownerFromInquiries(board.drafts, contactWait.pending_ref!.id) : null} onChanged={bump} />}
-                {tab === "facts" && (
-                  <>
-                    <GapTable rows={gapRows(detail?.facts ?? [], runDrafts)} />
-                    <FactsPanel recoveryRunId={row.run.run_id} actorId={can(me, "truth.manual_entry") || can(me, "truth.review") ? (me?.actor_id ?? null) : null} refreshKey={`${nonce}:${agent?.updated_at ?? ""}`} isSimulated={row.run.contains_simulated} scenarioId={row.run.scenario_id ?? null} />
-                  </>
-                )}
-                {tab === "comms" && <CommsList drafts={runDrafts} tags={tags} openId={openMessage} onOpen={setOpenMessage} onChanged={bump} facts={detail?.facts ?? []} />}
-                {tab === "plan" && (
-                  <>
-                    {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
-                    <PlanPanel recoveryRunId={row.run.run_id} actorId={can(me, "plan.approve") || can(me, "plan.recalculate") ? (me?.actor_id ?? null) : null} refreshKey={`${nonce}:${detail?.currentPlanId ?? ""}:${detail?.plans.map((p) => p.plan_status).join(",") ?? ""}`} />
-                  </>
-                )}
-                {tab === "changes" && (
-                  <>
-                    <PlanCompare plans={detail?.plans ?? []} names={names} />
-                    {approvedPlan ? (
-                      <FollowUpsPanel key={approvedPlan.plan_id} planId={approvedPlan.plan_id} runId={row.run.run_id} simulated={row.run.contains_simulated} drafts={board.drafts} onChanged={bump} onLoaded={(list) => setFollowUpsOf({ runId: row.run.run_id, list })} />
-                    ) : (
-                      <div className="muted">승인된 계획이 아직 없습니다 — 계획을 승인하면 필요한 후속 요청이 여기에 나옵니다.</div>
-                    )}
-                  </>
-                )}
-                {tab === "timeline" && <Timeline entries={buildTimeline({ agent, drafts: runDrafts, plans: detail?.plans ?? [] })} />}
-                {tab === "inputs" && isLive && (
-                  <>
-                    {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
-                    <OperationalInput runId={row.run.run_id} />
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-      </div>
-      {can(me, "planning.input") && !me?.portfolio_demo && (
-        <details className="card" data-testid="baseline-input">
-          <summary className="card-head" style={{ cursor: "pointer" }}>
-            <span className="card-title">운영 기준 계획 입력</span>
-            <span className="card-meta">실제 화물 CSV · 검증 → 저장 → CERA 가 예외를 찾습니다</span>
-          </summary>
-          <div className="card-body">
-            <OperationalInput runId={null} />
+      {loaded && view === "overview" && (
+        <>
+          <PageHeader title="개요" description="지금 해야 할 일 → 현재 예외 → 복구 진행 순서로 보세요. 숫자와 상태는 모두 Backend 기록이며, 외부 연락과 계획 승인은 사람이 합니다." />
+          <OpsCounters board={board} actions={actions} onView={goView} />
+          <div className="overview-grid">
+            <ActionRequired actions={actions} runLabel={runLabel} onOpen={open} />
+            <div className="overview-side">
+              <ExceptionBoard compact exceptions={board.exceptions?.exceptions ?? null} runSource={runSource} onOpenRun={openRun} onShowAll={() => goView("exceptions")} />
+              <RecentRuns rows={board.rows} actions={actions} onOpen={openRun} onShowAll={() => goView("recovery")} />
+              {monitor && board.system && <SystemMini status={board.system} onOpen={() => goView("system")} />}
+            </div>
           </div>
-        </details>
+        </>
       )}
-      {monitor && <SystemHealth status={board.system} error={board.systemError} />}
+
+      {loaded && view === "exceptions" && (
+        <>
+          <PageHeader title="예외" description="CERA 가 운영 기준 계획과 창고 수용량을 비교해 스스로 찾은 문제입니다. 해소돼도 기록은 남습니다." />
+          <ExceptionBoard exceptions={board.exceptions?.exceptions ?? null} runSource={runSource} onOpenRun={openRun} />
+        </>
+      )}
+
+      {loaded && view === "recovery" && (
+        <>
+          <PageHeader title="복구 실행" description="예외 하나를 복구하는 작업 단위입니다. 실행을 고르면 Agent · 정보 · 연락 · 계획 · 후속 · 기록을 탭으로 봅니다." />
+          <div className="ops-main">
+            <RunList rows={board.rows} actions={actions} selectedId={selected} onSelect={openRun} />
+            <section className="card" data-testid="run-detail" aria-label="선택한 실행">
+              {!row && (
+                <div className="card-body">
+                  <EmptyState icon="↻" title={board.rows.length ? "왼쪽에서 복구 실행을 고르세요." : "아직 복구 실행이 없습니다."}>
+                    {board.rows.length ? "사람 조치가 필요한 실행이 목록 맨 위에 있습니다." : "예외가 탐지되면 CERA 가 복구 실행을 자동으로 엽니다."}
+                  </EmptyState>
+                </div>
+              )}
+              {row && (
+                <>
+                  <RecoveryHeader row={row} actions={actions} />
+                  <div className="ops-tabs" role="tablist" aria-label="복구 실행 내용">
+                    {tabs.map((t) => (
+                      <button key={t.tab} type="button" role="tab" className="ops-tab" aria-selected={tab === t.tab} onClick={() => setTab(t.tab)} data-testid={`tab-${t.tab}`}>
+                        {t.label}
+                        {badge(t.tab) > 0 && (
+                          <span className="badge b-amber" aria-label={`할 일 ${badge(t.tab)}건`}>
+                            {badge(t.tab)}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="card-body" style={{ display: "grid", gap: 14 }}>
+                    {tab === "overview" && (
+                      <>
+                        {agent ? (
+                          <AgentStatus run={agent} />
+                        ) : (
+                          <EmptyState icon="◆" title="이 실행에는 아직 Agent 가 없습니다.">
+                            Agent 탭에서 시작하면 필요한 정보를 찾고, 문의 초안과 복구 계획까지 준비합니다. 승인은 사람이 합니다.
+                          </EmptyState>
+                        )}
+                        {contactWait && <ContactResolver key={`${contactWait.agent_run_id}:${contactWait.waiting_reason}`} problem={{ scope: "AGENT", agentRunId: contactWait.agent_run_id, reason: contactWait.waiting_reason as "CONTACT_SELECTION_REQUIRED", subject: contactWait.pending_ref! }} simulated={row.run.contains_simulated} ownerHint={ownerFromInquiries(board.drafts, contactWait.pending_ref!.id)} onResolved={bump} />}
+                        {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
+                        <GapTable rows={gapRows(detail?.facts ?? [], runDrafts)} />
+                      </>
+                    )}
+                    {tab === "agent" && <AgentTab row={row} agent={agent} contactWait={contactWait} ownerHint={contactWait ? ownerFromInquiries(board.drafts, contactWait.pending_ref!.id) : null} onChanged={bump} />}
+                    {tab === "facts" && (
+                      <>
+                        <GapTable rows={gapRows(detail?.facts ?? [], runDrafts)} />
+                        <FactsPanel recoveryRunId={row.run.run_id} actorId={can(me, "truth.manual_entry") || can(me, "truth.review") ? (me?.actor_id ?? null) : null} refreshKey={`${nonce}:${agent?.updated_at ?? ""}`} isSimulated={row.run.contains_simulated} scenarioId={row.run.scenario_id ?? null} />
+                      </>
+                    )}
+                    {tab === "comms" && <CommsList drafts={runDrafts} tags={tags} openId={openMessage} onOpen={setOpenMessage} onChanged={bump} facts={detail?.facts ?? []} />}
+                    {tab === "plan" && (
+                      <>
+                        {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
+                        <PlanPanel recoveryRunId={row.run.run_id} actorId={can(me, "plan.approve") || can(me, "plan.recalculate") ? (me?.actor_id ?? null) : null} refreshKey={`${nonce}:${detail?.currentPlanId ?? ""}:${detail?.plans.map((p) => p.plan_status).join(",") ?? ""}`} />
+                      </>
+                    )}
+                    {tab === "changes" && (
+                      <>
+                        <PlanCompare plans={detail?.plans ?? []} names={names} />
+                        {approvedPlan ? (
+                          <FollowUpsPanel key={approvedPlan.plan_id} planId={approvedPlan.plan_id} runId={row.run.run_id} simulated={row.run.contains_simulated} drafts={board.drafts} onChanged={bump} onLoaded={(list) => setFollowUpsOf({ runId: row.run.run_id, list })} />
+                        ) : (
+                          <EmptyState icon="▣" title="승인된 계획이 아직 없습니다.">
+                            계획을 승인하면 필요한 후속 요청 · 정정 · 취소가 여기에 나옵니다.
+                          </EmptyState>
+                        )}
+                      </>
+                    )}
+                    {tab === "timeline" && <Timeline entries={buildTimeline({ agent, drafts: runDrafts, plans: detail?.plans ?? [] })} />}
+                    {tab === "inputs" && isLive && (
+                      <>
+                        {detail?.readiness && <ReadinessPanel readiness={detail.readiness} />}
+                        <OperationalInput runId={row.run.run_id} />
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
+        </>
+      )}
+
+      {loaded && view === "inputs" && can(me, "planning.input") && !me?.portfolio_demo && (
+        <>
+          <PageHeader title="운영 입력" description="원래 반입 계획(운영 기준 계획)을 넣으면 CERA 가 창고 수용량과 비교해 예외를 스스로 찾습니다. 늘 검증을 먼저 하고, 오류가 없을 때만 저장합니다." />
+          <section className="card" data-testid="baseline-input" aria-labelledby="baseline-input-title">
+            <SectionHeader title="운영 기준 계획 입력" id="baseline-input-title" meta={<span className="card-meta">실제 화물 CSV · 검증 → 저장 → CERA 가 예외를 찾습니다</span>} />
+            <div className="card-body">
+              <OperationalInput runId={null} />
+            </div>
+          </section>
+        </>
+      )}
+
+      {loaded && view === "system" && monitor && (
+        <>
+          <PageHeader title="시스템" description="CERA 자체가 일하고 있는지 — 구성 요소 · 외부 연동 · 대기 작업. 판정은 Backend 규칙이며, 비밀값 · 주소는 보이지 않습니다." />
+          <SystemHealth status={board.system} error={board.systemError} />
+        </>
+      )}
+
       <footer className="muted" style={{ fontSize: 11 }}>
         상태는 {POLL_MS / 1000}초마다 다시 읽습니다. 버튼을 숨기거나 끄는 것은 편의일 뿐이고, 권한은 Backend 가 판정합니다. 계획 승인은 배차 · 발송 지시가 아닙니다.
       </footer>
-    </main>
+    </AppShell>
   );
 }
 
-/** 업무 숫자(T-132 · T-133) — 진행 중 예외 · 오늘 자동 탐지 · 사람 조치 대기 · 진행 중 복구 실행 · 승인 대기 계획 · 검토 필요 회신. 분석 대시보드가 아니라 지금 상태 한 줄 */
-function OpsCounters({ board, actions }: { board: Board; actions: ActionItem[] }) {
+/** 개요의 복구 진행 — 사람 조치 · 진행 중을 먼저, 다섯 건만 */
+function RecentRuns({ rows, actions, onOpen, onShowAll }: { rows: RunRow[]; actions: ActionItem[]; onOpen: (runId: string) => void; onShowAll: () => void }) {
+  const order = { ACTION: 0, ACTIVE: 1, DONE: 2, STOPPED: 3 } as const;
+  const top = [...rows].sort((a, b) => order[runGroup(a, actions)] - order[runGroup(b, actions)]).slice(0, 5);
+  return (
+    <section className="card" data-testid="recent-runs" aria-labelledby="recent-runs-title">
+      <SectionHeader title="복구 진행" id="recent-runs-title" meta={<span className="card-meta">{rows.length}건</span>}>
+        {rows.length > 0 && (
+          <button type="button" className="link-btn" onClick={onShowAll} data-testid="recent-runs-all">
+            전체 보기 →
+          </button>
+        )}
+      </SectionHeader>
+      <div className="card-body" style={{ display: "grid", gap: 6 }}>
+        {rows.length === 0 && (
+          <EmptyState icon="↻" title="아직 복구 실행이 없습니다.">
+            예외가 탐지되면 CERA 가 복구 실행을 엽니다.
+          </EmptyState>
+        )}
+        {top.map((r) => {
+          const g = runGroup(r, actions);
+          return (
+            <button key={r.run.run_id} type="button" className="recent-run" onClick={() => onOpen(r.run.run_id)} data-testid="recent-run">
+              <span className={`badge ${RUN_GROUP_BADGE[g]}`}>{RUN_GROUP_LABEL[g]}</span>
+              <span className="recent-run-text">
+                <b>{r.run.exception ? `${r.run.exception.facility_name} 수용량 부족` : (r.run.trigger_ref ?? `실행 #${shortId(r.run.run_id)}`)}</b>
+                <span className="muted">
+                  Agent {r.agent ? STATUS_LABEL[r.agent.status] : "시작 전"} · 계획 {r.plan ? `v${r.plan.version} ${PLAN_STATUS_LABEL[r.plan.plan_status] ?? r.plan.plan_status}` : "없음"}
+                </span>
+              </span>
+              <span className="muted" aria-hidden>
+                →
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** 개요의 시스템 한 줄 — 정상이 아니면 이유를 쉬운 말로 */
+function SystemMini({ status, onOpen }: { status: SystemStatusData; onOpen: () => void }) {
+  return (
+    <section className="card" data-testid="system-mini">
+      <SectionHeader title="시스템" meta={<span className={`badge ${OVERALL_CLASS[status.overall.status]}`}>{OVERALL_LABEL[status.overall.status]}</span>}>
+        <button type="button" className="link-btn" onClick={onOpen}>
+          자세히 →
+        </button>
+      </SectionHeader>
+      {status.overall.reasons.length > 0 && (
+        <ul className="card-body health-reasons" style={{ margin: 0 }}>
+          {status.overall.reasons.map((r) => (
+            <li key={r}>{REASON_LABEL[r] ?? r}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** 업무 숫자(T-132 · T-133) — 진행 중 예외 · 오늘 자동 탐지 · 사람 조치 대기 · 진행 중 복구 실행 · 승인 대기 계획 · 검토 필요 회신. 지금 상태만(비교치 · 추세를 만들지 않는다) */
+function OpsCounters({ board, actions, onView }: { board: Board; actions: ActionItem[]; onView: (v: OpsView) => void }) {
   const activeRuns = board.rows.filter((r) => ["ACTION", "ACTIVE"].includes(runGroup(r, actions))).length;
   const plansWaiting = board.rows.filter((r) => r.plan?.plan_status === "PROPOSED").length;
   const repliesToReview = actions.filter((a) => a.title === HUMAN_REASON.REPLY_REVIEW_REQUIRED!.title).length;
-  const items: [string, string, number | string][] = [
-    ["kpi-active-exceptions", "진행 중 예외", board.exceptions?.summary.active ?? "—"],
-    ["kpi-detected-today", "오늘 자동 탐지", board.exceptions?.summary.detected_today ?? "—"],
-    ["kpi-waiting-human", "사람 조치 대기", actions.length],
-    ["kpi-active-runs", "진행 중 복구 실행", activeRuns],
-    ["kpi-plans-waiting", "승인 대기 계획", plansWaiting],
-    ["kpi-replies-review", "검토 필요 회신", repliesToReview],
-  ];
+  const active = board.exceptions?.summary.active ?? null;
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 0 8px" }} data-testid="ops-kpis">
-      {items.map(([id, label, value]) => (
-        <span key={id} className="badge b-outline" data-testid={id}>
-          {label} <b>{value}</b>
-        </span>
-      ))}
+    <div className="metric-grid" data-testid="ops-kpis">
+      <MetricCard testId="kpi-active-exceptions" label="진행 중 예외" value={active ?? "—"} hint={active === null ? "탐지 기록 없음" : "자동 탐지 · 해소 전"} tone={active ? "warn" : "neutral"} onClick={() => onView("exceptions")} />
+      <MetricCard testId="kpi-detected-today" label="오늘 자동 탐지" value={board.exceptions?.summary.detected_today ?? "—"} hint="오늘 새로 찾은 예외" onClick={() => onView("exceptions")} />
+      <MetricCard testId="kpi-waiting-human" label="사람 조치 대기" value={actions.length} hint="승인 · 검토 · 선택" tone={actions.length ? "warn" : "ok"} />
+      <MetricCard testId="kpi-active-runs" label="진행 중 복구" value={activeRuns} hint="사람 조치 포함" tone={activeRuns ? "info" : "neutral"} onClick={() => onView("recovery")} />
+      <MetricCard testId="kpi-plans-waiting" label="승인 대기 계획" value={plansWaiting} hint="제안된 복구 계획" tone={plansWaiting ? "info" : "neutral"} />
+      <MetricCard testId="kpi-replies-review" label="검토 필요 회신" value={repliesToReview} hint="AI 가 값을 확정하지 못함" tone={repliesToReview ? "warn" : "neutral"} />
     </div>
   );
 }
 
-function SystemStatus({ board, monitor }: { board: Board; monitor: boolean }) {
+function SystemStatus({ board, monitor, onOpen }: { board: Board; monitor: boolean; onOpen?: () => void }) {
   const runtime = useAsyncAction((signal) => getRuntimeStatus(signal));
   const { run } = runtime;
   useEffect(() => {
@@ -329,9 +472,9 @@ function SystemStatus({ board, monitor }: { board: Board; monitor: boolean }) {
   // T-133: 운영 권한이 있으면 전체 상태 하나(자세한 것은 아래 시스템 상태). 없으면(데모 방문자 · 현장 담당자) 내부 구성 요소를 늘어놓지 않는다
   if (monitor && board.system && !down) {
     return (
-      <a href="#system-health-title" className={`badge ${OVERALL_CLASS[board.system.overall.status]}`} data-testid="system-status" data-status={board.system.overall.status}>
-        시스템 {OVERALL_LABEL[board.system.overall.status]}
-      </a>
+      <button type="button" onClick={onOpen} className={`badge badge-btn ${OVERALL_CLASS[board.system.overall.status]}`} data-testid="system-status" data-status={board.system.overall.status} title="시스템 상태 자세히">
+        {board.system.overall.status === "HEALTHY" ? "✓" : "!"} 시스템 {OVERALL_LABEL[board.system.overall.status]}
+      </button>
     );
   }
   if (!monitor) {
@@ -429,8 +572,20 @@ function AgentTab({ row, agent, contactWait, ownerHint, onChanged }: { row: RunR
       {!manage && <span className="muted">Agent 시작 · 취소는 운영자 · 관리자만 할 수 있습니다.</span>}
       <ErrorNotice error={err?.status === "FAILED" ? err.error : null} />
       {agent && (
-        <details>
-          <summary>단계 기록({agent.steps.length}) · Tool 호출({agent.tool_calls.length})</summary>
+        <div className="agent-progress">
+          <div>
+            <div className="group-title">진행 단계</div>
+            <AgentMilestones run={agent} />
+          </div>
+          <div>
+            <div className="group-title">작업 기록</div>
+            <AgentWorkLog run={agent} />
+          </div>
+        </div>
+      )}
+      {agent && (
+        <details className="tech">
+          <summary>기술 상세 — 단계 기록({agent.steps.length}) · Tool 호출({agent.tool_calls.length})</summary>
           <ol style={{ fontSize: 12, margin: 0, paddingLeft: 18 }}>
             {agent.steps.map((s) => (
               <li key={s.seq}>

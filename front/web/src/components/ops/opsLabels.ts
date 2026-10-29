@@ -29,6 +29,21 @@ export const WAIT_REASON: Record<string, string> = {
 
 export const reasonTitle = (reason: string | null): string | null => (reason ? (HUMAN_REASON[reason]?.title ?? WAIT_REASON[reason] ?? reason) : null);
 
+/** 할 일의 종류(심각도 아님) — 어떤 손이 필요한가 */
+export const ACTION_KIND_LABEL: Record<"START" | "APPROVE" | "SEND" | "REVIEW" | "SELECT" | "FIX" | "CONFIRM", { label: string; badge: string }> = {
+  START: { label: "시작", badge: "b-violet" },
+  APPROVE: { label: "승인", badge: "b-blue" },
+  SEND: { label: "발송", badge: "b-teal" },
+  REVIEW: { label: "검토", badge: "b-orange" },
+  SELECT: { label: "선택", badge: "b-cyan" },
+  FIX: { label: "수정", badge: "b-red" },
+  CONFIRM: { label: "확인", badge: "b-amber" },
+};
+
+/** 예외 종류 — 코드 대신 업무 말(코드는 기술 상세에서) */
+export const EXCEPTION_TYPE_LABEL: Record<string, string> = { WAREHOUSE_CAPACITY_SHORTAGE: "창고 수용량 부족" };
+export const exceptionTypeLabel = (code: string) => EXCEPTION_TYPE_LABEL[code] ?? code;
+
 /** 실행 묶음 — 진행 중 · 사람 조치 필요 · 완료 · 중단/오류 */
 export type RunGroup = "ACTION" | "ACTIVE" | "DONE" | "STOPPED";
 export const RUN_GROUP_LABEL: Record<RunGroup, string> = { ACTION: "⚠ 사람 조치 필요", ACTIVE: "▶ 진행 중", DONE: "✓ 완료", STOPPED: "✕ 중단 · 오류" };
@@ -68,12 +83,12 @@ export const TRUTH_SHORT: Record<string, { label: string; badge: string }> = {
   OBSERVED: { label: "◉ 공식 기록", badge: "b-blue" },
   PROVISIONAL: { label: "◐ 임시", badge: "b-amber" },
   NEEDS_REVIEW: { label: "! 확인 필요", badge: "b-red" },
-  STALE: { label: "◷ 오래됨", badge: "b-orange" },
-  REVOKED: { label: "⊘ 폐기", badge: "b-slate" },
+  AGING: { label: "◔ 다시 확인 필요", badge: "b-amber" },
+  STALE: { label: "◷ 오래되어 사용 주의", badge: "b-orange" },
+  REVOKED: { label: "⊘ 철회", badge: "b-slate" },
+  SUPERSEDED: { label: "↻ 새 값으로 대체", badge: "b-slate" },
+  CONFLICTED: { label: "⚡ 값 충돌", badge: "b-red" },
   UNKNOWN: { label: "○ 값 없음", badge: "b-outline" },
-  SUPERSEDED: { label: "↻ 대체됨", badge: "b-slate" },
-  CONFLICTED: { label: "⚡ 충돌", badge: "b-red" },
-  AGING: { label: "◔ 곧 오래됨", badge: "b-amber" },
 };
 export const truthShort = (state: string) => TRUTH_SHORT[state] ?? { label: state, badge: "b-outline" };
 

@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { type Me, ROLE_LABEL, getDemoInfo, getMe, login, logout, startDemo } from "@/api/auth";
 import { describeApiError } from "@/api/errors";
 import { toApiError } from "@/state/async";
-import { MeContext } from "./MeContext";
+import { LogoutContext, MeContext } from "./MeContext";
 import { PortfolioBanner, PortfolioIntro } from "./PortfolioDemo";
 
 /**
@@ -11,7 +11,7 @@ import { PortfolioBanner, PortfolioIntro } from "./PortfolioDemo";
  * 버튼을 숨기는 것은 편의일 뿐 — 막는 것은 Backend 다(권한 없는 요청은 403).
  * 공개 포트폴리오 데모 배포(T-131)면 로그인 폼 대신 소개 + [데모 시작](데모 방문자 세션)을 먼저 보이고, 로그인 뒤에는 위에 안내 띠를 단다.
  */
-export function LoginGate({ children }: { children: ReactNode }) {
+export function LoginGate({ children, shell = false }: { children: ReactNode; /** true 면 화면이 자기 머리(사용자 · 역할 · 배포 모드 · 로그아웃)를 그린다 — 위 한 줄을 생략 */ shell?: boolean }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [demo, setDemo] = useState(false);
   const [form, setForm] = useState({ id: "", pw: "" });
@@ -75,34 +75,34 @@ export function LoginGate({ children }: { children: ReactNode }) {
       />
     );
   }
+  // 공개 데모에서 나가면 다시 소개 + [데모 시작] 으로(로그인 폼이 아니라)
+  const signOut = () => {
+    const wasDemo = me.portfolio_demo === true;
+    logout().finally(() => {
+      setDemo(wasDemo);
+      setMe(null);
+    });
+  };
   return (
     <>
       {me.portfolio_demo && <PortfolioBanner />}
-      <div data-testid="session-bar" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", padding: "4px 16px", fontSize: 12, borderBottom: "1px solid var(--line)" }}>
-        <ModeBadge mode={me.deployment_mode} />
-        <span>
-          {me.display_name} · <b>{ROLE_LABEL[me.role]}</b>
-          {me.via === "DEV_HEADER" ? " · 개발 모드" : ""}
-        </span>
-        {me.via === "SESSION" && (
-          <button
-            type="button"
-            className="act-btn"
-            onClick={() => {
-              // 공개 데모에서 나가면 다시 소개 + [데모 시작] 으로(로그인 폼이 아니라)
-              const wasDemo = me.portfolio_demo === true;
-              logout().finally(() => {
-                setDemo(wasDemo);
-                setMe(null);
-              });
-            }}
-            data-testid="logout"
-          >
-            {me.role === "DEMO_VISITOR" ? "데모 종료" : "로그아웃"}
-          </button>
-        )}
-      </div>
-      <MeContext.Provider value={me}>{children}</MeContext.Provider>
+      {!shell && (
+        <div data-testid="session-bar" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", padding: "4px 16px", fontSize: 12, borderBottom: "1px solid var(--line)" }}>
+          <ModeBadge mode={me.deployment_mode} />
+          <span>
+            {me.display_name} · <b>{ROLE_LABEL[me.role]}</b>
+            {me.via === "DEV_HEADER" ? " · 개발 모드" : ""}
+          </span>
+          {me.via === "SESSION" && (
+            <button type="button" className="act-btn" onClick={signOut} data-testid="logout">
+              {me.role === "DEMO_VISITOR" ? "데모 종료" : "로그아웃"}
+            </button>
+          )}
+        </div>
+      )}
+      <LogoutContext.Provider value={me.via === "SESSION" ? signOut : null}>
+        <MeContext.Provider value={me}>{children}</MeContext.Provider>
+      </LogoutContext.Provider>
     </>
   );
 }
