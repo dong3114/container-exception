@@ -7,6 +7,8 @@
 
 ## 다음 추천 태스크
 
+**(2026-10-28 사용자 지시 — 최우선)** **T-134 1차 실서버 배포 검증**부터 한다. 신규 기능 없음 · Backend FROZEN 유지 · 배포에서 나온 blocker · security · deployment 문제만 수정. 끝나면 프론트 UI/UX 단계.
+
 **(2026-10-28 — Backend Core Logic FROZEN 확정)** 새 기능 확장은 하지 않는다. 고치는 것은 blocker · 보안 · 데이터 무결성 · 잘못된 외부 행동 가능성 · 복구/배포 결함 · 시연 깨짐 · 사람 개입 없이는 못 푸는 dead-end 뿐이다. T-129 DONE · T-108 의 재조정 결함만 고침. 남은 실행 가능 작업은 모두 freeze 예외가 아니다: T-108 나머지(화면 계약 · checkpoint 보관, P2) · T-109 · T-110 · T-130(유지보수 P2 — 다음에 그 파일을 고치는 작업과 함께) · T-117(Solver 확장, freeze 뒤). 외부 의존 = **T-099**(상용 LLM 키) · **T-126**(고객 TMS · WMS · 요율 시스템이 정해지면). T-120 운영 콘솔 구조는 DONE(2026-10-28) — 디자인 디테일 · 모바일 · 관리자 콘솔은 사용자(P2). 3개 이상 실행 가능 규칙: freeze 로 새 기능 Task 를 일부러 늘리지 않는다(사용자 지시 2026-10-28). Gmail Testing 모드 refresh token 은 약 7일마다 `npm run gmail:auth` 다시.
 
 **(2026-10-22 사용자 승인 — 이 순서가 위의 옛 순서보다 우선한다)** ~~T-100 설정 정리~~ → ~~T-101 Agent Runtime 설계(ADR-036)~~ → ~~T-102 DS-03 + DS-02 Public Data Adapter~~(DONE · live 검증) → ~~T-103 Agent Tool Layer~~(DONE) → ~~T-104 LangGraph Runtime~~(DONE) → ~~T-105 첫 Agent Vertical Slice~~(DONE) → **T-099 재개(진행 중 — 사용자 지시 2026-10-22)** → T-093(U8) → T-106 UNI-PASS Adapter → T-107 Demo Scenario v2 → T-098. 설계 `docs/tasks/plans/T-101-agent-runtime-design.md` 13절.
@@ -101,6 +103,38 @@
 - **T-099** 실제 AI 공급자 검증 + CERA Eval — **MODEL_EVAL_CONTINUOUS**(연속 평가, 사용자 지시 2026-10-26; 상태 칸은 IN_PROGRESS 유지). 평가 인프라 · 141건 데이터셋 · LocalProvider · 로컬 사다리 · Validator conformance 는 끝. **MVP 임시 기본값 = 로컬 Qwen3-4B-Instruct-2507 Q4_K_M**(API 비용 0 · 현재 하드웨어에서 동작 · 교체 가능 · 결정론 검증이 보호) — **최종 Production 선정은 Deferred**. 상용(OpenAI · Gemini · Anthropic · Jev) 평가는 이번 순서에서 하지 않으며 키를 요구하지 않는다(필요할 때 같은 Eval 로 다시). ADR-037: 구조 한정 Accepted · 선정 Deferred. 파인튜닝은 사람 보정 데이터가 쌓인 뒤 검토. 상세 `CURRENT.md`
 
 ## 대기 — P0
+
+### T-134: 1차 실서버 배포 검증 (demo · private staging)
+- 상태: TODO | 우선: P0 | 단계: Deployment | 담당: -
+- 의존: T-131, T-132, T-133 (DONE)
+- 참조 문서: infra/README.md, infra/portfolio/README.md, infra/staging/README.md, docs/14_decisions.md(ADR-039 · 040 · 041)
+- 목표: 현재 main 을 실제 서버에 올려 demo 와 private staging 을 분리 운영하고, 실서버에서만 드러나는 배포 · 설정 문제만 고친다(사용자 지시 2026-10-28).
+- 범위 규칙: 새 업무 기능 · 새 예외 유형 금지 · Backend Core FROZEN 유지 · 프론트 디자인 개편 금지. 고칠 수 있는 것 = blocker · security · deployment 문제만. secret 값(비밀번호 · API Key · OAuth Token)은 출력하지 않는다.
+- 배포 방향(사용자 결정 2026-10-28):
+  - 처음에는 서버 한 대에 demo 와 staging 을 같이 올린다. Compose project · PostgreSQL · Redis · ContentStore · session 데이터는 완전히 분리한다.
+  - demo = 외부 공개. staging = 그냥 공개하지 않는다 — 접근 통제는 우선 Caddy Basic Auth + CERA 정식 로그인. 필요하면 나중에 IP allowlist · VPN · Cloudflare Access 로 강화.
+  - 실제 secret 은 사용자가 서버 .env 에 직접 넣는다. 채팅 · 로그에 값을 출력하지 않는다. 준비 안 된 항목은 값을 묻지 말고 환경변수 이름 · 준비 항목만 보고한다.
+  - 진행 순서: 저장소 상태 확인 → 준비물 확인 → 실제 배포.
+- 작업 순서:
+  1. main / origin 상태 · working tree clean 확인 → **현재 상태 + 배포 준비물(서버 · 도메인 · DNS · secret · 접근 통제) 먼저 보고**
+  2. 현재 버전 실서버 1차 배포
+  3. demo 와 private staging 분리 배포
+  4. 도메인 / DNS / HTTPS / Caddy 확인
+  5. PostgreSQL · Redis · Worker · AI Runtime 정상 확인
+  6. 세션 · Secure Cookie · Origin · CORS 확인
+  7. migration · seed(bootstrap) · persistent volume 확인
+  8. demo 자동 초기화 cron · 서버 timezone 확인
+  9. Staging: LIVE 운영 입력 → 자동 예외 탐지 → Recovery Run 확인
+  10. 필요하면 실제 Gmail · Gemini · 공공데이터 연동 확인
+  11. Redis 중단 시 PostgreSQL 대체 · Worker heartbeat 표시 확인
+  12. 실서버 전용 배포 · 설정 문제만 수정
+- 완료 보고 항목: 접속 URL · demo/staging 구분 · HTTPS 상태 · 컨테이너별 상태 · DB/Redis/Worker/AI 상태 · 자동 예외 탐지 결과 · Gmail/Gemini 상태 · cron/reset 상태 · 발견한 실서버 이슈 · 수정 내용 · 시험 결과 · final HEAD / origin HEAD / ahead-behind · 프론트 UI/UX 단계로 넘어가도 되는지
+- 완료 조건:
+  - [ ] 위 1~11 확인 결과 기록
+  - [ ] 수정이 있으면 회귀 시험 통과
+  - [ ] infra runbook · CURRENT · LOG 갱신
+- 완료 후 큐잉 힌트: 1차 배포 안정 확인 뒤 프론트 UI/UX 작업 단계(사용자 지시)
+
 
 ### T-097 — (NEEDS_HUMAN) Q-69 물리 설계가 찾은 논리 모델 충돌 결정
 
