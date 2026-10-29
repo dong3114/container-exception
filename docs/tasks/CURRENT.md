@@ -10,6 +10,12 @@
 
 ## Status
 
+### 2026-10-29 T-144 Hybrid Live E2E — DONE · Backend FROZEN
+- **IDLE** — 합성 기업 A 데이터 + 실제 Port-MIS · Gmail · Gemini + CERA 전체로 한 번 완주(`docs/24` 18.31). 기업 B 는 코드 변경 없이 동작
+- 다음: **T-134**(배포 대상 노트북 Cloudflare 배포). 후속 T-145(실제 Gmail CONFLICT — 사용자 답장 필요) · T-146(등록부 목록) · T-138~T-142(P2)
+- 로컬 상태: `cera-review` 의 API · Worker · AI 컨테이너는 이 작업 동안 멈췄다(삭제 아님 — `docker start cera-review-api-1 cera-review-worker-1 cera-review-ai-1`). Hybrid DB `cera_hybrid` · `cera_hybrid_b` 는 같은 PostgreSQL 에 남아 있다(로컬 전용)
+- 정책값(허용 오차 60분 · 검증 위험 벌점 30,000원 · 신선도 24h/72h)은 [ASSUMPTION]
+
 ### 2026-10-29 Backend 마감 — T-137 · T-143 DONE · Backend FROZEN
 - **IDLE** — 업체 회신 메일 → AI 추출 → 결정론 검증 → 공공 관측 교차 확인 → Truth / 사람 검토 할 일 → Cost · Solver 한 흐름 완성(`docs/24` 18.30). DB 변경 없음
 - **Backend FROZEN · Backend 신규 기능 개발 중단**(사용자 지시). 남은 T-138~T-142 는 P2

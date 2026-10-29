@@ -21,6 +21,18 @@
 
 ---
 
+## 2026-10-29 · T-144 가상 물류기업 Hybrid Live E2E · Claude Code (claude-opus-5-5)
+- 상태: 완료 — Backend FROZEN 유지, 실행이 찾은 일반 결함만 최소 수정. 끝나고 다시 FROZEN
+- 한 일:
+  - 데이터 팩 `data/enterprises/cera-logistics` · `sfb-small` + 적재 도구 `back/src/dev/hybrid-enterprise.ts`(기존 API 만)
+  - 별도 로컬 DB `cera_hybrid`(A) · `cera_hybrid_b`(B)에서 실제 Port-MIS · 실제 Gmail(문의 1 · 답장 3) · Gemini 로 완주. 브라우저로 할 일 · 계획 승인 확인
+  - 결함 수정: 기준 계획 ↔ 적하목록 번호 연결 · 검증기 앞자리 0 시각 · 선박 이름 · 충돌 중 계획 승인 409 · 화면 시각 · 해소 표시 · Truth 한계 문구(NO_SOLVER → 사용 가능한 사실만)
+- 변경 파일: `back/src/planning/{planning-input.service,recovery-plan.service,planning.controller}.ts` · `back/src/communication/extraction-rules.ts` · `back/src/truth/{truth.repository,truth-query.service}.ts` · `back/src/dev/{hybrid-enterprise,validator-conformance}.ts` · `ai/cera_ai/evals/scoring.py` · `front/web/src/components/{facts,ops,plan}/*` · 계약 · 시험(`t144-hybrid-guards` · t137 · facts) · `data/enterprises/*` · docs
+- 검증: Backend 68 파일 651(처음부터 · 전부 통과) · Python 102 · Front 138 · typecheck · lint · build · 브라우저(콘솔 오류 0)
+- 남은 일 / 다음 한 걸음: T-134(노트북). T-145(사용자 답장) · T-146 · T-138~T-142
+- 큐 변경: T-144 DONE · T-145 · T-146 추가
+- 주의사항: 실제 Gmail CONFLICT 는 미확인(사용자가 이번에 보낼 수 없었음). Gemini 503/504 가 잦다(자동 3회 → 사람 재시도). 값 변경은 정정 경로. cera-review 앱 컨테이너는 멈춘 상태(삭제 아님)
+
 ## 2026-10-29 · T-137 · T-143 Backend 마감(회신 메일 입항 주장 → 교차 확인 · LIVE 확인) · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 이 작업만 동결 해제. 끝나고 **Backend FROZEN · 신규 기능 개발 중단**
 - 한 일:
