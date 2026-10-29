@@ -1,6 +1,7 @@
 import type { Draft } from "@/api/drafts";
 import { useMe } from "@/app/MeContext";
 import { DraftView } from "@/components/drafts/DraftView";
+import { EmptyState } from "@/components/ui/primitives";
 import type { FactCoordinate } from "@/api/truth";
 import { DELTA_LABEL, FOLLOW_UP_KIND, can, messageStatus, shortTime } from "./opsLabels";
 import { questionAnswered } from "./opsModel";
@@ -22,12 +23,16 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged, facts = [] 
   const sorted = [...drafts].sort((a, b) => a.message.created_at.localeCompare(b.message.created_at));
   if (sorted.length === 0)
     return (
-      <div className="muted" data-testid="comms-empty">
-        이 실행에서 나간 문의 · 요청이 아직 없습니다.
-      </div>
+      <EmptyState icon="✉" title="이 실행에서 나간 문의 · 요청이 아직 없습니다." testId="comms-empty">
+        Agent 가 확인이 필요한 정보를 찾으면 담당 업체에 보낼 문의 초안을 만듭니다. 초안은 사람이 승인해야 나갑니다.
+      </EmptyState>
     );
   return (
     <div style={{ display: "grid", gap: 6 }} data-testid="comms-list">
+      <div className="sub-head">
+        <b>연락</b>
+        <span className="muted">문의 · 후속 요청 · 정정 · 취소와 받은 답장 — 한 건을 열면 승인 · 발송 요청 · 답장 검토를 합니다</span>
+      </div>
       {!approver && <span className="muted">승인 · 발송 요청은 운영자 · 관리자만 할 수 있습니다.</span>}
       {sorted.map((d) => {
         const id = d.message.message_id;
@@ -55,6 +60,7 @@ export function CommsList({ drafts, tags, openId, onOpen, onChanged, facts = [] 
                   {tag.previous_quantity !== null ? ` · ${tag.previous_quantity} → ${tag.kind === "CANCELLATION" ? 0 : tag.quantity}` : ""})
                 </span>
               )}
+              {d.plan_based && <span className="badge b-outline" title="복구 계획에서 나온 요청">▣ 계획 근거{d.source_run?.trigger_ref ? ` · ${d.source_run.trigger_ref}` : ""}</span>}
               {d.replies.length > 0 && <span className="badge b-green">✉ 답장 {d.replies.length}</span>}
               {review && <span className="badge b-amber">! 답장 검토 필요</span>}
               {reviewDone && <span className="badge b-green" data-testid="review-done">✓ 처리 완료(정보가 이미 채워짐)</span>}

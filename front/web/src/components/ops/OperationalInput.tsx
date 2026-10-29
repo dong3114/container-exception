@@ -34,6 +34,13 @@ export function OperationalInput({ runId }: { runId: string | null }) {
   const canStore = allowed && checked?.csv === csv && checked.kind === kind;
   return (
     <div style={{ display: "grid", gap: 8 }} data-testid="operational-input">
+      <ol className="input-steps" aria-label="입력 순서">
+        <li className={csv.trim() ? "done" : "now"}>1. 파일 선택 · 붙여넣기</li>
+        <li className={report ? "done" : csv.trim() ? "now" : ""}>2. 검증</li>
+        <li className={report && report.invalid_rows > 0 ? "now" : report ? "done" : ""}>3. 오류 확인</li>
+        <li className={report?.stored ? "done" : canStore ? "now" : ""}>4. 저장</li>
+        <li className={report?.stored ? "done" : ""}>5. 결과</li>
+      </ol>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <b>운영 기록 입력(CSV)</b>
         <select value={kind} onChange={(e) => setKind(e.target.value as InputKind)} aria-label="입력 종류">
@@ -56,9 +63,10 @@ export function OperationalInput({ runId }: { runId: string | null }) {
           />
         </label>
       </div>
-      <span className="muted mono" style={{ fontSize: 11 }}>
-        첫 줄: {header}
-      </span>
+      <details className="tech">
+        <summary>CSV 첫 줄(열 이름) 보기</summary>
+        <span className="mono">{header}</span>
+      </details>
       <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={6} placeholder={header} style={{ fontFamily: "var(--mono)", fontSize: 12 }} data-testid="input-csv" />
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
         <button type="button" className="act-btn" disabled={!allowed || !csv.trim() || action.state.status === "LOADING"} onClick={() => action.run(true)} data-testid="input-dry-run">
@@ -88,27 +96,22 @@ export function ImportResult({ report }: { report: ImportReport }) {
         <span className={`badge ${report.stored ? "b-green" : "b-outline"}`}>{report.stored ? "✓ 저장됨" : report.dry_run ? "검증만 — 저장되지 않음" : "✕ 저장되지 않음(오류가 있으면 하나도 저장하지 않습니다)"}</span>
       </div>
       {report.errors.length > 0 && (
-        <table className="ops-table">
-          <thead>
-            <tr>
-              <th>행</th>
-              <th>필드</th>
-              <th>이유</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.errors.slice(0, 50).map((e, i) => (
-              <tr key={i} data-testid="import-error">
-                <td>{e.row === 0 ? "전체" : e.row}</td>
-                <td className="mono">{e.column ?? "—"}</td>
-                <td>
-                  {e.message} <span className="muted mono">({e.code})</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="import-errors">
+          {report.errors.slice(0, 50).map((e, i) => (
+            <li key={i} data-testid="import-error">
+              <b>{e.row === 0 ? "파일 전체" : `${e.row}번째 행`}</b>
+              {e.column && <span className="mono"> {e.column}</span>}
+              <span> — {e.message}</span>
+              <details className="tech" style={{ display: "inline-block", marginLeft: 6 }}>
+                <summary>코드</summary>
+                <span className="mono">{e.code}</span>
+              </details>
+            </li>
+          ))}
+          {report.errors.length > 50 && <li className="muted">… 외 {report.errors.length - 50}건</li>}
+        </ul>
       )}
+      {report.stored && <span className="muted">저장되었습니다. CERA 가 이 기록으로 예외 · 계획 입력 준비도를 다시 판단합니다.</span>}
     </div>
   );
 }

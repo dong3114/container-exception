@@ -3,6 +3,7 @@ import type { Draft } from "@/api/drafts";
 import { type FollowUpList, type FollowUpView, draftFollowUps, getFollowUps } from "@/api/ops";
 import { useMe } from "@/app/MeContext";
 import { useAsyncAction } from "@/state/async";
+import { EmptyState } from "@/components/ui/primitives";
 import { ContactResolver } from "./ContactResolver";
 import { ErrorNotice } from "./ErrorNotice";
 import { DELTA_LABEL, FOLLOW_UP_BLOCKED, FOLLOW_UP_KIND, can, messageStatus } from "./opsLabels";
@@ -42,7 +43,11 @@ export function FollowUpsPanel({ planId, runId, simulated, drafts, onChanged, on
         <span className="muted" style={{ fontSize: 12 }}>초안만 만듭니다 — 보내려면 연락 탭에서 건마다 승인 · 발송 요청하세요.</span>
       </div>
       <ErrorNotice error={make.state.status === "FAILED" ? make.state.error : list.state.status === "FAILED" ? list.state.error : null} />
-      {shown && shown.actions.length === 0 && <div className="muted">이 계획에는 외부에 요청할 일이 없습니다(자사 자원만 씀).</div>}
+      {shown && shown.actions.length === 0 && (
+        <EmptyState icon="✓" title="이 계획에는 외부에 요청할 일이 없습니다." testId="follow-ups-empty">
+          자사 자원만 쓰는 계획입니다. 계획이 바뀌어 요청이 필요해지면 여기에 나옵니다.
+        </EmptyState>
+      )}
       {shown?.actions.map((f) => {
         const k = FOLLOW_UP_KIND[f.follow_up_kind] ?? { label: f.follow_up_kind, badge: "b-outline" };
         const st = messageStatus(f.message_status);
@@ -60,6 +65,27 @@ export function FollowUpsPanel({ planId, runId, simulated, drafts, onChanged, on
               <span className="muted">{DELTA_LABEL[f.delta] ?? f.delta}</span>
               {f.message_id ? <span className={`badge ${st.badge}`}>{st.label}</span> : blocked ? <span className="badge b-amber">! 초안 없음</span> : <span className="badge b-outline">초안 전</span>}
             </div>
+            {f.follow_up_kind !== "REQUEST" && (
+              <div className="change-compare" data-testid="follow-up-compare">
+                <span>
+                  <small>기존 요청</small>
+                  <b className="num">
+                    {f.previous_quantity ?? "—"}
+                    {f.kind === "ODCY_RECEIVE" ? "대" : "대(트럭)"}
+                  </b>
+                </span>
+                <span aria-hidden>→</span>
+                <span>
+                  <small>새 계획</small>
+                  <b className="num">
+                    {f.follow_up_kind === "CANCELLATION" ? 0 : f.quantity}
+                    {f.kind === "ODCY_RECEIVE" ? "대" : "대(트럭)"}
+                  </b>
+                </span>
+                <span aria-hidden>→</span>
+                <span className={`badge ${k.badge}`}>{f.follow_up_kind === "CANCELLATION" ? "취소 요청 필요" : "정정 요청 필요"}</span>
+              </div>
+            )}
             {f.refers_to_message_id && <span className="muted" style={{ fontSize: 12 }}>이미 보낸 요청을 고칩니다 — 보낸 메일은 그대로 남습니다.</span>}
             {blocked && <span style={{ fontSize: 12 }}>{FOLLOW_UP_BLOCKED[f.blocked_reason!] ?? f.blocked_reason}</span>}
             {blocked && (f.blocked_reason === "CONTACT_SELECTION_REQUIRED" || f.blocked_reason === "NO_ELIGIBLE_CONTACT") && (

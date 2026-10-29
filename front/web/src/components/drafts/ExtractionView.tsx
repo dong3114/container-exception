@@ -75,28 +75,37 @@ export function ExtractionView({ extraction, onRetry, retryError, retryBusy = fa
         </div>
       )}
       {extraction.needs_review && (
-        <div data-testid="extraction-review" style={{ fontSize: 12, display: "grid", gap: 3, background: "var(--bg-soft, transparent)", padding: "4px 0" }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="badge b-orange">사람 검토 필요</span>
+        <div className="callout tone-warn" data-testid="extraction-review" role="status">
+          <span className="callout-icon" aria-hidden>
+            ?
+          </span>
+          <div className="callout-body">
+            <span style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="badge b-orange">사람 검토 필요</span>
+              <b>AI 가 이 답장에서 확실한 값을 찾지 못했습니다.</b>
+            </span>
             <span>
-              회신은 왔지만 쓸 수 있는 값을 얻지 못했습니다{extraction.failure_kind ? ` — ${FAILURE_TEXT[extraction.failure_kind]}` : ""}
+              원문을 확인한 뒤 값을 직접 입력하거나 다시 분석할 수 있습니다. 시스템 오류가 아니며, 답장 원문과 이전 시도 기록은 그대로 보관됩니다.
+            </span>
+            <span style={{ fontSize: 12 }}>
+              이유: {extraction.failure_kind ? FAILURE_TEXT[extraction.failure_kind] : "검증을 통과한 값이 없습니다"}
               {extraction.provider_code ? ` (${extraction.provider_code})` : ""}
             </span>
+            <div className="muted" style={{ fontSize: 11.5 }} data-testid="extraction-attempts">
+              시도 {extraction.attempts.length}회:{" "}
+              {extraction.attempts.map((a) => `#${a.attempt_no} ${a.trigger === "HUMAN_RETRY" ? "사람 요청" : "자동"} ${a.result}${a.error_code ? `(${a.error_code})` : a.outcome ? `(${a.outcome})` : ""}`).join(" · ")}
+            </div>
+            <div className="callout-actions" style={{ alignItems: "center" }}>
+              {onRetry && extraction.retry.available && (
+                <button type="button" className="act-btn" data-testid="extraction-retry" onClick={onRetry} disabled={retryBusy || extraction.state === "RETRYING"}>
+                  {retryBusy ? "요청 중…" : extraction.state === "RETRYING" ? "다시 읽는 중…" : "다시 추출(AI 다시 분석)"}
+                </button>
+              )}
+              {!extraction.retry.available && extraction.retry.blocked_reason && <span className="muted">다시 추출 불가 — {RETRY_BLOCK_TEXT[extraction.retry.blocked_reason] ?? extraction.retry.blocked_reason}</span>}
+              <span className="muted" style={{ fontSize: 11.5 }}>또는 ‘정보 · 사실’ 탭에서 값을 직접 입력하세요.</span>
+            </div>
+            {retryError && <div style={{ color: "var(--red)" }} data-testid="extraction-retry-error">{retryError}</div>}
           </div>
-          <div className="muted" style={{ fontSize: 11.5 }} data-testid="extraction-attempts">
-            시도 {extraction.attempts.length}회:{" "}
-            {extraction.attempts.map((a) => `#${a.attempt_no} ${a.trigger === "HUMAN_RETRY" ? "사람 요청" : "자동"} ${a.result}${a.error_code ? `(${a.error_code})` : a.outcome ? `(${a.outcome})` : ""}`).join(" · ")}
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            {onRetry && extraction.retry.available && (
-              <button type="button" className="btn" data-testid="extraction-retry" onClick={onRetry} disabled={retryBusy || extraction.state === "RETRYING"}>
-                {retryBusy ? "요청 중…" : extraction.state === "RETRYING" ? "다시 읽는 중…" : "다시 추출"}
-              </button>
-            )}
-            {!extraction.retry.available && extraction.retry.blocked_reason && <span className="muted">다시 추출 불가 — {RETRY_BLOCK_TEXT[extraction.retry.blocked_reason] ?? extraction.retry.blocked_reason}</span>}
-            <span className="muted" style={{ fontSize: 11.5 }}>또는 회신을 읽고 ‘사실 판단’에서 값을 직접 입력하세요. 이전 시도 기록은 지워지지 않습니다.</span>
-          </div>
-          {retryError && <div className="muted" style={{ color: "var(--red, inherit)" }} data-testid="extraction-retry-error">{retryError}</div>}
         </div>
       )}
       {candidates.map((c) => {

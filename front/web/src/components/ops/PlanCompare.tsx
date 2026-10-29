@@ -3,6 +3,7 @@ import { type Plan, type PlanSummary, getPlan } from "@/api/plans";
 import { krw } from "@/components/format";
 import { PLAN_STATUS_LABEL } from "@/components/plan/planLabels";
 import { useAsyncAction } from "@/state/async";
+import { EmptyState } from "@/components/ui/primitives";
 import { ErrorNotice } from "./ErrorNotice";
 import { outdatedText, planDiff } from "./opsModel";
 
@@ -28,7 +29,12 @@ export function PlanCompare({ plans, names: known }: { plans: PlanSummary[]; nam
     if (a && b && a !== b) run(a, b);
   }, [run, a, b]);
 
-  if (sorted.length < 2) return <div className="muted" data-testid="plan-compare-empty">비교할 이전 판이 없습니다(판이 하나뿐입니다).</div>;
+  if (sorted.length < 2)
+    return (
+      <EmptyState icon="⇄" title={sorted.length ? "비교할 이전 판이 없습니다(판이 하나뿐입니다)." : "아직 계획 판이 없습니다."} testId="plan-compare-empty">
+        사실이 바뀌어 계획을 다시 계산하면 판(v1 → v2 …)이 쌓이고, 무엇이 바뀌었는지 여기서 비교합니다.
+      </EmptyState>
+    );
   const data = load.state.status === "SUCCESS" ? load.state.data : null;
   const rows = data ? planDiff(data[0].items, data[1].items) : [];
   const names = new Map<string, string>(known ?? []);
@@ -51,16 +57,29 @@ export function PlanCompare({ plans, names: known }: { plans: PlanSummary[]; nam
       <ErrorNotice error={load.state.status === "FAILED" ? load.state.error : null} />
       {data && (
         <>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12.5 }} data-testid="plan-compare-kpi">
-            <span>
-              총 예상 손실 {krw(data[0].objective_krw)} → <b>{krw(data[1].objective_krw)}</b>
-            </span>
-            <span>
-              기준안 {krw(data[0].baseline_total_krw)} → {krw(data[1].baseline_total_krw)}
-            </span>
-            <span>
-              {CHANGE.ADDED!.label} {count("ADDED")} · {CHANGE.REMOVED!.label} {count("REMOVED")} · {CHANGE.MODIFIED!.label} {count("MODIFIED")} · {CHANGE.UNCHANGED!.label} {count("UNCHANGED")}
-            </span>
+          <div className="plan-head-grid" data-testid="plan-compare-kpi">
+            <div className="metric">
+              <span className="metric-label">추천 계획 예상 손실</span>
+              <span className="num">
+                v{data[0].version} {krw(data[0].objective_krw)} → <b>v{data[1].version} {krw(data[1].objective_krw)}</b>
+              </span>
+            </div>
+            <div className="metric">
+              <span className="metric-label">조치 없음(Baseline)</span>
+              <span className="num">
+                {krw(data[0].baseline_total_krw)} → {krw(data[1].baseline_total_krw)}
+              </span>
+            </div>
+            <div className="metric">
+              <span className="metric-label">컨테이너별 변화</span>
+              <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {(["ADDED", "REMOVED", "MODIFIED", "UNCHANGED"] as const).map((c) => (
+                  <span key={c} className={`badge ${CHANGE[c]!.badge}`}>
+                    {CHANGE[c]!.label} {count(c)}
+                  </span>
+                ))}
+              </span>
+            </div>
           </div>
           {(data[0].outdated_reasons ?? []).length > 0 && (
             <div style={{ fontSize: 12.5 }} data-testid="plan-compare-reasons">
@@ -73,6 +92,7 @@ export function PlanCompare({ plans, names: known }: { plans: PlanSummary[]; nam
               ))}
             </div>
           )}
+          {count("ADDED") + count("REMOVED") + count("MODIFIED") === 0 && <span className="muted">두 판의 컨테이너별 조치가 같습니다.</span>}
           <table className="ops-table">
             <thead>
               <tr>

@@ -98,6 +98,38 @@ export function DraftView({ draft, approverId, onChanged }: { draft: Draft; appr
         {m.is_simulated && <span className="badge b-sim">MOCK 채널 · 실제 발송 없음</span>}
       </div>
 
+      {m.status === "PENDING_APPROVAL" && (
+        <section className="approval-brief" data-testid="approval-brief" aria-label="승인 전 확인">
+          <b>승인 전 확인</b>
+          <dl>
+            <div>
+              <dt>보낼 대상</dt>
+              <dd>
+                {draft.thread.counterparty_name}
+                {draft.thread.contact_name ? ` · ${draft.thread.contact_name}` : ""}
+                {m.is_simulated ? " (Mock — 실제 발송 없음)" : ""}
+              </dd>
+            </div>
+            <div>
+              <dt>무슨 내용</dt>
+              <dd>{draft.question?.question_text ?? m.subject ?? "—"}</dd>
+            </div>
+            <div>
+              <dt>근거</dt>
+              <dd>{draft.plan_based ? `복구 계획 기반 (${draft.source_run?.trigger_ref ?? "실행"})` : "운영자 입력(계획 무관)"}</dd>
+            </div>
+            <div>
+              <dt>숫자 검사</dt>
+              <dd>{check ? (check.passed ? "✓ 본문 숫자가 구조화 값과 일치" : "✕ 불일치 — 아래 확인") : "—"}</dd>
+            </div>
+            <div>
+              <dt>이전 요청과 달라진 점</dt>
+              <dd>{draft.revision.previous_message_id ? (draft.revision.previous_approval_invalidated === "CONTENT_CHANGED" ? "내용을 고친 수정본 — 이전 승인은 무효" : "이전 초안을 고친 수정본") : "새 문의(이전 요청 없음)"}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
+
       {draft.revision.previous_approval_invalidated === "CONTENT_CHANGED" && approval.state === "NONE" && (
         <div role="alert" className="badge b-amber" data-testid="reapproval-required" style={{ justifySelf: "start", whiteSpace: "normal" }}>
           내용 변경으로 재승인 필요 — 이전 수정본의 승인은 무효가 됐습니다

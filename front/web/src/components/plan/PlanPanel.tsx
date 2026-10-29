@@ -2,7 +2,8 @@ import { Fragment, useEffect, useState } from "react";
 import { type Plan, approvePlan, getPlan, listPlans, recalculatePlan } from "@/api/plans";
 import { describeApiError } from "@/api/errors";
 import { krw } from "@/components/format";
-import { outdatedText } from "@/components/ops/opsModel";
+import { outdatedText, outdatedValueChange } from "@/components/ops/opsModel";
+import { Callout, EmptyState } from "@/components/ui/primitives";
 import { useAsyncAction } from "@/state/async";
 import {
   ACTION_BADGE,
@@ -87,10 +88,17 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
       </div>
 
       {error?.status === "FAILED" && (
-        <div role="alert" className="badge b-red" style={{ whiteSpace: "normal", justifySelf: "start" }} data-testid="plan-error">
-          {error.error.code ? `${error.error.code} — ` : ""}
-          {error.error.message || describeApiError(error.error)}
-        </div>
+        <Callout tone="danger" testId="plan-error" title={error.error.code === "PLANNING_INPUT_UNAVAILABLE" ? "계획 계산에 필요한 정보가 부족합니다." : "계획을 처리하지 못했습니다."}>
+          <details className="tech">
+            <summary>기술 상세</summary>
+            <span className="mono">
+              {error.error.code ? `${error.error.code} — ` : ""}
+              {error.error.message || describeApiError(error.error)}
+              {error.error.status ? ` · HTTP ${error.error.status}` : ""}
+              {error.error.requestId ? ` · request ${error.error.requestId}` : ""}
+            </span>
+          </details>
+        </Callout>
       )}
 
       {plans.length > 0 && (
@@ -102,7 +110,11 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
           ))}
         </div>
       )}
-      {list.state.status === "SUCCESS" && plans.length === 0 && <div className="muted" style={{ fontSize: 12 }}>아직 계산된 계획이 없습니다. 필요한 사실이 모이면 Agent 가 계산하거나, [다시 계산] 을 누르세요.</div>}
+      {list.state.status === "SUCCESS" && plans.length === 0 && (
+        <EmptyState icon="▣" title="아직 계산된 계획이 없습니다." testId="plan-empty">
+          필요한 정보가 모이면 Agent 가 계산합니다. 지금 사실로 바로 계산하려면 [지금 사실로 다시 계산] 을 누르세요.
+        </EmptyState>
+      )}
 
       {plan && (
         <div style={{ display: "grid", gap: 10 }} data-testid="plan-detail" data-plan-status={plan.plan_status} data-version={plan.version}>
@@ -125,35 +137,56 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
             ))}
 
           {plan.plan_status === "OUTDATED" && plan.outdated_reasons && (
-            <div className="badge b-orange" style={{ whiteSpace: "normal", justifySelf: "start", fontSize: 12 }} data-testid="plan-outdated">
-              이 판이 기댄 사실이 바뀌었습니다 — 다시 계산해야 합니다:{" "}
-              {plan.outdated_reasons.map((r, i) => (
-                <span key={i}>
-                  {i > 0 ? " · " : ""}
-                  {outdatedText(r as Record<string, unknown>, names)}
-                </span>
-              ))}
-            </div>
+            <Callout
+              tone="warn"
+              icon="↻"
+              testId="plan-outdated"
+              title="이 계획 이후 계획이 기댄 정보가 바뀌었습니다 — 새 계획이 필요합니다."
+              actions={
+                <button type="button" className="act-btn primary" disabled={!actorId || recalc.state.status === "LOADING"} onClick={() => actorId && recalc.run(actorId)} data-testid="plan-outdated-recalculate">
+                  {recalc.state.status === "LOADING" ? "계산 중…" : "다시 계산"}
+                </button>
+              }
+            >
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {plan.outdated_reasons.map((r, i) => {
+                  const rec = r as Record<string, unknown>;
+                  const change = outdatedValueChange(rec);
+                  return (
+                    <li key={i} data-testid="plan-outdated-reason">
+                      {outdatedText(rec, names)}
+                      {change && (
+                        <span data-testid="plan-outdated-change">
+                          {" "}
+                          · 기존 <b className="num">{change.before ?? "없음"}</b> → 현재 <b className="num">{change.after ?? "없음"}</b>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <span className="muted">사실이 바뀌면 Agent 가 다시 계산할 수도 있습니다. 지금 바로 계산하려면 [다시 계산] 을 누르세요.</span>
+            </Callout>
           )}
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }} data-testid="plan-kpi">
-            <div className="card" style={{ padding: 8, minWidth: 170 }}>
-              <div className="muted" style={{ fontSize: 11 }}>조치 없음(Baseline) 예상 손실</div>
-              <div className="num" style={{ fontSize: 16, fontWeight: 700 }} data-testid="plan-baseline">{krw(plan.baseline_total_krw)}</div>
-              <div className="muted" style={{ fontSize: 10.5 }}>실비용 {krw(plan.baseline_base_cost_krw)}</div>
+          <div className="plan-head-grid" data-testid="plan-kpi">
+            <div className="metric">
+              <span className="metric-label">조치 없음(Baseline) 예상 손실</span>
+              <b className="metric-value num" style={{ fontSize: 18 }} data-testid="plan-baseline">{krw(plan.baseline_total_krw)}</b>
+              <span className="metric-hint">실비용 {krw(plan.baseline_base_cost_krw)}</span>
             </div>
-            <div className="card" style={{ padding: 8, minWidth: 170 }}>
-              <div className="muted" style={{ fontSize: 11 }}>추천 계획 예상 손실</div>
-              <div className="num" style={{ fontSize: 16, fontWeight: 700 }} data-testid="plan-objective">{krw(plan.objective_krw)}</div>
-              <div className="muted" style={{ fontSize: 10.5 }}>실비용 {krw(plan.base_cost_krw)} + 위험 벌점 {krw(plan.risk_penalty_krw)}</div>
+            <div className="metric tone-info">
+              <span className="metric-label">추천 계획 예상 손실</span>
+              <b className="metric-value num" style={{ fontSize: 18 }} data-testid="plan-objective">{krw(plan.objective_krw)}</b>
+              <span className="metric-hint">실비용 {krw(plan.base_cost_krw)} + 위험 벌점 {krw(plan.risk_penalty_krw)}</span>
             </div>
-            <div className="card" style={{ padding: 8, minWidth: 170 }}>
-              <div className="muted" style={{ fontSize: 11 }}>절감(시뮬레이션 기준)</div>
-              <div className="num" style={{ fontSize: 16, fontWeight: 700, color: "var(--green)" }} data-testid="plan-saving">{krw(plan.saving_krw)}</div>
-              <div className="muted" style={{ fontSize: 10.5 }}>실비용 절감 {krw(plan.base_saving_krw)} · 실제 절감 실적 아님</div>
+            <div className="metric tone-ok">
+              <span className="metric-label">예상 절감(시뮬레이션 기준)</span>
+              <b className="metric-value num" style={{ fontSize: 18, color: "var(--green)" }} data-testid="plan-saving">{krw(plan.saving_krw)}</b>
+              <span className="metric-hint">실비용 절감 {krw(plan.base_saving_krw)} · 실제 절감 실적 아님</span>
             </div>
-            <div className="card" style={{ padding: 8, minWidth: 170, fontSize: 12 }}>
-              <div className="muted" style={{ fontSize: 11 }}>조치 {plan.changed_count}대 변경 / 대상 {plan.candidate_count}대</div>
+            <div className="metric" style={{ fontSize: 12 }}>
+              <span className="metric-label">조치 {plan.changed_count}대 변경 / 대상 {plan.candidate_count}대</span>
               {actionCounts(plan.items).map((c) => (
                 <div key={c.action}>
                   <span className={`badge ${ACTION_BADGE[c.action] ?? "b-outline"}`}>{c.label}</span> {c.count}대
@@ -161,6 +194,8 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
               ))}
             </div>
           </div>
+
+          <CostCompare baseline={plan.baseline_total_krw} recommended={plan.objective_krw} />
 
           {(warnFacts.length > 0 || (result.binding_constraints ?? []).length > 0) && (
             <div style={{ display: "grid", gap: 4, fontSize: 12 }} data-testid="plan-warnings">
@@ -265,5 +300,30 @@ export function PlanPanel({ recoveryRunId, actorId, refreshKey }: { recoveryRunI
         </div>
       )}
     </section>
+  );
+}
+
+/** Baseline 과 추천안을 막대로 맞대 본다 — 두 값 모두 엔진 출력이고, 화면은 길이만 비율로 그린다(새 숫자를 만들지 않는다) */
+function CostCompare({ baseline, recommended }: { baseline: number | null; recommended: number | null }) {
+  if (baseline === null || recommended === null || baseline <= 0) return null;
+  const max = Math.max(baseline, recommended);
+  const width = (v: number) => `${Math.max(2, Math.round((v / max) * 100))}%`;
+  return (
+    <div className="cost-compare" data-testid="plan-cost-compare" aria-label="예상 손실 비교">
+      <div className="cost-bar-row">
+        <span>조치 없음(Baseline)</span>
+        <span className="cost-bar" aria-hidden>
+          <span className="base" style={{ width: width(baseline) }} />
+        </span>
+        <span className="cost-amount num">{krw(baseline)}</span>
+      </div>
+      <div className="cost-bar-row">
+        <span>추천 계획</span>
+        <span className="cost-bar" aria-hidden>
+          <span className="rec" style={{ width: width(recommended) }} />
+        </span>
+        <span className="cost-amount num">{krw(recommended)}</span>
+      </div>
+    </div>
   );
 }

@@ -56,7 +56,7 @@ export function ReplyReview({ item, onRetried }: { item: InboundItem; onRetried?
   return <ExtractionView extraction={item.extraction} onRetry={item.message_id ? () => void retry() : undefined} retryError={error} retryBusy={busy} />;
 }
 
-function InboundCard({ item, compact = false, onRetried }: { item: InboundItem; compact?: boolean; onRetried?: () => void }) {
+function InboundCard({ item, compact = false, onRetried, asked }: { item: InboundItem; compact?: boolean; onRetried?: () => void; /** 이 회신이 답하는 질문(문의 제목) */ asked?: string | null }) {
   const { retry, error, busy } = useRetry(item, onRetried);
   const who = item.sender_label ? `${item.sender_label.counterparty_name} · ${item.sender_label.contact_name}` : "등록부에 없는 주소";
   return (
@@ -73,6 +73,11 @@ function InboundCard({ item, compact = false, onRetried }: { item: InboundItem; 
         </div>
       )}
       {item.subject && <div style={{ fontWeight: 600, fontSize: 12.5 }}>{item.subject}</div>}
+      {asked && (
+        <div className="muted" style={{ fontSize: 12 }} data-testid="inbound-asked">
+          이 답장이 답하는 문의: <b style={{ color: "var(--text-2)" }}>{asked}</b>
+        </div>
+      )}
       {!compact && (
         <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap" }} data-testid="inbound-preview">
           {item.content_available ? item.preview : "(원문을 찾을 수 없음)"}
@@ -125,7 +130,7 @@ export function RepliesPanel({ draft, onChanged }: { draft: Draft; onChanged: (d
         </span>
       </div>
       {draft.replies.map((r) => (
-        <InboundCard key={r.raw_input_id} item={r} onRetried={() => void getDraft(draft.message.message_id).then((res) => onChanged(res.data), () => undefined)} />
+        <InboundCard key={r.raw_input_id} item={r} asked={draft.message.subject} onRetried={() => void getDraft(draft.message.message_id).then((res) => onChanged(res.data), () => undefined)} />
       ))}
     </section>
   );
