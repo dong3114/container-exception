@@ -1202,6 +1202,44 @@ Backend Core 동결을 이 작업 동안만 풀었다(사용자 지시). 끝나�
 **검증**: Backend 시험(unit `t136-invariants` · DB `t136-corroboration` C/D/E/F · 탐지 관계 · 계획 무효화 · 재처리 · 기존 전부) · Python Agent 시험 · 화면 시험 · 계약 재생성(OpenAPI · agent-tools)
 
 
+### 18.30 T-137 업체 회신 메일의 입항 주장 → 교차 확인 · T-143 LIVE 확인 (2026-10-29 · ADR-042)
+
+Backend 마감 작업(사용자 지시 — 이 작업만 동결 해제, 끝나고 다시 FROZEN). **DB 변경 없음**(`extraction.ask_id` 는 자유 문자열 — 선박 질문 = `v:<vessel_call_id>`).
+
+**완성된 흐름(실제 호출 관계)** — 각 단계 옆은 그 단계를 지나는 시험
+
+```
+업체 회신 메일(Gmail · Mock 채널) → 원문 보존(raw_input) → 스레드 연결 · 발신자 판정            [t137 DB 시험: Mock]
+→ AI 추출(HTTP AI Server, ARRIVAL_DATETIME 질문 — 후보 + 인용)                                  [t137: 시험용 HTTP AI · Python 계약 시험]
+→ 결정론 검증(질문 범위 · 인용 원문 · 값-인용 · IDENTIFIER_IN_SOURCE) → 회신 날짜 기준 시각      [t137 · unit t137]
+→ 업체 주장 사건(EMAIL · 권한 W) ─┐
+                                  ├→ 교차 확인 corroboration/1(결정론)                          [t137 · t136]
+공공 관측(Port-MIS 입항 신고, A) ─┘     ↙ MATCH   ↓ CONFLICT   ↓ NO_PUBLIC_EVIDENCE   ↘ NOT_COMPARABLE
+→ Truth: OBSERVED 유지 / NEEDS_REVIEW · 승인 차단 → 할 일(open-conflicts) → 사람 확인 · 거절     [t137 · 화면 ops.test]
+→ Cost / Risk(입항 제약 · 충돌 = 제약 아님 + 검증 위험 벌점 [ASSUMPTION])                       [t137: truthToPlanningFacts → Cost Engine]
+→ HiGHS Solver                                                                                   [t137: 작은 합성 계획으로 실행]
+→ Recovery Plan → 사람 승인 → 사실 변경 시 OUTDATED                                             [기존 recovery-plan · agent-runtime 시험]
+```
+
+- 실제 공공데이터(LIVE): Port-MIS → 입항 공백 · 관측 · 교차 확인 · 할 일까지 1회 확인(T-143, 아래). 실제 메일 ↔ 실제 관측의 한 번 왕복은 아직 하지 않았다 — 같은 코드 경로이며 후속 Hybrid Live E2E(T-144)에서 확인
+- 정책값은 모두 **[ASSUMPTION]**: 허용 오차 60분 · 검증 위험 벌점 30,000원 · 공공 관측 신선도 24h/72h(T-142 사람 검토)
+
+| 단계 | 구현 | 결정론 / AI |
+| --- | --- | --- |
+| 질문 | 회신 본문이 등록된 입항 신고의 호출부호 · 선박명을 **낱말로** 쓰면(같은 시뮬레이션 구분만) 그 배마다 질문 하나 `ARRIVAL_DATETIME`(칸 `arrival_date` · `arrival_time`). 같은 호출부호가 두 항차면 실행에 연결된 것만, 그래도 여럿이면 묻지 않는다. 배를 말하지 않는 회신에는 붙이지 않는다(`vessel-claim-rules.ts`) | 결정론 |
+| 추출 | AI Server(`reply-extract/2` 계약에 모양만 추가, 프롬프트 `reply-extract-v3`): 시각이 있는 말만, 날짜는 회신이 말할 때만, 참/거짓 판정 금지 | AI = 후보 + 원문 인용 |
+| 검증 | 기존 검사(질문 범위 · 인용 원문 · 형식 · 값-인용) + **`IDENTIFIER_IN_SOURCE`**: 인용 문장이 그 배를 말하거나, 회신이 물은 배 중 그 배 하나만 말한다 | 결정론 |
+| 시각 해석 | 기존 회신 날짜 기준(`dateMentions` — 회신 근거 시각의 Asia/Seoul 날짜)만. 인용 문장에 풀 수 있는 날짜가 정확히 하나여야 한다. "오후 3시로 지연"(날짜 없음) · "다음 주" · 날짜 둘 = `DATE_UNVERIFIED` → 후보로 남고 사람이 본다. "아직 입항 전" · "방금 입항"(시각 없음) = 비교할 값이 아니다 | 결정론 · 새 추론 규칙 없음 |
+| 사건 | `EMAIL` · `LLM_EXTRACTED` · `ARRIVAL_DECLARED` · 권한 **W**(`claim_kind=PARTNER_REPLY`) · 추출 · 인용 연결 · 시뮬레이션이면 입항 신고의 시나리오 | 업체 **주장** — 확정 아님 |
+| 교차 확인 | 추출 저장 직후 그 배에 대해 `sweep`(사람 진술과 같은 경로) → 기존 `corroboration/1` | 결정론 |
+| Truth · 할 일 | MATCH = 공공 관측 OBSERVED 유지. CONFLICT = NEEDS_REVIEW · 승인 차단 → **`GET /truth/corroborations/open-conflicts`**(지금도 Truth 가 사람 검토로 보는 충돌만) → 운영 콘솔 할 일 "업체 회신과 공공 기록이 서로 다릅니다"(검토). 업체 주장 확인 = 업체가 맞음 · 거절 = 공공 기록이 맞음 | Truth 규칙 |
+| 계획 | 실행의 사실 목록에 그 실행 스레드 회신이 주장한 입항 신고가 함께 나온다. Cost Engine 은 기존 규칙(충돌 값은 제약으로 쓰지 않고 검증 위험 벌점 [ASSUMPTION]) | 결정론 |
+
+- **시험**: unit `t137-vessel-claim`(질문 · 식별자 · 시각) · DB `t137-email-vessel-claim`(Mock 회신 → 원문 → 스레드 → HTTP AI → 검증 → 사건 → 교차 확인 MATCH · CONFLICT → Truth → 할 일 → 사람 거절로 해소 → Cost · HiGHS, 날짜 없는 시각 = 사람 검토) · Python 계약 · 프롬프트
+- **T-143 LIVE**(1회, 시험 DB, 키 값 출력 없음 · 시험 파일은 커밋하지 않음): 실제 Port-MIS 입항 신고 267건 → LIVE 실행 컨테이너(적하목록 한 줄을 대신하는 시험 기록)와 연결 → 입항 공백이 공공 관측(OBSERVED)으로 닫힘 → 업체 진술 15분 차 MATCH · 600분 차 CONFLICT → OBSERVED · NEEDS_REVIEW → 공백 NEEDS_REVIEW(`public_data_can_resolve`) → 충돌 할 일 1건
+- **한계**: Mock 회신은 시뮬레이션이라 실제 공공 관측과 비교하지 않는다(규칙 9 — 실제 메일 ↔ 실제 관측은 Gmail 채널에서 같은 경로). 공공 관측이 이미 있으면 입항 공백은 처음부터 닫혀 있다(공백 → 조회 순서는 Python Agent 시험)
+
+
 ## 20. migration 전략
 
 **ADR-034 그대로**: Drizzle 스키마 → drizzle-kit 이 SQL 생성 → 사람이 SQL 검토 → 저장소에 기록 → 명시적으로 적용. `drizzle-kit push` 는 운영 정본으로 쓰지 않는다(로컬 실험용으로도 권하지 않는다 — 로컬과 운영의 이력이 갈라진다).

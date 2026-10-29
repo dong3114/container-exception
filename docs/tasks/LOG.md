@@ -21,6 +21,18 @@
 
 ---
 
+## 2026-10-29 · T-137 · T-143 Backend 마감(회신 메일 입항 주장 → 교차 확인 · LIVE 확인) · Claude Code (claude-opus-5-5)
+- 상태: 완료 — 이 작업만 동결 해제. 끝나고 **Backend FROZEN · 신규 기능 개발 중단**
+- 한 일:
+  - `back/src/communication/vessel-claim-rules.ts`(질문 대상 · 식별자 대조) · 검증기 `IDENTIFIER_IN_SOURCE` · 추출 저장 직후 교차 확인 · `promotion-rules.evaluateVesselClaim`(회신 날짜 기준 시각만) · `PromotionService` 선박 주장 사건 · 실행 사실 목록에 회신 주장 입항 신고 · `GET /truth/corroborations/open-conflicts` · 계획 매핑 `truthToPlanningFacts` 내보냄(동작 불변)
+  - AI: `ARRIVAL_DATETIME` 계약 모양 · 프롬프트 `reply-extract-v3`
+  - 화면: 할 일 "업체 회신과 공공 기록이 서로 다릅니다"(검토)
+- 검증: Backend 전체 67 파일 649(처음부터) · Python 102 · Front 136 · typecheck · lint · build · LIVE 1회(키 출력 없음)
+- 시작 전: 메모리 부족으로 끝난 개발 서버의 고아 프로세스 2개(:3100 tsx `src/main.ts` · :3000 vite — 둘 다 CERA)만 종료. Docker 의 :3100 게시는 건드리지 않음
+- 남은 일 / 다음 한 걸음: T-144(Hybrid Live E2E — 등록만) · T-134(노트북). P2 T-138~T-142
+- 큐 변경: T-137 · T-143 DONE · T-144 추가(P0, 시작 안 함)
+- 주의사항: 사람이 공공 기록 쪽이 맞다고 판단하려면 업체 주장을 **거절**한다(공공 사건 확인으로는 풀리지 않는다 — 기존 `applyCorroboration` 규칙)
+
 ## 2026-10-29 · T-136 실행 결함 · 공공 근거 교차 확인 · 예외 영향 범위 · Claude Code (claude-opus-5-5)
 - 상태: 완료 — 사용자가 이 작업만 Backend Core 동결 해제. 끝나고 **Backend 다시 FROZEN**
 - 한 일:

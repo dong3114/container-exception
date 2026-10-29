@@ -894,6 +894,7 @@ Reconciliation 결과마다 템플릿으로 설명을 만든다(LLM을 쓰지 �
 - 공공 API 사건의 권한은 출처가 아니라 **사실 영역**이 정한다(`public-authority.ts`). 지금 권한이 있는 것은 입항 신고 일시(`VESSEL_CALL.declared_arrival`, A) 하나 → **OBSERVED**. 사람 확인(CONFIRMED)과 다르다
 - 아는 시각과 판단 시각을 나눈다: 계산은 그 시각까지 **알았던** 근거만 쓴다(LIVE = 받은 시각). 관측 시각 ≠ 사건 시각
 - 업체 주장(메일 사건 · 사람이 전달한 업체 진술 — 권한 W, 사람 확인 아님)은 같은 사실의 공공 관측과 결정론으로 비교한다: MATCH · CONFLICT · NO_PUBLIC_EVIDENCE · STALE_PUBLIC_EVIDENCE · NOT_COMPARABLE. **CONFLICT 는 NEEDS_REVIEW(`PUBLIC_EVIDENCE_CONFLICT`)** — 두 근거 모두 보존, 사람이 판단. NO_PUBLIC_EVIDENCE 는 "거짓"이 아니다
+- 업체 회신 메일(T-137): 회신이 등록된 배를 말하면 Backend 가 그 배의 입항 일시를 묻고, AI 후보를 결정론으로 검증(식별자 · 인용 · 회신 날짜 기준 시각)한 뒤 업체 주장(EMAIL · 권한 W)으로 남겨 같은 교차 확인을 한다. 날짜를 풀 수 없으면 사람에게. 사람이 판단하지 않은 충돌은 운영자 할 일(`docs/24` 18.30)
 - 상세 · 시험: `docs/24` 18.29
 
 ## 부록 A. 검증 사례 (정책을 직접 적용한 결과)

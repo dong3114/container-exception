@@ -595,4 +595,4 @@
   4. **돈은 만들지 않는다**: 공공 근거는 실행 가능성(입항 전 반출 불가 · 출발 시각)과 정책 벌점만 바꾼다. 대기 요율 · Detention 이 없으면 NOT_PRICED
   5. **예외 영향 범위**: 예외의 최신 관측이 넘친 컨테이너만 재배치 후보, 나머지는 고정 계획(자원은 계속 소비). 고정할 수 없으면 경고와 함께 후보
 - 대안: 공공 값을 바로 CONFIRMED(기각 — 공공데이터는 진실원천이 아니다) · LLM 비교(기각 — 숫자 · 확정은 결정론) · 이름 유사도 짝짓기(기각 — 잘못된 배를 근거로 삼을 위험) · 범위 없이 전체 재최적화 유지(기각 — 영향 없는 약속을 흔든다)
-- 결과: M41 · M42 · `back/src/truth/{public-authority,corroboration-rules,corroboration.service}.ts` · Cost Engine `cost-policy/2` · 계획 `detail.scope` · Agent 공공데이터 먼저 · 화면(사실 카드 교차 확인 · 계획 범위 · 시스템 상태). 상세 `docs/24` 18.29. 한계: 메일 회신에서 입항 주장 추출 없음 · 범위는 컨테이너 단위(그룹 단위 아님)
+- 결과: M41 · M42 · `back/src/truth/{public-authority,corroboration-rules,corroboration.service}.ts` · Cost Engine `cost-policy/2` · 계획 `detail.scope` · Agent 공공데이터 먼저 · 화면(사실 카드 교차 확인 · 계획 범위 · 시스템 상태). 상세 `docs/24` 18.29. 한계: 범위는 컨테이너 단위(그룹 단위 아님). **T-137(2026-10-29)**: 업체 회신 메일의 입항 일시 주장도 같은 교차 확인을 탄다(질문 · 식별자 · 시각 해석은 결정론, AI 는 후보 · 인용만) · 사람이 판단하지 않은 충돌은 운영자 할 일 — `docs/24` 18.30

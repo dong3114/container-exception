@@ -1,11 +1,13 @@
 # 작업 큐 (정본)
 
-- 최종 수정: 2026-10-29 (**T-136 실행 결함 10건 · 공공 근거 교차 확인 · 예외 영향 범위 DONE — ADR-042 · M41 · M42 · Backend 다시 FROZEN. 후속 T-137~T-143(P2 · 사용자 결정)**) / 이전 2026-10-28 (**T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 DONE — ADR-041 · M39 · M40 · Backend 다시 FROZEN**) / 이전 2026-10-28 (**T-132 Private Staging 분리 + 결정론 예외 자동 탐지 DONE — ADR-040 · M37 · M38 · Backend 다시 FROZEN**) / 이전 2026-10-28 (**T-131 공개 포트폴리오 배포 준비 DONE(배포 경계만 — 업무 로직 FROZEN 유지) · ADR-039 Proposed · 실제 서버 배포는 사용자**) / 이전 2026-10-28 (**T-099 COMMERCIAL LLM SMOKE VERIFIED — Gemini `gemini-3.8-flash` 로 추출 → 검증 → 후보 → PROVISIONAL 1건(모델 선정 아님) · OpenAI 여전히 401**) / 이전 2026-10-28 (**최종 시연 준비 — 시연 다듬기 · smoke 로그인 · 최종 리허설 통과 · T-099 smoke 재확인(OpenAI 401 · Gemini 503 — EXTERNAL_DEPENDENCY 유지) · Backend FROZEN · Frontend Demo Freeze**) / 이전 2026-10-28 (**T-120 운영 콘솔(구조) DONE — Backend 변경 없음 · T-099 smoke 시도(공급자 503/504 · OpenAI 401, 결과만 기록) · AI failover(`eacab50`)**) / 이전 2026-10-28 (**Backend Core Logic Freeze 확정(사용자 승인) · T-129 연락처 수명주기 · 수동 선택 DONE(M34 · M35) · T-108 재조정 페이지 넘김 결함 수정(부분 DONE) · T-108~T-110 재평가 · T-108 ID 중복 정리(설정 통합 → T-130) — Backend 다시 FROZEN**) / 이전 2026-10-27 (**T-128 정정 · 취소 후속(`3143e62`, M33) · T-127 실행 중 등록부 등록(`6bd7416`) DONE — CERA final logic freeze 검토 대기**) / 이전 2026-10-27 (**운영 준비 — 연락처 BLOCKER 수정(`a9365dd`) · 새 설치 · 백업/복원 · 장애 복구 · LIVE 전체(실제 Gmail) 검증 끝. Backend 업무 로직 feature freeze. 후속 T-127 · T-128 · T-126**) / 이전 2026-10-27 (**T-123 실제 계획 입력 DONE — 시나리오 없이 운영자가 넣은 운영 기록 + Truth 로 같은 Cost Engine · Solver · 계획 · 승인 · 후속 초안 · 재계획. T-125 자동 추출 재시도 간격 DONE. Backend 업무 로직 feature freeze 판단은 사용자**) / 이전 2026-10-27 (**Final Stabilization — T-124 DONE(값을 못 얻은 회신: 사람 검토 · 추출 재시도 · 직접 입력), production 설정 방어 보강, 전체 회귀 · Docker E2E. Backend 핵심 기능 feature freeze — 이후 blocker · 보안 · 시연 깨짐만. 후속 T-125(자동 재시도 간격) · T-123 · T-099(상용 키 대기) · T-120 P2 UI(사용자)**) / 이전 2026-10-26 (**T-099 체크포인트: 전체 Docker 실행 · 로컬 모델 사다리(Qwen3-4B Local candidate) · Validator conformance 완료 — T-099 는 IN_PROGRESS, 다음은 상용(OpenAI · Gemini) live 평가 · 유지보수 후보 T-108~T-110 추가**) / 이전 2026-10-22 (**T-099 평가 기반 중간 checkpoint 커밋 · origin push(사용자 지시) — T-099 는 IN_PROGRESS 유지. 실제 상용 공급자 평가 대기 — blocker: 실제 API credentials. API 키 없이 T-093 등 큰 작업을 시작하지 않는다.**) 이전: 2026-10-22 (**T-105 DONE(사용자 승인 — 업무 fact state 와 Agent candidate_state 분리 유지). T-099 재개(IN_PROGRESS) — 실제 CERA Runtime 에 넣을 AI 선정. T-093 은 T-099 뒤.**) 이전: 2026-10-22 (**T-105 구현 · 검증 끝 — 사용자 검토 대기(커밋 전). 승인 → 발송 → 회신 → 추출 → 재평가 한 그래프 · 실제 프로세스 E2E(LIVE 공공데이터) · Agent 진행 화면. 시험 Backend 329 · Python 56 · Front 42.**) 이전: 2026-10-22 (**T-104 DONE — 사용자 승인 + durability 보강(재조정 · WAITING_RUNTIME · crash window 시험). 시험 Backend 328 · Python 53 · Front 39. T-105 IN_PROGRESS.**) 이전: 2026-10-22 (**T-104 구현 · 검증 끝 — 사용자 검토 대기(커밋 전).**) 이전: 2026-10-22 (**T-103 DONE — Agent Tool Layer(사용자 승인 · M16 · M17). 다음 T-104 LangGraph Runtime.**) 이전: 2026-10-22 (**T-102 DONE — live 검증(실제 DS-03 · DS-02 응답 확인, 차이 최소 수정: 비표준 시설 코드 · 신청구분 · 입항 신고 일시 = `ARRIVAL_DECLARED` · 데이터 없음 = `00` + 0건).**) 이전: 2026-10-22 (**T-100 DONE(`1c58f08` 설정 정리) · T-101 DONE(ADR-036 Accepted — Agent Runtime 설계) · T-102~T-107 등록 · T-005/T-006 DEPRECATED(→ T-106/T-102) · T-099 재배치(T-105 뒤) · T-102 IN_PROGRESS.**) 이전: 2026-10-07 (**T-092 DONE — U7 회신 추출 파이프라인(Python AI Server · 녹화 재생 · 결정론 검증기) · DB 변경 없음 · 시험 266 + Python 7 + 프론트 39. 다음: T-099(실제 AI 공급자 검증 + CERA 평가셋) → 그 뒤 T-093. 시작하지 않음.**) 이전: 2026-10-07 (**T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함 · DB 변경 없음 · 시험 247 + 프론트 37. 다음: T-092(U7 추출), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · M13 · 시험 232 + 프론트 34. 다음: T-091(U6 수신), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · M12 · 시험 211 + 프론트 27. 다음: T-090(U5), 시작하지 않음.**) 이전: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
+- 최종 수정: 2026-10-29 (**T-137 · T-143 DONE — Backend 마감 · Backend FROZEN · Backend 신규 기능 개발 중단. 남은 T-138~T-142 는 P2 · 다음 우선 T-144 Hybrid Live E2E 등록(시작 안 함)**) / 이전 2026-10-29 (**T-136 실행 결함 10건 · 공공 근거 교차 확인 · 예외 영향 범위 DONE — ADR-042 · M41 · M42 · Backend 다시 FROZEN. 후속 T-137~T-143(P2 · 사용자 결정)**) / 이전 2026-10-28 (**T-133 운영 Dashboard · 시스템 상태 · Staging 운영 준비 DONE — ADR-041 · M39 · M40 · Backend 다시 FROZEN**) / 이전 2026-10-28 (**T-132 Private Staging 분리 + 결정론 예외 자동 탐지 DONE — ADR-040 · M37 · M38 · Backend 다시 FROZEN**) / 이전 2026-10-28 (**T-131 공개 포트폴리오 배포 준비 DONE(배포 경계만 — 업무 로직 FROZEN 유지) · ADR-039 Proposed · 실제 서버 배포는 사용자**) / 이전 2026-10-28 (**T-099 COMMERCIAL LLM SMOKE VERIFIED — Gemini `gemini-3.8-flash` 로 추출 → 검증 → 후보 → PROVISIONAL 1건(모델 선정 아님) · OpenAI 여전히 401**) / 이전 2026-10-28 (**최종 시연 준비 — 시연 다듬기 · smoke 로그인 · 최종 리허설 통과 · T-099 smoke 재확인(OpenAI 401 · Gemini 503 — EXTERNAL_DEPENDENCY 유지) · Backend FROZEN · Frontend Demo Freeze**) / 이전 2026-10-28 (**T-120 운영 콘솔(구조) DONE — Backend 변경 없음 · T-099 smoke 시도(공급자 503/504 · OpenAI 401, 결과만 기록) · AI failover(`eacab50`)**) / 이전 2026-10-28 (**Backend Core Logic Freeze 확정(사용자 승인) · T-129 연락처 수명주기 · 수동 선택 DONE(M34 · M35) · T-108 재조정 페이지 넘김 결함 수정(부분 DONE) · T-108~T-110 재평가 · T-108 ID 중복 정리(설정 통합 → T-130) — Backend 다시 FROZEN**) / 이전 2026-10-27 (**T-128 정정 · 취소 후속(`3143e62`, M33) · T-127 실행 중 등록부 등록(`6bd7416`) DONE — CERA final logic freeze 검토 대기**) / 이전 2026-10-27 (**운영 준비 — 연락처 BLOCKER 수정(`a9365dd`) · 새 설치 · 백업/복원 · 장애 복구 · LIVE 전체(실제 Gmail) 검증 끝. Backend 업무 로직 feature freeze. 후속 T-127 · T-128 · T-126**) / 이전 2026-10-27 (**T-123 실제 계획 입력 DONE — 시나리오 없이 운영자가 넣은 운영 기록 + Truth 로 같은 Cost Engine · Solver · 계획 · 승인 · 후속 초안 · 재계획. T-125 자동 추출 재시도 간격 DONE. Backend 업무 로직 feature freeze 판단은 사용자**) / 이전 2026-10-27 (**Final Stabilization — T-124 DONE(값을 못 얻은 회신: 사람 검토 · 추출 재시도 · 직접 입력), production 설정 방어 보강, 전체 회귀 · Docker E2E. Backend 핵심 기능 feature freeze — 이후 blocker · 보안 · 시연 깨짐만. 후속 T-125(자동 재시도 간격) · T-123 · T-099(상용 키 대기) · T-120 P2 UI(사용자)**) / 이전 2026-10-26 (**T-099 체크포인트: 전체 Docker 실행 · 로컬 모델 사다리(Qwen3-4B Local candidate) · Validator conformance 완료 — T-099 는 IN_PROGRESS, 다음은 상용(OpenAI · Gemini) live 평가 · 유지보수 후보 T-108~T-110 추가**) / 이전 2026-10-22 (**T-099 평가 기반 중간 checkpoint 커밋 · origin push(사용자 지시) — T-099 는 IN_PROGRESS 유지. 실제 상용 공급자 평가 대기 — blocker: 실제 API credentials. API 키 없이 T-093 등 큰 작업을 시작하지 않는다.**) 이전: 2026-10-22 (**T-105 DONE(사용자 승인 — 업무 fact state 와 Agent candidate_state 분리 유지). T-099 재개(IN_PROGRESS) — 실제 CERA Runtime 에 넣을 AI 선정. T-093 은 T-099 뒤.**) 이전: 2026-10-22 (**T-105 구현 · 검증 끝 — 사용자 검토 대기(커밋 전). 승인 → 발송 → 회신 → 추출 → 재평가 한 그래프 · 실제 프로세스 E2E(LIVE 공공데이터) · Agent 진행 화면. 시험 Backend 329 · Python 56 · Front 42.**) 이전: 2026-10-22 (**T-104 DONE — 사용자 승인 + durability 보강(재조정 · WAITING_RUNTIME · crash window 시험). 시험 Backend 328 · Python 53 · Front 39. T-105 IN_PROGRESS.**) 이전: 2026-10-22 (**T-104 구현 · 검증 끝 — 사용자 검토 대기(커밋 전).**) 이전: 2026-10-22 (**T-103 DONE — Agent Tool Layer(사용자 승인 · M16 · M17). 다음 T-104 LangGraph Runtime.**) 이전: 2026-10-22 (**T-102 DONE — live 검증(실제 DS-03 · DS-02 응답 확인, 차이 최소 수정: 비표준 시설 코드 · 신청구분 · 입항 신고 일시 = `ARRIVAL_DECLARED` · 데이터 없음 = `00` + 0건).**) 이전: 2026-10-22 (**T-100 DONE(`1c58f08` 설정 정리) · T-101 DONE(ADR-036 Accepted — Agent Runtime 설계) · T-102~T-107 등록 · T-005/T-006 DEPRECATED(→ T-106/T-102) · T-099 재배치(T-105 뒤) · T-102 IN_PROGRESS.**) 이전: 2026-10-07 (**T-092 DONE — U7 회신 추출 파이프라인(Python AI Server · 녹화 재생 · 결정론 검증기) · DB 변경 없음 · 시험 266 + Python 7 + 프론트 39. 다음: T-099(실제 AI 공급자 검증 + CERA 평가셋) → 그 뒤 T-093. 시작하지 않음.**) 이전: 2026-10-07 (**T-091 DONE — U6 수신 · 원문 보존 · 스레드 연결 · 발신자 판정 · 보류함 · DB 변경 없음 · 시험 247 + 프론트 37. 다음: T-092(U7 추출), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-090 DONE — U5 Outbox · Mock 발송 · 멱등 · 화해 · M13 · 시험 232 + 프론트 34. 다음: T-091(U6 수신), 시작하지 않음. T-098 은 큐에 유지.**) 이전: 2026-10-07 (**T-089 DONE — U4 발송 승인 · 반려 · 승인 취소 · 무효화 · M12 · 시험 211 + 프론트 27. 다음: T-090(U5), 시작하지 않음.**) 이전: 2026-10-06 (**T-088 DONE — U3 문의 초안 · 구조화 값 · 숫자 검사 · 첫 화면 연결 · DB 변경 없음 · 시험 184 + 프론트 20. 다음: T-089(U4), 시작하지 않음.**) 이전: 2026-10-06 (**T-087 DONE — U2 등록부 · Contact Gate · 개발 안전장치 · M11 · 첫 업무 endpoint 2개 · 시험 156 + 프론트 17. 다음: T-088(U3), 시작하지 않음.**) 이전: 2026-10-06 (**T-086 DONE — U1 영속 기반. 최종 안전성 검토로 3건 수정(`actor_type` 불변 · 계획 기반 승인 = 한 실행 · `system_error` 기록 실패 격리) · 시험 135 통과 · 커밋. 다음: T-087(U2) — 실행 가능, 시작하지 않음.**) 이전: 2026-10-02 (T-086 구현·검증 완료, 검토 대기) 이전: 2026-09-23 (**T-085 DONE — U0 Backend 뼈대. `back/` NestJS + PostgreSQL/Drizzle · `infra/local/` · 시험 61 통과 · 최종 검토 뒤 커밋. 다음: U1(T-086) — 실행 가능.**) 이전: 2026-09-22 (**T-080 DONE**)
 - 프로토콜: `AGENTS.md` 3절
 - 백로그 원천: `docs/12_roadmap.md`
 - 역할 구분: **QUEUE = 예정 작업** · `CURRENT.md` = 지금 진행 중인 작업 하나의 인계 · `LOG.md` = 끝난 작업. 작업을 시작하면 CURRENT에 Task Brief를 채우고, 끝나면 CURRENT → LOG로 옮긴 뒤 CURRENT를 다음 Task 또는 `IDLE`로 둔다(`docs/17_ai-development-workflow.md` 6절)
 
 ## 다음 추천 태스크
+
+**(2026-10-29 — Backend 마감 · FROZEN)** T-137(회신 메일 입항 주장 → 교차 확인) · T-143(LIVE 확인) DONE. **이후 Backend 신규 기능 개발은 중단**(사용자 지시) — T-138~T-142 는 P2 로만 남는다. **다음 우선 작업 = T-144 가상 물류기업 Hybrid Live E2E**(등록만, 시작 안 함). 배포 T-134 는 배포 대상 노트북.
 
 **(2026-10-29 — T-136 DONE · Backend 다시 FROZEN)** 다음은 그대로 **T-134**(배포 대상 노트북에서). T-136 후속 T-137~T-143 은 모두 P2 · 새 기능이라 freeze 예외가 아니다 — 사용자가 순서를 정한다. 가장 업무 영향이 큰 것: T-138(그룹 단위 영향 범위 — State B 추천안 +155,000원 원인) · T-137(회신 메일의 입항 주장 추출 — 교차 확인 PARTIAL 해소) · T-141(Detention · 대기 요율 — NOT_PRICED 해소).
 
@@ -105,6 +107,21 @@
 - **T-099** 실제 AI 공급자 검증 + CERA Eval — **MODEL_EVAL_CONTINUOUS**(연속 평가, 사용자 지시 2026-10-26; 상태 칸은 IN_PROGRESS 유지). 평가 인프라 · 141건 데이터셋 · LocalProvider · 로컬 사다리 · Validator conformance 는 끝. **MVP 임시 기본값 = 로컬 Qwen3-4B-Instruct-2507 Q4_K_M**(API 비용 0 · 현재 하드웨어에서 동작 · 교체 가능 · 결정론 검증이 보호) — **최종 Production 선정은 Deferred**. 상용(OpenAI · Gemini · Anthropic · Jev) 평가는 이번 순서에서 하지 않으며 키를 요구하지 않는다(필요할 때 같은 Eval 로 다시). ADR-037: 구조 한정 Accepted · 선정 Deferred. 파인튜닝은 사람 보정 데이터가 쌓인 뒤 검토. 상세 `CURRENT.md`
 
 ## 대기 — P0
+
+### T-144: 가상 물류기업 1개 기반 Hybrid Live E2E 검증
+- 상태: TODO | 우선: P0 | 단계: Phase 1 | 담당: - | 등록: 2026-10-29(사용자 지시 — T-137 · T-143 마감 뒤 다음 우선 작업. **이번 세션에서 시작하지 않음**)
+- 의존: T-137 · T-143(DONE). 배포와 별개(T-134 는 배포 대상 노트북)
+- 참조 문서: `docs/24` 18.29 · 18.30 · ADR-042 · `infra/staging/README.md`
+- 목표: 실제 고객사의 민감 데이터 없이 실제 서비스 환경에 가장 가까운 CERA 를 검증한다 — **가상 물류기업 내부 데이터 + 실제 Port-MIS 공공데이터 + 실제 Gmail + 실제 Gemini + 실제 CERA Backend · Worker · Truth · Cost · Risk · HiGHS = Hybrid Live E2E**
+- 가상 기업 최소 구성: 기업 · 수입 컨테이너 · 선박(실제 입항 신고와 연결) · 창고 · ODCY · 운송사 · 트럭 · 담당자 · 계약 요율 · 운영 계획
+- 원칙: 가상 기업 · 창고 · 운송사 이름을 업무 로직에 **하드코딩 금지**. 기업별 데이터는 DB · Seed · Config · Adapter Input 으로만 넣고, Truth · Exception · Agent · Cost/Risk · Solver · Plan 은 특정 기업을 몰라도 동작해야 한다
+- 작업 내용(안): 가상 기업 데이터 팩(Seed · Config) · 실제 메일 왕복(업체 회신 = 실제 Gmail, 선박 입항 주장 포함) · 실제 Port-MIS 교차 확인 · 실제 LLM 추출 · 예외 → 복구 실행 → Agent → 승인 → 회신 → Truth → Cost/Risk → HiGHS → 계획 → 사람 승인. secret 출력 금지
+- 완료 조건:
+  - [ ] 가상 기업 1개로 위 Hybrid Live 흐름 1회 왕복(실제 Gmail · Port-MIS · Gemini) 기록
+  - [ ] 업무 로직에 기업 고유 이름 · id 하드코딩 없음(검색으로 확인)
+  - [ ] **후속 완료 조건**: 두 번째 작은 기업 Fixture 를 넣어 **Backend 코드 변경 없이 데이터만 바꿔도** 같은 흐름이 동작하는지 확인
+  - [ ] 영향받은 docs 갱신
+- 완료 후 큐잉 힌트: 드러난 데이터 계약 공백(T-126 커넥터 입력 계약 후보) · T-142 정책값 검토 재료
 
 ### T-134: 1차 실서버 배포 검증 (demo · private staging)
 - 상태: TODO — **배포 대상 노트북에서 재개**(2026-10-29 사용자 지시: 이 PC 에서는 Cloudflare · Tunnel credential · DNS · Docker 배포를 하지 않는다) | 우선: P0 | 단계: Deployment | 담당: -
@@ -466,13 +483,7 @@
 
 > **T-136 후속 (2026-10-29)** — Backend FROZEN 이라 모두 사용자 결정 뒤에 한다. 상세 근거 `docs/24` 18.29 · ADR-042.
 
-### T-137: 업체 회신 메일에서 입항 일시 주장 추출
-- 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
-- 의존: T-136
-- 참조 문서: `docs/24` 18.29 · ADR-042 · `docs/19`
-- 목표: 교차 확인의 업체 주장이 지금은 사람이 전달한 진술(`POST /truth/claims/partner-statement`)뿐이다. 선사 · 터미널 회신에서 입항 일시를 후보로 추출해 같은 교차 확인을 탄다
-- 작업 내용: 문의 의도 · AI 추출 필드(입항 일시 + 원문 인용) · 결정론 검증기 · 승격 → EMAIL 사건 → `corroboration/1`
-- 완료 조건: [ ] 메일 회신 → MATCH · CONFLICT 시험 [ ] LLM 은 후보만(일치 판정 · 확정 없음) [ ] docs 갱신
+- ~~T-137~~ → **DONE**(아래 완료 섹션)
 
 ### T-138: 그룹 단위 예외 영향 범위
 - 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
@@ -504,11 +515,7 @@
 - 목표: `ARRIVAL_TOLERANCE_MINUTES = 60` · `verification_risk_penalty_krw = 30,000` · 신선도 `vessel_arrival` 24h/72h 는 [ASSUMPTION] 이다. 운영자 · 현업이 값을 정한다(바꾸면 규칙 판 · 정책 판을 올린다)
 - 완료 조건: [ ] 사람이 정한 값과 근거 [ ] 판 올림 · 시험
 
-### T-143: LIVE 실행의 입항 공백 → 공공데이터 조회 E2E
-- 상태: TODO | 우선: P2 | 단계: Phase 1 | 담당: -
-- 의존: T-136
-- 목표: 입항 공백(`VESSEL_ARRIVAL`)은 시뮬레이션이 아닌 입항 신고에만 생긴다. 녹화 재생 fixture 는 시뮬레이션이라 DB 시험이 없다(Python 단위 시험만). 실제 키(`DATA_GO_KR_SERVICE_KEY`)로 LIVE 실행 → Agent 공공 조회 → 공백 닫힘을 확인한다
-- 완료 조건: [ ] LIVE E2E 기록(키 값 출력 없음) [ ] 결과 docs 반영
+- ~~T-143~~ → **DONE**(아래 완료 섹션)
 
 > **T-099 점검에서 나온 유지보수 후보 (2026-10-26)** — 근거 위치를 오케스트레이터가 직접 대조한 것만 올렸다(하위 에이전트 보고 중 "모듈 순환 없음"은 **틀렸다**: `persistence` ↔ `content` 순환이 있다). 지금 feature 작업을 멈추고 하지 않는다. 사용자가 순서를 정한다.
 
@@ -762,6 +769,13 @@
 - 완료 후 큐잉 힌트: 신선도 정책 값 확정.
 
 ## 완료
+
+### T-137 · T-143 — 업체 회신 메일의 입항 주장 → 공공 근거 교차 확인 · LIVE 확인 · **DONE (2026-10-29, 사용자 지시 — Backend 마감)**
+
+- 담당: Claude Code (claude-opus-5-5) / 2026-10-29 · DB 변경 없음 · ADR-042 결과 갱신 · `docs/24` 18.30
+- 회신이 등록된 배(호출부호 · 선박명)를 말하면 Backend 가 그 배의 입항 일시 질문(`ARRIVAL_DATETIME`, ask `v:<id>`)을 붙인다 → AI 후보 + 인용 → 결정론 검증(`IDENTIFIER_IN_SOURCE` 추가) → 회신 날짜 기준 시각(풀 수 없으면 사람) → 업체 주장 사건(EMAIL · 권한 W) → 즉시 교차 확인 → Truth → 사람이 판단하지 않은 충돌 = `GET /truth/corroborations/open-conflicts` → 운영 콘솔 할 일 "업체 회신과 공공 기록이 서로 다릅니다"
+- 검증: Backend 전체 67 파일 649(처음부터 다시 실행 · 전부 통과) · Python 102 · Front 18 파일 136 · typecheck · lint 오류 0 · build · T-143 LIVE 1회(실제 Port-MIS 267건 → 공백 닫힘 · MATCH 15분 · CONFLICT 600분 · NEEDS_REVIEW · 할 일 1, 키 값 출력 없음 · 시험 파일 커밋 안 함)
+- 한계: 날짜 없는 시각("오후 3시로 지연")은 자동 해석하지 않는다(사람). 시각 없는 말("아직 입항 전")은 비교 값이 아니다. Mock 회신은 녹화 재생 관측과만 비교(실제 ↔ 시뮬레이션 분리)
 
 ### T-136 — 실행 결함 10건 · 공공 근거 교차 확인 · 예외 영향 범위 · **DONE (2026-10-29, 사용자 지시 — 이 작업만 Backend 동결 해제)**
 
