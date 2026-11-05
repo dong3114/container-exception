@@ -172,7 +172,7 @@ services:
       dockerfile: front/web/Dockerfile
     image: cera-web:portfolio
     <<: *restart
-    networks: [internal, edge]
+    networks: [internal, edge, public-edge]
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./security-headers.inc:/etc/nginx/conf.d/security-headers.inc:ro
@@ -184,6 +184,7 @@ services:
   # HTTPS 종단(Let's Encrypt 자동 발급 · 갱신). 인터넷에 열리는 유일한 컨테이너
   caddy:
     image: caddy:2.8.4
+    profiles: [direct]
     <<: *restart
     networks: [edge]
     ports:
@@ -191,7 +192,7 @@ services:
       - "${CERA_HTTPS_PORT:-443}:443"
     environment:
       CERA_DOMAIN: ${CERA_DOMAIN:?set CERA_DOMAIN (e.g. cera.example.com)}
-      CERA_ACME_EMAIL: ${CERA_ACME_EMAIL:?set CERA_ACME_EMAIL (certificate expiry notices)}
+      CERA_ACME_EMAIL: ${CERA_ACME_EMAIL:-}
       CERA_HSTS_MAX_AGE: ${CERA_HSTS_MAX_AGE:-31536000}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -207,6 +208,10 @@ networks:
   internal:
     internal: true
   edge: {}
+  # Joined by the shared Cloudflare connector. Only the web frontend is attached.
+  public-edge:
+    name: acc-cloudflare-edge
+    external: true
 
 volumes:
   pgdata:
